@@ -6,10 +6,21 @@
 
 namespace hadron {
 
-TEST_CASE("Lexer base cases") {
-    std::vector<Lexer::Token> tokens;
+TEST_CASE("Lexer Base Cases") {
     SUBCASE("empty string") {
-        CHECK(Lexer::Lex("", tokens) == true);
+        Lexer lexer("");
+        CHECK(lexer.lex());
+        CHECK(lexer.tokens().size() == 0);
+    }
+}
+
+TEST_CASE("Lexer Integers") {
+    SUBCASE("simple integers") {
+        Lexer lexer("0");
+        CHECK(lexer.lex());
+        CHECK(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].start == 0);
+        CHECK(lexer.tokens()[0].length == 1);
     }
 }
 

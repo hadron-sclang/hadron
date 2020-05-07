@@ -41,17 +41,24 @@ public:
             kBinOp,
             kUMinus
         };
-        
+
         Type type;
-        
+
         /*! Start position of the token. Offset in bytes from the start of the string. */
         size_t start;
-        
+
         /*! Length of the token in bytes. */
         size_t length;
     };
 
-    static bool Lex(std::string_view code, std::vector<Token>& tokens);
+    Lexer(std::string_view code);
+    bool lex();
+
+    const std::vector<Token>& tokens() { return m_tokens; }
+
+private:
+    std::string_view m_code;
+    std::vector<Token> m_tokens;
 };
 
 }
