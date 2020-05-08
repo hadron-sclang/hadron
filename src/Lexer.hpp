@@ -1,7 +1,6 @@
 #ifndef SRC_LEXER_HPP_
 #define SRC_LEXER_HPP_
 
-#include <string_view>
 #include <vector>
 
 namespace hadron {
@@ -44,20 +43,33 @@ public:
 
         Type type;
 
-        /*! Start position of the token. Offset in bytes from the start of the string. */
-        size_t start;
+        /*! Start position of the token. */
+        const char* start;
 
         /*! Length of the token in bytes. */
         size_t length;
+        
+        union Value {
+            Value(): integer(0) {}
+            Value(int64_t v): integer(v) {}
+            Value(double v): floatingPoint(v) {}
+            
+            int64_t integer;
+            double floatingPoint;
+        };
+        Value value;
+        
+        /*! Makes a kInteger token */
+        Token(const char* s, size_t l, int64_t intValue): type(kInteger), start(s), length(l), value(intValue) {}
     };
 
-    Lexer(std::string_view code);
+    Lexer(const char* code);
     bool lex();
 
     const std::vector<Token>& tokens() { return m_tokens; }
 
 private:
-    std::string_view m_code;
+    const char* m_code;
     std::vector<Token> m_tokens;
 };
 

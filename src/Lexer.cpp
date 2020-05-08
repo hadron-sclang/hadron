@@ -1,5 +1,7 @@
 #include "Lexer.hpp"
 
+#include <cstdlib>
+
 // Design following https://nothings.org/computer/lexing.html
 
 namespace {
@@ -8,68 +10,78 @@ namespace {
     // case that will require exceptional processing (radix numbers) or things are clear what we're parsing (floats)
 enum State : uint8_t {
     // non-final states
-    kInitialZero = 0,
-    kNumber = 1,  // can still have radix or decimal TODO: can do flats/sharps as a separate token?
+    kBeginToken = 0,
+    kInitialZero = 1,
+    kNumber = 2,  // can still have radix or decimal TODO: can do flats/sharps as a separate token?
 
-    kFirstFinalState = 2,
+    kFirstFinalState = 3,
 
     // final states
-    kInteger = 2,
-    kHexInteger = 3, // done, this can only be an integer
-    kFloat = 4, // done, we have enough to delegate to strtod
-    kRadix = 5,  // can have decimal but all bets on speed are off.
-    kLoneZero = 6,
+    kInteger = 3,
+    kHexInteger = 4, // done, this can only be an integer
+    kFloat = 5, // done, we have enough to delegate to strtod
+    kRadix = 6,  // can have decimal but all bets on speed are off.
+    kLoneZero = 7,
 
-    kLexError = 7,
+    kLexError = 8,
+    kEndCode = 9
 };
 
 // TODO: premultiply
-enum Class : uint8_t {
+enum CharacterClass : uint8_t {
     kWhitespace = 0,  // space, tab
-    kNewline = 2,     // \n
-    kReturn = 4,      // \r
-    kZero = 6,       // 0
-    kDigit = 8,      // 1-9
-    kPeriod = 10,     // .
-    kEndOfInput = 12  // EOF, \0
-    kInvalid = 14,    // unsupported character
+    kNewline = 3,     // \n
+    kReturn = 6,      // \r
+    kZero = 9,        // 0
+    kDigit = 12,      // 1-9
+    kPeriod = 15,     // .
+    kEndOfInput = 18, // EOF, \0
+    kInvalid = 21,    // unsupported character
 };
 
 const State kStateTransitionTable[] = {
-    // **** Class = kWhitespace
+    // **** CharacterClass = kWhitespace
+    /* kBeginToken  => */ kBeginToken,
     /* kInitialZero => */ kLoneZero,
     /* kNumber      => */ kInteger,
 
     // Class = kNewline
+    /* kBeginToken  => */ kBeginToken,
     /* kInitialZero => */ kLoneZero,
     /* kNumber      => */ kInteger,
 
     // Class = kReturn
+    /* kBeginToken  => */ kBeginToken,
     /* kInitialZero => */ kLoneZero,
     /* kNumber      => */ kInteger,
 
     // Class = kZero
+    /* kBeginToken  => */ kInitialZero,
     /* kInitialZero => */ kInitialZero,  // many leading zeros treated as a single leading zero in sclang
     /* kNumber      => */ kNumber,
 
     // Class = kDigit
+    /* kBeginToken  => */ kNumber,
     /* kInitialZero => */ kNumber,
     /* kNumber      => */ kNumber,
 
     // Class = kPeriod
+    /* kBeginToken  => */ kLexError,
     /* kInitialZero => */ kFloat,
     /* kNumber      => */ kFloat,
 
     // Class = kEndOfInput
+    /* kBeginToken  => */ kEndCode,
     /* kInitialZero => */ kLoneZero,
     /* kNumber      => */ kInteger,
 
     // Class = kInvalid
+    /* kBeginToken  => */ kEndCode,
     /* kInitialZero => */ kLexError,
-    /* kNumber      => */ kLexError,
+    /* kNumber      => */ kLexError
 };
 
-const uint8_t kCharacterClasses[256] = {
+const CharacterClass kCharacterClasses[256] = {
     kEndOfInput /*   0 \0  */, kInvalid    /*   1 SOH */, kInvalid /*   2 STX */, kInvalid /*   3 ETX */,
     kInvalid    /*   4 EOT */, kEndOfInput /*   5 EOF */, kInvalid /*   6 ACK */, kInvalid /*   7 BEL */,
     kInvalid    /*   8 BS  */, kWhitespace /*   9 \t  */, kNewline /*  10 \n  */, kInvalid /*  11 VT  */,
@@ -136,14 +148,68 @@ const uint8_t kCharacterClasses[256] = {
     kInvalid    /* 252     */, kInvalid    /* 253     */, kInvalid /* 254     */, kInvalid /* 255     */,
 };
 
+int8_t kStateLengths[] = {
+    0, // kBeginToken
+    1, // kInitialZero
+    1, // kNumber
+    0, // kInteger
+    0, // kHexInteger
+    0, // kFloat
+    0, // kRadix
+    0, // kLoneZero
+    0, // kLexError
+    0, // kEndCode
+};
+
 }
 
 namespace hadron {
 
-Lexer::Lexer(std::string_view code): m_code(code) {}
+Lexer::Lexer(const char* code): m_code(code) {}
 
 bool Lexer::lex() {
+    const char* code = m_code;
+    bool lexContinues = true;
+    State state;
+    while (lexContinues) {
+        int tokenLength = 0;
+        state = kBeginToken;
+        do {
+            int character = static_cast<int>(*code++);
+            int characterClass = static_cast<int>(kCharacterClasses[character]);
+            state = kStateTransitionTable[characterClass + state];
+            tokenLength += kStateLengths[state];
+        } while (state < State::kFirstFinalState);
 
+        char* tokenEnd = nullptr;
+        const char* tokenStart;
+        switch(state) {
+            case kInteger: {
+                tokenStart = code - tokenLength - 1;
+                int64_t intValue = std::strtoll(tokenStart, &tokenEnd, 10);
+                if (tokenStart < tokenEnd) {
+                    m_tokens.emplace_back(Token(tokenStart, tokenEnd - tokenStart, intValue));
+                } else {
+                    lexContinues = false;
+                }
+            } break;
+                
+            case kHexInteger:
+            case kFloat:
+            case kRadix:
+            case kLoneZero:
+                tokenStart = code - tokenLength - 1;
+                m_tokens.emplace_back(Token(tokenStart, tokenLength, 0LL));
+                break;
+            
+            case kLexError:
+            case kEndCode:
+                lexContinues = false;
+                break;
+        }
+    }
+
+    return state == kEndCode;
 /*
 int token_len = 0;
    do {
@@ -158,8 +224,6 @@ int token_len = 0;
       ...
    }
 */
-
-   return true;
 }
 
 }
