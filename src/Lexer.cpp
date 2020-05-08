@@ -191,6 +191,7 @@ bool Lexer::lex() {
         const char* tokenStart;
         switch(state) {
             case kInteger: {
+                // Exit state machine pointing just past the end of the integer.
                 tokenStart = code - tokenLength - 1;
                 int64_t intValue = std::strtoll(tokenStart, &tokenEnd, 10);
                 if (tokenStart < tokenEnd) {
@@ -201,6 +202,7 @@ bool Lexer::lex() {
             } break;
 
             case kHexInteger: {
+                // Exit state machine pointing just past the "0x"
                 tokenStart = code - tokenLength - 1;
                 int64_t intValue = std::strtoll(code, &tokenEnd, 16);
                 if (code < tokenEnd) {
@@ -213,6 +215,7 @@ bool Lexer::lex() {
 
             case kFloat:
             case kRadix:
+
             case kLoneZero:
                 tokenStart = code - tokenLength - 1;
                 m_tokens.emplace_back(Token(tokenStart, tokenLength, 0LL));
