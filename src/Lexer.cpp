@@ -35,8 +35,9 @@ enum CharacterClass : uint8_t {
     kZero = 9,        // 0
     kDigit = 12,      // 1-9
     kPeriod = 15,     // .
-    kEndOfInput = 18, // EOF, \0
-    kInvalid = 21,    // unsupported character
+    kLowerX = 18,     // x possibly for hexadecimal
+    kEndOfInput = 21, // EOF, \0
+    kInvalid = 24,    // unsupported character
 };
 
 const State kStateTransitionTable[] = {
@@ -69,6 +70,11 @@ const State kStateTransitionTable[] = {
     /* kBeginToken  => */ kLexError,
     /* kInitialZero => */ kFloat,
     /* kNumber      => */ kFloat,
+
+    // Class = kLowerX
+    /* kBeginToken  => */ kLexError,
+    /* kInitialZero => */ kHexInteger,
+    /* kNumber      => */ kLexError,
 
     // Class = kEndOfInput
     /* kBeginToken  => */ kEndCode,
@@ -112,7 +118,7 @@ const CharacterClass kCharacterClasses[256] = {
     kInvalid    /* 108 l   */, kInvalid    /* 109 m   */, kInvalid /* 110 n   */, kInvalid /* 111 o   */,
     kInvalid    /* 112 p   */, kInvalid    /* 113 q   */, kInvalid /* 114 r   */, kInvalid /* 115 s   */,
     kInvalid    /* 116 t   */, kInvalid    /* 117 u   */, kInvalid /* 118 v   */, kInvalid /* 119 w   */,
-    kInvalid    /* 120 x   */, kInvalid    /* 121 y   */, kInvalid /* 122 z   */, kInvalid /* 123 {   */,
+    kLowerX     /* 120 x   */, kInvalid    /* 121 y   */, kInvalid /* 122 z   */, kInvalid /* 123 {   */,
     kInvalid    /* 124 |   */, kInvalid    /* 125 }   */, kInvalid /* 126 ~   */, kInvalid /* 127 DEL */,
     kInvalid    /* 128     */, kInvalid    /* 129     */, kInvalid /* 130     */, kInvalid /* 131     */,
     kInvalid    /* 132     */, kInvalid    /* 133     */, kInvalid /* 134     */, kInvalid /* 135     */,
@@ -193,15 +199,25 @@ bool Lexer::lex() {
                     lexContinues = false;
                 }
             } break;
-                
-            case kHexInteger:
+
+            case kHexInteger: {
+                tokenStart = code - tokenLength - 1;
+                int64_t intValue = std::strtoll(code, &tokenEnd, 16);
+                if (code < tokenEnd) {
+                    m_tokens.emplace_back(Token(tokenStart, tokenEnd - tokenStart, intValue));
+                    code = tokenEnd + 1;
+                } else {
+                    lexContinues = false;
+                }
+            } break;
+
             case kFloat:
             case kRadix:
             case kLoneZero:
                 tokenStart = code - tokenLength - 1;
                 m_tokens.emplace_back(Token(tokenStart, tokenLength, 0LL));
                 break;
-            
+
             case kLexError:
             case kEndCode:
                 lexContinues = false;
@@ -210,20 +226,6 @@ bool Lexer::lex() {
     }
 
     return state == kEndCode;
-/*
-int token_len = 0;
-   do {
-      int ch     = *p_src++;
-      int eq_cls = equivalence_class[ch];
-      state      = transition[state][eq_cls];
-      token_len += in_token[state];
-   } while (state > LAST_FINAL_STATE);
-
-   p_token_start = p_src - token_len;
-   switch (token_for_state[state]) {
-      ...
-   }
-*/
 }
 
 }

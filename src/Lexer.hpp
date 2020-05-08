@@ -1,6 +1,7 @@
 #ifndef SRC_LEXER_HPP_
 #define SRC_LEXER_HPP_
 
+#include <stdint.h>
 #include <vector>
 
 namespace hadron {
@@ -9,36 +10,36 @@ class Lexer {
 public:
     struct Token {
         enum Type {
-            kName,
+            // kName,
             kInteger,
-            kFloat,   // SC_FLOAT
-            kAccidental,
-            kSymbol,
-            kString,
-            kCharacter,  // ASCII
-            kPrimitiveName,
-            kClassName,
-            kCurryArg,
-            kVar,  // VAR
-            kClassVar,
-            kConst, // SC_CONST
-            kNil, // NILOBJ
-            kTrue,  // TRUEOBJ
-            kFalse, // FALSEOBJ
-            kPseudoVar,
-            kEllipsis,
-            kDotDot, // ??
-            kPie, // ??
-            kBeginClosedFunc,
-            kBadToken,
-            kInterpret,
-            kBeginGenerator,
-            kLeftArrow,
-            kWhile,
-            kReadWriteVar,
-            kKeyBinOp,
-            kBinOp,
-            kUMinus
+            kFloat,
+            // kAccidental,
+            // kSymbol,
+            // kString,
+            // kCharacter,  // ASCII
+            // kPrimitiveName,
+            // kClassName,
+            // kCurryArg,
+            // kVar,  // VAR
+            // kClassVar,
+            // kConst, // SC_CONST
+            // kNil, // NILOBJ
+            // kTrue,  // TRUEOBJ
+            // kFalse, // FALSEOBJ
+            // kPseudoVar,
+            // kEllipsis,
+            // kDotDot, // ??
+            // kPie, // ??
+            // kBeginClosedFunc,
+            // kBadToken,
+            // kInterpret,
+            // kBeginGenerator,
+            // kLeftArrow,
+            // kWhile,
+            // kReadWriteVar,
+            // kKeyBinOp,
+            // kBinOp,
+            // kUMinus
         };
 
         Type type;
@@ -48,17 +49,17 @@ public:
 
         /*! Length of the token in bytes. */
         size_t length;
-        
+
         union Value {
             Value(): integer(0) {}
             Value(int64_t v): integer(v) {}
             Value(double v): floatingPoint(v) {}
-            
+
             int64_t integer;
             double floatingPoint;
         };
         Value value;
-        
+
         /*! Makes a kInteger token */
         Token(const char* s, size_t l, int64_t intValue): type(kInteger), start(s), length(l), value(intValue) {}
     };
