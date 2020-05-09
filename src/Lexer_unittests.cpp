@@ -153,6 +153,36 @@ TEST_CASE("Lexer Hexadecimal Integers") {
         CHECK(lexer.tokens()[0].length == 3);
         CHECK(lexer.tokens()[0].value.integer == 10);
     }
+    SUBCASE("single digit numeric") {
+        const char* code = "0x2";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 3);
+        CHECK(lexer.tokens()[0].value.integer == 2);
+    }
+    SUBCASE("multi-digit upper") {
+        const char* code = "0xAAE724F";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 9);
+        CHECK(lexer.tokens()[0].value.integer == 0xAAE724F);
+    }
+    SUBCASE("multi-digit lower") {
+        const char* code = "0x42deadbeef42";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 9);
+        CHECK(lexer.tokens()[0].value.integer == 0x42deadbeef42);
+    }
 }
 
 } // namespace hadron
