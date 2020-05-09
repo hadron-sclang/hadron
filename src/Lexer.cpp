@@ -10,175 +10,226 @@ namespace {
     // case that will require exceptional processing (radix numbers) or things are clear what we're parsing (floats)
 enum State : uint8_t {
     // non-final states
-    kBeginToken = 0,
-    kInitialZero = 1,
-    kNumber = 2,  // can still have radix or decimal TODO: can do flats/sharps as a separate token?
-    kPlus = 3,   // could either be addition or spaceless string concatenation
-    kAsterisk = 4, // either multiplication or exponentiation
-    kForwardSlash = 5,  // either division or a comment
+    sBeginToken = 0,
+    sLeadZero = 1,
+    sNumber = 2,  // can still have radix or decimal TODO: can do flats/sharps as a separate token?
+    sPlus = 3,   // could either be addition or spaceless string concatenation
+    sAsterisk = 4, // either multiplication or exponentiation
+    sForwardSlash = 5,  // either division or a comment
 
+    // Not a state, but rather an indicator of what the lowest value of a final state is in the table. Useful to both
+    // quickly determine if current state is final or not, and also as the multiplier for CharacterClass enums, because
+    // only the non-final states have to be in the state transition table.
     kFirstFinalState = 6,
 
     // final states
-    kInteger = 6,
-    kHexInteger = 7, // done, this can only be an integer
-    kFloat = 8, // done, we have enough to delegate to strtod
-    kRadix = 9,  // can have decimal but all bets on speed are off.
-    kLoneZero = 10,
-    kAdd = 11,
-    kConcatenate = 12, // ++
-    kSubtract = 13,
-    kMultiply = 14,
-    kExponentiate = 15,
-    kModulo = 16,
+    sInteger = 6,
+    sHexInteger = 7, // done, this can only be an integer
+    sFloat = 8, // done, we have enough to delegate to strtod
+    sRadix = 9,  // can have decimal but all bets on speed are off.
+    sZero = 10,
+    sAdd = 11,
+    sStringCat = 12, // ++
+    sPathCat = 13,   // +/+
+    sSubtract = 14,
+    sMultiply = 15,
+    sExponentiate = 16,
+    sDivide = 17,
+    sModulo = 18,
 
-    kLexError = 17,
-    kEndCode = 18
+    sLexError = 19,
+    sEndCode = 20,
 };
 
-// TODO: premultiply
+constexpr uint8_t kNumStates = State::sEndCode + 1;
+
 enum CharacterClass : uint8_t {
-    kWhitespace = 0 * State::kFirstFinalState,  // space, tab
-    kNewline = 1 * State::kFirstFinalState,     // \n
-    kReturn = 2 * State::kFirstFinalState,      // \r
-    kZero = 3 * State::kFirstFinalState,        // 0
-    kDigit = 4 * State::kFirstFinalState,       // 1-9
-    kPeriod = 5 * State::kFirstFinalState,      // .
-    kLowerX = 6 * State::kFirstFinalState,      // x possibly for hexadecimal
-    kEndOfInput = 7 * State::kFirstFinalState,  // EOF, \0
-    kInvalid = 8 * State::kFirstFinalState,     // unsupported character
+    cSpace = 0 * State::kFirstFinalState,   // space, tab
+    cNewline = 1 * State::kFirstFinalState, // \n, \r
+    cZero = 2 * State::kFirstFinalState,    // 0
+    cDigit = 3 * State::kFirstFinalState,   // 1-9
+    cPeriod = 4 * State::kFirstFinalState,  // .
+    cx = 5 * State::kFirstFinalState,       // a lower-case x, possibly for hexadecimal
+    cPlus = 6 * State::kFirstFinalState,    // +
+    cHyphen = 7 * State::kFirstFinalState,  //
+    cEnd = 8 * State::kFirstFinalState,     // EOF, \0
+    cInvalid = 9 * State::kFirstFinalState, // unsupported character
 };
 
 const State kStateTransitionTable[] = {
-    // **** CharacterClass = kWhitespace
-    /* kBeginToken  => */ kBeginToken,
-    /* kInitialZero => */ kLoneZero,
-    /* kNumber      => */ kInteger,
+    // **** CharacterClass = cSpace
+    /* sBeginToken   => */ sBeginToken,
+    /* sLeadZero     => */ sZero,
+    /* sNumber       => */ sInteger,
+    /* sPlus         => */ sAdd,
+    /* sAsterisk     => */ sMultiply,
+    /* sForwardSlash => */ sDivide,
 
-    // Class = kNewline
-    /* kBeginToken  => */ kBeginToken,
-    /* kInitialZero => */ kLoneZero,
-    /* kNumber      => */ kInteger,
+    // Class = cNewline
+    /* sBeginToken   => */ sBeginToken,
+    /* sLeadZero     => */ sZero,
+    /* sNumber       => */ sInteger,
+    /* sPlus         => */ sAdd,
+    /* sAsterisk     => */ sMultiply,
+    /* sForwardSlash => */ sDivide,
 
-    // Class = kReturn
-    /* kBeginToken  => */ kBeginToken,
-    /* kInitialZero => */ kLoneZero,
-    /* kNumber      => */ kInteger,
+    // Class = cZero
+    /* sBeginToken   => */ sLeadZero,
+    /* sLeadZero     => */ sLeadZero,  // many leading zeros treated as a single leading zero in sclang
+    /* sNumber       => */ sNumber,
+    /* sPlus         => */ sAdd,
+    /* sAsterisk     => */ sLeadZero,
+    /* sForwardSlash => */ sLeadZero,
 
-    // Class = kZero
-    /* kBeginToken  => */ kInitialZero,
-    /* kInitialZero => */ kInitialZero,  // many leading zeros treated as a single leading zero in sclang
-    /* kNumber      => */ kNumber,
+    // Class = cDigit
+    /* sBeginToken   => */ sNumber,
+    /* sLeadZero     => */ sNumber,
+    /* sNumber       => */ sNumber,
+    /* sPlus         => */ sAdd,
+    /* sAsterisk     => */ sMultiply,
+    /* sForwardSlash => */ sDivide,
 
-    // Class = kDigit
-    /* kBeginToken  => */ kNumber,
-    /* kInitialZero => */ kNumber,
-    /* kNumber      => */ kNumber,
+    // Class = cPeriod
+    /* sBeginToken   => */ sLexError,
+    /* sLeadZero     => */ sFloat,
+    /* sNumber       => */ sFloat,
+    /* sPlus         => */ sLexError,
+    /* sAsterisk     => */ sLexError,
+    /* sForwardSlash => */ sLexError,
 
-    // Class = kPeriod
-    /* kBeginToken  => */ kLexError,
-    /* kInitialZero => */ kFloat,
-    /* kNumber      => */ kFloat,
+    // Class = cx
+    /* sBeginToken   => */ sLexError,
+    /* sLeadZero     => */ sHexInteger,
+    /* sNumber       => */ sLexError,
+    /* sPlus         => */ sLexError,
+    /* sAsterisk     => */ sLexError,
+    /* sForwardSlash => */ sLexError,
 
-    // Class = kLowerX
-    /* kBeginToken  => */ kLexError,
-    /* kInitialZero => */ kHexInteger,
-    /* kNumber      => */ kLexError,
+    // Class = cPlus
+    /* sBeginToken   => */ sPlus,
+    /* sLeadZero     => */ sZero,
+    /* sNumber       => */ sInteger,
+    /* sPlus         => */ sStringCat,
+    /* sAsterisk     => */ sLexError,
+    /* sForwardSlash => */ sPathCat,
 
-    // Class = kEndOfInput
-    /* kBeginToken  => */ kEndCode,
-    /* kInitialZero => */ kLoneZero,
-    /* kNumber      => */ kInteger,
+    // Class = cHyphen
+    /* sBeginToken   => */ sSubtract,
+    /* sLeadZero     => */ sZero,
+    /* sNumber       => */ sInteger,
+    /* sPlus         => */ sLexError,
+    /* sAsterisk     => */ sLexError,
+    /* sForwardSlash => */ sLexError,
 
-    // Class = kInvalid
-    /* kBeginToken  => */ kEndCode,
-    /* kInitialZero => */ kLexError,
-    /* kNumber      => */ kLexError
+    // Class = cEnd
+    /* sBeginToken   => */ sEndCode,
+    /* sLeadZero     => */ sZero,
+    /* sNumber       => */ sInteger,
+    /* sPlus         => */ sAdd,
+    /* sAsterisk     => */ sLexError,
+    /* sForwardSlash => */ sLexError,
+
+    // Class = cInvalid
+    /* sBeginToken   => */ sEndCode,
+    /* sLeadZero     => */ sLexError,
+    /* sNumber       => */ sLexError,
+    /* sPlus         => */ sLexError,
+    /* sAsterisk     => */ sLexError,
+    /* sForwardSlash => */ sLexError
 };
 
 const CharacterClass kCharacterClasses[256] = {
-    kEndOfInput /*   0 \0  */, kInvalid    /*   1 SOH */, kInvalid /*   2 STX */, kInvalid /*   3 ETX */,
-    kInvalid    /*   4 EOT */, kEndOfInput /*   5 EOF */, kInvalid /*   6 ACK */, kInvalid /*   7 BEL */,
-    kInvalid    /*   8 BS  */, kWhitespace /*   9 \t  */, kNewline /*  10 \n  */, kInvalid /*  11 VT  */,
-    kInvalid    /*  12 FF  */, kReturn     /*  13 \r  */, kInvalid /*  14 SO  */, kInvalid /*  15 SI  */,
-    kInvalid    /*  16 DLE */, kInvalid    /*  17 DC1 */, kInvalid /*  18 DC2 */, kInvalid /*  19 DC3 */,
-    kInvalid    /*  20 DC4 */, kInvalid    /*  21 NAK */, kInvalid /*  22 SYN */, kInvalid /*  23 ETB */,
-    kInvalid    /*  24 CAN */, kInvalid    /*  25 EM  */, kInvalid /*  26 SUB */, kInvalid /*  27 ESC */,
-    kInvalid    /*  28 FS  */, kInvalid    /*  29 FS  */, kInvalid /*  30 RS  */, kInvalid /*  31 US  */,
-    kWhitespace /*  32 SPC */, kInvalid    /*  33 !   */, kInvalid /*  34 "   */, kInvalid /*  35 #   */,
-    kInvalid    /*  36 $   */, kInvalid    /*  37 %   */, kInvalid /*  38 &   */, kInvalid /*  39 '   */,
-    kInvalid    /*  40 (   */, kInvalid    /*  41 )   */, kInvalid /*  42 *   */, kInvalid /*  43 +   */,
-    kInvalid    /*  44 ,   */, kInvalid    /*  45 -   */, kInvalid /*  46 .   */, kInvalid /*  47 /   */,
-    kZero       /*  48 0   */, kDigit      /*  49 1   */, kDigit   /*  50 2   */, kDigit   /*  51 3   */,
-    kDigit      /*  52 4   */, kDigit      /*  53 5   */, kDigit   /*  54 6   */, kDigit   /*  55 7   */,
-    kDigit      /*  56 8   */, kDigit      /*  57 9   */, kInvalid /*  58 :   */, kInvalid /*  59 ;   */,
-    kInvalid    /*  60 <   */, kInvalid    /*  61 =   */, kInvalid /*  62 >   */, kInvalid /*  63 ?   */,
-    kInvalid    /*  64 @   */, kInvalid    /*  65 A   */, kInvalid /*  66 B   */, kInvalid /*  67 C   */,
-    kInvalid    /*  68 D   */, kInvalid    /*  69 E   */, kInvalid /*  70 F   */, kInvalid /*  71 G   */,
-    kInvalid    /*  72 H   */, kInvalid    /*  73 I   */, kInvalid /*  74 J   */, kInvalid /*  75 K   */,
-    kInvalid    /*  76 L   */, kInvalid    /*  77 M   */, kInvalid /*  78 N   */, kInvalid /*  79 O   */,
-    kInvalid    /*  80 P   */, kInvalid    /*  81 Q   */, kInvalid /*  82 R   */, kInvalid /*  83 S   */,
-    kInvalid    /*  84 T   */, kInvalid    /*  85 U   */, kInvalid /*  86 V   */, kInvalid /*  87 W   */,
-    kInvalid    /*  88 X   */, kInvalid    /*  89 Y   */, kInvalid /*  90 Z   */, kInvalid /*  91 [   */,
-    kInvalid    /*  92 \   */, kInvalid    /*  93 ]   */, kInvalid /*  94 ^   */, kInvalid /*  95 _   */,
-    kInvalid    /*  96 `   */, kInvalid    /*  97 a   */, kInvalid /*  98 b   */, kInvalid /*  99 c   */,
-    kInvalid    /* 100 d   */, kInvalid    /* 101 e   */, kInvalid /* 102 f   */, kInvalid /* 103 g   */,
-    kInvalid    /* 104 h   */, kInvalid    /* 105 i   */, kInvalid /* 106 j   */, kInvalid /* 107 k   */,
-    kInvalid    /* 108 l   */, kInvalid    /* 109 m   */, kInvalid /* 110 n   */, kInvalid /* 111 o   */,
-    kInvalid    /* 112 p   */, kInvalid    /* 113 q   */, kInvalid /* 114 r   */, kInvalid /* 115 s   */,
-    kInvalid    /* 116 t   */, kInvalid    /* 117 u   */, kInvalid /* 118 v   */, kInvalid /* 119 w   */,
-    kLowerX     /* 120 x   */, kInvalid    /* 121 y   */, kInvalid /* 122 z   */, kInvalid /* 123 {   */,
-    kInvalid    /* 124 |   */, kInvalid    /* 125 }   */, kInvalid /* 126 ~   */, kInvalid /* 127 DEL */,
-    kInvalid    /* 128     */, kInvalid    /* 129     */, kInvalid /* 130     */, kInvalid /* 131     */,
-    kInvalid    /* 132     */, kInvalid    /* 133     */, kInvalid /* 134     */, kInvalid /* 135     */,
-    kInvalid    /* 136     */, kInvalid    /* 137     */, kInvalid /* 138     */, kInvalid /* 139     */,
-    kInvalid    /* 140     */, kInvalid    /* 141     */, kInvalid /* 142     */, kInvalid /* 143     */,
-    kInvalid    /* 144     */, kInvalid    /* 145     */, kInvalid /* 146     */, kInvalid /* 147     */,
-    kInvalid    /* 148     */, kInvalid    /* 149     */, kInvalid /* 150     */, kInvalid /* 151     */,
-    kInvalid    /* 152     */, kInvalid    /* 153     */, kInvalid /* 154     */, kInvalid /* 155     */,
-    kInvalid    /* 156     */, kInvalid    /* 157     */, kInvalid /* 158     */, kInvalid /* 159     */,
-    kInvalid    /* 160     */, kInvalid    /* 161     */, kInvalid /* 162     */, kInvalid /* 163     */,
-    kInvalid    /* 164     */, kInvalid    /* 165     */, kInvalid /* 166     */, kInvalid /* 167     */,
-    kInvalid    /* 168     */, kInvalid    /* 169     */, kInvalid /* 170     */, kInvalid /* 171     */,
-    kInvalid    /* 172     */, kInvalid    /* 173     */, kInvalid /* 174     */, kInvalid /* 175     */,
-    kInvalid    /* 176     */, kInvalid    /* 177     */, kInvalid /* 178     */, kInvalid /* 179     */,
-    kInvalid    /* 180     */, kInvalid    /* 181     */, kInvalid /* 182     */, kInvalid /* 183     */,
-    kInvalid    /* 184     */, kInvalid    /* 185     */, kInvalid /* 186     */, kInvalid /* 187     */,
-    kInvalid    /* 188     */, kInvalid    /* 189     */, kInvalid /* 190     */, kInvalid /* 191     */,
-    kInvalid    /* 192     */, kInvalid    /* 193     */, kInvalid /* 194     */, kInvalid /* 195     */,
-    kInvalid    /* 196     */, kInvalid    /* 197     */, kInvalid /* 198     */, kInvalid /* 199     */,
-    kInvalid    /* 200     */, kInvalid    /* 201     */, kInvalid /* 202     */, kInvalid /* 203     */,
-    kInvalid    /* 204     */, kInvalid    /* 205     */, kInvalid /* 206     */, kInvalid /* 207     */,
-    kInvalid    /* 208     */, kInvalid    /* 209     */, kInvalid /* 210     */, kInvalid /* 211     */,
-    kInvalid    /* 212     */, kInvalid    /* 213     */, kInvalid /* 214     */, kInvalid /* 215     */,
-    kInvalid    /* 216     */, kInvalid    /* 217     */, kInvalid /* 218     */, kInvalid /* 219     */,
-    kInvalid    /* 220     */, kInvalid    /* 221     */, kInvalid /* 222     */, kInvalid /* 223     */,
-    kInvalid    /* 224     */, kInvalid    /* 225     */, kInvalid /* 226     */, kInvalid /* 227     */,
-    kInvalid    /* 228     */, kInvalid    /* 229     */, kInvalid /* 230     */, kInvalid /* 231     */,
-    kInvalid    /* 232     */, kInvalid    /* 233     */, kInvalid /* 234     */, kInvalid /* 235     */,
-    kInvalid    /* 236     */, kInvalid    /* 237     */, kInvalid /* 238     */, kInvalid /* 239     */,
-    kInvalid    /* 240     */, kInvalid    /* 241     */, kInvalid /* 242     */, kInvalid /* 243     */,
-    kInvalid    /* 244     */, kInvalid    /* 245     */, kInvalid /* 246     */, kInvalid /* 247     */,
-    kInvalid    /* 248     */, kInvalid    /* 249     */, kInvalid /* 250     */, kInvalid /* 251     */,
-    kInvalid    /* 252     */, kInvalid    /* 253     */, kInvalid /* 254     */, kInvalid /* 255     */,
+    cEnd     /*   0 \0  */, cInvalid /*   1 SOH */, cInvalid /*   2 STX */, cInvalid /*   3 ETX */,
+    cInvalid /*   4 EOT */, cEnd     /*   5 EOF */, cInvalid /*   6 ACK */, cInvalid /*   7 BEL */,
+    cInvalid /*   8 BS  */, cSpace   /*   9 \t  */, cNewline /*  10 \n  */, cInvalid /*  11 VT  */,
+    cInvalid /*  12 FF  */, cNewline /*  13 \r  */, cInvalid /*  14 SO  */, cInvalid /*  15 SI  */,
+    cInvalid /*  16 DLE */, cInvalid /*  17 DC1 */, cInvalid /*  18 DC2 */, cInvalid /*  19 DC3 */,
+    cInvalid /*  20 DC4 */, cInvalid /*  21 NAK */, cInvalid /*  22 SYN */, cInvalid /*  23 ETB */,
+    cInvalid /*  24 CAN */, cInvalid /*  25 EM  */, cInvalid /*  26 SUB */, cInvalid /*  27 ESC */,
+    cInvalid /*  28 FS  */, cInvalid /*  29 FS  */, cInvalid /*  30 RS  */, cInvalid /*  31 US  */,
+    cSpace   /*  32 SPC */, cInvalid /*  33 !   */, cInvalid /*  34 "   */, cInvalid /*  35 #   */,
+    cInvalid /*  36 $   */, cInvalid /*  37 %   */, cInvalid /*  38 &   */, cInvalid /*  39 '   */,
+    cInvalid /*  40 (   */, cInvalid /*  41 )   */, cInvalid /*  42 *   */, cPlus    /*  43 +   */,
+    cInvalid /*  44 ,   */, cHyphen  /*  45 -   */, cInvalid /*  46 .   */, cInvalid /*  47 /   */,
+    cZero    /*  48 0   */, cDigit   /*  49 1   */, cDigit   /*  50 2   */, cDigit   /*  51 3   */,
+    cDigit   /*  52 4   */, cDigit   /*  53 5   */, cDigit   /*  54 6   */, cDigit   /*  55 7   */,
+    cDigit   /*  56 8   */, cDigit   /*  57 9   */, cInvalid /*  58 :   */, cInvalid /*  59 ;   */,
+    cInvalid /*  60 <   */, cInvalid /*  61 =   */, cInvalid /*  62 >   */, cInvalid /*  63 ?   */,
+    cInvalid /*  64 @   */, cInvalid /*  65 A   */, cInvalid /*  66 B   */, cInvalid /*  67 C   */,
+    cInvalid /*  68 D   */, cInvalid /*  69 E   */, cInvalid /*  70 F   */, cInvalid /*  71 G   */,
+    cInvalid /*  72 H   */, cInvalid /*  73 I   */, cInvalid /*  74 J   */, cInvalid /*  75 K   */,
+    cInvalid /*  76 L   */, cInvalid /*  77 M   */, cInvalid /*  78 N   */, cInvalid /*  79 O   */,
+    cInvalid /*  80 P   */, cInvalid /*  81 Q   */, cInvalid /*  82 R   */, cInvalid /*  83 S   */,
+    cInvalid /*  84 T   */, cInvalid /*  85 U   */, cInvalid /*  86 V   */, cInvalid /*  87 W   */,
+    cInvalid /*  88 X   */, cInvalid /*  89 Y   */, cInvalid /*  90 Z   */, cInvalid /*  91 [   */,
+    cInvalid /*  92 \   */, cInvalid /*  93 ]   */, cInvalid /*  94 ^   */, cInvalid /*  95 _   */,
+    cInvalid /*  96 `   */, cInvalid /*  97 a   */, cInvalid /*  98 b   */, cInvalid /*  99 c   */,
+    cInvalid /* 100 d   */, cInvalid /* 101 e   */, cInvalid /* 102 f   */, cInvalid /* 103 g   */,
+    cInvalid /* 104 h   */, cInvalid /* 105 i   */, cInvalid /* 106 j   */, cInvalid /* 107 k   */,
+    cInvalid /* 108 l   */, cInvalid /* 109 m   */, cInvalid /* 110 n   */, cInvalid /* 111 o   */,
+    cInvalid /* 112 p   */, cInvalid /* 113 q   */, cInvalid /* 114 r   */, cInvalid /* 115 s   */,
+    cInvalid /* 116 t   */, cInvalid /* 117 u   */, cInvalid /* 118 v   */, cInvalid /* 119 w   */,
+    cx       /* 120 x   */, cInvalid /* 121 y   */, cInvalid /* 122 z   */, cInvalid /* 123 {   */,
+    cInvalid /* 124 |   */, cInvalid /* 125 }   */, cInvalid /* 126 ~   */, cInvalid /* 127 DEL */,
+    cInvalid /* 128     */, cInvalid    /* 129     */, cInvalid /* 130     */, cInvalid /* 131     */,
+    cInvalid /* 132     */, cInvalid    /* 133     */, cInvalid /* 134     */, cInvalid /* 135     */,
+    cInvalid /* 136     */, cInvalid    /* 137     */, cInvalid /* 138     */, cInvalid /* 139     */,
+    cInvalid /* 140     */, cInvalid    /* 141     */, cInvalid /* 142     */, cInvalid /* 143     */,
+    cInvalid /* 144     */, cInvalid    /* 145     */, cInvalid /* 146     */, cInvalid /* 147     */,
+    cInvalid    /* 148     */, cInvalid    /* 149     */, cInvalid /* 150     */, cInvalid /* 151     */,
+    cInvalid    /* 152     */, cInvalid    /* 153     */, cInvalid /* 154     */, cInvalid /* 155     */,
+    cInvalid    /* 156     */, cInvalid    /* 157     */, cInvalid /* 158     */, cInvalid /* 159     */,
+    cInvalid    /* 160     */, cInvalid    /* 161     */, cInvalid /* 162     */, cInvalid /* 163     */,
+    cInvalid    /* 164     */, cInvalid    /* 165     */, cInvalid /* 166     */, cInvalid /* 167     */,
+    cInvalid    /* 168     */, cInvalid    /* 169     */, cInvalid /* 170     */, cInvalid /* 171     */,
+    cInvalid    /* 172     */, cInvalid    /* 173     */, cInvalid /* 174     */, cInvalid /* 175     */,
+    cInvalid    /* 176     */, cInvalid    /* 177     */, cInvalid /* 178     */, cInvalid /* 179     */,
+    cInvalid    /* 180     */, cInvalid    /* 181     */, cInvalid /* 182     */, cInvalid /* 183     */,
+    cInvalid    /* 184     */, cInvalid    /* 185     */, cInvalid /* 186     */, cInvalid /* 187     */,
+    cInvalid    /* 188     */, cInvalid    /* 189     */, cInvalid /* 190     */, cInvalid /* 191     */,
+    cInvalid    /* 192     */, cInvalid    /* 193     */, cInvalid /* 194     */, cInvalid /* 195     */,
+    cInvalid    /* 196     */, cInvalid    /* 197     */, cInvalid /* 198     */, cInvalid /* 199     */,
+    cInvalid    /* 200     */, cInvalid    /* 201     */, cInvalid /* 202     */, cInvalid /* 203     */,
+    cInvalid    /* 204     */, cInvalid    /* 205     */, cInvalid /* 206     */, cInvalid /* 207     */,
+    cInvalid    /* 208     */, cInvalid    /* 209     */, cInvalid /* 210     */, cInvalid /* 211     */,
+    cInvalid    /* 212     */, cInvalid    /* 213     */, cInvalid /* 214     */, cInvalid /* 215     */,
+    cInvalid    /* 216     */, cInvalid    /* 217     */, cInvalid /* 218     */, cInvalid /* 219     */,
+    cInvalid    /* 220     */, cInvalid    /* 221     */, cInvalid /* 222     */, cInvalid /* 223     */,
+    cInvalid    /* 224     */, cInvalid    /* 225     */, cInvalid /* 226     */, cInvalid /* 227     */,
+    cInvalid    /* 228     */, cInvalid    /* 229     */, cInvalid /* 230     */, cInvalid /* 231     */,
+    cInvalid    /* 232     */, cInvalid    /* 233     */, cInvalid /* 234     */, cInvalid /* 235     */,
+    cInvalid    /* 236     */, cInvalid    /* 237     */, cInvalid /* 238     */, cInvalid /* 239     */,
+    cInvalid    /* 240     */, cInvalid    /* 241     */, cInvalid /* 242     */, cInvalid /* 243     */,
+    cInvalid    /* 244     */, cInvalid    /* 245     */, cInvalid /* 246     */, cInvalid /* 247     */,
+    cInvalid    /* 248     */, cInvalid    /* 249     */, cInvalid /* 250     */, cInvalid /* 251     */,
+    cInvalid    /* 252     */, cInvalid    /* 253     */, cInvalid /* 254     */, cInvalid /* 255     */,
 };
 
 int8_t kStateLengths[] = {
-    0, // kBeginToken
-    1, // kInitialZero
-    1, // kNumber
-    1, // kPlus
-    1, // kAsterisk
-    1, // kForwardSlash
-
-    0, // kInteger
-    0, // kHexInteger
-    0, // kFloat
-    0, // kRadix
-    0, // kLoneZero
-    0, // kLexError
-    0, // kEndCode
+    0, // sBeginToken
+    1, // sLeadZero
+    1, // sNumber
+    1, // sPlus
+    1, // sAsterisk
+    1, // sForwardSlash
+    0, // sInteger
+    0, // sHexInteger
+    0, // sFloat
+    0, // sRadix
+    0, // sZero
+    0, // sAdd
+    0, // sStringCat
+    0, // sPathCat
+    0, // sSubtract
+    0, // sMultiply
+    0, // sExponentiate
+    0, // sDivide
+    0, // sModulo
+    0, // sLexError
+    0, // sEndCode
 };
+
+static_assert(sizeof(kStateLengths) == kNumStates);
 
 }
 
@@ -189,10 +240,10 @@ Lexer::Lexer(const char* code): m_code(code) {}
 bool Lexer::lex() {
     const char* code = m_code;
     bool lexContinues = true;
-    State state;
+    State state = sBeginToken;
     while (lexContinues) {
         int tokenLength = 0;
-        state = kBeginToken;
+        state = sBeginToken;
         do {
             int character = static_cast<int>(*code++);
             int characterClass = static_cast<int>(kCharacterClasses[character]);
@@ -203,7 +254,18 @@ bool Lexer::lex() {
         char* tokenEnd = nullptr;
         const char* tokenStart;
         switch(state) {
-            case kInteger: {
+            // Non-final states go here and are a fatal lexing error, indicating a broken state table. There is no
+            // default: case, so that the compiler can catch absent states with a warning.
+            case sBeginToken:
+            case sLeadZero:
+            case sNumber:
+            case sPlus:
+            case sAsterisk:
+            case sForwardSlash:
+                lexContinues = false;
+                break;
+
+            case sInteger: {
                 // Exit state machine pointing just past the end of the integer.
                 tokenStart = code - tokenLength - 1;
                 int64_t intValue = std::strtoll(tokenStart, &tokenEnd, 10);
@@ -214,8 +276,9 @@ bool Lexer::lex() {
                 }
             } break;
 
-            case kHexInteger: {
-                // Exit state machine pointing just past the "0x"
+            case sHexInteger: {
+                // Exit state machine pointing just past the "0x", length can be > 2 because we support multiple leading
+                // zeros, such as "0000x3" needs to lex to 3.
                 tokenStart = code - tokenLength - 1;
                 int64_t intValue = std::strtoll(code, &tokenEnd, 16);
                 if (code < tokenEnd) {
@@ -226,22 +289,40 @@ bool Lexer::lex() {
                 }
             } break;
 
-            case kFloat:
-            case kRadix:
+            case sFloat:
+            case sRadix:
+                lexContinues = false;
+                break;
 
-            case kLoneZero:
+            case sZero:
                 tokenStart = code - tokenLength - 1;
                 m_tokens.emplace_back(Token(tokenStart, tokenLength, 0LL));
                 break;
 
-            case kLexError:
-            case kEndCode:
+            case sAdd:
+                tokenStart = code - tokenLength - 1;
+                m_tokens.emplace_back(Token(Token::Type::kAddition, tokenStart, tokenLength));
+                break;
+
+            case sStringCat:
+            case sPathCat:
+            case sSubtract:
+            case sMultiply:
+            case sExponentiate:
+            case sDivide:
+            case sModulo:
                 lexContinues = false;
                 break;
+
+            case sLexError:
+            case sEndCode:
+                lexContinues = false;
+                break;
+
         }
     }
 
-    return state == kEndCode;
+    return state == sEndCode;
 }
 
 }

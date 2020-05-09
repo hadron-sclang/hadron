@@ -11,12 +11,19 @@ add_library(libhadron STATIC
     Lexer.hpp
 )
 
-add_executable(run_unittests
+target_compile_options(libhadron PUBLIC -Wall -Wextra -pedantic -Werror)
+
+add_executable(unittests
     Lexer_unittests.cpp
-    run_unittests.cpp
+    unittests.cpp
 )
 
-target_link_libraries(run_unittests
+target_link_libraries(unittests
     doctest
     libhadron
+)
+
+add_custom_target(run_unittests ALL
+    DEPENDS unittests
+    COMMAND "${CMAKE_CURRENT_BINARY_DIR}/unittests"
 )

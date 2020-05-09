@@ -10,36 +10,8 @@ class Lexer {
 public:
     struct Token {
         enum Type {
-            // kName,
             kInteger,
-            kFloat,
-            // kAccidental,
-            // kSymbol,
-            // kString,
-            // kCharacter,  // ASCII
-            // kPrimitiveName,
-            // kClassName,
-            // kCurryArg,
-            // kVar,  // VAR
-            // kClassVar,
-            // kConst, // SC_CONST
-            // kNil, // NILOBJ
-            // kTrue,  // TRUEOBJ
-            // kFalse, // FALSEOBJ
-            // kPseudoVar,
-            // kEllipsis,
-            // kDotDot, // ??
-            // kPie, // ??
-            // kBeginClosedFunc,
-            // kBadToken,
-            // kInterpret,
-            // kBeginGenerator,
-            // kLeftArrow,
-            // kWhile,
-            // kReadWriteVar,
-            // kKeyBinOp,
-            // kBinOp,
-            // kUMinus
+            kAddition,
         };
 
         Type type;
@@ -62,6 +34,9 @@ public:
 
         /*! Makes a kInteger token */
         Token(const char* s, size_t l, int64_t intValue): type(kInteger), start(s), length(l), value(intValue) {}
+
+        /*! Makes a token with no value storage */
+        Token(Type t, const char* s, size_t l): type(t), start(s), length(l) {}
     };
 
     Lexer(const char* code);
