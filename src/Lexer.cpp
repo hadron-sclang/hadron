@@ -13,31 +13,40 @@ enum State : uint8_t {
     kBeginToken = 0,
     kInitialZero = 1,
     kNumber = 2,  // can still have radix or decimal TODO: can do flats/sharps as a separate token?
+    kPlus = 3,   // could either be addition or spaceless string concatenation
+    kAsterisk = 4, // either multiplication or exponentiation
+    kForwardSlash = 5,  // either division or a comment
 
-    kFirstFinalState = 3,
+    kFirstFinalState = 6,
 
     // final states
-    kInteger = 3,
-    kHexInteger = 4, // done, this can only be an integer
-    kFloat = 5, // done, we have enough to delegate to strtod
-    kRadix = 6,  // can have decimal but all bets on speed are off.
-    kLoneZero = 7,
+    kInteger = 6,
+    kHexInteger = 7, // done, this can only be an integer
+    kFloat = 8, // done, we have enough to delegate to strtod
+    kRadix = 9,  // can have decimal but all bets on speed are off.
+    kLoneZero = 10,
+    kAdd = 11,
+    kConcatenate = 12, // ++
+    kSubtract = 13,
+    kMultiply = 14,
+    kExponentiate = 15,
+    kModulo = 16,
 
-    kLexError = 8,
-    kEndCode = 9
+    kLexError = 17,
+    kEndCode = 18
 };
 
 // TODO: premultiply
 enum CharacterClass : uint8_t {
-    kWhitespace = 0,  // space, tab
-    kNewline = 3,     // \n
-    kReturn = 6,      // \r
-    kZero = 9,        // 0
-    kDigit = 12,      // 1-9
-    kPeriod = 15,     // .
-    kLowerX = 18,     // x possibly for hexadecimal
-    kEndOfInput = 21, // EOF, \0
-    kInvalid = 24,    // unsupported character
+    kWhitespace = 0 * State::kFirstFinalState,  // space, tab
+    kNewline = 1 * State::kFirstFinalState,     // \n
+    kReturn = 2 * State::kFirstFinalState,      // \r
+    kZero = 3 * State::kFirstFinalState,        // 0
+    kDigit = 4 * State::kFirstFinalState,       // 1-9
+    kPeriod = 5 * State::kFirstFinalState,      // .
+    kLowerX = 6 * State::kFirstFinalState,      // x possibly for hexadecimal
+    kEndOfInput = 7 * State::kFirstFinalState,  // EOF, \0
+    kInvalid = 8 * State::kFirstFinalState,     // unsupported character
 };
 
 const State kStateTransitionTable[] = {
@@ -158,6 +167,10 @@ int8_t kStateLengths[] = {
     0, // kBeginToken
     1, // kInitialZero
     1, // kNumber
+    1, // kPlus
+    1, // kAsterisk
+    1, // kForwardSlash
+
     0, // kInteger
     0, // kHexInteger
     0, // kFloat

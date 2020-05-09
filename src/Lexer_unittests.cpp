@@ -180,7 +180,37 @@ TEST_CASE("Lexer Hexadecimal Integers") {
         REQUIRE(lexer.tokens().size() == 1);
         CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
         CHECK(lexer.tokens()[0].start == code);
-        CHECK(lexer.tokens()[0].length == 9);
+        CHECK(lexer.tokens()[0].length == 14);
+        CHECK(lexer.tokens()[0].value.integer == 0x42deadbeef42);
+    }
+    SUBCASE("zero padding") {
+        const char* code = "000x742a";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 8);
+        CHECK(lexer.tokens()[0].value.integer == 0x742a);
+    }
+    SUBCASE("whitespace padding") {
+        const char* code = "    0x1234   ";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[0].start == code + 4);
+        CHECK(lexer.tokens()[0].length == 6);
+        CHECK(lexer.tokens()[0].value.integer == 0x1234);
+    }
+    SUBCASE("large value <DIFFA0>") {
+        const char* code = "0x42deadbeef42";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 14);
         CHECK(lexer.tokens()[0].value.integer == 0x42deadbeef42);
     }
 }
