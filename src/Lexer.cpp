@@ -10,17 +10,12 @@ namespace {
     // case that will require exceptional processing (radix numbers) or things are clear what we're parsing (floats)
 enum State : uint8_t {
     // non-final states
-    sBeginToken = 0,
+    sSpace = 0,
     sLeadZero = 1,
     sNumber = 2,  // can still have radix or decimal TODO: can do flats/sharps as a separate token?
     sPlus = 3,   // could either be addition or spaceless string concatenation
     sAsterisk = 4, // either multiplication or exponentiation
     sForwardSlash = 5,  // either division or a comment
-
-    // Not a state, but rather an indicator of what the lowest value of a final state is in the table. Useful to both
-    // quickly determine if current state is final or not, and also as the multiplier for CharacterClass enums, because
-    // only the non-final states have to be in the state transition table.
-    kFirstFinalState = 6,
 
     // final states
     sInteger = 6,
@@ -38,105 +33,262 @@ enum State : uint8_t {
     sModulo = 18,
 
     sLexError = 19,
+
+    // This has to stay the last state.
     sEndCode = 20,
 };
 
+constexpr uint8_t kFirstFinalState = 6;
 constexpr uint8_t kNumStates = State::sEndCode + 1;
 
 enum CharacterClass : uint8_t {
-    cSpace = 0 * State::kFirstFinalState,   // space, tab
-    cNewline = 1 * State::kFirstFinalState, // \n, \r
-    cZero = 2 * State::kFirstFinalState,    // 0
-    cDigit = 3 * State::kFirstFinalState,   // 1-9
-    cPeriod = 4 * State::kFirstFinalState,  // .
-    cx = 5 * State::kFirstFinalState,       // a lower-case x, possibly for hexadecimal
-    cPlus = 6 * State::kFirstFinalState,    // +
-    cHyphen = 7 * State::kFirstFinalState,  //
-    cEnd = 8 * State::kFirstFinalState,     // EOF, \0
-    cInvalid = 9 * State::kFirstFinalState, // unsupported character
+    cSpace = 0 * kNumStates,   // space, tab
+    cNewline = 1 * kNumStates, // \n, \r
+    cZero = 2 * kNumStates,    // 0
+    cDigit = 3 * kNumStates,   // 1-9
+    cPeriod = 4 * kNumStates,  // .
+    cx = 5 * kNumStates,       // a lower-case x, possibly for hexadecimal
+    cPlus = 6 * kNumStates,    // +
+    cHyphen = 7 * kNumStates,  //
+    cInvalid = 8 * kNumStates, // unsupported character
+    // This has to stay the last character class.
+    cEnd = 9 * kNumStates,     // EOF, \0
 };
 
 const State kStateTransitionTable[] = {
-    // **** CharacterClass = cSpace
-    /* sBeginToken   => */ sBeginToken,
+    // CharacterClass = cSpace
+    /* sSpace        => */ sSpace,
     /* sLeadZero     => */ sZero,
     /* sNumber       => */ sInteger,
     /* sPlus         => */ sAdd,
     /* sAsterisk     => */ sMultiply,
     /* sForwardSlash => */ sDivide,
+    /* sInteger      => */ sSpace,
+    /* sHexInteger   => */ sSpace,
+    /* sFloat        => */ sSpace,
+    /* sRadix        => */ sSpace,
+    /* sZero         => */ sSpace,
+    /* sAdd          => */ sSpace,
+    /* sStringCat    => */ sSpace,
+    /* sPathCat      => */ sSpace,
+    /* sSubtract     => */ sSpace,
+    /* sMultiply     => */ sSpace,
+    /* sExponentiate => */ sSpace,
+    /* sDivide       => */ sSpace,
+    /* sModulo       => */ sSpace,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
 
     // Class = cNewline
-    /* sBeginToken   => */ sBeginToken,
+    /* sSpace        => */ sSpace,
     /* sLeadZero     => */ sZero,
     /* sNumber       => */ sInteger,
     /* sPlus         => */ sAdd,
     /* sAsterisk     => */ sMultiply,
     /* sForwardSlash => */ sDivide,
+    /* sInteger      => */ sSpace,
+    /* sHexInteger   => */ sSpace,
+    /* sFloat        => */ sSpace,
+    /* sRadix        => */ sSpace,
+    /* sZero         => */ sSpace,
+    /* sAdd          => */ sSpace,
+    /* sStringCat    => */ sSpace,
+    /* sPathCat      => */ sSpace,
+    /* sSubtract     => */ sSpace,
+    /* sMultiply     => */ sSpace,
+    /* sExponentiate => */ sSpace,
+    /* sDivide       => */ sSpace,
+    /* sModulo       => */ sSpace,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
 
     // Class = cZero
-    /* sBeginToken   => */ sLeadZero,
+    /* sSpace        => */ sLeadZero,
     /* sLeadZero     => */ sLeadZero,  // many leading zeros treated as a single leading zero in sclang
     /* sNumber       => */ sNumber,
     /* sPlus         => */ sAdd,
     /* sAsterisk     => */ sLeadZero,
     /* sForwardSlash => */ sLeadZero,
+    /* sInteger      => */ sLexError,
+    /* sHexInteger   => */ sLexError,
+    /* sFloat        => */ sLexError,
+    /* sRadix        => */ sLexError,
+    /* sZero         => */ sLexError,
+    /* sAdd          => */ sLeadZero,
+    /* sStringCat    => */ sLeadZero,
+    /* sPathCat      => */ sLeadZero,
+    /* sSubtract     => */ sLeadZero,
+    /* sMultiply     => */ sLeadZero,
+    /* sExponentiate => */ sLeadZero,
+    /* sDivide       => */ sLeadZero,
+    /* sModulo       => */ sLeadZero,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
 
     // Class = cDigit
-    /* sBeginToken   => */ sNumber,
+    /* sSpace        => */ sNumber,
     /* sLeadZero     => */ sNumber,
     /* sNumber       => */ sNumber,
     /* sPlus         => */ sAdd,
     /* sAsterisk     => */ sMultiply,
     /* sForwardSlash => */ sDivide,
+    /* sInteger      => */ sLexError,
+    /* sHexInteger   => */ sLexError,
+    /* sFloat        => */ sLexError,
+    /* sRadix        => */ sLexError,
+    /* sZero         => */ sLexError,
+    /* sAdd          => */ sNumber,
+    /* sStringCat    => */ sNumber,
+    /* sPathCat      => */ sNumber,
+    /* sSubtract     => */ sNumber,
+    /* sMultiply     => */ sNumber,
+    /* sExponentiate => */ sNumber,
+    /* sDivide       => */ sNumber,
+    /* sModulo       => */ sNumber,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
 
     // Class = cPeriod
-    /* sBeginToken   => */ sLexError,
+    /* sSpace        => */ sLexError,
     /* sLeadZero     => */ sFloat,
     /* sNumber       => */ sFloat,
     /* sPlus         => */ sLexError,
     /* sAsterisk     => */ sLexError,
     /* sForwardSlash => */ sLexError,
+    /* sInteger      => */ sLexError,
+    /* sHexInteger   => */ sLexError,
+    /* sFloat        => */ sLexError,
+    /* sRadix        => */ sLexError,
+    /* sZero         => */ sLexError,
+    /* sAdd          => */ sLexError,
+    /* sStringCat    => */ sLexError,
+    /* sPathCat      => */ sLexError,
+    /* sSubtract     => */ sLexError,
+    /* sMultiply     => */ sLexError,
+    /* sExponentiate => */ sLexError,
+    /* sDivide       => */ sLexError,
+    /* sModulo       => */ sLexError,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
 
     // Class = cx
-    /* sBeginToken   => */ sLexError,
+    /* sSpace        => */ sLexError,
     /* sLeadZero     => */ sHexInteger,
     /* sNumber       => */ sLexError,
     /* sPlus         => */ sLexError,
     /* sAsterisk     => */ sLexError,
     /* sForwardSlash => */ sLexError,
+    /* sInteger      => */ sLexError,
+    /* sHexInteger   => */ sLexError,
+    /* sFloat        => */ sLexError,
+    /* sRadix        => */ sLexError,
+    /* sZero         => */ sLexError,
+    /* sAdd          => */ sLexError,
+    /* sStringCat    => */ sLexError,
+    /* sPathCat      => */ sLexError,
+    /* sSubtract     => */ sLexError,
+    /* sMultiply     => */ sLexError,
+    /* sExponentiate => */ sLexError,
+    /* sDivide       => */ sLexError,
+    /* sModulo       => */ sLexError,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
 
     // Class = cPlus
-    /* sBeginToken   => */ sPlus,
+    /* sSpace        => */ sPlus,
     /* sLeadZero     => */ sZero,
     /* sNumber       => */ sInteger,
     /* sPlus         => */ sStringCat,
     /* sAsterisk     => */ sLexError,
     /* sForwardSlash => */ sPathCat,
+    /* sInteger      => */ sPlus,
+    /* sHexInteger   => */ sPlus,
+    /* sFloat        => */ sPlus,
+    /* sRadix        => */ sPlus,
+    /* sZero         => */ sPlus,
+    /* sAdd          => */ sLexError,
+    /* sStringCat    => */ sLexError,
+    /* sPathCat      => */ sLexError,
+    /* sSubtract     => */ sLexError,
+    /* sMultiply     => */ sLexError,
+    /* sExponentiate => */ sLexError,
+    /* sDivide       => */ sLexError,
+    /* sModulo       => */ sLexError,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
 
     // Class = cHyphen
-    /* sBeginToken   => */ sSubtract,
+    /* sSpace        => */ sSubtract,
     /* sLeadZero     => */ sZero,
     /* sNumber       => */ sInteger,
     /* sPlus         => */ sLexError,
     /* sAsterisk     => */ sLexError,
     /* sForwardSlash => */ sLexError,
-
-    // Class = cEnd
-    /* sBeginToken   => */ sEndCode,
-    /* sLeadZero     => */ sZero,
-    /* sNumber       => */ sInteger,
-    /* sPlus         => */ sAdd,
-    /* sAsterisk     => */ sLexError,
-    /* sForwardSlash => */ sLexError,
+    /* sInteger      => */ sSubtract,
+    /* sHexInteger   => */ sSubtract,
+    /* sFloat        => */ sSubtract,
+    /* sRadix        => */ sSubtract,
+    /* sZero         => */ sSubtract,
+    /* sAdd          => */ sLexError,
+    /* sStringCat    => */ sLexError,
+    /* sPathCat      => */ sLexError,
+    /* sSubtract     => */ sLexError,
+    /* sMultiply     => */ sLexError,
+    /* sExponentiate => */ sLexError,
+    /* sDivide       => */ sLexError,
+    /* sModulo       => */ sLexError,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
 
     // Class = cInvalid
-    /* sBeginToken   => */ sEndCode,
+    /* sSpace        => */ sEndCode,
     /* sLeadZero     => */ sLexError,
     /* sNumber       => */ sLexError,
     /* sPlus         => */ sLexError,
     /* sAsterisk     => */ sLexError,
-    /* sForwardSlash => */ sLexError
+    /* sForwardSlash => */ sLexError,
+    /* sInteger      => */ sLexError,
+    /* sHexInteger   => */ sLexError,
+    /* sFloat        => */ sLexError,
+    /* sRadix        => */ sLexError,
+    /* sZero         => */ sLexError,
+    /* sAdd          => */ sLexError,
+    /* sStringCat    => */ sLexError,
+    /* sPathCat      => */ sLexError,
+    /* sSubtract     => */ sLexError,
+    /* sMultiply     => */ sLexError,
+    /* sExponentiate => */ sLexError,
+    /* sDivide       => */ sLexError,
+    /* sModulo       => */ sLexError,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
+
+    // Class = cEnd
+    /* sSpace        => */ sEndCode,
+    /* sLeadZero     => */ sZero,
+    /* sNumber       => */ sInteger,
+    /* sPlus         => */ sAdd,
+    /* sAsterisk     => */ sMultiply,
+    /* sForwardSlash => */ sDivide,
+    /* sInteger      => */ sEndCode,
+    /* sHexInteger   => */ sEndCode,
+    /* sFloat        => */ sEndCode,
+    /* sRadix        => */ sEndCode,
+    /* sZero         => */ sEndCode,
+    /* sAdd          => */ sEndCode,
+    /* sStringCat    => */ sEndCode,
+    /* sPathCat      => */ sEndCode,
+    /* sSubtract     => */ sEndCode,
+    /* sMultiply     => */ sEndCode,
+    /* sExponentiate => */ sEndCode,
+    /* sDivide       => */ sEndCode,
+    /* sModulo       => */ sEndCode,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError
 };
+
+// Ensure a full state table or subtle out-of-bounds access errors become a nightmare to debug.
+static_assert(sizeof(kStateTransitionTable) == (CharacterClass::cEnd + kNumStates));
 
 const CharacterClass kCharacterClasses[256] = {
     cEnd     /*   0 \0  */, cInvalid /*   1 SOH */, cInvalid /*   2 STX */, cInvalid /*   3 ETX */,
@@ -206,7 +358,7 @@ const CharacterClass kCharacterClasses[256] = {
 };
 
 int8_t kStateLengths[] = {
-    0, // sBeginToken
+    0, // sSpace
     1, // sLeadZero
     1, // sNumber
     1, // sPlus
@@ -240,23 +392,22 @@ Lexer::Lexer(const char* code): m_code(code) {}
 bool Lexer::lex() {
     const char* code = m_code;
     bool lexContinues = true;
-    State state = sBeginToken;
+    State state = sSpace;
     while (lexContinues) {
         int tokenLength = 0;
-        state = sBeginToken;
         do {
             int character = static_cast<int>(*code++);
             int characterClass = static_cast<int>(kCharacterClasses[character]);
             state = kStateTransitionTable[characterClass + state];
             tokenLength += kStateLengths[state];
-        } while (state < State::kFirstFinalState);
+        } while (state < kFirstFinalState);
 
         char* tokenEnd = nullptr;
         const char* tokenStart;
         switch(state) {
             // Non-final states go here and are a fatal lexing error, indicating a broken state table. There is no
             // default: case, so that the compiler can catch absent states with a warning.
-            case sBeginToken:
+            case sSpace:
             case sLeadZero:
             case sNumber:
             case sPlus:
