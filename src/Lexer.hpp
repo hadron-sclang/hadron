@@ -11,6 +11,7 @@ public:
     struct Token {
         enum Type {
             kInteger,
+            kString,
             kAddition,
         };
 
