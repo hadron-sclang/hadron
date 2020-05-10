@@ -1,13 +1,15 @@
 #include "Lexer.hpp"
 
+#include "spdlog/spdlog.h"
+
 #include <cstdlib>
 
 // Design following https://nothings.org/computer/lexing.html
 
 namespace {
 
-    // Point of state table is to minimize branching. So we only select final states when either we're in a corner
-    // case that will require exceptional processing (radix numbers) or things are clear what we're parsing (floats)
+// Point of state table is to minimize branching. So we only select final states when either we're in a corner
+// case that will require exceptional processing (radix numbers) or things are clear what we're parsing (floats)
 enum State : uint8_t {
     // non-final states
     sSpace = 0,
@@ -323,38 +325,38 @@ const CharacterClass kCharacterClasses[256] = {
     cInvalid /* 116 t   */, cInvalid /* 117 u   */, cInvalid /* 118 v   */, cInvalid /* 119 w   */,
     cx       /* 120 x   */, cInvalid /* 121 y   */, cInvalid /* 122 z   */, cInvalid /* 123 {   */,
     cInvalid /* 124 |   */, cInvalid /* 125 }   */, cInvalid /* 126 ~   */, cInvalid /* 127 DEL */,
-    cInvalid /* 128     */, cInvalid    /* 129     */, cInvalid /* 130     */, cInvalid /* 131     */,
-    cInvalid /* 132     */, cInvalid    /* 133     */, cInvalid /* 134     */, cInvalid /* 135     */,
-    cInvalid /* 136     */, cInvalid    /* 137     */, cInvalid /* 138     */, cInvalid /* 139     */,
-    cInvalid /* 140     */, cInvalid    /* 141     */, cInvalid /* 142     */, cInvalid /* 143     */,
-    cInvalid /* 144     */, cInvalid    /* 145     */, cInvalid /* 146     */, cInvalid /* 147     */,
-    cInvalid    /* 148     */, cInvalid    /* 149     */, cInvalid /* 150     */, cInvalid /* 151     */,
-    cInvalid    /* 152     */, cInvalid    /* 153     */, cInvalid /* 154     */, cInvalid /* 155     */,
-    cInvalid    /* 156     */, cInvalid    /* 157     */, cInvalid /* 158     */, cInvalid /* 159     */,
-    cInvalid    /* 160     */, cInvalid    /* 161     */, cInvalid /* 162     */, cInvalid /* 163     */,
-    cInvalid    /* 164     */, cInvalid    /* 165     */, cInvalid /* 166     */, cInvalid /* 167     */,
-    cInvalid    /* 168     */, cInvalid    /* 169     */, cInvalid /* 170     */, cInvalid /* 171     */,
-    cInvalid    /* 172     */, cInvalid    /* 173     */, cInvalid /* 174     */, cInvalid /* 175     */,
-    cInvalid    /* 176     */, cInvalid    /* 177     */, cInvalid /* 178     */, cInvalid /* 179     */,
-    cInvalid    /* 180     */, cInvalid    /* 181     */, cInvalid /* 182     */, cInvalid /* 183     */,
-    cInvalid    /* 184     */, cInvalid    /* 185     */, cInvalid /* 186     */, cInvalid /* 187     */,
-    cInvalid    /* 188     */, cInvalid    /* 189     */, cInvalid /* 190     */, cInvalid /* 191     */,
-    cInvalid    /* 192     */, cInvalid    /* 193     */, cInvalid /* 194     */, cInvalid /* 195     */,
-    cInvalid    /* 196     */, cInvalid    /* 197     */, cInvalid /* 198     */, cInvalid /* 199     */,
-    cInvalid    /* 200     */, cInvalid    /* 201     */, cInvalid /* 202     */, cInvalid /* 203     */,
-    cInvalid    /* 204     */, cInvalid    /* 205     */, cInvalid /* 206     */, cInvalid /* 207     */,
-    cInvalid    /* 208     */, cInvalid    /* 209     */, cInvalid /* 210     */, cInvalid /* 211     */,
-    cInvalid    /* 212     */, cInvalid    /* 213     */, cInvalid /* 214     */, cInvalid /* 215     */,
-    cInvalid    /* 216     */, cInvalid    /* 217     */, cInvalid /* 218     */, cInvalid /* 219     */,
-    cInvalid    /* 220     */, cInvalid    /* 221     */, cInvalid /* 222     */, cInvalid /* 223     */,
-    cInvalid    /* 224     */, cInvalid    /* 225     */, cInvalid /* 226     */, cInvalid /* 227     */,
-    cInvalid    /* 228     */, cInvalid    /* 229     */, cInvalid /* 230     */, cInvalid /* 231     */,
-    cInvalid    /* 232     */, cInvalid    /* 233     */, cInvalid /* 234     */, cInvalid /* 235     */,
-    cInvalid    /* 236     */, cInvalid    /* 237     */, cInvalid /* 238     */, cInvalid /* 239     */,
-    cInvalid    /* 240     */, cInvalid    /* 241     */, cInvalid /* 242     */, cInvalid /* 243     */,
-    cInvalid    /* 244     */, cInvalid    /* 245     */, cInvalid /* 246     */, cInvalid /* 247     */,
-    cInvalid    /* 248     */, cInvalid    /* 249     */, cInvalid /* 250     */, cInvalid /* 251     */,
-    cInvalid    /* 252     */, cInvalid    /* 253     */, cInvalid /* 254     */, cInvalid /* 255     */,
+    cInvalid /* 128     */, cInvalid /* 129     */, cInvalid /* 130     */, cInvalid /* 131     */,
+    cInvalid /* 132     */, cInvalid /* 133     */, cInvalid /* 134     */, cInvalid /* 135     */,
+    cInvalid /* 136     */, cInvalid /* 137     */, cInvalid /* 138     */, cInvalid /* 139     */,
+    cInvalid /* 140     */, cInvalid /* 141     */, cInvalid /* 142     */, cInvalid /* 143     */,
+    cInvalid /* 144     */, cInvalid /* 145     */, cInvalid /* 146     */, cInvalid /* 147     */,
+    cInvalid /* 148     */, cInvalid /* 149     */, cInvalid /* 150     */, cInvalid /* 151     */,
+    cInvalid /* 152     */, cInvalid /* 153     */, cInvalid /* 154     */, cInvalid /* 155     */,
+    cInvalid /* 156     */, cInvalid /* 157     */, cInvalid /* 158     */, cInvalid /* 159     */,
+    cInvalid /* 160     */, cInvalid /* 161     */, cInvalid /* 162     */, cInvalid /* 163     */,
+    cInvalid /* 164     */, cInvalid /* 165     */, cInvalid /* 166     */, cInvalid /* 167     */,
+    cInvalid /* 168     */, cInvalid /* 169     */, cInvalid /* 170     */, cInvalid /* 171     */,
+    cInvalid /* 172     */, cInvalid /* 173     */, cInvalid /* 174     */, cInvalid /* 175     */,
+    cInvalid /* 176     */, cInvalid /* 177     */, cInvalid /* 178     */, cInvalid /* 179     */,
+    cInvalid /* 180     */, cInvalid /* 181     */, cInvalid /* 182     */, cInvalid /* 183     */,
+    cInvalid /* 184     */, cInvalid /* 185     */, cInvalid /* 186     */, cInvalid /* 187     */,
+    cInvalid /* 188     */, cInvalid /* 189     */, cInvalid /* 190     */, cInvalid /* 191     */,
+    cInvalid /* 192     */, cInvalid /* 193     */, cInvalid /* 194     */, cInvalid /* 195     */,
+    cInvalid /* 196     */, cInvalid /* 197     */, cInvalid /* 198     */, cInvalid /* 199     */,
+    cInvalid /* 200     */, cInvalid /* 201     */, cInvalid /* 202     */, cInvalid /* 203     */,
+    cInvalid /* 204     */, cInvalid /* 205     */, cInvalid /* 206     */, cInvalid /* 207     */,
+    cInvalid /* 208     */, cInvalid /* 209     */, cInvalid /* 210     */, cInvalid /* 211     */,
+    cInvalid /* 212     */, cInvalid /* 213     */, cInvalid /* 214     */, cInvalid /* 215     */,
+    cInvalid /* 216     */, cInvalid /* 217     */, cInvalid /* 218     */, cInvalid /* 219     */,
+    cInvalid /* 220     */, cInvalid /* 221     */, cInvalid /* 222     */, cInvalid /* 223     */,
+    cInvalid /* 224     */, cInvalid /* 225     */, cInvalid /* 226     */, cInvalid /* 227     */,
+    cInvalid /* 228     */, cInvalid /* 229     */, cInvalid /* 230     */, cInvalid /* 231     */,
+    cInvalid /* 232     */, cInvalid /* 233     */, cInvalid /* 234     */, cInvalid /* 235     */,
+    cInvalid /* 236     */, cInvalid /* 237     */, cInvalid /* 238     */, cInvalid /* 239     */,
+    cInvalid /* 240     */, cInvalid /* 241     */, cInvalid /* 242     */, cInvalid /* 243     */,
+    cInvalid /* 244     */, cInvalid /* 245     */, cInvalid /* 246     */, cInvalid /* 247     */,
+    cInvalid /* 248     */, cInvalid /* 249     */, cInvalid /* 250     */, cInvalid /* 251     */,
+    cInvalid /* 252     */, cInvalid /* 253     */, cInvalid /* 254     */, cInvalid /* 255     */,
 };
 
 int8_t kStateLengths[] = {
@@ -400,6 +402,9 @@ bool Lexer::lex() {
             int characterClass = static_cast<int>(kCharacterClasses[character]);
             state = kStateTransitionTable[characterClass + state];
             tokenLength += kStateLengths[state];
+            SPDLOG_DEBUG("lexer character: '{}', class: {}, state: {}, tokenLength: {}",
+                static_cast<char>(character), characterClass, state, tokenLength);
+
         } while (state < kFirstFinalState);
 
         char* tokenEnd = nullptr;
@@ -469,7 +474,6 @@ bool Lexer::lex() {
             case sEndCode:
                 lexContinues = false;
                 break;
-
         }
     }
 

@@ -13,6 +13,11 @@ add_library(libhadron STATIC
 
 target_compile_options(libhadron PUBLIC -Wall -Wextra -pedantic -Werror)
 
+target_link_libraries(libhadron
+    fmt
+    spdlog
+)
+
 add_executable(unittests
     Lexer_unittests.cpp
     unittests.cpp

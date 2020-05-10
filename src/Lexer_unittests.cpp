@@ -262,7 +262,7 @@ TEST_CASE("Plus Symbol") {
         const char* code = "67+4";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
-        // REQUIRE(lexer.tokens().size() == 3);
+        REQUIRE(lexer.tokens().size() == 3);
         CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
         CHECK(lexer.tokens()[0].start == code);
         CHECK(lexer.tokens()[0].length == 2);
@@ -270,10 +270,10 @@ TEST_CASE("Plus Symbol") {
         CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kAddition);
         CHECK(*(lexer.tokens()[1].start) == '+');
         CHECK(lexer.tokens()[1].length == 1);
-        //CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kInteger);
-        //CHECK(lexer.tokens()[2].start == code + 3);
-        //CHECK(lexer.tokens()[2].length == 1);
-        //CHECK(lexer.tokens()[2].value.integer == 4);
+        CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[2].start == code + 3);
+        CHECK(lexer.tokens()[2].length == 1);
+        CHECK(lexer.tokens()[2].value.integer == 4);
     }
 }
 
