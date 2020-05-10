@@ -1,6 +1,11 @@
-#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
-#include "spdlog/spdlog.h"
-
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest/doctest.h"
 
+#include "spdlog/spdlog.h"
+
+int main() {
+    spdlog::set_level(spdlog::level::debug);
+    doctest::Context context;
+    int res = context.run();
+    return res;
+}

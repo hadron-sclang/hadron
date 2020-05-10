@@ -12,6 +12,7 @@ add_library(libhadron STATIC
 )
 
 target_compile_options(libhadron PUBLIC -Wall -Wextra -pedantic -Werror)
+target_compile_definitions(libhadron PRIVATE DEBUG_LEXER)
 
 target_link_libraries(libhadron
     fmt

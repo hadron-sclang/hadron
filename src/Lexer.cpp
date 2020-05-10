@@ -1,8 +1,11 @@
 #include "Lexer.hpp"
 
-#include "spdlog/spdlog.h"
-
 #include <cstdlib>
+
+#ifdef DEBUG_LEXER
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
+#endif
+#include "spdlog/spdlog.h"
 
 // Design following https://nothings.org/computer/lexing.html
 
@@ -43,6 +46,32 @@ enum State : uint8_t {
 constexpr uint8_t kFirstFinalState = 6;
 constexpr uint8_t kNumStates = State::sEndCode + 1;
 
+#ifdef DEBUG_LEXER
+const char* kStateNames[kNumStates] = {
+    "sSpace",
+    "sLeadZero",
+    "sNumber",
+    "sPlus",
+    "sAsterisk",
+    "sForwardSlash",
+    "sInteger",
+    "sHexInteger",
+    "sFloat",
+    "sRadix",
+    "sZero",
+    "sAdd",
+    "sStringCat",
+    "sPathCat",
+    "sSubtract",
+    "sMultiply",
+    "sExponentiate",
+    "sDivide",
+    "sModule",
+    "sLexError",
+    "sEndCode"
+};
+#endif
+
 enum CharacterClass : uint8_t {
     cSpace = 0 * kNumStates,   // space, tab
     cNewline = 1 * kNumStates, // \n, \r
@@ -56,6 +85,21 @@ enum CharacterClass : uint8_t {
     // This has to stay the last character class.
     cEnd = 9 * kNumStates,     // EOF, \0
 };
+
+#ifdef DEBUG_LEXER
+const char* kClassNames[] = {
+    "cSpace",
+    "cNewline",
+    "cZero",
+    "cDigit",
+    "cPeriod",
+    "cx",
+    "cPlus",
+    "cHyphen",
+    "cInvalid",
+    "cEnd"
+};
+#endif
 
 const State kStateTransitionTable[] = {
     // CharacterClass = cSpace
@@ -359,6 +403,43 @@ const CharacterClass kCharacterClasses[256] = {
     cInvalid /* 252     */, cInvalid /* 253     */, cInvalid /* 254     */, cInvalid /* 255     */,
 };
 
+#ifdef DEBUG_LEXER
+const char* kCharacterNames[128] = {
+    "\\0"    /*   0 \0  */, "1:SOH"  /*   1 SOH */, "2:STX"  /*   2 STX */, "3:ETX"   /*   3 ETX */,
+    "4:EOT"  /*   4 EOT */, "5:EOF"  /*   5 EOF */, "6:ACK"  /*   6 ACK */, "7:BEL"   /*   7 BEL */,
+    "8:BS"   /*   8 BS  */, "\\t"    /*   9 \t  */, "\\n"    /*  10 \n  */, "11:VT"   /*  11 VT  */,
+    "12:FF"  /*  12 FF  */, "\\r"    /*  13 \r  */, "14:SO"  /*  14 SO  */, "15:SI"   /*  15 SI  */,
+    "16:DLE" /*  16 DLE */, "17:DC1" /*  17 DC1 */, "18:DC2" /*  18 DC2 */, "19:DC3"  /*  19 DC3 */,
+    "20:DC4" /*  20 DC4 */, "21:MAK" /*  21 NAK */, "22:SYN" /*  22 SYN */, "23:STB"  /*  23 ETB */,
+    "24:CAN" /*  24 CAN */, "25:EM"  /*  25 EM  */, "26:SUB" /*  26 SUB */, "27:ESC"  /*  27 ESC */,
+    "28:FS"  /*  28 FS  */, "29:FS"  /*  29 FS  */, "30:RS"  /*  30 RS  */, "31:US"   /*  31 US  */,
+    " "      /*  32 SPC */, "!"      /*  33 !   */, "\""     /*  34 "   */, "#"       /*  35 #   */,
+    "$"      /*  36 $   */, "%"      /*  37 %   */, "&"      /*  38 &   */, "'"       /*  39 '   */,
+    "("      /*  40 (   */, ")"      /*  41 )   */, "*"      /*  42 *   */, "+"       /*  43 +   */,
+    ","      /*  44 ,   */, "-"      /*  45 -   */, "."      /*  46 .   */, "/"       /*  47 /   */,
+    "0"      /*  48 0   */, "1"      /*  49 1   */, "2"      /*  50 2   */, "3"       /*  51 3   */,
+    "4"      /*  52 4   */, "5"      /*  53 5   */, "6"      /*  54 6   */, "7"       /*  55 7   */,
+    "8"      /*  56 8   */, "9"      /*  57 9   */, ":"      /*  58 :   */, ";"       /*  59 ;   */,
+    "<"      /*  60 <   */, "="      /*  61 =   */, ">"      /*  62 >   */, "?"       /*  63 ?   */,
+    "@"      /*  64 @   */, "A"      /*  65 A   */, "B"      /*  66 B   */, "C"       /*  67 C   */,
+    "D"      /*  68 D   */, "E"      /*  69 E   */, "F"      /*  70 F   */, "G"       /*  71 G   */,
+    "H"      /*  72 H   */, "I"      /*  73 I   */, "J"      /*  74 J   */, "K"       /*  75 K   */,
+    "L"      /*  76 L   */, "M"      /*  77 M   */, "N"      /*  78 N   */, "O"       /*  79 O   */,
+    "P"      /*  80 P   */, "Q"      /*  81 Q   */, "R"      /*  82 R   */, "S"       /*  83 S   */,
+    "T"      /*  84 T   */, "U"      /*  85 U   */, "V"      /*  86 V   */, "W"       /*  87 W   */,
+    "X"      /*  88 X   */, "Y"      /*  89 Y   */, "Z"      /*  90 Z   */, "["       /*  91 [   */,
+    "\\"     /*  92 \   */, "]"      /*  93 ]   */, "^"      /*  94 ^   */, "_"       /*  95 _   */,
+    "`"      /*  96 `   */, "a"      /*  97 a   */, "b"      /*  98 b   */, "c"       /*  99 c   */,
+    "d"      /* 100 d   */, "e"      /* 101 e   */, "f"      /* 102 f   */, "g"       /* 103 g   */,
+    "h"      /* 104 h   */, "i"      /* 105 i   */, "j"      /* 106 j   */, "k"       /* 107 k   */,
+    "l"      /* 108 l   */, "m"      /* 109 m   */, "n"      /* 110 n   */, "o"       /* 111 o   */,
+    "p"      /* 112 p   */, "q"      /* 113 q   */, "r"      /* 114 r   */, "s"       /* 115 s   */,
+    "t"      /* 116 t   */, "u"      /* 117 u   */, "v"      /* 118 v   */, "w"       /* 119 w   */,
+    "x"      /* 120 x   */, "y"      /* 121 y   */, "z"      /* 122 z   */, "{"       /* 123 {   */,
+    "|"      /* 124 |   */, "}"      /* 125 }   */, "~"      /* 126 ~   */, "127:DEL" /* 127 DEL */
+};
+#endif
+
 int8_t kStateLengths[] = {
     0, // sSpace
     1, // sLeadZero
@@ -389,23 +470,28 @@ static_assert(sizeof(kStateLengths) == kNumStates);
 
 namespace hadron {
 
-Lexer::Lexer(const char* code): m_code(code) {}
+Lexer::Lexer(const char* code): m_code(code) { m_length = std::strlen(code); }
+Lexer::Lexer(const char* code, size_t length): m_code(code), m_length(length) {}
+
 
 bool Lexer::lex() {
+    SPDLOG_DEBUG("** start of Lex on string \"{}\"", m_code);
     const char* code = m_code;
-    bool lexContinues = true;
+    const char* endCode = m_code + m_length;
     State state = sSpace;
-    while (lexContinues) {
+    int characterClass = static_cast<int>(CharacterClass::cSpace);
+    while (code < endCode) {
         int tokenLength = 0;
         do {
             int character = static_cast<int>(*code++);
-            int characterClass = static_cast<int>(kCharacterClasses[character]);
+            SPDLOG_DEBUG("  character: '{}', class: {}, state: {}, length: {}", kCharacterNames[character & 0x7f],
+                    kClassNames[characterClass / kNumStates], kStateNames[state], tokenLength);
+            characterClass = static_cast<int>(kCharacterClasses[character]);
             state = kStateTransitionTable[characterClass + state];
             tokenLength += kStateLengths[state];
-            SPDLOG_DEBUG("lexer character: '{}', class: {}, state: {}, tokenLength: {}",
-                static_cast<char>(character), characterClass, state, tokenLength);
-
         } while (state < kFirstFinalState);
+
+        SPDLOG_DEBUG("final state: {}", kStateNames[state]);
 
         char* tokenEnd = nullptr;
         const char* tokenStart;
@@ -418,7 +504,7 @@ bool Lexer::lex() {
             case sPlus:
             case sAsterisk:
             case sForwardSlash:
-                lexContinues = false;
+                code = endCode;
                 break;
 
             case sInteger: {
@@ -427,8 +513,11 @@ bool Lexer::lex() {
                 int64_t intValue = std::strtoll(tokenStart, &tokenEnd, 10);
                 if (tokenStart < tokenEnd) {
                     m_tokens.emplace_back(Token(tokenStart, tokenEnd - tokenStart, intValue));
+                    // Reset pointer to the end of the integer.
+                    code = tokenEnd;
                 } else {
-                    lexContinues = false;
+                    state = sLexError;
+                    code = endCode;
                 }
             } break;
 
@@ -439,15 +528,17 @@ bool Lexer::lex() {
                 int64_t intValue = std::strtoll(code, &tokenEnd, 16);
                 if (code < tokenEnd) {
                     m_tokens.emplace_back(Token(tokenStart, tokenEnd - tokenStart, intValue));
-                    code = tokenEnd + 1;
+                    code = tokenEnd;
                 } else {
-                    lexContinues = false;
+                    state = sLexError;
+                    code = endCode;
                 }
             } break;
 
             case sFloat:
             case sRadix:
-                lexContinues = false;
+                state = sLexError;
+                code = endCode;
                 break;
 
             case sZero:
@@ -458,6 +549,8 @@ bool Lexer::lex() {
             case sAdd:
                 tokenStart = code - tokenLength - 1;
                 m_tokens.emplace_back(Token(Token::Type::kAddition, tokenStart, tokenLength));
+                // Add supports other symbols following without whitespace, so back up to re-evaluate next symbol.
+                --code;
                 break;
 
             case sStringCat:
@@ -467,17 +560,22 @@ bool Lexer::lex() {
             case sExponentiate:
             case sDivide:
             case sModulo:
-                lexContinues = false;
+                state = sLexError;
+                code = endCode;
                 break;
 
             case sLexError:
+                code = endCode;
+                spdlog::error("got lex error");
+                break;
+
             case sEndCode:
-                lexContinues = false;
+                code = endCode;
                 break;
         }
     }
 
-    return state == sEndCode;
+    return state != sLexError;
 }
 
 }

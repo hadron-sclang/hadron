@@ -40,12 +40,14 @@ public:
     };
 
     Lexer(const char* code);
+    Lexer(const char* code, size_t length);
     bool lex();
 
     const std::vector<Token>& tokens() { return m_tokens; }
 
 private:
     const char* m_code;
+    size_t m_length;
     std::vector<Token> m_tokens;
 };
 
