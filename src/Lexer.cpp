@@ -8,7 +8,6 @@
 #include <array>
 #include <cstdlib>
 
-
 // Design following https://nothings.org/computer/lexing.html
 
 namespace {
@@ -27,31 +26,33 @@ enum State : uint8_t {
     sStringEscape = 7,  // escape character in string parsing
     sInQuoteSymbol = 8,
     sSymbolEscape = 9,
+    sInSlashSymbol = 10,
 
     // final states
-    sInteger = 10,
-    sHexInteger = 11, // done, this can only be an integer
-    sFloat = 12, // done, we have enough to delegate to strtod
-    sRadix = 13,  // can have decimal but all bets on speed are off.
-    sZero = 14,
-    sAdd = 15,
-    sStringCat = 16, // ++
-    sPathCat = 17,   // +/+
-    sSubtract = 18,
-    sMultiply = 19,
-    sExponentiate = 20,
-    sDivide = 21,
-    sModulo = 22,
-    sString = 23,
-    sQuoteSymbol = 24,
+    sInteger = 11,
+    sHexInteger = 12, // done, this can only be an integer
+    sFloat = 13, // done, we have enough to delegate to strtod
+    sRadix = 14,  // can have decimal but all bets on speed are off.
+    sZero = 15,
+    sAdd = 16,
+    sStringCat = 17, // ++
+    sPathCat = 18,   // +/+
+    sSubtract = 19,
+    sMultiply = 20,
+    sExponentiate = 21,
+    sDivide = 22,
+    sModulo = 23,
+    sString = 24,
+    sQuoteSymbol = 25,
+    sSlashSymbol = 26,
 
-    sLexError = 25,
+    sLexError = 27,
 
     // This has to stay the last state for the counting and static asserts to work correctly.
-    sEndCode = 26,
+    sEndCode = 28,
 };
 
-constexpr uint8_t kFirstFinalState = 10;
+constexpr uint8_t kFirstFinalState = 11;
 constexpr uint8_t kNumStates = State::sEndCode + 1;
 
 #ifdef DEBUG_LEXER
@@ -66,6 +67,7 @@ std::array<const char*, kNumStates> kStateNames = {
     "sStringEscape",
     "sInQuoteSymbol",
     "sSymbolEscape",
+    "sInSlashSymbol",
     "sInteger",
     "sHexInteger",
     "sFloat",
@@ -81,6 +83,7 @@ std::array<const char*, kNumStates> kStateNames = {
     "sModulo",
     "sString",
     "sQuoteSymbol",
+    "sSlashSymbol",
     "sLexError",
     "sEndCode"
 };
@@ -92,15 +95,18 @@ enum CharacterClass : uint16_t {
     cZero = 2 * kNumStates,         // 0
     cDigit = 3 * kNumStates,        // 1-9
     cPeriod = 4 * kNumStates,       // .
-    cx = 5 * kNumStates,            // a lower-case x, possibly for hexadecimal
+    cLowerX = 5 * kNumStates,            // a lower-case x, possibly for hexadecimal
     cPlus = 6 * kNumStates,         // +
     cHyphen = 7 * kNumStates,       // -
     cDoubleQuote = 8 * kNumStates,  // "
     cBackSlash = 9 * kNumStates,    // backslash
     cSingleQuote = 10 * kNumStates, // '
-    cInvalid = 11 * kNumStates,     // unsupported character
+    cAlphaLower = 11 * kNumStates,  // a-z except for x
+    cAlphaUpper = 12 * kNumStates,  // A-Z
+    cUnderscore = 13 * kNumStates,  // _
+    cInvalid = 14 * kNumStates,     // unsupported character
     // This has to stay the last character class.
-    cEnd = 12 * kNumStates,        // EOF, \0
+    cEnd = 15 * kNumStates,        // EOF, \0
 };
 
 #ifdef DEBUG_LEXER
@@ -110,12 +116,15 @@ std::array<const char*, cEnd / kNumStates + 1> kClassNames = {
     "cZero",
     "cDigit",
     "cPeriod",
-    "cx",
+    "cLowerX",
     "cPlus",
     "cHyphen",
     "cDoubleQuote",
     "cBackSlash",
     "cSingleQuote",
+    "cAlphaLower",
+    "cAlphaUpper",
+    "cUnderscore",
     "cInvalid",
     "cEnd"
 };
@@ -133,6 +142,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape  => */ sInString,
     /* sInQuoteSymbol => */ sInQuoteSymbol,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sSlashSymbol,
     /* sInteger       => */ sSpace,
     /* sHexInteger    => */ sSpace,
     /* sFloat         => */ sSpace,
@@ -148,6 +158,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo        => */ sSpace,
     /* sString        => */ sSpace,
     /* sQuoteSymbol   => */ sSpace,
+    /* sSlashSymbol   => */ sSpace,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -162,6 +173,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape => */ sInString,
     /* sInQuoteSymbol => */ sInQuoteSymbol,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sSlashSymbol,
     /* sInteger      => */ sSpace,
     /* sHexInteger   => */ sSpace,
     /* sFloat        => */ sSpace,
@@ -177,6 +189,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sSpace,
     /* sString       => */ sSpace,
     /* sQuoteSymbol   => */ sSpace,
+    /* sSlashSymbol   => */ sSpace,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError,
 
@@ -191,6 +204,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape => */ sInString,
     /* sInQuoteSymbol => */ sInQuoteSymbol,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sInSlashSymbol,
     /* sInteger      => */ sLexError,
     /* sHexInteger   => */ sLexError,
     /* sFloat        => */ sLexError,
@@ -206,6 +220,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sLeadZero,
     /* sString       => */ sLeadZero,
     /* sQuoteSymbol  => */ sLeadZero,
+    /* sSlashSymbol  => */ sLeadZero,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError,
 
@@ -220,6 +235,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape => */ sInString,
     /* sInQuoteSymbol => */ sInQuoteSymbol,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sInSlashSymbol,
     /* sInteger      => */ sLexError,
     /* sHexInteger   => */ sLexError,
     /* sFloat        => */ sLexError,
@@ -235,6 +251,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sNumber,
     /* sString       => */ sNumber,
     /* sQuoteSymbol  => */ sNumber,
+    /* sSlashSymbol  => */ sNumber,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError,
 
@@ -249,6 +266,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape => */ sInString,
     /* sInQuoteSymbol => */ sInQuoteSymbol,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sSlashSymbol,
     /* sInteger      => */ sLexError,
     /* sHexInteger   => */ sLexError,
     /* sFloat        => */ sLexError,
@@ -264,10 +282,11 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sLexError,
     /* sString       => */ sLexError,
     /* sQuoteSymbol  => */ sLexError,
+    /* sSlashSymbol  => */ sLexError,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError,
 
-    // Class = cx
+    // Class = cLowerX
     /* sSpace        => */ sLexError,
     /* sLeadZero     => */ sHexInteger,
     /* sNumber       => */ sLexError,
@@ -278,6 +297,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape => */ sInString,
     /* sInQuoteSymbol => */ sInQuoteSymbol,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sInSlashSymbol,
     /* sInteger      => */ sLexError,
     /* sHexInteger   => */ sLexError,
     /* sFloat        => */ sLexError,
@@ -293,6 +313,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sLexError,
     /* sString       => */ sLexError,
     /* sQuoteSymbol  => */ sLexError,
+    /* sSlashSymbol  => */ sLexError,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError,
 
@@ -307,6 +328,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape => */ sInString,
     /* sInQuoteSymbol => */ sInQuoteSymbol,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sSlashSymbol,
     /* sInteger      => */ sPlus,
     /* sHexInteger   => */ sPlus,
     /* sFloat        => */ sPlus,
@@ -322,6 +344,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sLexError,
     /* sString       => */ sPlus,
     /* sQuoteSymbol  => */ sPlus,
+    /* sSlashSymbol  => */ sPlus,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError,
 
@@ -336,6 +359,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape => */ sInString,
     /* sInQuoteSymbol => */ sInQuoteSymbol,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sSlashSymbol,
     /* sInteger      => */ sSubtract,
     /* sHexInteger   => */ sSubtract,
     /* sFloat        => */ sSubtract,
@@ -351,6 +375,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sLexError,
     /* sString       => */ sSubtract,
     /* sQuoteSymbol  => */ sSubtract,
+    /* sSlashSymbol  => */ sSubtract,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError,
 
@@ -365,6 +390,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape => */ sInString,
     /* sInQuoteSymbol => */ sInQuoteSymbol,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sSlashSymbol,
     /* sInteger      => */ sInString,
     /* sHexInteger   => */ sInString,
     /* sFloat        => */ sInString,
@@ -380,11 +406,12 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sInString,
     /* sString       => */ sInString,
     /* sQuoteSymbol  => */ sInString,
+    /* sSlashSymbol  => */ sInString,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError,
 
     // Class = cBackSlash
-    /* sSpace        => */ sEndCode,
+    /* sSpace        => */ sInSlashSymbol,
     /* sLeadZero     => */ sLexError,
     /* sNumber       => */ sLexError,
     /* sPlus         => */ sLexError,
@@ -394,6 +421,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape => */ sInString,
     /* sInQuoteSymbol => */ sSymbolEscape,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sSlashSymbol,
     /* sInteger      => */ sLexError,
     /* sHexInteger   => */ sLexError,
     /* sFloat        => */ sLexError,
@@ -409,6 +437,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sLexError,
     /* sString       => */ sLexError,
     /* sQuoteSymbol  => */ sLexError,
+    /* sSlashSymbol  => */ sInSlashSymbol,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError,
 
@@ -423,6 +452,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape => */ sInString,
     /* sInQuoteSymbol => */ sQuoteSymbol,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sSlashSymbol,
     /* sInteger      => */ sInQuoteSymbol,
     /* sHexInteger   => */ sInQuoteSymbol,
     /* sFloat        => */ sInQuoteSymbol,
@@ -438,20 +468,22 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sInQuoteSymbol,
     /* sString       => */ sInQuoteSymbol,
     /* sQuoteSymbol  => */ sInQuoteSymbol,
+    /* sSlashSymbol  => */ sInQuoteSymbol,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError,
 
-    // Class = cInvalid
-    /* sSpace        => */ sLexError,
-    /* sLeadZero     => */ sLexError,
-    /* sNumber       => */ sLexError,
-    /* sPlus         => */ sLexError,
+    // Class cAlphaLower
+    /* sSpace        => */ sInQuoteSymbol,
+    /* sLeadZero     => */ sZero,
+    /* sNumber       => */ sInteger,
+    /* sPlus         => */ sAdd,
     /* sAsterisk     => */ sLexError,
     /* sForwardSlash => */ sLexError,
-    /* sInString     => */ sInString, // <== for UTF-8 support
+    /* sInString     => */ sInString,
     /* sStringEscape => */ sInString,
     /* sInQuoteSymbol => */ sInQuoteSymbol,
     /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sInSlashSymbol,
     /* sInteger      => */ sLexError,
     /* sHexInteger   => */ sLexError,
     /* sFloat        => */ sLexError,
@@ -467,6 +499,100 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sLexError,
     /* sString       => */ sLexError,
     /* sQuoteSymbol  => */ sLexError,
+    /* sSlashSymbol  => */ sLexError,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
+
+    // Class cAlphaUpper
+    /* sSpace        => */ sInQuoteSymbol,
+    /* sLeadZero     => */ sZero,
+    /* sNumber       => */ sInteger,
+    /* sPlus         => */ sAdd,
+    /* sAsterisk     => */ sLexError,
+    /* sForwardSlash => */ sLexError,
+    /* sInString     => */ sInString,
+    /* sStringEscape => */ sInString,
+    /* sInQuoteSymbol => */ sInQuoteSymbol,
+    /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sInSlashSymbol,
+    /* sInteger      => */ sLexError,
+    /* sHexInteger   => */ sLexError,
+    /* sFloat        => */ sLexError,
+    /* sRadix        => */ sLexError,
+    /* sZero         => */ sLexError,
+    /* sAdd          => */ sLexError,
+    /* sStringCat    => */ sLexError,
+    /* sPathCat      => */ sLexError,
+    /* sSubtract     => */ sLexError,
+    /* sMultiply     => */ sLexError,
+    /* sExponentiate => */ sLexError,
+    /* sDivide       => */ sLexError,
+    /* sModulo       => */ sLexError,
+    /* sString       => */ sLexError,
+    /* sQuoteSymbol  => */ sLexError,
+    /* sSlashSymbol  => */ sLexError,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
+
+    // Class cUnderscore
+    /* sSpace        => */ sInQuoteSymbol,
+    /* sLeadZero     => */ sZero,
+    /* sNumber       => */ sInteger,
+    /* sPlus         => */ sAdd,
+    /* sAsterisk     => */ sLexError,
+    /* sForwardSlash => */ sLexError,
+    /* sInString     => */ sInString,
+    /* sStringEscape => */ sInString,
+    /* sInQuoteSymbol => */ sQuoteSymbol,
+    /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sInSlashSymbol,
+    /* sInteger      => */ sLexError,
+    /* sHexInteger   => */ sLexError,
+    /* sFloat        => */ sLexError,
+    /* sRadix        => */ sLexError,
+    /* sZero         => */ sLexError,
+    /* sAdd          => */ sLexError,
+    /* sStringCat    => */ sLexError,
+    /* sPathCat      => */ sLexError,
+    /* sSubtract     => */ sLexError,
+    /* sMultiply     => */ sLexError,
+    /* sExponentiate => */ sLexError,
+    /* sDivide       => */ sLexError,
+    /* sModulo       => */ sLexError,
+    /* sString       => */ sLexError,
+    /* sQuoteSymbol  => */ sLexError,
+    /* sSlashSymbol  => */ sLexError,
+    /* sLexError     => */ sLexError,
+    /* sEndCode      => */ sLexError,
+
+    // Class = cInvalid
+    /* sSpace        => */ sLexError,
+    /* sLeadZero     => */ sLexError,
+    /* sNumber       => */ sLexError,
+    /* sPlus         => */ sLexError,
+    /* sAsterisk     => */ sLexError,
+    /* sForwardSlash => */ sLexError,
+    /* sInString     => */ sInString, // <== for UTF-8 support
+    /* sStringEscape => */ sInString,
+    /* sInQuoteSymbol => */ sInQuoteSymbol,
+    /* sSymbolEscape  => */ sInQuoteSymbol,
+    /* sInSlashSymbol => */ sLexError,
+    /* sInteger      => */ sLexError,
+    /* sHexInteger   => */ sLexError,
+    /* sFloat        => */ sLexError,
+    /* sRadix        => */ sLexError,
+    /* sZero         => */ sLexError,
+    /* sAdd          => */ sLexError,
+    /* sStringCat    => */ sLexError,
+    /* sPathCat      => */ sLexError,
+    /* sSubtract     => */ sLexError,
+    /* sMultiply     => */ sLexError,
+    /* sExponentiate => */ sLexError,
+    /* sDivide       => */ sLexError,
+    /* sModulo       => */ sLexError,
+    /* sString       => */ sLexError,
+    /* sQuoteSymbol  => */ sLexError,
+    /* sSlashSymbol  => */ sLexError,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError,
 
@@ -481,6 +607,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sStringEscape => */ sLexError,
     /* sInQuoteSymbol => */ sLexError,
     /* sSymbolEscape  => */ sLexError,
+    /* sInSlashSymbol => */ sSlashSymbol,
     /* sInteger      => */ sEndCode,
     /* sHexInteger   => */ sEndCode,
     /* sFloat        => */ sEndCode,
@@ -496,75 +623,76 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sModulo       => */ sEndCode,
     /* sString       => */ sEndCode,
     /* sQuoteSymbol  => */ sEndCode,
+    /* sSlashSymbol  => */ sEndCode,
     /* sLexError     => */ sLexError,
     /* sEndCode      => */ sLexError
 };
 
 std::array<CharacterClass, 256> kCharacterClasses = {
-    cEnd       /*   0 \0  */, cInvalid /*   1 SOH */, cInvalid     /*   2 STX */, cInvalid     /*   3 ETX */,
-    cInvalid   /*   4 EOT */, cEnd     /*   5 EOF */, cInvalid     /*   6 ACK */, cInvalid     /*   7 BEL */,
-    cInvalid   /*   8 BS  */, cSpace   /*   9 \t  */, cNewline     /*  10 \n  */, cInvalid     /*  11 VT  */,
-    cInvalid   /*  12 FF  */, cNewline /*  13 \r  */, cInvalid     /*  14 SO  */, cInvalid     /*  15 SI  */,
-    cInvalid   /*  16 DLE */, cInvalid /*  17 DC1 */, cInvalid     /*  18 DC2 */, cInvalid     /*  19 DC3 */,
-    cInvalid   /*  20 DC4 */, cInvalid /*  21 NAK */, cInvalid     /*  22 SYN */, cInvalid     /*  23 ETB */,
-    cInvalid   /*  24 CAN */, cInvalid /*  25 EM  */, cInvalid     /*  26 SUB */, cInvalid     /*  27 ESC */,
-    cInvalid   /*  28 FS  */, cInvalid /*  29 FS  */, cInvalid     /*  30 RS  */, cInvalid     /*  31 US  */,
-    cSpace     /*  32 SPC */, cInvalid /*  33 !   */, cDoubleQuote /*  34 "   */, cInvalid     /*  35 #   */,
-    cInvalid   /*  36 $   */, cInvalid /*  37 %   */, cInvalid     /*  38 &   */, cSingleQuote /*  39 '   */,
-    cInvalid   /*  40 (   */, cInvalid /*  41 )   */, cInvalid     /*  42 *   */, cPlus        /*  43 +   */,
-    cInvalid   /*  44 ,   */, cHyphen  /*  45 -   */, cInvalid     /*  46 .   */, cInvalid     /*  47 /   */,
-    cZero      /*  48 0   */, cDigit   /*  49 1   */, cDigit       /*  50 2   */, cDigit       /*  51 3   */,
-    cDigit     /*  52 4   */, cDigit   /*  53 5   */, cDigit       /*  54 6   */, cDigit       /*  55 7   */,
-    cDigit     /*  56 8   */, cDigit   /*  57 9   */, cInvalid     /*  58 :   */, cInvalid     /*  59 ;   */,
-    cInvalid   /*  60 <   */, cInvalid /*  61 =   */, cInvalid     /*  62 >   */, cInvalid     /*  63 ?   */,
-    cInvalid   /*  64 @   */, cInvalid /*  65 A   */, cInvalid     /*  66 B   */, cInvalid     /*  67 C   */,
-    cInvalid   /*  68 D   */, cInvalid /*  69 E   */, cInvalid     /*  70 F   */, cInvalid     /*  71 G   */,
-    cInvalid   /*  72 H   */, cInvalid /*  73 I   */, cInvalid     /*  74 J   */, cInvalid     /*  75 K   */,
-    cInvalid   /*  76 L   */, cInvalid /*  77 M   */, cInvalid     /*  78 N   */, cInvalid     /*  79 O   */,
-    cInvalid   /*  80 P   */, cInvalid /*  81 Q   */, cInvalid     /*  82 R   */, cInvalid     /*  83 S   */,
-    cInvalid   /*  84 T   */, cInvalid /*  85 U   */, cInvalid     /*  86 V   */, cInvalid     /*  87 W   */,
-    cInvalid   /*  88 X   */, cInvalid /*  89 Y   */, cInvalid     /*  90 Z   */, cInvalid     /*  91 [   */,
-    cBackSlash /*  92 \   */, cInvalid /*  93 ]   */, cInvalid     /*  94 ^   */, cInvalid     /*  95 _   */,
-    cInvalid   /*  96 `   */, cInvalid /*  97 a   */, cInvalid     /*  98 b   */, cInvalid     /*  99 c   */,
-    cInvalid   /* 100 d   */, cInvalid /* 101 e   */, cInvalid     /* 102 f   */, cInvalid     /* 103 g   */,
-    cInvalid   /* 104 h   */, cInvalid /* 105 i   */, cInvalid     /* 106 j   */, cInvalid     /* 107 k   */,
-    cInvalid   /* 108 l   */, cInvalid /* 109 m   */, cInvalid     /* 110 n   */, cInvalid     /* 111 o   */,
-    cInvalid   /* 112 p   */, cInvalid /* 113 q   */, cInvalid     /* 114 r   */, cInvalid     /* 115 s   */,
-    cInvalid   /* 116 t   */, cInvalid /* 117 u   */, cInvalid     /* 118 v   */, cInvalid     /* 119 w   */,
-    cx         /* 120 x   */, cInvalid /* 121 y   */, cInvalid     /* 122 z   */, cInvalid     /* 123 {   */,
-    cInvalid   /* 124 |   */, cInvalid /* 125 }   */, cInvalid     /* 126 ~   */, cInvalid     /* 127 DEL */,
-    cInvalid   /* 128     */, cInvalid /* 129     */, cInvalid     /* 130     */, cInvalid     /* 131     */,
-    cInvalid   /* 132     */, cInvalid /* 133     */, cInvalid     /* 134     */, cInvalid     /* 135     */,
-    cInvalid   /* 136     */, cInvalid /* 137     */, cInvalid     /* 138     */, cInvalid     /* 139     */,
-    cInvalid   /* 140     */, cInvalid /* 141     */, cInvalid     /* 142     */, cInvalid     /* 143     */,
-    cInvalid   /* 144     */, cInvalid /* 145     */, cInvalid     /* 146     */, cInvalid     /* 147     */,
-    cInvalid   /* 148     */, cInvalid /* 149     */, cInvalid     /* 150     */, cInvalid     /* 151     */,
-    cInvalid   /* 152     */, cInvalid /* 153     */, cInvalid     /* 154     */, cInvalid     /* 155     */,
-    cInvalid   /* 156     */, cInvalid /* 157     */, cInvalid     /* 158     */, cInvalid     /* 159     */,
-    cInvalid   /* 160     */, cInvalid /* 161     */, cInvalid     /* 162     */, cInvalid     /* 163     */,
-    cInvalid   /* 164     */, cInvalid /* 165     */, cInvalid     /* 166     */, cInvalid     /* 167     */,
-    cInvalid   /* 168     */, cInvalid /* 169     */, cInvalid     /* 170     */, cInvalid     /* 171     */,
-    cInvalid   /* 172     */, cInvalid /* 173     */, cInvalid     /* 174     */, cInvalid     /* 175     */,
-    cInvalid   /* 176     */, cInvalid /* 177     */, cInvalid     /* 178     */, cInvalid     /* 179     */,
-    cInvalid   /* 180     */, cInvalid /* 181     */, cInvalid     /* 182     */, cInvalid     /* 183     */,
-    cInvalid   /* 184     */, cInvalid /* 185     */, cInvalid     /* 186     */, cInvalid     /* 187     */,
-    cInvalid   /* 188     */, cInvalid /* 189     */, cInvalid     /* 190     */, cInvalid     /* 191     */,
-    cInvalid   /* 192     */, cInvalid /* 193     */, cInvalid     /* 194     */, cInvalid     /* 195     */,
-    cInvalid   /* 196     */, cInvalid /* 197     */, cInvalid     /* 198     */, cInvalid     /* 199     */,
-    cInvalid   /* 200     */, cInvalid /* 201     */, cInvalid     /* 202     */, cInvalid     /* 203     */,
-    cInvalid   /* 204     */, cInvalid /* 205     */, cInvalid     /* 206     */, cInvalid     /* 207     */,
-    cInvalid   /* 208     */, cInvalid /* 209     */, cInvalid     /* 210     */, cInvalid     /* 211     */,
-    cInvalid   /* 212     */, cInvalid /* 213     */, cInvalid     /* 214     */, cInvalid     /* 215     */,
-    cInvalid   /* 216     */, cInvalid /* 217     */, cInvalid     /* 218     */, cInvalid     /* 219     */,
-    cInvalid   /* 220     */, cInvalid /* 221     */, cInvalid     /* 222     */, cInvalid     /* 223     */,
-    cInvalid   /* 224     */, cInvalid /* 225     */, cInvalid     /* 226     */, cInvalid     /* 227     */,
-    cInvalid   /* 228     */, cInvalid /* 229     */, cInvalid     /* 230     */, cInvalid     /* 231     */,
-    cInvalid   /* 232     */, cInvalid /* 233     */, cInvalid     /* 234     */, cInvalid     /* 235     */,
-    cInvalid   /* 236     */, cInvalid /* 237     */, cInvalid     /* 238     */, cInvalid     /* 239     */,
-    cInvalid   /* 240     */, cInvalid /* 241     */, cInvalid     /* 242     */, cInvalid     /* 243     */,
-    cInvalid   /* 244     */, cInvalid /* 245     */, cInvalid     /* 246     */, cInvalid     /* 247     */,
-    cInvalid   /* 248     */, cInvalid /* 249     */, cInvalid     /* 250     */, cInvalid     /* 251     */,
-    cInvalid   /* 252     */, cInvalid /* 253     */, cInvalid     /* 254     */, cInvalid     /* 255     */,
+    cEnd        /*   0 \0  */, cInvalid    /*   1 SOH */, cInvalid     /*   2 STX */, cInvalid     /*   3 ETX */,
+    cInvalid    /*   4 EOT */, cEnd        /*   5 EOF */, cInvalid     /*   6 ACK */, cInvalid     /*   7 BEL */,
+    cInvalid    /*   8 BS  */, cSpace      /*   9 \t  */, cNewline     /*  10 \n  */, cInvalid     /*  11 VT  */,
+    cInvalid    /*  12 FF  */, cNewline    /*  13 \r  */, cInvalid     /*  14 SO  */, cInvalid     /*  15 SI  */,
+    cInvalid    /*  16 DLE */, cInvalid    /*  17 DC1 */, cInvalid     /*  18 DC2 */, cInvalid     /*  19 DC3 */,
+    cInvalid    /*  20 DC4 */, cInvalid    /*  21 NAK */, cInvalid     /*  22 SYN */, cInvalid     /*  23 ETB */,
+    cInvalid    /*  24 CAN */, cInvalid    /*  25 EM  */, cInvalid     /*  26 SUB */, cInvalid     /*  27 ESC */,
+    cInvalid    /*  28 FS  */, cInvalid    /*  29 FS  */, cInvalid     /*  30 RS  */, cInvalid     /*  31 US  */,
+    cSpace      /*  32 SPC */, cInvalid    /*  33 !   */, cDoubleQuote /*  34 "   */, cInvalid     /*  35 #   */,
+    cInvalid    /*  36 $   */, cInvalid    /*  37 %   */, cInvalid     /*  38 &   */, cSingleQuote /*  39 '   */,
+    cInvalid    /*  40 (   */, cInvalid    /*  41 )   */, cInvalid     /*  42 *   */, cPlus        /*  43 +   */,
+    cInvalid    /*  44 ,   */, cHyphen     /*  45 -   */, cInvalid     /*  46 .   */, cInvalid     /*  47 /   */,
+    cZero       /*  48 0   */, cDigit      /*  49 1   */, cDigit       /*  50 2   */, cDigit       /*  51 3   */,
+    cDigit      /*  52 4   */, cDigit      /*  53 5   */, cDigit       /*  54 6   */, cDigit       /*  55 7   */,
+    cDigit      /*  56 8   */, cDigit      /*  57 9   */, cInvalid     /*  58 :   */, cInvalid     /*  59 ;   */,
+    cInvalid    /*  60 <   */, cInvalid    /*  61 =   */, cInvalid     /*  62 >   */, cInvalid     /*  63 ?   */,
+    cInvalid    /*  64 @   */, cAlphaUpper /*  65 A   */, cAlphaUpper  /*  66 B   */, cAlphaUpper  /*  67 C   */,
+    cAlphaUpper /*  68 D   */, cAlphaUpper /*  69 E   */, cAlphaUpper  /*  70 F   */, cAlphaUpper  /*  71 G   */,
+    cAlphaUpper /*  72 H   */, cAlphaUpper /*  73 I   */, cAlphaUpper  /*  74 J   */, cAlphaUpper  /*  75 K   */,
+    cAlphaUpper /*  76 L   */, cAlphaUpper /*  77 M   */, cAlphaUpper  /*  78 N   */, cAlphaUpper  /*  79 O   */,
+    cAlphaUpper /*  80 P   */, cAlphaUpper /*  81 Q   */, cAlphaUpper  /*  82 R   */, cAlphaUpper  /*  83 S   */,
+    cAlphaUpper /*  84 T   */, cAlphaUpper /*  85 U   */, cAlphaUpper  /*  86 V   */, cAlphaUpper  /*  87 W   */,
+    cAlphaUpper /*  88 X   */, cAlphaUpper /*  89 Y   */, cAlphaUpper  /*  90 Z   */, cInvalid     /*  91 [   */,
+    cBackSlash  /*  92 \   */, cInvalid    /*  93 ]   */, cInvalid     /*  94 ^   */, cUnderscore  /*  95 _   */,
+    cInvalid    /*  96 `   */, cAlphaLower /*  97 a   */, cAlphaLower  /*  98 b   */, cAlphaLower  /*  99 c   */,
+    cAlphaLower /* 100 d   */, cAlphaLower /* 101 e   */, cAlphaLower  /* 102 f   */, cAlphaLower  /* 103 g   */,
+    cAlphaLower /* 104 h   */, cAlphaLower /* 105 i   */, cAlphaLower  /* 106 j   */, cAlphaLower  /* 107 k   */,
+    cAlphaLower /* 108 l   */, cAlphaLower /* 109 m   */, cAlphaLower  /* 110 n   */, cAlphaLower  /* 111 o   */,
+    cAlphaLower /* 112 p   */, cAlphaLower /* 113 q   */, cAlphaLower  /* 114 r   */, cAlphaLower  /* 115 s   */,
+    cAlphaLower /* 116 t   */, cAlphaLower /* 117 u   */, cAlphaLower  /* 118 v   */, cAlphaLower  /* 119 w   */,
+    cLowerX     /* 120 x   */, cAlphaLower /* 121 y   */, cAlphaLower  /* 122 z   */, cInvalid     /* 123 {   */,
+    cInvalid    /* 124 |   */, cInvalid    /* 125 }   */, cInvalid     /* 126 ~   */, cInvalid     /* 127 DEL */,
+    cInvalid    /* 128     */, cInvalid    /* 129     */, cInvalid     /* 130     */, cInvalid     /* 131     */,
+    cInvalid    /* 132     */, cInvalid    /* 133     */, cInvalid     /* 134     */, cInvalid     /* 135     */,
+    cInvalid    /* 136     */, cInvalid    /* 137     */, cInvalid     /* 138     */, cInvalid     /* 139     */,
+    cInvalid    /* 140     */, cInvalid    /* 141     */, cInvalid     /* 142     */, cInvalid     /* 143     */,
+    cInvalid    /* 144     */, cInvalid    /* 145     */, cInvalid     /* 146     */, cInvalid     /* 147     */,
+    cInvalid    /* 148     */, cInvalid    /* 149     */, cInvalid     /* 150     */, cInvalid     /* 151     */,
+    cInvalid    /* 152     */, cInvalid    /* 153     */, cInvalid     /* 154     */, cInvalid     /* 155     */,
+    cInvalid    /* 156     */, cInvalid    /* 157     */, cInvalid     /* 158     */, cInvalid     /* 159     */,
+    cInvalid    /* 160     */, cInvalid    /* 161     */, cInvalid     /* 162     */, cInvalid     /* 163     */,
+    cInvalid    /* 164     */, cInvalid    /* 165     */, cInvalid     /* 166     */, cInvalid     /* 167     */,
+    cInvalid    /* 168     */, cInvalid    /* 169     */, cInvalid     /* 170     */, cInvalid     /* 171     */,
+    cInvalid    /* 172     */, cInvalid    /* 173     */, cInvalid     /* 174     */, cInvalid     /* 175     */,
+    cInvalid    /* 176     */, cInvalid    /* 177     */, cInvalid     /* 178     */, cInvalid     /* 179     */,
+    cInvalid    /* 180     */, cInvalid    /* 181     */, cInvalid     /* 182     */, cInvalid     /* 183     */,
+    cInvalid    /* 184     */, cInvalid    /* 185     */, cInvalid     /* 186     */, cInvalid     /* 187     */,
+    cInvalid    /* 188     */, cInvalid    /* 189     */, cInvalid     /* 190     */, cInvalid     /* 191     */,
+    cInvalid    /* 192     */, cInvalid    /* 193     */, cInvalid     /* 194     */, cInvalid     /* 195     */,
+    cInvalid    /* 196     */, cInvalid    /* 197     */, cInvalid     /* 198     */, cInvalid     /* 199     */,
+    cInvalid    /* 200     */, cInvalid    /* 201     */, cInvalid     /* 202     */, cInvalid     /* 203     */,
+    cInvalid    /* 204     */, cInvalid    /* 205     */, cInvalid     /* 206     */, cInvalid     /* 207     */,
+    cInvalid    /* 208     */, cInvalid    /* 209     */, cInvalid     /* 210     */, cInvalid     /* 211     */,
+    cInvalid    /* 212     */, cInvalid    /* 213     */, cInvalid     /* 214     */, cInvalid     /* 215     */,
+    cInvalid    /* 216     */, cInvalid    /* 217     */, cInvalid     /* 218     */, cInvalid     /* 219     */,
+    cInvalid    /* 220     */, cInvalid    /* 221     */, cInvalid     /* 222     */, cInvalid     /* 223     */,
+    cInvalid    /* 224     */, cInvalid    /* 225     */, cInvalid     /* 226     */, cInvalid     /* 227     */,
+    cInvalid    /* 228     */, cInvalid    /* 229     */, cInvalid     /* 230     */, cInvalid     /* 231     */,
+    cInvalid    /* 232     */, cInvalid    /* 233     */, cInvalid     /* 234     */, cInvalid     /* 235     */,
+    cInvalid    /* 236     */, cInvalid    /* 237     */, cInvalid     /* 238     */, cInvalid     /* 239     */,
+    cInvalid    /* 240     */, cInvalid    /* 241     */, cInvalid     /* 242     */, cInvalid     /* 243     */,
+    cInvalid    /* 244     */, cInvalid    /* 245     */, cInvalid     /* 246     */, cInvalid     /* 247     */,
+    cInvalid    /* 248     */, cInvalid    /* 249     */, cInvalid     /* 250     */, cInvalid     /* 251     */,
+    cInvalid    /* 252     */, cInvalid    /* 253     */, cInvalid     /* 254     */, cInvalid     /* 255     */,
 };
 
 #ifdef DEBUG_LEXER
@@ -615,6 +743,7 @@ std::array<int8_t, kNumStates> kStateLengths = {
     1, // sStringEscape
     1, // sInQuoteSymbol
     1, // sSymbolEscape
+    1, // sInSlashSymbol
     0, // sInteger
     0, // sHexInteger
     0, // sFloat
@@ -628,8 +757,9 @@ std::array<int8_t, kNumStates> kStateLengths = {
     0, // sExponentiate
     0, // sDivide
     0, // sModulo
-    1, // sString
-    1, // sSymbol
+    1, // sString - a 1 in a final state here will include the current character in the length.
+    1, // sQuoteSymbol
+    0, // sSlashSymbol
     0, // sLexError
     0, // sEndCode
 };
@@ -640,7 +770,6 @@ namespace hadron {
 
 Lexer::Lexer(const char* code): m_code(code) { m_length = std::strlen(code); }
 Lexer::Lexer(const char* code, size_t length): m_code(code), m_length(length) {}
-
 
 bool Lexer::lex() {
     SPDLOG_DEBUG("** start of Lex on string \"{}\"", m_code);
@@ -676,6 +805,7 @@ bool Lexer::lex() {
             case sStringEscape:
             case sInQuoteSymbol:
             case sSymbolEscape:
+            case sInSlashSymbol:
                 state = sLexError;
                 code = endCode;
                 break;
@@ -746,6 +876,11 @@ bool Lexer::lex() {
 
             case sQuoteSymbol:
                 tokenStart = code - tokenLength;
+                m_tokens.emplace_back(Token(Token::Type::kSymbol, tokenStart, tokenLength));
+                break;
+
+            case sSlashSymbol:
+                tokenStart = code - tokenLength - 1;
                 m_tokens.emplace_back(Token(Token::Type::kSymbol, tokenStart, tokenLength));
                 break;
 

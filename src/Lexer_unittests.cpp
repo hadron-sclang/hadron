@@ -299,7 +299,7 @@ TEST_CASE("Symbols") {
         CHECK(lexer.tokens()[0].start == code);
         CHECK(lexer.tokens()[0].length == 2);
     }
-    SUBCASE("simple quote symbol") {
+    SUBCASE("simple quote") {
         const char* code = "'bA1'";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
@@ -308,7 +308,7 @@ TEST_CASE("Symbols") {
         CHECK(lexer.tokens()[0].start == code);
         CHECK(lexer.tokens()[0].length == 5);
     }
-    SUBCASE("padded quote symbol") {
+    SUBCASE("padded quote") {
         const char* code = "  'ALL CAPS READS LIKE SHOUTING'  ";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
@@ -326,9 +326,54 @@ TEST_CASE("Symbols") {
         CHECK(lexer.tokens()[0].start == code);
         CHECK(lexer.tokens()[0].length == 16);
     }
-    SUBCASE("unterminated quote symbol") {
+    SUBCASE("unterminated quote") {
         Lexer lexer("'abc");
         REQUIRE(!lexer.lex());
+    }
+    SUBCASE("empty slash") {
+        const char* code = "\\";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 1);
+    }
+    SUBCASE("empty slash with whitespace") {
+        const char* code = "\\ ";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 1);
+    }
+    SUBCASE("simple slash") {
+        const char* code = "\\abcx_1234_ABCX";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 15);
+    }
+    SUBCASE("symbol sequence") {
+        const char* code = "'A' \\b 'c' \\D";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 4);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 3);
+        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[1].start == code + 4);
+        CHECK(lexer.tokens()[1].length == 2);
+        CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[2].start == code + 7);
+        CHECK(lexer.tokens()[2].length == 3);
+        CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[3].start == code + 11);
+        CHECK(lexer.tokens()[3].length == 2);
     }
 }
 
