@@ -392,7 +392,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sForwardSlash => */ sLexError,
     /* sInString     => */ sStringEscape,
     /* sStringEscape => */ sInString,
-    /* sInQuoteSymbol => */ sInQuoteSymbol,
+    /* sInQuoteSymbol => */ sSymbolEscape,
     /* sSymbolEscape  => */ sInQuoteSymbol,
     /* sInteger      => */ sLexError,
     /* sHexInteger   => */ sLexError,
@@ -477,9 +477,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sPlus         => */ sAdd,
     /* sAsterisk     => */ sMultiply,
     /* sForwardSlash => */ sDivide,
-    /* sInString     => */ sString,
+    /* sInString     => */ sLexError,
     /* sStringEscape => */ sLexError,
-    /* sInQuoteSymbol => */ sQuoteSymbol,
+    /* sInQuoteSymbol => */ sLexError,
     /* sSymbolEscape  => */ sLexError,
     /* sInteger      => */ sEndCode,
     /* sHexInteger   => */ sEndCode,
@@ -628,8 +628,8 @@ std::array<int8_t, kNumStates> kStateLengths = {
     0, // sExponentiate
     0, // sDivide
     0, // sModulo
-    0, // sString  // could make this 1 to avoid the increment?
-    0, // sSymbol
+    1, // sString
+    1, // sSymbol
     0, // sLexError
     0, // sEndCode
 };
@@ -740,13 +740,13 @@ bool Lexer::lex() {
                 break;
 
             case sString:
-                // We want to include this final double quote in the length.
-                ++tokenLength;
                 tokenStart = code - tokenLength;
                 m_tokens.emplace_back(Token(Token::Type::kString, tokenStart, tokenLength));
                 break;
 
             case sQuoteSymbol:
+                tokenStart = code - tokenLength;
+                m_tokens.emplace_back(Token(Token::Type::kSymbol, tokenStart, tokenLength));
                 break;
 
             case sLexError:
