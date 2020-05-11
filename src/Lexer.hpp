@@ -12,6 +12,7 @@ public:
         enum Type {
             kInteger,
             kString,
+            kSymbol,
             kAddition,
         };
 
