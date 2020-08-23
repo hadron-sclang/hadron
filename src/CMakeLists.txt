@@ -12,13 +12,15 @@ add_library(libhadron STATIC
 )
 
 target_compile_options(libhadron PUBLIC -Wall -Wextra -pedantic -Werror)
-target_compile_definitions(libhadron PRIVATE DEBUG_LEXER)
+target_compile_definitions(libhadron PUBLIC DEBUG_LEXER)
 
 target_link_libraries(libhadron
     fmt
     spdlog
 )
 
+######
+# unittests
 add_executable(unittests
     Lexer_unittests.cpp
     unittests.cpp
@@ -33,3 +35,15 @@ add_custom_target(run_unittests ALL
     DEPENDS unittests
     COMMAND "${CMAKE_CURRENT_BINARY_DIR}/unittests"
 )
+
+######
+# vistool
+add_executable(vistool
+    vistool.cpp
+)
+
+target_link_libraries(vistool
+    gflags
+    libhadron
+)
+
