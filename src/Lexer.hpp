@@ -43,9 +43,16 @@ public:
 
     Lexer(const char* code);
     Lexer(const char* code, size_t length);
+
     bool lex();
 
     const std::vector<Token>& tokens() { return m_tokens; }
+
+#ifdef DEBUG_LEXER
+    /*! Save a dotfile of the Lexer state machine to the provided path.
+     */
+    static void saveLexerStateMachineGraph(const char* fileName);
+#endif
 
 private:
     const char* m_code;
