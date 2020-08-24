@@ -95,8 +95,8 @@ msgsend: name blocklist1
         | expr '.' name '(' arglistv1 optkeyarglist ')'
         | expr '.' name blocklist
 
-generator: '{' ':' exprseq { pushls(&generatorStack, $3); pushls(&generatorStack, 1); } ',' qual '}'
-        | '{' ';' exprseq { pushls(&generatorStack, $3); pushls(&generatorStack, 2); } ',' qual '}'
+generator: '{' ':' exprseq ',' qual '}'
+        | '{' ';' exprseq  ',' qual '}'
 
 nextqual: <e> | ',' qual
 

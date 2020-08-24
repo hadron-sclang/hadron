@@ -15,7 +15,14 @@ public:
             kSymbol,
             kAddition,
             kOpenParen,
-            kCloseParen
+            kCloseParen,
+            kOpenCurly,
+            kCloseCurly,
+            kOpenSquare,
+            kCloseSquare,
+            kComma,
+            kSemiColon,
+            kColon
         };
 
         Type type;

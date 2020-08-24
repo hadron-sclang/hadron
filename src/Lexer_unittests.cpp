@@ -189,7 +189,7 @@ TEST_CASE("Lexer Hexadecimal Integers") {
         CHECK(lexer.tokens()[0].length == 14);
         CHECK(lexer.tokens()[0].value.integer == 0x42deadbeef42);
     }
-    SUBCASE("multi-digit mikxed") {
+    SUBCASE("multi-digit mixed") {
         const char* code = "0x1A2b3C";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
@@ -231,7 +231,7 @@ TEST_CASE("Lexer Hexadecimal Integers") {
     }
 }
 
-TEST_CASE("Strings") {
+TEST_CASE("Lexer Strings") {
     SUBCASE("simple string") {
         const char* code = "\"abc\"";
         Lexer lexer(code);
@@ -289,7 +289,7 @@ TEST_CASE("Strings") {
     }
 }
 
-TEST_CASE("Symbols") {
+TEST_CASE("Lexer Symbols") {
     SUBCASE("empty quote symbol") {
         const char* code = "''";
         Lexer lexer(code);
@@ -358,26 +358,41 @@ TEST_CASE("Symbols") {
         CHECK(lexer.tokens()[0].length == 15);
     }
     SUBCASE("symbol sequence") {
-        const char* code = "'A' \\b 'c' \\D";
+        const char* code = "'A', \\b , 'c',\\D,'e'";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
-        REQUIRE(lexer.tokens().size() == 4);
+        REQUIRE(lexer.tokens().size() == 9);
         CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kSymbol);
         CHECK(lexer.tokens()[0].start == code);
         CHECK(lexer.tokens()[0].length == 3);
-        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kSymbol);
-        CHECK(lexer.tokens()[1].start == code + 4);
-        CHECK(lexer.tokens()[1].length == 2);
+        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[1].length == 1);
+        CHECK(lexer.tokens()[1].start == code + 3);
         CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kSymbol);
-        CHECK(lexer.tokens()[2].start == code + 7);
-        CHECK(lexer.tokens()[2].length == 3);
-        CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kSymbol);
-        CHECK(lexer.tokens()[3].start == code + 11);
-        CHECK(lexer.tokens()[3].length == 2);
+        CHECK(lexer.tokens()[2].start == code + 5);
+        CHECK(lexer.tokens()[2].length == 2);
+        CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[3].length == 1);
+        CHECK(lexer.tokens()[3].start == code + 8);
+        CHECK(lexer.tokens()[4].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[4].start == code + 10);
+        CHECK(lexer.tokens()[4].length == 3);
+        CHECK(lexer.tokens()[5].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[5].length == 1);
+        CHECK(lexer.tokens()[5].start == code + 13);
+        CHECK(lexer.tokens()[6].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[6].start == code + 14);
+        CHECK(lexer.tokens()[6].length == 2);
+        CHECK(lexer.tokens()[7].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[7].length == 1);
+        CHECK(lexer.tokens()[7].start == code + 16);
+        CHECK(lexer.tokens()[8].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[8].start == code + 17);
+        CHECK(lexer.tokens()[8].length == 3);
     }
 }
 
-TEST_CASE("Addition") {
+TEST_CASE("Lexer Addition") {
     SUBCASE("bare plus") {
         const char* code = "+";
         Lexer lexer(code);
@@ -597,6 +612,159 @@ TEST_CASE("Addition") {
         CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kString);
         CHECK(lexer.tokens()[2].start == code + 9);
         CHECK(lexer.tokens()[2].length == 6);
+    }
+}
+
+TEST_CASE("Lexer Delimiters") {
+    SUBCASE("parens") {
+        const char* code = ")((( ( ) ) (";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 8);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kCloseParen);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 1);
+        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kOpenParen);
+        CHECK(lexer.tokens()[1].start == code + 1);
+        CHECK(lexer.tokens()[1].length == 1);
+        CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kOpenParen);
+        CHECK(lexer.tokens()[2].start == code + 2);
+        CHECK(lexer.tokens()[2].length == 1);
+        CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kOpenParen);
+        CHECK(lexer.tokens()[3].start == code + 3);
+        CHECK(lexer.tokens()[3].length == 1);
+        CHECK(lexer.tokens()[4].type == Lexer::Token::Type::kOpenParen);
+        CHECK(lexer.tokens()[4].start == code + 5);
+        CHECK(lexer.tokens()[4].length == 1);
+        CHECK(lexer.tokens()[5].type == Lexer::Token::Type::kCloseParen);
+        CHECK(lexer.tokens()[5].start == code + 7);
+        CHECK(lexer.tokens()[5].length == 1);
+        CHECK(lexer.tokens()[6].type == Lexer::Token::Type::kCloseParen);
+        CHECK(lexer.tokens()[6].start == code + 9);
+        CHECK(lexer.tokens()[6].length == 1);
+        CHECK(lexer.tokens()[7].type == Lexer::Token::Type::kOpenParen);
+        CHECK(lexer.tokens()[7].start == code + 11);
+        CHECK(lexer.tokens()[7].length == 1);
+    }
+    SUBCASE("mixed brackets") {
+        const char* code = " { [ ( ({[]}) ) ] } ";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 12);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kOpenCurly);
+        CHECK(lexer.tokens()[0].start == code + 1);
+        CHECK(lexer.tokens()[0].length == 1);
+        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kOpenSquare);
+        CHECK(lexer.tokens()[1].start == code + 3);
+        CHECK(lexer.tokens()[1].length == 1);
+        CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kOpenParen);
+        CHECK(lexer.tokens()[2].start == code + 5);
+        CHECK(lexer.tokens()[2].length == 1);
+        CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kOpenParen);
+        CHECK(lexer.tokens()[3].start == code + 7);
+        CHECK(lexer.tokens()[3].length == 1);
+        CHECK(lexer.tokens()[4].type == Lexer::Token::Type::kOpenCurly);
+        CHECK(lexer.tokens()[4].start == code + 8);
+        CHECK(lexer.tokens()[4].length == 1);
+        CHECK(lexer.tokens()[5].type == Lexer::Token::Type::kOpenSquare);
+        CHECK(lexer.tokens()[5].start == code + 9);
+        CHECK(lexer.tokens()[5].length == 1);
+        CHECK(lexer.tokens()[6].type == Lexer::Token::Type::kCloseSquare);
+        CHECK(lexer.tokens()[6].start == code + 10);
+        CHECK(lexer.tokens()[6].length == 1);
+        CHECK(lexer.tokens()[7].type == Lexer::Token::Type::kCloseCurly);
+        CHECK(lexer.tokens()[7].start == code + 11);
+        CHECK(lexer.tokens()[7].length == 1);
+        CHECK(lexer.tokens()[8].type == Lexer::Token::Type::kCloseParen);
+        CHECK(lexer.tokens()[8].start == code + 12);
+        CHECK(lexer.tokens()[8].length == 1);
+        CHECK(lexer.tokens()[9].type == Lexer::Token::Type::kCloseParen);
+        CHECK(lexer.tokens()[9].start == code + 14);
+        CHECK(lexer.tokens()[9].length == 1);
+        CHECK(lexer.tokens()[10].type == Lexer::Token::Type::kCloseSquare);
+        CHECK(lexer.tokens()[10].start == code + 16);
+        CHECK(lexer.tokens()[10].length == 1);
+        CHECK(lexer.tokens()[11].type == Lexer::Token::Type::kCloseCurly);
+        CHECK(lexer.tokens()[11].start == code + 18);
+        CHECK(lexer.tokens()[11].length == 1);
+    }
+    SUBCASE("heterogeneous array") {
+        const char* code = "[\\a, [ 1, 0xe], [{000}, ( \"moof\") ], 'yea[h]',\";a:)_(<{}>,,]\" ]";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 23);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kOpenSquare);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 1);
+        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[1].start == code + 1);
+        CHECK(lexer.tokens()[1].length == 2);
+        CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[2].start == code + 3);
+        CHECK(lexer.tokens()[2].length == 1);
+        CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kOpenSquare);
+        CHECK(lexer.tokens()[3].start == code + 5);
+        CHECK(lexer.tokens()[3].length == 1);
+        CHECK(lexer.tokens()[4].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[4].start == code + 7);
+        CHECK(lexer.tokens()[4].length == 1);
+        CHECK(lexer.tokens()[4].value.integer == 1);
+        CHECK(lexer.tokens()[5].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[5].start == code + 8);
+        CHECK(lexer.tokens()[5].length == 1);
+        CHECK(lexer.tokens()[6].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[6].start == code + 10);
+        CHECK(lexer.tokens()[6].length == 3);
+        CHECK(lexer.tokens()[6].value.integer == 14);
+        CHECK(lexer.tokens()[7].type == Lexer::Token::Type::kCloseSquare);
+        CHECK(lexer.tokens()[7].start == code + 13);
+        CHECK(lexer.tokens()[7].length == 1);
+        CHECK(lexer.tokens()[8].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[8].start == code + 14);
+        CHECK(lexer.tokens()[8].length == 1);
+        CHECK(lexer.tokens()[9].type == Lexer::Token::Type::kOpenSquare);
+        CHECK(lexer.tokens()[9].start == code + 16);
+        CHECK(lexer.tokens()[9].length == 1);
+        CHECK(lexer.tokens()[10].type == Lexer::Token::Type::kOpenCurly);
+        CHECK(lexer.tokens()[10].start == code + 17);
+        CHECK(lexer.tokens()[10].length == 1);
+        CHECK(lexer.tokens()[11].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[11].start == code + 18);
+        CHECK(lexer.tokens()[11].length == 3);
+        CHECK(lexer.tokens()[11].value.integer == 0);
+        CHECK(lexer.tokens()[12].type == Lexer::Token::Type::kCloseCurly);
+        CHECK(lexer.tokens()[12].start == code + 21);
+        CHECK(lexer.tokens()[12].length == 1);
+        CHECK(lexer.tokens()[13].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[13].start == code + 22);
+        CHECK(lexer.tokens()[13].length == 1);
+        CHECK(lexer.tokens()[14].type == Lexer::Token::Type::kOpenParen);
+        CHECK(lexer.tokens()[14].start == code + 24);
+        CHECK(lexer.tokens()[14].length == 1);
+        CHECK(lexer.tokens()[15].type == Lexer::Token::Type::kString);
+        CHECK(lexer.tokens()[15].start == code + 26);
+        CHECK(lexer.tokens()[15].length == 6);
+        CHECK(lexer.tokens()[16].type == Lexer::Token::Type::kCloseParen);
+        CHECK(lexer.tokens()[16].start == code + 32);
+        CHECK(lexer.tokens()[16].length == 1);
+        CHECK(lexer.tokens()[17].type == Lexer::Token::Type::kCloseSquare);
+        CHECK(lexer.tokens()[17].start == code + 34);
+        CHECK(lexer.tokens()[17].length == 1);
+        CHECK(lexer.tokens()[18].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[18].start == code + 35);
+        CHECK(lexer.tokens()[18].length == 1);
+        CHECK(lexer.tokens()[19].type == Lexer::Token::Type::kSymbol);
+        CHECK(lexer.tokens()[19].start == code + 37);
+        CHECK(lexer.tokens()[19].length == 8);
+        CHECK(lexer.tokens()[20].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[20].start == code + 45);
+        CHECK(lexer.tokens()[20].length == 1);
+        CHECK(lexer.tokens()[21].type == Lexer::Token::Type::kString);
+        CHECK(lexer.tokens()[21].start == code + 46);
+        CHECK(lexer.tokens()[21].length == 15);
+        CHECK(lexer.tokens()[22].type == Lexer::Token::Type::kCloseSquare);
+        CHECK(lexer.tokens()[22].start == code + 62);
+        CHECK(lexer.tokens()[22].length == 1);
     }
 }
 
