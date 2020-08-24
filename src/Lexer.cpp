@@ -99,7 +99,7 @@ enum CharacterClass : uint16_t {
     cZero = 2 * kNumStates,         // 0
     cDigit = 3 * kNumStates,        // 1-9
     cPeriod = 4 * kNumStates,       // .
-    cLowerX = 5 * kNumStates,            // a lower-case x, possibly for hexadecimal
+    cLowerX = 5 * kNumStates,       // a lower-case x, possibly for hexadecimal
     cPlus = 6 * kNumStates,         // +
     cHyphen = 7 * kNumStates,       // -
     cDoubleQuote = 8 * kNumStates,  // "
@@ -108,6 +108,8 @@ enum CharacterClass : uint16_t {
     cAlphaLower = 11 * kNumStates,  // a-z except for x
     cAlphaUpper = 12 * kNumStates,  // A-Z
     cUnderscore = 13 * kNumStates,  // _
+    cOpenParen = 14 * kNumStates,   // (
+    cCloseParen = 15 * kNumStates   // )
     cInvalid = 14 * kNumStates,     // unsupported character
     // This has to stay the last character class.
     cEnd = 15 * kNumStates,        // EOF, \0
@@ -129,6 +131,8 @@ std::array<const char*, cEnd / kNumStates + 1> kClassNames = {
     "a-z",      // cAlphaLower
     "A-Z",      // cAlphaUpper
     "_",        // cUnderscore
+    "(",        // cOpenParen
+    ")",        // cCloseParen
     "invalid",  // cInvalid
     "\\\\0"     // cEnd
 };

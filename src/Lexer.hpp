@@ -14,6 +14,8 @@ public:
             kString,
             kSymbol,
             kAddition,
+            kOpenParen,
+            kCloseParen
         };
 
         Type type;
@@ -60,6 +62,6 @@ private:
     std::vector<Token> m_tokens;
 };
 
-}
+} // namespace hadron
 
 #endif // SRC_LEXER_HPP_
