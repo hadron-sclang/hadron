@@ -1,8 +1,8 @@
 #ifndef SRC_LEXER_HPP_
 #define SRC_LEXER_HPP_
 
+#include <cstddef>
 #include <stdint.h>
-#include <vector>
 
 namespace hadron {
 
@@ -10,6 +10,7 @@ class Lexer {
 public:
     struct Token {
         enum Type {
+            kEmpty,  // represents no token
             kInteger,
             kString,
             kSymbol,
@@ -43,6 +44,8 @@ public:
         };
         Value value;
 
+        Token(): type(kEmpty), start(nullptr), length(0) {}
+
         /*! Makes a kInteger token */
         Token(const char* s, size_t l, int64_t intValue): type(kInteger), start(s), length(l), value(intValue) {}
 
@@ -51,11 +54,12 @@ public:
     };
 
     Lexer(const char* code);
-    Lexer(const char* code, size_t length);
 
-    bool lex();
-
-    const std::vector<Token>& tokens() { return m_tokens; }
+    // Update token() to the next parsed token. Returns false if at EOF or error.
+    bool next();
+    bool isError();
+    bool isEOF();
+    const Token& token() const { return m_token; }
 
 #ifdef DEBUG_LEXER
     /*! Save a dotfile of the Lexer state machine to the provided path.
@@ -65,8 +69,9 @@ public:
 
 private:
     const char* m_code;
-    size_t m_length;
-    std::vector<Token> m_tokens;
+    Token m_token;
+    uint8_t m_state;
+    int m_characterClass;
 };
 
 } // namespace hadron

@@ -52,7 +52,6 @@ enum State : uint8_t {
     sDelimiter = 27,
 
     sLexError = 28,
-
     // This has to stay the last state for the counting and static asserts to work correctly.
     sEndCode = 29,
 };
@@ -850,31 +849,30 @@ void saveStatesLeadingTo(State targetState, std::array<bool, kStateTransitionTab
 
 namespace hadron {
 
-Lexer::Lexer(const char* code): m_code(code) { m_length = std::strlen(code); }
-Lexer::Lexer(const char* code, size_t length): m_code(code), m_length(length) {}
+Lexer::Lexer(const char* code):
+    m_code(code),
+    m_state(sSpace),
+    m_characterClass(static_cast<int>(CharacterClass::cSpace)) {
+    SPDLOG_DEBUG("lex input string: '{}'", m_code);
+}
 
-bool Lexer::lex() {
-    SPDLOG_DEBUG("** start of Lex on string \"{}\"", m_code);
-    const char* code = m_code;
-    const char* endCode = m_code + m_length;
-    State state = sSpace;
-    int characterClass = static_cast<int>(CharacterClass::cSpace);
-    while (code < endCode) {
+bool Lexer::next() {
+    if (m_state < sLexError) {
         int tokenLength = 0;
         do {
-            int character = static_cast<int>(*code++);
-            characterClass = static_cast<int>(kCharacterClasses[character]);
+            int character = static_cast<int>(*m_code++);
+            m_characterClass = static_cast<int>(kCharacterClasses[character]);
             SPDLOG_DEBUG("  character: '{}', class: {}, state: {}, length: {}", kCharacterNames[character & 0x7f],
-                    kClassNames[characterClass / kNumStates], kStateNames[state], tokenLength);
-            state = kStateTransitionTable[characterClass + state];
-            tokenLength += kStateLengths[state];
-        } while (state < kFirstFinalState);
+                    kClassNames[m_characterClass / kNumStates], kStateNames[m_state], tokenLength);
+            m_state = kStateTransitionTable[m_characterClass + m_state];
+            tokenLength += kStateLengths[m_state];
+        } while (m_state < kFirstFinalState);
 
-        SPDLOG_DEBUG("final state: {}", kStateNames[state]);
+        SPDLOG_DEBUG("final state: {}", kStateNames[m_state]);
 
         char* tokenEnd = nullptr;
         const char* tokenStart;
-        switch(state) {
+        switch(m_state) {
             // Non-final states go here and are a fatal lexing error, indicating a broken state table. There is no
             // default: case, so that the compiler can catch absent states with a warning.
             case sSpace:
@@ -888,56 +886,52 @@ bool Lexer::lex() {
             case sInQuoteSymbol:
             case sSymbolEscape:
             case sInSlashSymbol:
-                state = sLexError;
-                code = endCode;
+                m_state = sLexError;
                 break;
 
             case sInteger: {
                 // Exit state machine pointing just past the end of the integer.
-                tokenStart = code - tokenLength - 1;
+                tokenStart = m_code - tokenLength - 1;
                 int64_t intValue = std::strtoll(tokenStart, &tokenEnd, 10);
                 if (tokenStart < tokenEnd) {
-                    m_tokens.emplace_back(Token(tokenStart, tokenEnd - tokenStart, intValue));
+                    m_token = Token(tokenStart, tokenEnd - tokenStart, intValue);
                     // Reset pointer to the end of the integer.
-                    code = tokenEnd;
+                    m_code = tokenEnd;
                 } else {
-                    state = sLexError;
-                    code = endCode;
+                    m_state = sLexError;
                 }
             } break;
 
             case sHexInteger: {
                 // Exit state machine pointing just past the "0x", length can be > 2 because we support multiple leading
                 // zeros, such as "0000x3" needs to lex to 3.
-                tokenStart = code - tokenLength - 1;
-                int64_t intValue = std::strtoll(code, &tokenEnd, 16);
-                if (code < tokenEnd) {
-                    m_tokens.emplace_back(Token(tokenStart, tokenEnd - tokenStart, intValue));
-                    code = tokenEnd;
+                tokenStart = m_code - tokenLength - 1;
+                int64_t intValue = std::strtoll(m_code, &tokenEnd, 16);
+                if (m_code < tokenEnd) {
+                    m_token = Token(tokenStart, tokenEnd - tokenStart, intValue);
+                    m_code = tokenEnd;
                 } else {
-                    state = sLexError;
-                    code = endCode;
+                    m_state = sLexError;
                 }
             } break;
 
             case sFloat:
             case sRadix:
-                state = sLexError;
-                code = endCode;
+                m_state = sLexError;
                 break;
 
             case sZero:
-                tokenStart = code - tokenLength - 1;
-                m_tokens.emplace_back(Token(tokenStart, tokenLength, 0LL));
-                code = tokenStart + tokenLength;
+                tokenStart = m_code - tokenLength - 1;
+                m_token = Token(tokenStart, tokenLength, 0LL);
+                m_code = tokenStart + tokenLength;
                 break;
 
             case sAdd:
-                tokenStart = code - tokenLength - 1;
-                m_tokens.emplace_back(Token(Token::Type::kAddition, tokenStart, tokenLength));
+                tokenStart = m_code - tokenLength - 1;
+                m_token = Token(Token::Type::kAddition, tokenStart, tokenLength);
                 // Add supports other symbols following without whitespace, so back up to re-evaluate next symbol.
                 // (assumes tokenLength == 1)
-                --code;
+                --m_code;
                 break;
 
             case sStringCat:
@@ -947,84 +941,90 @@ bool Lexer::lex() {
             case sExponentiate:
             case sDivide:
             case sModulo:
-                state = sLexError;
-                code = endCode;
+                m_state = sLexError;
                 break;
 
             case sString:
-                tokenStart = code - tokenLength;
-                m_tokens.emplace_back(Token(Token::Type::kString, tokenStart, tokenLength));
+                tokenStart = m_code - tokenLength;
+                m_token = Token(Token::Type::kString, tokenStart, tokenLength);
                 break;
 
             case sQuoteSymbol:
-                tokenStart = code - tokenLength;
-                m_tokens.emplace_back(Token(Token::Type::kSymbol, tokenStart, tokenLength));
+                tokenStart = m_code - tokenLength;
+                m_token = Token(Token::Type::kSymbol, tokenStart, tokenLength);
                 break;
 
             case sSlashSymbol:
-                tokenStart = code - tokenLength - 1;
-                m_tokens.emplace_back(Token(Token::Type::kSymbol, tokenStart, tokenLength));
-                --code;
+                tokenStart = m_code - tokenLength - 1;
+                m_token = Token(Token::Type::kSymbol, tokenStart, tokenLength);
+                --m_code;
                 break;
 
             case sDelimiter: {
-                tokenStart = code - 1;
+                tokenStart = m_code - 1;
                 switch (*tokenStart) {
                 case '(':
-                    m_tokens.emplace_back(Token(Token::Type::kOpenParen, tokenStart, 1));
+                    m_token = Token(Token::Type::kOpenParen, tokenStart, 1);
                     break;
 
                 case ')':
-                    m_tokens.emplace_back(Token(Token::Type::kCloseParen, tokenStart, 1));
+                    m_token = Token(Token::Type::kCloseParen, tokenStart, 1);
                     break;
 
                 case '{':
-                    m_tokens.emplace_back(Token(Token::Type::kOpenCurly, tokenStart, 1));
+                    m_token = Token(Token::Type::kOpenCurly, tokenStart, 1);
                     break;
 
                 case '}':
-                    m_tokens.emplace_back(Token(Token::Type::kCloseCurly, tokenStart, 1));
+                    m_token = Token(Token::Type::kCloseCurly, tokenStart, 1);
                     break;
 
                 case '[':
-                    m_tokens.emplace_back(Token(Token::Type::kOpenSquare, tokenStart, 1));
+                    m_token = Token(Token::Type::kOpenSquare, tokenStart, 1);
                     break;
 
                 case ']':
-                    m_tokens.emplace_back(Token(Token::Type::kCloseSquare, tokenStart, 1));
+                    m_token = Token(Token::Type::kCloseSquare, tokenStart, 1);
                     break;
 
                 case ',':
-                    m_tokens.emplace_back(Token(Token::Type::kComma, tokenStart, 1));
+                    m_token = Token(Token::Type::kComma, tokenStart, 1);
                     break;
 
                 case ';':
-                    m_tokens.emplace_back(Token(Token::Type::kSemiColon, tokenStart, 1));
+                    m_token = Token(Token::Type::kSemiColon, tokenStart, 1);
                     break;
 
                 case ':':
-                    m_tokens.emplace_back(Token(Token::Type::kColon, tokenStart, 1));
+                    m_token = Token(Token::Type::kColon, tokenStart, 1);
                     break;
 
                 default:
-                    state = sLexError;
-                    code = endCode;
+                    SPDLOG_CRITICAL("got missing delimiter case");
+                    m_state = sLexError;
                     break;
                 }
                 } break;
 
             case sLexError:
-                code = endCode;
-                spdlog::error("got lex error");
-                break;
+                return false;
 
             case sEndCode:
-                code = endCode;
-                break;
+                return false;
         }
+    } else {
+        return false;
     }
 
-    return state != sLexError;
+    return m_state < sLexError;
+}
+
+bool Lexer::isError() {
+    return m_state == sLexError;
+}
+
+bool Lexer::isEOF() {
+    return m_state == sEndCode;
 }
 
 #ifdef DEBUG_LEXER
