@@ -54,8 +54,8 @@ funcbody: funretval
             | exprseq funretval
 
 cmdlinecode: '(' funcvardecls1 funcbody ')'
-            | funcvardecls1 funcbody
-            | funcbody
+             | funcvardecls1 funcbody
+             | funcbody
 
 methbody: retval | exprseq retval
 
@@ -235,9 +235,7 @@ slotdef: name
          | name optequal '(' exprseq ')'
 
 vardeflist0: <e> | vardeflist
-
 vardeflist: vardef | vardeflist ',' vardef
-
 vardef: name | name '=' expr | name '(' exprseq ')'
 
 dictslotdef: exprseq ':' exprseq | keybinop exprseq

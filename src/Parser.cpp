@@ -1,22 +1,64 @@
-#ifndef "Parser.hpp"
+#include "Parser.hpp"
 
-#ifndef "Lexer.hpp"
+#include "Lexer.hpp"
+
+namespace {
+
+
+bool parseFunctionBody(hadron::Lexer* /* lexer */, std::vector<std::unique_ptr<hadron::parse::Node>>& /* body */) {
+    return false;
+}
+
+// root: classes | classextensions | INTERPRET cmdlinecode
+std::unique_ptr<hadron::parse::Node> parseRoot(hadron::Lexer* lexer) {
+    if (lexer->next()) {
+        // TODO: classes
+        // TODO: classextensions
+
+        // cmdlinecode: '(' funcvardecls1 funcbody ')'
+        //              | funcvardecls1 funcbody
+        //              | funcbody
+        bool gotParen = lexer->token().type == hadron::Lexer::Token::Type::kOpenParen;
+        if (gotParen) {
+            // Swallow the opening parenthesis if it was there.
+            if (!lexer->next()) {
+                return nullptr;
+            }
+        }
+
+        std::unique_ptr<hadron::parse::BlockNode> block = std::make_unique<hadron::parse::BlockNode>();
+
+        // funcvardecls: <e> | funcvardecls funcvardecl
+        // funcvardecls1: funcvardecl | funcvardecls1 funcvardecl
+        // funcvardecl: VAR vardeflist ';'
+        // (reads as parse 0 or more VAR statements)
+
+        if (!parseFunctionBody(lexer, block->body)) {
+            return nullptr;
+        }
+
+        if (gotParen) {
+            if (!lexer->next() || lexer->token().type == hadron::Lexer::Token::Type::kCloseParen) {
+                return nullptr;
+            }
+        }
+        return block;
+    }
+
+    return nullptr;
+}
+
+}
 
 namespace hadron {
 
-Parser::Parser(std::shared_ptr<Lexer> lexer): m_lexer(lexer) {}
+Parser::Parser(const char* code): m_lexer(std::make_unique<Lexer>(code)), m_parseOK(false) {}
 
 Parser::~Parser() {}
 
 bool Parser::parse() {
-    int tokenIndex = 0;
-    while (tokenIndex < m_lexer->tokens().size()) {
-        // root: classes | classextensions | INTERPRET cmdlinecode
-        switch (m_lexer->tokens()[tokenIndex].type) {
-        }
-    }
-
-    return true;
+    m_root = parseRoot(m_lexer.get());
+    return m_root != nullptr;
 }
 
 } // namespace hadron
