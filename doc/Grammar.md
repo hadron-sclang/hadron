@@ -153,7 +153,7 @@ valrange3: DOTDOT exprseq
 expr: expr1
         | valrangexd
         | valrangeassign
-        | classname { $$ = (intptr_t)newPyrPushNameNode((PyrSlotNode*)$1); }
+        | classname
         | expr '.' '[' arglist1 ']'
         | '`' expr
         | expr binop2 adverb expr %prec BINOP
@@ -166,9 +166,9 @@ expr: expr1
         | expr '.' '[' arglist1 ']' '=' expr
 
 adverb: <e>
-        | '.' name { $$ = (intptr_t)newPyrPushLitNode((PyrSlotNode*)$2, NULL); }
-        | '.' integer { $$ = (intptr_t)newPyrPushLitNode((PyrSlotNode*)$2, NULL); }
-        | '.' '(' exprseq ')' { $$ = $3; }
+        | '.' name
+        | '.' integer
+        | '.' '(' exprseq ')'
 
 exprn: expr | exprn ';' expr
 

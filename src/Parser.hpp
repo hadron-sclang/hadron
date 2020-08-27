@@ -32,13 +32,19 @@ struct Node {
     virtual ~Node() = default;
 };
 
+struct VarDefNode : public Node {
+    VarDefNode();
+    virtual ~VarDefNode() = default;
+};
+
 struct BlockNode : public Node {
     BlockNode();
     virtual ~BlockNode() = default;
 
-    std::vector<std::unique_ptr<Node>> variables;
+    std::vector<std::unique_ptr<VarDefNode>> variables;
     std::vector<std::unique_ptr<Node>> body;
 };
+
 
 } // namespace parse
 

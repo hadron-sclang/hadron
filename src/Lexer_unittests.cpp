@@ -832,4 +832,63 @@ TEST_CASE("Lexer Delimiters") {
     }
 }
 
+TEST_CASE("Identifiers") {
+    SUBCASE("variable names") {
+        std::vector<hadron::Lexer::Token> tokens;
+        const char* code = "x, abc_123_DEF ,nil_is_NOT_valid, argVarNilFalseTrue ";
+        Lexer lexer(code);
+        REQUIRE(lex(lexer, tokens));
+        REQUIRE(tokens.size() == 7);
+        CHECK(tokens[0].type == Lexer::Token::Type::kIdentifier);
+        CHECK(tokens[0].start == code);
+        CHECK(tokens[0].length == 1);
+        CHECK(tokens[1].type == Lexer::Token::Type::kComma);
+        CHECK(tokens[1].start == code + 1);
+        CHECK(tokens[1].length == 1);
+        CHECK(tokens[2].type == Lexer::Token::Type::kIdentifier);
+        CHECK(tokens[2].start == code + 3);
+        CHECK(tokens[2].length == 11);
+        CHECK(tokens[3].type == Lexer::Token::Type::kComma);
+        CHECK(tokens[3].start == code + 15);
+        CHECK(tokens[3].length == 1);
+        CHECK(tokens[4].type == Lexer::Token::Type::kIdentifier);
+        CHECK(tokens[4].start == code + 16);
+        CHECK(tokens[4].length == 16);
+        CHECK(tokens[5].type == Lexer::Token::Type::kComma);
+        CHECK(tokens[5].start == code + 32);
+        CHECK(tokens[5].length == 1);
+        CHECK(tokens[6].type == Lexer::Token::Type::kIdentifier);
+        CHECK(tokens[6].start == code + 34);
+        CHECK(tokens[6].length == 18);
+    }
+    SUBCASE("keywords") {
+        std::vector<hadron::Lexer::Token> tokens;
+        const char* code = "var nil, arg true, false";
+        Lexer lexer(code);
+        REQUIRE(lex(lexer, tokens));
+        REQUIRE(tokens.size() == 7);
+        CHECK(tokens[0].type == Lexer::Token::Type::kVar);
+        CHECK(tokens[0].start == code);
+        CHECK(tokens[0].length == 3);
+        CHECK(tokens[1].type == Lexer::Token::Type::kNil);
+        CHECK(tokens[1].start == code + 4);
+        CHECK(tokens[1].length == 3);
+        CHECK(tokens[2].type == Lexer::Token::Type::kComma);
+        CHECK(tokens[2].start == code + 7);
+        CHECK(tokens[2].length == 1);
+        CHECK(tokens[3].type == Lexer::Token::Type::kArg);
+        CHECK(tokens[3].start == code + 9);
+        CHECK(tokens[3].length == 3);
+        CHECK(tokens[4].type == Lexer::Token::Type::kTrue);
+        CHECK(tokens[4].start == code + 13);
+        CHECK(tokens[4].length == 4);
+        CHECK(tokens[5].type == Lexer::Token::Type::kComma);
+        CHECK(tokens[5].start == code + 17);
+        CHECK(tokens[5].length == 1);
+        CHECK(tokens[6].type == Lexer::Token::Type::kFalse);
+        CHECK(tokens[6].start == code + 19);
+        CHECK(tokens[6].length == 5);
+    }
+}
+
 } // namespace hadron

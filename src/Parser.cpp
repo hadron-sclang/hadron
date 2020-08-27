@@ -4,6 +4,9 @@
 
 namespace {
 
+std::unique_ptr<hadron::parse::VarDefNode> parseVarDef(hadron::Lexer* /* lexer */) {
+    return nullptr;
+}
 
 bool parseFunctionBody(hadron::Lexer* /* lexer */, std::vector<std::unique_ptr<hadron::parse::Node>>& /* body */) {
     return false;
@@ -26,12 +29,23 @@ std::unique_ptr<hadron::parse::Node> parseRoot(hadron::Lexer* lexer) {
             }
         }
 
-        std::unique_ptr<hadron::parse::BlockNode> block = std::make_unique<hadron::parse::BlockNode>();
+        auto block = std::make_unique<hadron::parse::BlockNode>();
 
         // funcvardecls: <e> | funcvardecls funcvardecl
         // funcvardecls1: funcvardecl | funcvardecls1 funcvardecl
         // funcvardecl: VAR vardeflist ';'
         // (reads as parse 0 or more VAR statements)
+        while (lexer->token().type == hadron::Lexer::Token::Type::kVar) {
+            // swallow VAR
+            if (!lexer->next()) {
+                return nullptr;
+            }
+            std::unique_ptr<hadron::parse::VarDefNode> varDef = parseVarDef(lexer);
+            if (!varDef) {
+                return nullptr;
+            }
+            block->variables.emplace_back(std::move(varDef));
+        }
 
         if (!parseFunctionBody(lexer, block->body)) {
             return nullptr;

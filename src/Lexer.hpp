@@ -23,7 +23,16 @@ public:
             kCloseSquare,
             kComma,
             kSemiColon,
-            kColon
+            kColon,
+            kPipe,
+            kCaret,
+            kTilde,
+            kVar,
+            kNil,
+            kArg,
+            kTrue,
+            kFalse,
+            kIdentifier
         };
 
         Type type;
