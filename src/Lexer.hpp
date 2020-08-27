@@ -22,7 +22,7 @@ public:
             kOpenSquare,
             kCloseSquare,
             kComma,
-            kSemiColon,
+            kSemicolon,
             kColon,
             kPipe,
             kCaret,
@@ -32,7 +32,8 @@ public:
             kArg,
             kTrue,
             kFalse,
-            kIdentifier
+            kIdentifier,
+            kAssign,
         };
 
         Type type;
