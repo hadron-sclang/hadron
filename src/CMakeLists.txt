@@ -9,6 +9,8 @@ add_library(libhadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
     Lexer.cpp
     Lexer.hpp
+    Parser.cpp
+    Parser.hpp
 )
 
 target_compile_options(libhadron PUBLIC -Wall -Wextra -pedantic -Werror)
