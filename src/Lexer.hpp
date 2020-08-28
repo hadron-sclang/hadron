@@ -34,6 +34,7 @@ public:
             kFalse,
             kIdentifier,
             kAssign,
+            kClassName
         };
 
         Type type;

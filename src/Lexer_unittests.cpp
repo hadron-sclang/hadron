@@ -1077,4 +1077,109 @@ TEST_CASE("Identifiers") {
     }
 }
 
+TEST_CASE("Class Names") {
+    SUBCASE("definition") {
+        std::vector<hadron::Lexer::Token> tokens;
+        const char* code = "X0_a { }B{}";
+        Lexer lexer(code);
+        REQUIRE(lex(lexer, tokens));
+        REQUIRE(tokens.size() == 6);
+        CHECK(tokens[0].type == Lexer::Token::Type::kClassName);
+        CHECK(tokens[0].start == code);
+        CHECK(tokens[0].length == 4);
+        CHECK(tokens[1].type == Lexer::Token::Type::kOpenCurly);
+        CHECK(tokens[1].start == code + 5);
+        CHECK(tokens[1].length == 1);
+        CHECK(tokens[2].type == Lexer::Token::Type::kCloseCurly);
+        CHECK(tokens[2].start == code + 7);
+        CHECK(tokens[2].length == 1);
+        CHECK(tokens[3].type == Lexer::Token::Type::kClassName);
+        CHECK(tokens[3].start == code + 8);
+        CHECK(tokens[3].length == 1);
+        CHECK(tokens[4].type == Lexer::Token::Type::kOpenCurly);
+        CHECK(tokens[4].start == code + 9);
+        CHECK(tokens[4].length == 1);
+        CHECK(tokens[5].type == Lexer::Token::Type::kCloseCurly);
+        CHECK(tokens[5].start == code + 10);
+        CHECK(tokens[5].length == 1);
+    }
+    SUBCASE("inheritance") {
+        std::vector<hadron::Lexer::Token> tokens;
+        const char* code = "Tu:V{}AMixedCaseClassName : SuperClass9000 { } ";
+        Lexer lexer(code);
+        REQUIRE(lex(lexer, tokens));
+        REQUIRE(tokens.size() == 10);
+        CHECK(tokens[0].type == Lexer::Token::Type::kClassName);
+        CHECK(tokens[0].start == code);
+        CHECK(tokens[0].length == 2);
+        CHECK(tokens[1].type == Lexer::Token::Type::kColon);
+        CHECK(tokens[1].start == code + 2);
+        CHECK(tokens[1].length == 1);
+        CHECK(tokens[2].type == Lexer::Token::Type::kClassName);
+        CHECK(tokens[2].start == code + 3);
+        CHECK(tokens[2].length == 1);
+        CHECK(tokens[3].type == Lexer::Token::Type::kOpenCurly);
+        CHECK(tokens[3].start == code + 4);
+        CHECK(tokens[3].length == 1);
+        CHECK(tokens[4].type == Lexer::Token::Type::kCloseCurly);
+        CHECK(tokens[4].start == code + 5);
+        CHECK(tokens[4].length == 1);
+        CHECK(tokens[5].type == Lexer::Token::Type::kClassName);
+        CHECK(tokens[5].start == code + 6);
+        CHECK(tokens[5].length == 19);
+        CHECK(tokens[6].type == Lexer::Token::Type::kColon);
+        CHECK(tokens[6].start == code + 26);
+        CHECK(tokens[6].length == 1);
+        CHECK(tokens[7].type == Lexer::Token::Type::kClassName);
+        CHECK(tokens[7].start == code + 28);
+        CHECK(tokens[7].length == 14);
+        CHECK(tokens[8].type == Lexer::Token::Type::kOpenCurly);
+        CHECK(tokens[8].start == code + 43);
+        CHECK(tokens[8].length == 1);
+        CHECK(tokens[9].type == Lexer::Token::Type::kCloseCurly);
+        CHECK(tokens[9].start == code + 45);
+        CHECK(tokens[9].length == 1);
+    }
+    SUBCASE("extension") {
+        std::vector<hadron::Lexer::Token> tokens;
+        const char* code = "+Object{} + Numb3r { }";
+        Lexer lexer(code);
+        REQUIRE(lex(lexer, tokens));
+        REQUIRE(tokens.size() == 8);
+        CHECK(tokens[0].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[0].start == code);
+        CHECK(tokens[0].length == 1);
+        CHECK(tokens[1].type == Lexer::Token::Type::kClassName);
+        CHECK(tokens[1].start == code + 1);
+        CHECK(tokens[1].length == 6);
+        CHECK(tokens[2].type == Lexer::Token::Type::kOpenCurly);
+        CHECK(tokens[2].start == code + 7);
+        CHECK(tokens[2].length == 1);
+        CHECK(tokens[3].type == Lexer::Token::Type::kCloseCurly);
+        CHECK(tokens[3].start == code + 8);
+        CHECK(tokens[3].length == 1);
+        CHECK(tokens[4].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[4].start == code + 10);
+        CHECK(tokens[4].length == 1);
+        CHECK(tokens[5].type == Lexer::Token::Type::kClassName);
+        CHECK(tokens[5].start == code + 12);
+        CHECK(tokens[5].length == 6);
+        CHECK(tokens[6].type == Lexer::Token::Type::kOpenCurly);
+        CHECK(tokens[6].start == code + 19);
+        CHECK(tokens[6].length == 1);
+        CHECK(tokens[7].type == Lexer::Token::Type::kCloseCurly);
+        CHECK(tokens[7].start == code + 21);
+        CHECK(tokens[7].length == 1);
+    }
+    SUBCASE("method invocation") {
+        std::vector<hadron::Lexer::Token> tokens;
+        const char* code = "Class.method(label: 4)";
+        Lexer lexer(code);
+        // REQUIRE(lex(lexer, tokens));
+        // REQUIRE(tokens.size() == 8);
+    }
+    SUBCASE("construction") {
+    }
+}
+
 } // namespace hadron
