@@ -20,49 +20,56 @@ namespace {
 // case that will require exceptional processing (radix numbers) or things are clear what we're parsing (floats)
 enum State : uint8_t {
     // non-final states
-    sSpace = 0,
-    sLeadZero = 1,
-    sNumber = 2,  // can still have radix or decimal TODO: can do flats/sharps as a separate token?
-    sPlus = 3,   // could either be addition or spaceless string concatenation
-    sAsterisk = 4, // either multiplication or exponentiation
-    sForwardSlash = 5,  // either division or a comment
-    sInString = 6,
-    sStringEscape = 7,  // escape character in string parsing
-    sInQuoteSymbol = 8,
-    sSymbolEscape = 9,
-    sInSlashSymbol = 10,
-    sInIdentifier = 11,
-    sEqual = 12,
-    sInClassName = 13,
+    sSpace =         0,
+    sLeadZero =      1,
+    sNumber =        2,  // can still have radix or decimal TODO: can do flats/sharps as a separate token?
+    sFloatOrIndex =  3,  // parsed one dot following a number, is either a float or a index range [4..5]
+    sPlus =          4,  // could either be addition or spaceless string concatenation
+    sAsterisk =      5,  // either multiplication or exponentiation
+    sForwardSlash =  6,  // either division or a comment
+    sInString =      7,
+    sStringEscape =  8,  // escape character in string parsing
+    sInQuoteSymbol = 9,
+    sSymbolEscape =  10,
+    sInSlashSymbol = 11,
+    sInIdentifier =  12,
+    sEqual =         13,
+    sInClassName =   14,
+    sOneDot =        15,
+    sTwoDots =       16,
+    sThreeDots =     17,
 
     // final states
-    sInteger = 14,
-    sHexInteger = 15, // done, this can only be an integer
-    sFloat = 16, // done, we have enough to delegate to strtod
-    sRadix = 17,  // can have decimal but all bets on speed are off.
-    sZero = 18,
-    sAdd = 19,
-    sStringCat = 20, // ++
-    sPathCat = 21,   // +/+
-    sSubtract = 22,
-    sMultiply = 23,
-    sExponentiate = 24,
-    sDivide = 25,
-    sModulo = 26,
-    sString = 27,
-    sQuoteSymbol = 28,
-    sSlashSymbol = 29,
-    sDelimiter = 30,  // single character separators like |(;:{[^~
-    sIdentifier = 31, // words starting with lower alpha, could also be keywords
-    sAssign = 32, // a lone equal sign meaning assignment
-    sClassName = 33,
+    sInteger =       18,
+    sHexInteger =    19, // done, this can only be an integer
+    sFloat =         20, // done, we have enough to delegate to strtod
+    sRadix =         21, // can have decimal but all bets on speed are off.
+    sZero =          22,
+    sAdd =           23,
+    sStringCat =     24, // ++
+    sPathCat =       25, // +/+
+    sSubtract =      26,
+    sMultiply =      27,
+    sExponentiate =  28,
+    sDivide =        29,
+    sModulo =        30,
+    sString =        31,
+    sQuoteSymbol =   32,
+    sSlashSymbol =   33,
+    sDelimiter =     34, // single character separators like |(;:{[^~
+    sIdentifier =    35, // words starting with lower alpha, could also be keywords
+    sAssign =        36, // a lone equal sign meaning assignment
+    sClassName =     37,
+    sDot =           38,
+    sDotDot =        39,
+    sEllipses =      40,
 
-    sLexError = 34,
+    sLexError =      41,
     // This has to stay the last state for the counting and static asserts to work correctly.
-    sEndCode = 35,
+    sEndCode =       42,
 };
 
-constexpr uint8_t kFirstFinalState = 14;
+constexpr uint8_t kFirstFinalState = 18;
 constexpr uint8_t kNumStates = State::sEndCode + 1;
 
 #ifdef DEBUG_LEXER
@@ -70,6 +77,7 @@ std::array<const char*, kNumStates> kStateNames = {
     "sSpace",
     "sLeadZero",
     "sNumber",
+    "sFloatOrIndex",
     "sPlus",
     "sAsterisk",
     "sForwardSlash",
@@ -81,6 +89,10 @@ std::array<const char*, kNumStates> kStateNames = {
     "sInIdentifier",
     "sEqual",
     "sInClassName",
+    "sOneDot",
+    "sTwoDots",
+    "sThreeDots",
+
     "sInteger",
     "sHexInteger",
     "sFloat",
@@ -101,6 +113,9 @@ std::array<const char*, kNumStates> kStateNames = {
     "sIdentifier",
     "sAssign",
     "sClassName",
+    "sDot",
+    "sDotDot",
+    "sEllipses",
     "sLexError",
     "sEndCode"
 };
@@ -108,33 +123,31 @@ std::array<const char*, kNumStates> kStateNames = {
 
 enum CharacterClass : uint16_t {
     cSpace = 0 * kNumStates,        // space, tab
-    cNewline = 1 * kNumStates,      // \n, \r
-    cZero = 2 * kNumStates,         // 0
-    cDigit = 3 * kNumStates,        // 1-9
-    cPeriod = 4 * kNumStates,       // .
-    cLowerX = 5 * kNumStates,       // a lower-case x, possibly for hexadecimal
-    cPlus = 6 * kNumStates,         // +
-    cHyphen = 7 * kNumStates,       // -
-    cDoubleQuote = 8 * kNumStates,  // "
-    cBackSlash = 9 * kNumStates,    // backslash
-    cSingleQuote = 10 * kNumStates, // '
-    cAlphaLower = 11 * kNumStates,  // a-z except for x
-    cAlphaUpper = 12 * kNumStates,  // A-Z
-    cUnderscore = 13 * kNumStates,  // _
-    cDelimiter = 14 * kNumStates,   // {}()[]|;:,^~
-    cEqual = 15 * kNumStates,      // =
-    cInvalid = 16 * kNumStates,     // unsupported character
+    cZero = 1 * kNumStates,         // 0
+    cDigit = 2 * kNumStates,        // 1-9
+    cDot = 3 * kNumStates,          // .
+    cLowerX = 4 * kNumStates,       // a lower-case x, possibly for hexadecimal
+    cPlus = 5 * kNumStates,         // +
+    cHyphen = 6 * kNumStates,       // -
+    cDoubleQuote = 7 * kNumStates,  // "
+    cBackSlash = 8 * kNumStates,    // backslash
+    cSingleQuote = 9 * kNumStates,  // '
+    cAlphaLower = 10 * kNumStates,  // a-z except for x
+    cAlphaUpper = 11 * kNumStates,  // A-Z
+    cUnderscore = 12 * kNumStates,  // _
+    cDelimiter = 13 * kNumStates,   // {}()[]|;:,^~
+    cEqual = 14 * kNumStates,       // =
+    cInvalid = 15 * kNumStates,     // unsupported character
     // This has to stay the last character class.
-    cEnd = 17 * kNumStates,        // EOF, \0
+    cEnd = 16 * kNumStates,        // EOF, \0
 };
 
 #ifdef DEBUG_LEXER
 std::array<const char*, cEnd / kNumStates + 1> kClassNames = {
     "\\\\w",    // cSpace
-    "\\\\n",    // cNewline
     "0",        // cZero
     "1-9",      // cDigit
-    ".",        // cPeriod
+    ".",        // cDot
     "x",        // cLowerX
     "+",        // cPlus
     "-",        // cHyphen
@@ -156,6 +169,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sSpace,
     /* sLeadZero      => */ sZero,
     /* sNumber        => */ sInteger,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sAdd,
     /* sAsterisk      => */ sMultiply,
     /* sForwardSlash  => */ sDivide,
@@ -167,6 +181,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sSpace,
     /* sHexInteger    => */ sSpace,
     /* sFloat         => */ sSpace,
@@ -187,44 +205,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sSpace,
     /* sAssign        => */ sSpace,
     /* sClassName     => */ sSpace,
-    /* sLexError      => */ sLexError,
-    /* sEndCode       => */ sLexError,
-
-    // Class = cNewline
-    /* sSpace         => */ sSpace,
-    /* sLeadZero      => */ sZero,
-    /* sNumber        => */ sInteger,
-    /* sPlus          => */ sAdd,
-    /* sAsterisk      => */ sMultiply,
-    /* sForwardSlash  => */ sDivide,
-    /* sInString      => */ sInString,
-    /* sStringEscape  => */ sInString,
-    /* sInQuoteSymbol => */ sInQuoteSymbol,
-    /* sSymbolEscape  => */ sInQuoteSymbol,
-    /* sInSlashSymbol => */ sSlashSymbol,
-    /* sInIdentifier  => */ sIdentifier,
-    /* sEqual         => */ sAssign,
-    /* sInClassName   => */ sClassName,
-    /* sInteger       => */ sSpace,
-    /* sHexInteger    => */ sSpace,
-    /* sFloat         => */ sSpace,
-    /* sRadix         => */ sSpace,
-    /* sZero          => */ sSpace,
-    /* sAdd           => */ sSpace,
-    /* sStringCat     => */ sSpace,
-    /* sPathCat       => */ sSpace,
-    /* sSubtract      => */ sSpace,
-    /* sMultiply      => */ sSpace,
-    /* sExponentiate  => */ sSpace,
-    /* sDivide        => */ sSpace,
-    /* sModulo        => */ sSpace,
-    /* sString        => */ sSpace,
-    /* sQuoteSymbol   => */ sSpace,
-    /* sSlashSymbol   => */ sSpace,
-    /* sDelimiter     => */ sSpace,
-    /* sIdentifier    => */ sSpace,
-    /* sAssign        => */ sSpace,
-    /* sClassName     => */ sSpace,
+    /* sDot           => */ sSpace,
+    /* sDotDot        => */ sSpace,
+    /* sEllipses      => */ sSpace,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -232,6 +215,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sLeadZero,
     /* sLeadZero      => */ sLeadZero,  // many leading zeros treated as a single leading zero in sclang
     /* sNumber        => */ sNumber,
+    /* sFloatOrIndex  => */ sFloat,
     /* sPlus          => */ sAdd,
     /* sAsterisk      => */ sLeadZero,
     /* sForwardSlash  => */ sLeadZero,
@@ -243,6 +227,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sInIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sInClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sLexError,
     /* sHexInteger    => */ sLexError,
     /* sFloat         => */ sLexError,
@@ -263,6 +251,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sLexError,
     /* sAssign        => */ sLeadZero,
     /* sClassName     => */ sLexError,
+    /* sDot           => */ sLeadZero,
+    /* sDotDot        => */ sLeadZero,
+    /* sEllipses      => */ sLeadZero,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -270,6 +261,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sNumber,
     /* sLeadZero      => */ sNumber,
     /* sNumber        => */ sNumber,
+    /* sFloatOrIndex  => */ sFloat,
     /* sPlus          => */ sAdd,
     /* sAsterisk      => */ sMultiply,
     /* sForwardSlash  => */ sDivide,
@@ -281,6 +273,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sInIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sInClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sLexError,
     /* sHexInteger    => */ sLexError,
     /* sFloat         => */ sLexError,
@@ -301,13 +297,17 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sLexError,
     /* sAssign        => */ sNumber,
     /* sClassName     => */ sLexError,
+    /* sDot           => */ sNumber,
+    /* sDotDot        => */ sNumber,
+    /* sEllipses      => */ sNumber,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
-    // Class = cPeriod
-    /* sSpace         => */ sLexError,
+    // Class = cDot
+    /* sSpace         => */ sOneDot,
     /* sLeadZero      => */ sFloat,
-    /* sNumber        => */ sFloat,
+    /* sNumber        => */ sFloatOrIndex,
+    /* sFloatOrIndex  => */ sInteger,
     /* sPlus          => */ sLexError,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -319,26 +319,33 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sClassName,
-    /* sInteger       => */ sLexError,
-    /* sHexInteger    => */ sLexError,
-    /* sFloat         => */ sLexError,
-    /* sRadix         => */ sLexError,
+    /* sOneDot        => */ sTwoDots,
+    /* sTwoDots       => */ sThreeDots,
+    /* sThreeDots     => */ sLexError,
+    /* ---- Final States */
+    /* sInteger       => */ sOneDot,
+    /* sHexInteger    => */ sOneDot,
+    /* sFloat         => */ sOneDot,
+    /* sRadix         => */ sOneDot,
     /* sZero          => */ sLexError,
-    /* sAdd           => */ sLexError,
-    /* sStringCat     => */ sLexError,
-    /* sPathCat       => */ sLexError,
-    /* sSubtract      => */ sLexError,
-    /* sMultiply      => */ sLexError,
-    /* sExponentiate  => */ sLexError,
-    /* sDivide        => */ sLexError,
-    /* sModulo        => */ sLexError,
-    /* sString        => */ sLexError,
-    /* sQuoteSymbol   => */ sLexError,
-    /* sSlashSymbol   => */ sLexError,
-    /* sDelimiter     => */ sLexError,
-    /* sIdentifier    => */ sLexError,
-    /* sAssign        => */ sLexError,
-    /* sClassName     => */ sLexError,
+    /* sAdd           => */ sOneDot,
+    /* sStringCat     => */ sOneDot,
+    /* sPathCat       => */ sOneDot,
+    /* sSubtract      => */ sOneDot,
+    /* sMultiply      => */ sOneDot,
+    /* sExponentiate  => */ sOneDot,
+    /* sDivide        => */ sOneDot,
+    /* sModulo        => */ sOneDot,
+    /* sString        => */ sOneDot,
+    /* sQuoteSymbol   => */ sOneDot,
+    /* sSlashSymbol   => */ sOneDot,
+    /* sDelimiter     => */ sOneDot,
+    /* sIdentifier    => */ sOneDot,
+    /* sAssign        => */ sOneDot,
+    /* sClassName     => */ sOneDot,
+    /* sDot           => */ sLexError,
+    /* sDotDot        => */ sLexError,
+    /* sEllipses      => */ sLexError,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -346,6 +353,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sInIdentifier,
     /* sLeadZero      => */ sHexInteger,
     /* sNumber        => */ sLexError,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sLexError,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -357,6 +365,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sInIdentifier,
     /* sEqual         => */ sInIdentifier,
     /* sInClassName   => */ sInClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sLexError,
     /* sHexInteger    => */ sLexError,
     /* sFloat         => */ sLexError,
@@ -377,6 +389,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sLexError,
     /* sAssign        => */ sInIdentifier,
     /* sClassName     => */ sLexError,
+    /* sDot           => */ sInIdentifier,
+    /* sDotDot        => */ sInIdentifier,
+    /* sEllipses      => */ sInIdentifier,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -384,6 +399,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sPlus,
     /* sLeadZero      => */ sZero,
     /* sNumber        => */ sInteger,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sStringCat,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sPathCat,
@@ -395,6 +411,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sPlus,
     /* sHexInteger    => */ sPlus,
     /* sFloat         => */ sPlus,
@@ -415,6 +435,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sPlus,
     /* sAssign        => */ sPlus,
     /* sClassName     => */ sPlus,
+    /* sDot           => */ sPlus,
+    /* sDotDot        => */ sPlus,
+    /* sEllipses      => */ sPlus,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -422,6 +445,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sSubtract,
     /* sLeadZero      => */ sZero,
     /* sNumber        => */ sInteger,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sLexError,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -433,6 +457,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sSubtract,
     /* sHexInteger    => */ sSubtract,
     /* sFloat         => */ sSubtract,
@@ -453,6 +481,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sSubtract,
     /* sAssign        => */ sSubtract,
     /* sClassName     => */ sSubtract,
+    /* sDot           => */ sSubtract,
+    /* sDotDot        => */ sSubtract,
+    /* sEllipses      => */ sSubtract,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -460,6 +491,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sInString,
     /* sLeadZero      => */ sZero,
     /* sNumber        => */ sInteger,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sAdd,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -471,6 +503,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sInString,
     /* sHexInteger    => */ sInString,
     /* sFloat         => */ sInString,
@@ -491,6 +527,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sInString,
     /* sAssign        => */ sInString,
     /* sClassName     => */ sInString,
+    /* sDot           => */ sInString,
+    /* sDotDot        => */ sInString,
+    /* sEllipses      => */ sInString,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -498,6 +537,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sInSlashSymbol,
     /* sLeadZero      => */ sLexError,
     /* sNumber        => */ sLexError,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sLexError,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -509,6 +549,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sLexError,
     /* sHexInteger    => */ sLexError,
     /* sFloat         => */ sLexError,
@@ -529,6 +573,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sInSlashSymbol,
     /* sAssign        => */ sInSlashSymbol,
     /* sClassName     => */ sInSlashSymbol,
+    /* sDot           => */ sInSlashSymbol,
+    /* sDotDot        => */ sInSlashSymbol,
+    /* sEllipses      => */ sInSlashSymbol,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -536,6 +583,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sInQuoteSymbol,
     /* sLeadZero      => */ sZero,
     /* sNumber        => */ sInteger,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sAdd,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -547,6 +595,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sInQuoteSymbol,
     /* sHexInteger    => */ sInQuoteSymbol,
     /* sFloat         => */ sInQuoteSymbol,
@@ -567,6 +619,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sInQuoteSymbol,
     /* sAssign        => */ sInQuoteSymbol,
     /* sClassName     => */ sInQuoteSymbol,
+    /* sDot           => */ sInQuoteSymbol,
+    /* sDotDot        => */ sInQuoteSymbol,
+    /* sEllipses      => */ sInQuoteSymbol,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -574,6 +629,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sInIdentifier,
     /* sLeadZero      => */ sZero,
     /* sNumber        => */ sInteger,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sAdd,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -585,6 +641,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sInIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sInClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sInIdentifier,
     /* sHexInteger    => */ sInIdentifier,
     /* sFloat         => */ sInIdentifier,
@@ -605,6 +665,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sLexError,
     /* sAssign        => */ sInIdentifier,
     /* sClassName     => */ sLexError,
+    /* sDot           => */ sInIdentifier,
+    /* sDotDot        => */ sInIdentifier,
+    /* sEllipses      => */ sInIdentifier,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -612,6 +675,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sInClassName,
     /* sLeadZero      => */ sZero,
     /* sNumber        => */ sInteger,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sAdd,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -623,6 +687,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sInIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sInClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sInClassName,
     /* sHexInteger    => */ sInClassName,
     /* sFloat         => */ sInClassName,
@@ -643,6 +711,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sLexError,
     /* sAssign        => */ sInClassName,
     /* sClassName     => */ sLexError,
+    /* sDot           => */ sInClassName,
+    /* sDotDot        => */ sInClassName,
+    /* sEllipses      => */ sInClassName,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -650,6 +721,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sInQuoteSymbol,
     /* sLeadZero      => */ sZero,
     /* sNumber        => */ sInteger,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sAdd,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -661,6 +733,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sInIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sInClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sLexError,
     /* sHexInteger    => */ sLexError,
     /* sFloat         => */ sLexError,
@@ -681,6 +757,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sLexError,
     /* sAssign        => */ sLexError,
     /* sClassName     => */ sLexError,
+    /* sDot           => */ sLexError,
+    /* sDotDot        => */ sLexError,
+    /* sEllipses      => */ sLexError,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -688,6 +767,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sDelimiter,
     /* sLeadZero      => */ sZero,
     /* sNumber        => */ sInteger,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sAdd,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -699,6 +779,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sDelimiter,
     /* sHexInteger    => */ sDelimiter,
     /* sFloat         => */ sDelimiter,
@@ -719,6 +803,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sDelimiter,
     /* sAssign        => */ sDelimiter,
     /* sClassName     => */ sDelimiter,
+    /* sDot           => */ sDelimiter,
+    /* sDotDot        => */ sDelimiter,
+    /* sEllipses      => */ sDelimiter,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -726,6 +813,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sEqual,
     /* sLeadZero      => */ sZero,
     /* sNumber        => */ sInteger,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sAdd,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -737,6 +825,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sIdentifier,
     /* sEqual         => */ sAssign, // TODO: handle comparison
     /* sInClassName   => */ sClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sEqual,
     /* sHexInteger    => */ sEqual,
     /* sFloat         => */ sEqual,
@@ -757,6 +849,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sEqual,
     /* sAssign        => */ sLexError,
     /* sClassName     => */ sEqual,
+    /* sDot           => */ sEqual,
+    /* sDotDot        => */ sEqual,
+    /* sEllipses      => */ sEqual,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -764,6 +859,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sLexError,
     /* sLeadZero      => */ sLexError,
     /* sNumber        => */ sLexError,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sLexError,
     /* sAsterisk      => */ sLexError,
     /* sForwardSlash  => */ sLexError,
@@ -775,6 +871,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sLexError,
     /* sEqual         => */ sLexError,
     /* sInClassName   => */ sLexError,
+    /* sOneDot        => */ sLexError,
+    /* sTwoDots       => */ sLexError,
+    /* sThreeDots     => */ sLexError,
+    /* ---- Final States */
     /* sInteger       => */ sLexError,
     /* sHexInteger    => */ sLexError,
     /* sFloat         => */ sLexError,
@@ -795,6 +895,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sLexError,
     /* sAssign        => */ sLexError,
     /* sClassName     => */ sLexError,
+    /* sDot           => */ sLexError,
+    /* sDotDot        => */ sLexError,
+    /* sEllipses      => */ sLexError,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError,
 
@@ -802,6 +905,7 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sSpace         => */ sEndCode,
     /* sLeadZero      => */ sZero,
     /* sNumber        => */ sInteger,
+    /* sFloatOrIndex  => */ sLexError,
     /* sPlus          => */ sAdd,
     /* sAsterisk      => */ sMultiply,
     /* sForwardSlash  => */ sDivide,
@@ -813,6 +917,10 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sInIdentifier  => */ sIdentifier,
     /* sEqual         => */ sAssign,
     /* sInClassName   => */ sClassName,
+    /* sOneDot        => */ sDot,
+    /* sTwoDots       => */ sDotDot,
+    /* sThreeDots     => */ sEllipses,
+    /* ---- Final States */
     /* sInteger       => */ sEndCode,
     /* sHexInteger    => */ sEndCode,
     /* sFloat         => */ sEndCode,
@@ -833,6 +941,9 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
     /* sIdentifier    => */ sEndCode,
     /* sAssign        => */ sEndCode,
     /* sClassName     => */ sEndCode,
+    /* sDot           => */ sEndCode,
+    /* sDotDot        => */ sEndCode,
+    /* sEllipses      => */ sEndCode,
     /* sLexError      => */ sLexError,
     /* sEndCode       => */ sLexError
 };
@@ -840,8 +951,8 @@ std::array<State, CharacterClass::cEnd + kNumStates> kStateTransitionTable = {
 std::array<CharacterClass, 256> kCharacterClasses = {
     cEnd        /*   0 \0  */, cInvalid    /*   1 SOH */, cInvalid     /*   2 STX */, cInvalid     /*   3 ETX */,
     cInvalid    /*   4 EOT */, cEnd        /*   5 EOF */, cInvalid     /*   6 ACK */, cInvalid     /*   7 BEL */,
-    cInvalid    /*   8 BS  */, cSpace      /*   9 \t  */, cNewline     /*  10 \n  */, cInvalid     /*  11 VT  */,
-    cInvalid    /*  12 FF  */, cNewline    /*  13 \r  */, cInvalid     /*  14 SO  */, cInvalid     /*  15 SI  */,
+    cInvalid    /*   8 BS  */, cSpace      /*   9 \t  */, cSpace       /*  10 \n  */, cInvalid     /*  11 VT  */,
+    cInvalid    /*  12 FF  */, cSpace      /*  13 \r  */, cInvalid     /*  14 SO  */, cInvalid     /*  15 SI  */,
     cInvalid    /*  16 DLE */, cInvalid    /*  17 DC1 */, cInvalid     /*  18 DC2 */, cInvalid     /*  19 DC3 */,
     cInvalid    /*  20 DC4 */, cInvalid    /*  21 NAK */, cInvalid     /*  22 SYN */, cInvalid     /*  23 ETB */,
     cInvalid    /*  24 CAN */, cInvalid    /*  25 EM  */, cInvalid     /*  26 SUB */, cInvalid     /*  27 ESC */,
@@ -849,7 +960,7 @@ std::array<CharacterClass, 256> kCharacterClasses = {
     cSpace      /*  32 SPC */, cInvalid    /*  33 !   */, cDoubleQuote /*  34 "   */, cInvalid     /*  35 #   */,
     cInvalid    /*  36 $   */, cInvalid    /*  37 %   */, cInvalid     /*  38 &   */, cSingleQuote /*  39 '   */,
     cDelimiter  /*  40 (   */, cDelimiter  /*  41 )   */, cInvalid     /*  42 *   */, cPlus        /*  43 +   */,
-    cDelimiter  /*  44 ,   */, cHyphen     /*  45 -   */, cInvalid     /*  46 .   */, cInvalid     /*  47 /   */,
+    cDelimiter  /*  44 ,   */, cHyphen     /*  45 -   */, cDot         /*  46 .   */, cInvalid     /*  47 /   */,
     cZero       /*  48 0   */, cDigit      /*  49 1   */, cDigit       /*  50 2   */, cDigit       /*  51 3   */,
     cDigit      /*  52 4   */, cDigit      /*  53 5   */, cDigit       /*  54 6   */, cDigit       /*  55 7   */,
     cDigit      /*  56 8   */, cDigit      /*  57 9   */, cDelimiter   /*  58 :   */, cDelimiter   /*  59 ;   */,
@@ -945,6 +1056,7 @@ std::array<int8_t, kNumStates> kStateLengths = {
     0, // sSpace
     1, // sLeadZero
     1, // sNumber
+    1, // sFloatOrIndex
     1, // sPlus
     1, // sAsterisk
     1, // sForwardSlash
@@ -956,6 +1068,9 @@ std::array<int8_t, kNumStates> kStateLengths = {
     1, // sInIdentifier
     1, // sEquals
     1, // sInClassName
+    1, // sOneDot
+    1, // sTwoDots
+    1, // sThreeDots
     0, // sInteger
     0, // sHexInteger
     0, // sFloat
@@ -976,6 +1091,9 @@ std::array<int8_t, kNumStates> kStateLengths = {
     0, // sIdentifier
     0, // sAssign
     0, // sClassName
+    0, // sDot
+    0, // sDotDot
+    0, // sEllipses
     0, // sLexError
     0, // sEndCode
 };
@@ -1121,14 +1239,24 @@ bool Lexer::next() {
                 }
             } break;
 
-            case sFloat:
+            case sFloat: {
+                tokenStart = m_code - tokenLength - 1;
+                double doubleValue = std::strtod(tokenStart, &tokenEnd);
+                if (tokenStart < tokenEnd) {
+                    m_token = Token(tokenStart, tokenEnd - tokenStart, doubleValue);
+                    m_code = tokenEnd;
+                } else {
+                    m_state = sLexError;
+                }
+            } break;
+
             case sRadix:
                 m_state = sLexError;
                 break;
 
             case sZero:
                 tokenStart = m_code - tokenLength - 1;
-                m_token = Token(tokenStart, tokenLength, 0LL);
+                m_token = Token(tokenStart, tokenLength, static_cast<int64_t>(0LL));
                 m_code = tokenStart + tokenLength;
                 break;
 
@@ -1244,6 +1372,24 @@ bool Lexer::next() {
                 --m_code;
                 tokenStart = m_code - tokenLength;
                 m_token = Token(Token::Type::kClassName, tokenStart, tokenLength);
+            } break;
+
+            case sDot: {
+                --m_code;
+                tokenStart = m_code - 1;
+                m_token = Token(Token::Type::kDot, tokenStart, 1);
+            } break;
+
+            case sDotDot: {
+                --m_code;
+                tokenStart = m_code - 2;
+                m_token = Token(Token::Type::kDotDot, tokenStart, 2);
+            } break;
+
+            case sEllipses: {
+                --m_code;
+                tokenStart = m_code - 3;
+                m_token = Token(Token::Type::kEllipses, tokenStart, 3);
             } break;
 
             case sLexError:

@@ -12,6 +12,7 @@ public:
         enum Type {
             kEmpty,  // represents no token
             kInteger,
+            kFloat,
             kString,
             kSymbol,
             kAddition,
@@ -34,7 +35,10 @@ public:
             kFalse,
             kIdentifier,
             kAssign,
-            kClassName
+            kClassName,
+            kDot,
+            kDotDot,
+            kEllipses
         };
 
         Type type;
@@ -59,6 +63,9 @@ public:
 
         /*! Makes a kInteger token */
         Token(const char* s, size_t l, int64_t intValue): type(kInteger), start(s), length(l), value(intValue) {}
+
+        /*! Makes a kFloat token */
+        Token(const char* s, size_t l, double doubleValue): type(kFloat), start(s), length(l), value(doubleValue) {}
 
         /*! Makes a token with no value storage */
         Token(Type t, const char* s, size_t l): type(t), start(s), length(l) {}
