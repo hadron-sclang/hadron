@@ -7,6 +7,8 @@ configure_file(BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp")
 
 add_library(libhadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
+    ErrorReporter.cpp
+    ErrorReporter.hpp
     Lexer.cpp
     Lexer.hpp
     Parser.cpp
@@ -24,6 +26,7 @@ target_link_libraries(libhadron
 ######
 # unittests
 add_executable(unittests
+    ErrorReporter_unittests.cpp
     Lexer_unittests.cpp
     unittests.cpp
 )

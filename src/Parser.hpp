@@ -3,8 +3,8 @@
 
 #include "Lexer.hpp"
 
+#include <list>
 #include <memory>
-#include <vector>
 
 namespace hadron {
 
@@ -30,6 +30,8 @@ namespace parse {
 struct Node {
     Node();
     virtual ~Node() = default;
+
+    std::list<std::unique_ptr<Node>> siblings;
 };
 
 struct ClassNode : public Node {

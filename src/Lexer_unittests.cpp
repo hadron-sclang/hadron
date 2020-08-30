@@ -1,6 +1,6 @@
 #include "Lexer.hpp"
 
-#include "doctest/doctest.h"
+#include <doctest/doctest.h>
 
 #include <vector>
 

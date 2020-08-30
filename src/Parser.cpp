@@ -311,6 +311,18 @@ curryarg: CURRYARG
 
 namespace {
 
+// funcbody: funretval
+//           | exprseq funretval
+std::unique_ptr<hadron::parse::Node> parseFuncBody(hadron::Lexer* /* lexer */) {
+    return nullptr;
+}
+
+// funcvardecls1: funcvardecl | funcvardecls1 funcvardecl
+// funcvardecl: VAR vardeflist ';'
+std::unique_ptr<hadron::parse::Node> parseFuncVarDecls(hadron::Lexer* /* lexer */) {
+    return nullptr;
+}
+
 // classes: <e> | classes classdef
 std::unique_ptr<hadron::parse::Node> parseClasses(hadron::Lexer* /* lexer */) {
     return nullptr;
@@ -324,14 +336,33 @@ std::unique_ptr<hadron::parse::Node> parseClassExtensions(hadron::Lexer* /* lexe
 // cmdlinecode: '(' funcvardecls1 funcbody ')'
 //              | funcvardecls1 funcbody
 //              | funcbody
-std::unique_ptr<hadron::parse::Node> parseCmdLineCode(hadron::Lexer* /* lexer */) {
-    return nullptr;
+std::unique_ptr<hadron::parse::Node> parseCmdLineCode(hadron::Lexer* lexer) {
+    switch (lexer->token().type) {
+        case hadron::Lexer::Token::Type::kOpenParen: {
+            // auto openParenToken = lexer->token();
+            lexer->next();  // (
+            auto decls = parseFuncVarDecls(lexer);
+            decls->siblings.emplace_back(parseFuncBody(lexer));
+            if (lexer->token().type != hadron::Lexer::Token::kCloseParen) {
+                // push some error onto the error tracker
+            }
+            lexer->next();  // )
+            return decls;
+        } break;
+
+        case hadron::Lexer::Token::Type::kVar: {
+            auto decls = parseFuncVarDecls(lexer);
+            decls->siblings.emplace_back(parseFuncBody(lexer));
+            return decls;
+        } break;
+
+        default:
+            return nullptr;
+    }
 }
 
 // root: classes | classextensions | INTERPRET cmdlinecode
 std::unique_ptr<hadron::parse::Node> parseRoot(hadron::Lexer* lexer) {
-    lexer->next();
-
     switch (lexer->token().type) {
         case hadron::Lexer::Token::Type::kEmpty:
             return nullptr;
@@ -356,6 +387,7 @@ Parser::Parser(const char* code): m_lexer(std::make_unique<Lexer>(code)), m_pars
 Parser::~Parser() {}
 
 bool Parser::parse() {
+    m_lexer->next();
     m_root = parseRoot(m_lexer.get());
     return m_root != nullptr;
 }
