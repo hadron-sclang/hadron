@@ -15,6 +15,8 @@ bool lex(hadron::Lexer& lexer, std::vector<hadron::Lexer::Token>& tokens) {
 
 }
 
+// TODO tests to add: 10.asString, 1.23.asString, "(╯°□°)╯︵ ┻━┻", -45.726, some other binops besides +
+
 namespace hadron {
 
 TEST_CASE("Lexer Base Cases") {
@@ -153,6 +155,13 @@ TEST_CASE("Lexer Integers Simple") {
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 10);
         CHECK(tokens[0].value.integer == 2147483648);
+    }
+    SUBCASE("int list") {
+        std::vector<hadron::Lexer::Token> tokens;
+        const char* code = "1,2, 3, 4";
+        Lexer lexer(code);
+        REQUIRE(lex(lexer, tokens));
+        REQUIRE(tokens.size() == 7);
     }
 }
 
@@ -302,6 +311,16 @@ TEST_CASE("Lexer Hexadecimal Integers") {
 }
 
 TEST_CASE("Lexer Strings") {
+    SUBCASE("empty string") {
+        std::vector<hadron::Lexer::Token> tokens;
+        const char* code = "\"\"";
+        Lexer lexer(code);
+        REQUIRE(lex(lexer, tokens));
+        REQUIRE(tokens.size() == 1);
+        CHECK(tokens[0].type == Lexer::Token::Type::kString);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 0);
+    }
     SUBCASE("simple string") {
         std::vector<hadron::Lexer::Token> tokens;
         const char* code = "\"abc\"";
@@ -309,8 +328,8 @@ TEST_CASE("Lexer Strings") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 1);
         CHECK(tokens[0].type == Lexer::Token::Type::kString);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 5);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 3);
     }
     SUBCASE("padded string") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -319,18 +338,18 @@ TEST_CASE("Lexer Strings") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 1);
         CHECK(tokens[0].type == Lexer::Token::Type::kString);
-        CHECK(tokens[0].start == code + 2);
-        CHECK(tokens[0].length == 24);
+        CHECK(tokens[0].start == code + 3);
+        CHECK(tokens[0].length == 22);
     }
-    SUBCASE("special characters") {
+    SUBCASE("escape characters") {
         std::vector<hadron::Lexer::Token> tokens;
         const char* code = "\"\t\n\r\\t\\r\\n\\\"0x'\"";
         Lexer lexer(code);
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 1);
         CHECK(tokens[0].type == Lexer::Token::Type::kString);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 16);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 14);
     }
     SUBCASE("adjacent strings tight") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -339,11 +358,11 @@ TEST_CASE("Lexer Strings") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 2);
         CHECK(tokens[0].type == Lexer::Token::Type::kString);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 3);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 1);
         CHECK(tokens[1].type == Lexer::Token::Type::kString);
-        CHECK(tokens[1].start == code + 3);
-        CHECK(tokens[1].length == 3);
+        CHECK(tokens[1].start == code + 4);
+        CHECK(tokens[1].length == 1);
     }
     SUBCASE("adjacent strings padded") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -352,11 +371,11 @@ TEST_CASE("Lexer Strings") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 2);
         CHECK(tokens[0].type == Lexer::Token::Type::kString);
-        CHECK(tokens[0].start == code + 2);
-        CHECK(tokens[0].length == 4);
+        CHECK(tokens[0].start == code + 3);
+        CHECK(tokens[0].length == 2);
         CHECK(tokens[1].type == Lexer::Token::Type::kString);
-        CHECK(tokens[1].start == code + 8);
-        CHECK(tokens[1].length == 3);
+        CHECK(tokens[1].start == code + 9);
+        CHECK(tokens[1].length == 1);
     }
     SUBCASE("unterminated string") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -373,8 +392,8 @@ TEST_CASE("Lexer Symbols") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 1);
         CHECK(tokens[0].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 2);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 0);
     }
     SUBCASE("simple quote") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -383,8 +402,8 @@ TEST_CASE("Lexer Symbols") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 1);
         CHECK(tokens[0].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 5);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 3);
     }
     SUBCASE("padded quote") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -393,8 +412,8 @@ TEST_CASE("Lexer Symbols") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 1);
         CHECK(tokens[0].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[0].start == code + 2);
-        CHECK(tokens[0].length == 30);
+        CHECK(tokens[0].start == code + 3);
+        CHECK(tokens[0].length == 28);
     }
     SUBCASE("special characters") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -403,8 +422,8 @@ TEST_CASE("Lexer Symbols") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 1);
         CHECK(tokens[0].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 16);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 14);
     }
     SUBCASE("unterminated quote") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -418,8 +437,8 @@ TEST_CASE("Lexer Symbols") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 1);
         CHECK(tokens[0].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 1);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 0);
     }
     SUBCASE("empty slash with whitespace") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -428,8 +447,8 @@ TEST_CASE("Lexer Symbols") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 1);
         CHECK(tokens[0].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 1);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 0);
     }
     SUBCASE("simple slash") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -438,8 +457,8 @@ TEST_CASE("Lexer Symbols") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 1);
         CHECK(tokens[0].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 15);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 14);
     }
     SUBCASE("symbol sequence") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -448,32 +467,32 @@ TEST_CASE("Lexer Symbols") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 9);
         CHECK(tokens[0].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 3);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 1);
         CHECK(tokens[1].type == Lexer::Token::Type::kComma);
         CHECK(tokens[1].length == 1);
         CHECK(tokens[1].start == code + 3);
         CHECK(tokens[2].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[2].start == code + 5);
-        CHECK(tokens[2].length == 2);
+        CHECK(tokens[2].start == code + 6);
+        CHECK(tokens[2].length == 1);
         CHECK(tokens[3].type == Lexer::Token::Type::kComma);
         CHECK(tokens[3].length == 1);
         CHECK(tokens[3].start == code + 8);
         CHECK(tokens[4].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[4].start == code + 10);
-        CHECK(tokens[4].length == 3);
+        CHECK(tokens[4].start == code + 11);
+        CHECK(tokens[4].length == 1);
         CHECK(tokens[5].type == Lexer::Token::Type::kComma);
         CHECK(tokens[5].length == 1);
         CHECK(tokens[5].start == code + 13);
         CHECK(tokens[6].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[6].start == code + 14);
-        CHECK(tokens[6].length == 2);
+        CHECK(tokens[6].start == code + 15);
+        CHECK(tokens[6].length == 1);
         CHECK(tokens[7].type == Lexer::Token::Type::kComma);
         CHECK(tokens[7].length == 1);
         CHECK(tokens[7].start == code + 16);
         CHECK(tokens[8].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[8].start == code + 17);
-        CHECK(tokens[8].length == 3);
+        CHECK(tokens[8].start == code + 18);
+        CHECK(tokens[8].length == 1);
     }
 }
 
@@ -484,7 +503,7 @@ TEST_CASE("Lexer Addition") {
         Lexer lexer(code);
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 1);
-        CHECK(tokens[0].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[0].type == Lexer::Token::Type::kPlus);
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 1);
     }
@@ -498,7 +517,7 @@ TEST_CASE("Lexer Addition") {
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 1);
         CHECK(tokens[0].value.integer == 1);
-        CHECK(tokens[1].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[1].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[1].start) == '+');
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kInteger);
@@ -516,7 +535,7 @@ TEST_CASE("Lexer Addition") {
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 2);
         CHECK(tokens[0].value.integer == 67);
-        CHECK(tokens[1].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[1].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[1].start) == '+');
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kInteger);
@@ -534,7 +553,7 @@ TEST_CASE("Lexer Addition") {
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 1);
         CHECK(tokens[0].value.integer == 7);
-        CHECK(tokens[1].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[1].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[1].start) == '+');
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kInteger);
@@ -552,7 +571,7 @@ TEST_CASE("Lexer Addition") {
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 5);
         CHECK(tokens[0].value.integer == 0xffe);
-        CHECK(tokens[1].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[1].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[1].start) == '+');
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kInteger);
@@ -570,7 +589,7 @@ TEST_CASE("Lexer Addition") {
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 1);
         CHECK(tokens[0].value.integer == 0);
-        CHECK(tokens[1].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[1].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[1].start) == '+');
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kInteger);
@@ -588,7 +607,7 @@ TEST_CASE("Lexer Addition") {
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 1);
         CHECK(tokens[0].value.integer == 0);
-        CHECK(tokens[1].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[1].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[1].start) == '+');
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kInteger);
@@ -606,7 +625,7 @@ TEST_CASE("Lexer Addition") {
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 1);
         CHECK(tokens[0].value.integer == 0);
-        CHECK(tokens[1].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[1].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[1].start) == '+');
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kInteger);
@@ -624,7 +643,7 @@ TEST_CASE("Lexer Addition") {
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 1);
         CHECK(tokens[0].value.integer == 0);
-        CHECK(tokens[1].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[1].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[1].start) == '+');
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kInteger);
@@ -642,35 +661,35 @@ TEST_CASE("Lexer Addition") {
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 1);
         CHECK(tokens[0].value.integer == 0);
-        CHECK(tokens[1].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[1].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[1].start) == '+');
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kInteger);
         CHECK(tokens[2].start == code + 2);
         CHECK(tokens[2].length == 1);
         CHECK(tokens[2].value.integer == 1);
-        CHECK(tokens[3].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[3].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[3].start) == '+');
         CHECK(tokens[3].length == 1);
         CHECK(tokens[4].type == Lexer::Token::Type::kInteger);
         CHECK(tokens[4].start == code + 4);
         CHECK(tokens[4].length == 1);
         CHECK(tokens[4].value.integer == 2);
-        CHECK(tokens[5].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[5].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[5].start) == '+');
         CHECK(tokens[5].length == 1);
         CHECK(tokens[6].type == Lexer::Token::Type::kInteger);
         CHECK(tokens[6].start == code + 8);
         CHECK(tokens[6].length == 3);
         CHECK(tokens[6].value.integer == 3);
-        CHECK(tokens[7].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[7].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[7].start) == '+');
         CHECK(tokens[7].length == 1);
         CHECK(tokens[8].type == Lexer::Token::Type::kInteger);
         CHECK(tokens[8].start == code + 13);
         CHECK(tokens[8].length == 1);
         CHECK(tokens[8].value.integer == 4);
-        CHECK(tokens[9].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[9].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[9].start) == '+');
         CHECK(tokens[9].length == 1);
         CHECK(tokens[10].type == Lexer::Token::Type::kInteger);
@@ -685,14 +704,14 @@ TEST_CASE("Lexer Addition") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 3);
         CHECK(tokens[0].type == Lexer::Token::Type::kString);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 3);
-        CHECK(tokens[1].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 1);
+        CHECK(tokens[1].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[1].start) == '+');
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kString);
-        CHECK(tokens[2].start == code + 4);
-        CHECK(tokens[2].length == 8);
+        CHECK(tokens[2].start == code + 5);
+        CHECK(tokens[2].length == 6);
     }
     SUBCASE("strings padded") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -701,24 +720,24 @@ TEST_CASE("Lexer Addition") {
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 3);
         CHECK(tokens[0].type == Lexer::Token::Type::kString);
-        CHECK(tokens[0].start == code);
-        CHECK(tokens[0].length == 6);
-        CHECK(tokens[1].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[0].start == code + 1);
+        CHECK(tokens[0].length == 4);
+        CHECK(tokens[1].type == Lexer::Token::Type::kPlus);
         CHECK(*(tokens[1].start) == '+');
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kString);
-        CHECK(tokens[2].start == code + 9);
-        CHECK(tokens[2].length == 6);
+        CHECK(tokens[2].start == code + 10);
+        CHECK(tokens[2].length == 4);
     }
 }
 
 TEST_CASE("Lexer Delimiters") {
     SUBCASE("all delims packed") {
         std::vector<hadron::Lexer::Token> tokens;
-        const char* code = "(){}[],;:|^~";
+        const char* code = "(){}[],;:^~";
         Lexer lexer(code);
         REQUIRE(lex(lexer, tokens));
-        REQUIRE(tokens.size() == 12);
+        REQUIRE(tokens.size() == 11);
         CHECK(tokens[0].type == Lexer::Token::Type::kOpenParen);
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 1);
@@ -746,22 +765,19 @@ TEST_CASE("Lexer Delimiters") {
         CHECK(tokens[8].type == Lexer::Token::Type::kColon);
         CHECK(tokens[8].start == code + 8);
         CHECK(tokens[8].length == 1);
-        CHECK(tokens[9].type == Lexer::Token::Type::kPipe);
+        CHECK(tokens[9].type == Lexer::Token::Type::kCaret);
         CHECK(tokens[9].start == code + 9);
         CHECK(tokens[9].length == 1);
-        CHECK(tokens[10].type == Lexer::Token::Type::kCaret);
+        CHECK(tokens[10].type == Lexer::Token::Type::kTilde);
         CHECK(tokens[10].start == code + 10);
         CHECK(tokens[10].length == 1);
-        CHECK(tokens[11].type == Lexer::Token::Type::kTilde);
-        CHECK(tokens[11].start == code + 11);
-        CHECK(tokens[11].length == 1);
     }
     SUBCASE("all delims loose") {
         std::vector<hadron::Lexer::Token> tokens;
-        const char* code = " ( ) { } [ ] , ; : | ^ ~ ";
+        const char* code = " ( ) { } [ ] , ; : ^ ~ ";
         Lexer lexer(code);
         REQUIRE(lex(lexer, tokens));
-        REQUIRE(tokens.size() == 12);
+        REQUIRE(tokens.size() == 11);
         CHECK(tokens[0].type == Lexer::Token::Type::kOpenParen);
         CHECK(tokens[0].start == code + 1);
         CHECK(tokens[0].length == 1);
@@ -789,15 +805,12 @@ TEST_CASE("Lexer Delimiters") {
         CHECK(tokens[8].type == Lexer::Token::Type::kColon);
         CHECK(tokens[8].start == code + 17);
         CHECK(tokens[8].length == 1);
-        CHECK(tokens[9].type == Lexer::Token::Type::kPipe);
+        CHECK(tokens[9].type == Lexer::Token::Type::kCaret);
         CHECK(tokens[9].start == code + 19);
         CHECK(tokens[9].length == 1);
-        CHECK(tokens[10].type == Lexer::Token::Type::kCaret);
+        CHECK(tokens[10].type == Lexer::Token::Type::kTilde);
         CHECK(tokens[10].start == code + 21);
         CHECK(tokens[10].length == 1);
-        CHECK(tokens[11].type == Lexer::Token::Type::kTilde);
-        CHECK(tokens[11].start == code + 23);
-        CHECK(tokens[11].length == 1);
     }
     SUBCASE("parens") {
         std::vector<hadron::Lexer::Token> tokens;
@@ -883,8 +896,8 @@ TEST_CASE("Lexer Delimiters") {
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 1);
         CHECK(tokens[1].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[1].start == code + 1);
-        CHECK(tokens[1].length == 2);
+        CHECK(tokens[1].start == code + 2);
+        CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kComma);
         CHECK(tokens[2].start == code + 3);
         CHECK(tokens[2].length == 1);
@@ -928,8 +941,8 @@ TEST_CASE("Lexer Delimiters") {
         CHECK(tokens[14].start == code + 24);
         CHECK(tokens[14].length == 1);
         CHECK(tokens[15].type == Lexer::Token::Type::kString);
-        CHECK(tokens[15].start == code + 26);
-        CHECK(tokens[15].length == 6);
+        CHECK(tokens[15].start == code + 27);
+        CHECK(tokens[15].length == 4);
         CHECK(tokens[16].type == Lexer::Token::Type::kCloseParen);
         CHECK(tokens[16].start == code + 32);
         CHECK(tokens[16].length == 1);
@@ -940,14 +953,14 @@ TEST_CASE("Lexer Delimiters") {
         CHECK(tokens[18].start == code + 35);
         CHECK(tokens[18].length == 1);
         CHECK(tokens[19].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[19].start == code + 37);
-        CHECK(tokens[19].length == 8);
+        CHECK(tokens[19].start == code + 38);
+        CHECK(tokens[19].length == 6);
         CHECK(tokens[20].type == Lexer::Token::Type::kComma);
         CHECK(tokens[20].start == code + 45);
         CHECK(tokens[20].length == 1);
         CHECK(tokens[21].type == Lexer::Token::Type::kString);
-        CHECK(tokens[21].start == code + 46);
-        CHECK(tokens[21].length == 15);
+        CHECK(tokens[21].start == code + 47);
+        CHECK(tokens[21].length == 13);
         CHECK(tokens[22].type == Lexer::Token::Type::kCloseSquare);
         CHECK(tokens[22].start == code + 62);
         CHECK(tokens[22].length == 1);
@@ -1058,8 +1071,8 @@ TEST_CASE("Lexer Identifiers") {
         CHECK(tokens[12].start == code + 30);
         CHECK(tokens[12].length == 1);
         CHECK(tokens[13].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[13].start == code + 32);
-        CHECK(tokens[13].length == 5);
+        CHECK(tokens[13].start == code + 33);
+        CHECK(tokens[13].length == 4);
         CHECK(tokens[14].type == Lexer::Token::Type::kSemicolon);
         CHECK(tokens[14].start == code + 37);
         CHECK(tokens[14].length == 1);
@@ -1105,8 +1118,8 @@ TEST_CASE("Lexer Identifiers") {
         CHECK(tokens[10].start == code + 24);
         CHECK(tokens[10].length == 1);
         CHECK(tokens[11].type == Lexer::Token::Type::kString);
-        CHECK(tokens[11].start == code + 26);
-        CHECK(tokens[11].length == 6);
+        CHECK(tokens[11].start == code + 27);
+        CHECK(tokens[11].length == 4);
         CHECK(tokens[12].type == Lexer::Token::Type::kSemicolon);
         CHECK(tokens[12].start == code + 32);
         CHECK(tokens[12].length == 1);
@@ -1182,7 +1195,7 @@ TEST_CASE("Lexer Class Names") {
         Lexer lexer(code);
         REQUIRE(lex(lexer, tokens));
         REQUIRE(tokens.size() == 8);
-        CHECK(tokens[0].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[0].type == Lexer::Token::Type::kPlus);
         CHECK(tokens[0].start == code);
         CHECK(tokens[0].length == 1);
         CHECK(tokens[1].type == Lexer::Token::Type::kClassName);
@@ -1194,7 +1207,7 @@ TEST_CASE("Lexer Class Names") {
         CHECK(tokens[3].type == Lexer::Token::Type::kCloseCurly);
         CHECK(tokens[3].start == code + 8);
         CHECK(tokens[3].length == 1);
-        CHECK(tokens[4].type == Lexer::Token::Type::kAddition);
+        CHECK(tokens[4].type == Lexer::Token::Type::kPlus);
         CHECK(tokens[4].start == code + 10);
         CHECK(tokens[4].length == 1);
         CHECK(tokens[5].type == Lexer::Token::Type::kClassName);
@@ -1252,8 +1265,8 @@ TEST_CASE("Lexer Class Names") {
         CHECK(tokens[1].start == code + 8);
         CHECK(tokens[1].length == 1);
         CHECK(tokens[2].type == Lexer::Token::Type::kSymbol);
-        CHECK(tokens[2].start == code + 9);
-        CHECK(tokens[2].length == 2);
+        CHECK(tokens[2].start == code + 10);
+        CHECK(tokens[2].length == 1);
         CHECK(tokens[3].type == Lexer::Token::Type::kComma);
         CHECK(tokens[3].start == code + 11);
         CHECK(tokens[3].length == 1);

@@ -3,10 +3,12 @@
 
 #include "Lexer.hpp"
 
-#include <list>
 #include <memory>
+#include <string_view>
 
 namespace hadron {
+
+class ErrorReporter;
 
 namespace parse {
 class Node;
@@ -14,44 +16,44 @@ class Node;
 
 class Parser {
 public:
-    Parser(const char* code);
+    Parser(const char* code, std::shared_ptr<ErrorReporter> errorReporter);
     ~Parser();
 
     bool parse();
 
 private:
     std::unique_ptr<Lexer> m_lexer;
+    std::shared_ptr<ErrorReporter> m_errorReporter;
     std::unique_ptr<parse::Node> m_root;
-    bool m_parseOK;
 };
 
 namespace parse {
 
 struct Node {
-    Node();
+    Node(): tail(this) {}
     virtual ~Node() = default;
+    void append(std::unique_ptr<Node> node) {
+        tail->next = std::move(node);
+        tail = node.get();
+    }
 
-    std::list<std::unique_ptr<Node>> siblings;
-};
-
-struct ClassNode : public Node {
-    ClassNode();
-    virtual ~ClassNode() = default;
-};
-
-struct ClassExtNode : public Node {
-    ClassExtNode();
-    virtual ~ClassExtNode() = default;
+    std::unique_ptr<Node> next;
+    Node* tail;
 };
 
 struct MethodNode : public Node {
-    MethodNode();
+    MethodNode(std::string_view name): methodName(name) {}
     virtual ~MethodNode() = default;
+
+    std::string_view methodName;
 };
 
-struct BlockNode : public Node {
-    BlockNode();
-    virtual ~BlockNode() = default;
+struct ClassExtNode : public Node {
+    ClassExtNode(std::string_view name): className(name) {}
+    virtual ~ClassExtNode() = default;
+
+    std::string_view className;
+    std::unique_ptr<MethodNode> methods;
 };
 
 struct SlotNode : public Node {
@@ -59,14 +61,28 @@ struct SlotNode : public Node {
     virtual ~SlotNode() = default;
 };
 
-struct VarListNode : public Node {
-    VarListNode();
-    virtual ~VarListNode() = default;
-};
-
 struct VarDefNode : public Node {
     VarDefNode();
     virtual ~VarDefNode() = default;
+};
+
+struct VarListNode : public Node {
+    VarListNode();
+    virtual ~VarListNode() = default;
+
+    std::unique_ptr<VarDefNode> definitions;
+};
+
+struct ClassNode : public Node {
+    ClassNode(std::string_view name): className(name) {}
+    virtual ~ClassNode() = default;
+
+    std::string_view className;
+    std::string_view superClassName;
+    std::string_view optionalName;
+
+    std::unique_ptr<VarListNode> variables;
+    std::unique_ptr<MethodNode> methods;
 };
 
 struct DynDictNode : public Node {
@@ -108,6 +124,16 @@ struct ArgListNode : public Node {
     ArgListNode();
     virtual ~ArgListNode() = default;
 };
+
+struct BlockNode : public Node {
+    BlockNode();
+    virtual ~BlockNode() = default;
+
+    std::unique_ptr<ArgListNode> arguments;
+    std::unique_ptr<VarListNode> variables;
+    std::unique_ptr<Node> body;
+};
+
 
 struct SlotDefNode : public Node {
     SlotDefNode();
