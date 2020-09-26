@@ -1,7 +1,12 @@
-# generates Lexer.cpp
-
 %%{
     machine lexer;
+
+    name = '~'?[a-z][a-zA-Z0-9_]+;
+    const = 'const';
+    var = 'var';
+    nil = 'nil';
+    true = 'true';
+    false = 'false';
 
     integer = '-'?[0-9]+;
     hexInteger = '-'?[0-9]+'x'[0-9]+;
@@ -23,16 +28,17 @@
 #include "spdlog/spdlog.h"
 
 namespace {
-%% write data;
+    %% write data;
 }
 
 namespace hadron {
 
 Lexer::Lexer(const char* code):
-    m_code(code) {}
+    p(code) {
+    %% write init;
+}
 
 bool Lexer::next() {
-    %% write init;
     %% write exec;
     return true;
 }

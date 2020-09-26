@@ -1,8 +1,6 @@
 #ifndef SRC_PARSER_HPP_
 #define SRC_PARSER_HPP_
 
-#include "Lexer.hpp"
-
 #include <memory>
 #include <string_view>
 
@@ -16,15 +14,24 @@ class Node;
 
 class Parser {
 public:
-    Parser(const char* code, std::shared_ptr<ErrorReporter> errorReporter);
+    Parser(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter);
     ~Parser();
 
     bool parse();
 
 private:
-    std::unique_ptr<Lexer> m_lexer;
+    std::string_view m_code;
     std::shared_ptr<ErrorReporter> m_errorReporter;
     std::unique_ptr<parse::Node> m_root;
+
+    // Ragel-required state variables.
+    const char* p;
+    const char* pe;
+    const char* eof;
+    int cs;
+    int act;
+    const char* ts;
+    const char* te;
 };
 
 namespace parse {

@@ -92,10 +92,16 @@ public:
 #endif
 
 private:
-    const char* m_code;
     Token m_token;
-    uint8_t m_state;
-    int m_characterClass;
+
+    // Ragel-required state variables.
+    const char* p;
+    const char* pe;
+    const char* eof;
+    int cs;
+    int act;
+    const char* ts;
+    const char* te;
 };
 
 } // namespace hadron
