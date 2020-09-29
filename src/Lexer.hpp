@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <stdint.h>
+#include <vector>
 
 namespace hadron {
 
@@ -77,22 +78,11 @@ public:
         Token(Type t, const char* s, size_t l): type(t), start(s), length(l) {}
     };
 
-    Lexer(const char* code);
-
-    // Update token() to the next parsed token. Returns false if at EOF or error.
-    bool next();
-    bool isError();
-    bool isEOF();
-    const Token& token() const { return m_token; }
-
-#ifdef DEBUG_LEXER
-    /*! Save a dotfile of the Lexer state machine to the provided path.
-     */
-    static void saveLexerStateMachineGraph(const char* fileName);
-#endif
+    Lexer(std::string_view code);
+    bool lex(
 
 private:
-    Token m_token;
+    std::vector<Token> m_tokens;
 
     // Ragel-required state variables.
     const char* p;

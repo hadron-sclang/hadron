@@ -1,26 +1,21 @@
 %%{
     machine lexer;
 
-    name = '~'?[a-z][a-zA-Z0-9_]+;
+    name = '~'? lower [a-zA-Z0-9_]+;
     const = 'const';
     var = 'var';
     nil = 'nil';
     true = 'true';
     false = 'false';
 
-    integer = '-'?[0-9]+;
-    hexInteger = '-'?[0-9]+'x'[0-9]+;
-    radixInteger = '-'?[0-9]+'r'[a-zA-Z0-9]+;
-    float = '-'?[0-9]+'.'[0-9]+;
-    radixFloat = '-'?[0-9]+'r'[a-zA-Z0-9]+'.'[a-zA-Z0-9]+;
+    integer = '-'? digit+;
+    hexInteger = '-'? digit+ 'x' xdigit+;
+    radixInteger = '-'? digit+ 'r' alnum+;
+    float = '-'? digit+ '.' digit+;
+    radixFloat = '-'? digit+' r' alnum+ '.' alnum+;
 
-    main := |*
-        integer =>  { spdlog::warn("integer"); };
-        hexInteger => { spdlog::warn("hexInteger"); };
-        radixInteger => { spdlog::warn("radixInteger"); };
-        float => { spdlog::warn("float"); };
-        radixFloat => { spdlog::warn("radixFloat"); };
-    *|;
+    main :=
+
 }%%
 
 #include "Lexer.hpp"
@@ -33,8 +28,10 @@ namespace {
 
 namespace hadron {
 
-Lexer::Lexer(const char* code):
-    p(code) {
+Lexer::Lexer(std::string_View code):
+    p(code.data()),
+    pe(code.data() + code.size()),
+    eof(pe) {
     %% write init;
 }
 
