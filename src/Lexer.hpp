@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <stdint.h>
+#include <string_view>
 #include <vector>
 
 namespace hadron {
@@ -17,6 +18,7 @@ public:
             kString,
             kSymbol,
             kPlus,         // so named because it could be an addition or a class extension
+            kMinus,        // Could be unary negation so handled separately
             kAsterisk,     // so named because it could be a multiply or a class method
             kAssign,
             kLessThan,
@@ -79,8 +81,9 @@ public:
     };
 
     Lexer(std::string_view code);
-    bool lex(
+    bool lex();
 
+    const std::vector<Token>& tokens() const { return m_tokens; }
 private:
     std::vector<Token> m_tokens;
 

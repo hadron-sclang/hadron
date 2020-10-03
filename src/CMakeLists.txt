@@ -69,6 +69,7 @@ target_link_libraries(libhadron
 # unittests
 add_executable(unittests
     ErrorReporter_unittests.cpp
+    Lexer_unittests.cpp
     unittests.cpp
 )
 
