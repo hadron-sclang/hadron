@@ -2,9 +2,8 @@
 
 #include <doctest/doctest.h>
 
+#include <cstring>
 #include <vector>
-
-// TODO tests to add: 10.asString, 1.23.asString, "(╯°□°)╯︵ ┻━┻", -45.726, some other binops besides +
 
 namespace hadron {
 
@@ -21,7 +20,7 @@ TEST_CASE("Lexer Base Cases") {
     }
 }
 
-TEST_CASE("Lexer Integers Simple") {
+TEST_CASE("Lexer Integers") {
     SUBCASE("zero") {
         const char* code = "0";
         Lexer lexer(code);
@@ -137,6 +136,50 @@ TEST_CASE("Lexer Integers Simple") {
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 7);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 1);
+        CHECK(lexer.tokens()[0].value.integer == 1);
+        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[1].length == 1);
+        CHECK(lexer.tokens()[1].start == code + 1);
+        CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[2].start == code + 2);
+        CHECK(lexer.tokens()[2].length == 1);
+        CHECK(lexer.tokens()[2].value.integer == 2);
+        CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[3].length == 1);
+        CHECK(lexer.tokens()[3].start == code + 3);
+        CHECK(lexer.tokens()[4].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[4].start == code + 5);
+        CHECK(lexer.tokens()[4].length == 1);
+        CHECK(lexer.tokens()[4].value.integer == 3);
+        CHECK(lexer.tokens()[5].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[5].length == 1);
+        CHECK(lexer.tokens()[5].start == code + 6);
+        CHECK(lexer.tokens()[6].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[6].start == code + 8);
+        CHECK(lexer.tokens()[6].length == 1);
+        CHECK(lexer.tokens()[6].value.integer == 4);
+    }
+    SUBCASE("int method call") {
+        const char* code = "10.asString;";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 4);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 2);
+        CHECK(lexer.tokens()[0].value.integer == 10);
+        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kDot);
+        CHECK(lexer.tokens()[1].start == code + 2);
+        CHECK(lexer.tokens()[1].length == 1);
+        CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kIdentifier);
+        CHECK(lexer.tokens()[2].start == code + 3);
+        CHECK(lexer.tokens()[2].length == 8);
+        CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kSemicolon);
+        CHECK(lexer.tokens()[3].start == code + 11);
+        CHECK(lexer.tokens()[3].length == 1);
     }
 }
 
@@ -170,6 +213,22 @@ TEST_CASE("Lexer Floating Point") {
         CHECK(lexer.tokens()[0].start == code);
         CHECK(lexer.tokens()[0].length == 7);
         CHECK(lexer.tokens()[0].value.floatingPoint == 987.125);
+    }
+    SUBCASE("float method call") {
+        const char* code = "1.23.asString";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 3);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kFloat);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 4);
+        CHECK(lexer.tokens()[0].value.floatingPoint == 1.23);
+        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kDot);
+        CHECK(lexer.tokens()[1].start == code + 4);
+        CHECK(lexer.tokens()[1].length == 1);
+        CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kIdentifier);
+        CHECK(lexer.tokens()[2].start == code + 5);
+        CHECK(lexer.tokens()[2].length == 8);
     }
 }
 
@@ -359,6 +418,15 @@ TEST_CASE("Lexer Strings") {
         CHECK(lexer.tokens()[1].start == code + 9);
         CHECK(lexer.tokens()[1].length == 1);
     }
+    SUBCASE("extended characters in string") {
+        const char* code = "\"(╯°□°)╯︵ ┻━┻\"";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kString);
+        CHECK(lexer.tokens()[0].start == code + 1);
+        CHECK(lexer.tokens()[0].length == std::strlen(code) - 2);
+    }
     SUBCASE("unterminated string") {
         Lexer lexer("\"abc");
         REQUIRE(!lexer.lex());
@@ -465,6 +533,15 @@ TEST_CASE("Lexer Symbols") {
         CHECK(lexer.tokens()[8].type == Lexer::Token::Type::kSymbol);
         CHECK(lexer.tokens()[8].start == code + 18);
         CHECK(lexer.tokens()[8].length == 1);
+    }
+    SUBCASE("extended characters in quote symbols") {
+        const char* code = "'🖤💛💙💜💚🧡'";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::kSymbol);
+        CHECK(lexer.tokens()[0].start == code + 1);
+        CHECK(lexer.tokens()[0].length == std::strlen(code) - 2);
     }
 }
 
@@ -1344,6 +1421,73 @@ TEST_CASE("Lexer Dots") {
         CHECK(lexer.tokens()[5].type == Lexer::Token::Type::kCloseSquare);
         CHECK(lexer.tokens()[5].start == code + 7);
         CHECK(lexer.tokens()[5].length == 1);
+    }
+}
+
+TEST_CASE("Lexer Comments") {
+    SUBCASE("line comment unix line ending") {
+        const char* code = "\t// line comment\n47";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
+        CHECK(lexer.tokens()[0].start == code + 17);
+        CHECK(lexer.tokens()[0].length == 2);
+        CHECK(lexer.tokens()[0].value.integer == 47);
+    }
+    SUBCASE("line comment DOS line ending") {
+        const char* code = "  // /* testing unterminated block \r\n  \"a\"";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kString);
+        CHECK(lexer.tokens()[0].start == code + 40);
+        CHECK(lexer.tokens()[0].length == 1);
+    }
+    SUBCASE("line comment extended chars") {
+        const char* code = "// 寧為太平犬，不做亂世人\n";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 0);
+    }
+    SUBCASE("unterminated line comment") {
+        const char* code = "// no newline at end";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 0);
+    }
+    SUBCASE("inline block comment") {
+        const char* code = "var a = /* test comment */ x;";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 5);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kVar);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 3);
+        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kIdentifier);
+        CHECK(lexer.tokens()[1].start == code + 4);
+        CHECK(lexer.tokens()[1].length == 1);
+        CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kAssign);
+        CHECK(lexer.tokens()[2].start == code + 6);
+        CHECK(lexer.tokens()[2].length == 1);
+        CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kIdentifier);
+        CHECK(lexer.tokens()[3].start == code + 27);
+        CHECK(lexer.tokens()[3].length == 1);
+        CHECK(lexer.tokens()[4].type == Lexer::Token::Type::kSemicolon);
+        CHECK(lexer.tokens()[4].start == code + 28);
+        CHECK(lexer.tokens()[4].length == 1);
+    }
+    SUBCASE("many star block comment") {
+        const char* code = "/*********/";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 0);
+    }
+    SUBCASE("nested block comments allowed") {
+        const char* code = "/* SuperCollider allows /* nested */ comments */";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 0);
     }
 }
 

@@ -2,10 +2,15 @@
     machine lexer;
 
     action marker { marker = p; }
-    action flag { flag = true; }
     action counter { ++counter; }
+    action eof_ok { return true; }
 
     main := |*
+        ############
+        # comments #
+        ############
+        '/*' extend* '*/' { /* ignore block comments */ };
+        '//' (extend - '\n')* ('\n' >/eof_ok) { /* ignore line comments */ };
 
         ###################
         # number literals #
@@ -18,7 +23,6 @@
         # Hex integer base-16. Marker points at first digit past 'x'
         ('0x' %marker) xdigit+ {
             int64_t value = std::strtoll(marker, nullptr, 16);
-            if (flag) { value = -value; flag = false; }
             m_tokens.emplace_back(Token(ts, te - ts, value));
         };
         # Float base-10
@@ -31,7 +35,7 @@
         # string literals #
         ###################
         # Double-quoted string. Increments counter on escape characters for length computation.
-        '"' (('\\' any %counter)|(any - '"'))* '"' {
+        '"' (('\\' any %counter) | (extend - '"'))* '"' {
             m_tokens.emplace_back(Token(Token::Type::kString, ts + 1, te - ts - 2 - counter));
             counter = 0;
         };
@@ -40,7 +44,7 @@
         # symbols #
         ###########
         # Single-quoted symbol. Increments counter on escape characters for length computation.
-        '\'' (('\\' any %counter)|(any - '\''))* '\'' {
+        '\'' (('\\' any %counter) | (extend - '\''))* '\'' {
             m_tokens.emplace_back(Token(Token::Type::kSymbol, ts + 1, te - ts - 2 - counter));
             counter = 0;
         };
@@ -195,9 +199,7 @@ Lexer::Lexer(std::string_view code):
 bool Lexer::lex() {
     // Some parses need a mid-token marker (like hex numbers) so we declare it here.
     const char* marker = nullptr;
-    // Some parses need a flag (like negative hex numbers) so we declare it here.
-    bool flag = false;
-    // Some parses need a counter (like string).
+    // Some parses need a counter (like string and symbol).
     int counter = 0;
 
     %% write exec;
