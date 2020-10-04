@@ -1,38 +1,14 @@
 #ifndef SRC_PARSER_HPP_
 #define SRC_PARSER_HPP_
 
+#include "Lexer.hpp"
+
 #include <memory>
 #include <string_view>
 
 namespace hadron {
 
 class ErrorReporter;
-
-namespace parse {
-class Node;
-} // namespace parse
-
-class Parser {
-public:
-    Parser(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter);
-    ~Parser();
-
-    bool parse();
-
-private:
-    std::string_view m_code;
-    std::shared_ptr<ErrorReporter> m_errorReporter;
-    std::unique_ptr<parse::Node> m_root;
-
-    // Ragel-required state variables.
-    const char* p;
-    const char* pe;
-    const char* eof;
-    int cs;
-    int act;
-    const char* ts;
-    const char* te;
-};
 
 namespace parse {
 
@@ -208,6 +184,38 @@ struct BlockReturnNode : public Node {
 };
 
 } // namespace parse
+
+
+class Parser {
+public:
+    Parser(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter);
+    ~Parser();
+
+    bool parse();
+
+private:
+    bool next();
+
+    std::unique_ptr<parse::Node> parseRoot();
+    std::unique_ptr<parse::ClassNode> parseClass();
+    std::unique_ptr<parse::ClassExtNode> parseClassExtension();
+    std::unique_ptr<parse::Node> parseCmdLineCode();
+    std::unique_ptr<parse::VarListNode> parseClassVarDecls();
+    std::unique_ptr<parse::MethodNode> parseMethods();
+    std::unique_ptr<parse::VarListNode> parseFuncVarDecls();
+    std::unique_ptr<parse::Node> parseFuncBody();
+    std::unique_ptr<parse::VarListNode> parseVarDefList();
+    std::unique_ptr<parse::Node> parseExprSeq();
+    std::unique_ptr<parse::Node> parseExpr();
+
+    Lexer m_lexer;
+    size_t m_tokenIndex;
+    Lexer::Token m_token;
+
+    std::shared_ptr<ErrorReporter> m_errorReporter;
+    std::unique_ptr<parse::Node> m_root;
+};
+
 } // namespace hadron
 
 #endif // SRC_PARSER_HPP_

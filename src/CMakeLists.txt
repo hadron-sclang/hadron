@@ -54,6 +54,7 @@ add_library(libhadron STATIC
     ErrorReporter.cpp
     ErrorReporter.hpp
     Lexer.hpp
+    Parser.cpp
     Parser.hpp
 )
 

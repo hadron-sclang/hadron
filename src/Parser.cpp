@@ -312,7 +312,256 @@ binop2: binop | keybinop
 curryarg: CURRYARG
 */
 
-namespace {
+namespace hadron {
+
+Parser::Parser(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter):
+    m_lexer(code),
+    m_tokenIndex(0),
+    m_token(Lexer::Token(Lexer::Token::Type::kEmpty, nullptr, 0)),
+    m_errorReporter(errorReporter) {}
+
+Parser::~Parser() {}
+
+bool Parser::parse() {
+    if (!m_lexer.lex()) {
+        return false;
+    }
+    next();
+    m_root = parseRoot();
+    parse::Node* node = m_root.get();
+    while (m_errorReporter->errorCount() == 0 && m_token.type != Lexer::Token::Type::kEmpty) {
+        node->append(parseRoot());
+        node = node->tail;
+    }
+    return (m_root != nullptr && m_errorReporter->errorCount() == 0);
+}
+
+bool Parser::next() {
+    if (m_tokenIndex < m_lexer.tokens().size()) {
+        m_token = m_lexer.tokens()[m_tokenIndex];
+        ++m_tokenIndex;
+        return true;
+    }
+    m_token = Lexer::Token(Lexer::Token::Type::kEmpty, nullptr, 0);
+    return false;
+}
+
+
+
+// root: classes | classextensions | INTERPRET cmdlinecode
+// classes: <e> | classes classdef
+// classextensions: classextension | classextensions classextension
+std::unique_ptr<parse::Node> Parser::parseRoot() {
+    switch (m_token.type) {
+        case Lexer::Token::Type::kEmpty:
+            return std::make_unique<parse::Node>();
+
+        case Lexer::Token::Type::kClassName:
+            return parseClass();
+
+        case Lexer::Token::Type::kPlus:
+            return parseClassExtension();
+
+        default:
+            return parseCmdLineCode();
+    }
+}
+
+// classdef: classname superclass '{' classvardecls methods '}'
+//           | classname '[' optname ']' superclass '{' classvardecls methods '}'
+// superclass: <e> | ':' classname
+// optname: <e> | name
+std::unique_ptr<parse::ClassNode> Parser::parseClass() {
+    auto classNode = std::make_unique<parse::ClassNode>(std::string_view(m_token.start, m_token.length));
+    next(); // classname
+    if (m_token.type == Lexer::Token::Type::kColon) {
+        next(); // :
+        if (m_token.type != Lexer::Token::Type::kClassName) {
+            m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting superclass name after "
+                "colon ':'.", classNode->className, m_errorReporter->getLineNumber(m_token.start)));
+            return classNode;
+        }
+        classNode->superClassName = std::string_view(m_token.start, m_token.length);
+        next(); // superclass classname
+    } else if (m_token.type == Lexer::Token::Type::kOpenSquare) {
+        next(); // [
+        if (m_token.type != Lexer::Token::Type::kIdentifier) {
+            m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting valid optional name "
+                "inside square brackets '[' and ']'.", classNode->className,
+                m_errorReporter->getLineNumber(m_token.start)));
+            return classNode;
+        }
+        classNode->optionalName = std::string_view(m_token.start, m_token.length);
+        next(); // optname
+        if (m_token.type != Lexer::Token::Type::kCloseSquare) {
+            m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting closing square bracket "
+                "']' after optional class name.", classNode->className, m_errorReporter->getLineNumber(m_token.start)));
+            return classNode;
+        }
+        next(); // ]
+    }
+
+    if (m_token.type != Lexer::Token::Type::kOpenCurly) {
+        m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting opening curly brace '{{'.",
+            classNode->className, m_errorReporter->getLineNumber(m_token.start)));
+        return classNode;
+    }
+    auto openCurly = m_token;
+    next(); // {
+
+    classNode->variables = parseClassVarDecls();
+    classNode->methods = parseMethods();
+
+    if (m_token.type != Lexer::Token::Type::kCloseCurly) {
+        m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting closing curly brace '}}' to "
+            "match opening brace '{{ on line {}", classNode->className,
+            m_errorReporter->getLineNumber(m_token.start), m_errorReporter->getLineNumber(openCurly.start)));
+        return classNode;
+    }
+
+    next(); // }
+    return classNode;
+}
+
+// classextension: '+' classname '{' methods '}'
+std::unique_ptr<parse::ClassExtNode> Parser::parseClassExtension() {
+    next(); // +
+    if (m_token.type != Lexer::Token::kClassName) {
+        m_errorReporter->addError(fmt::format("Error parsing at line {}: expecting class name after '+' symbol.",
+                m_errorReporter->getLineNumber(m_token.start)));
+        return std::make_unique<parse::ClassExtNode>(std::string_view());
+    }
+    auto extension = std::make_unique<parse::ClassExtNode>(std::string_view(m_token.start, m_token.length));
+    next(); // classname
+    if (m_token.type != Lexer::Token::kOpenCurly) {
+        m_errorReporter->addError(fmt::format("Error parsing at line {}: expecting open curly brace '{{' after "
+                "class name in class extension.", m_errorReporter->getLineNumber(m_token.start)));
+        return extension;
+    }
+    auto openCurly = m_token;
+    next(); // {
+    extension->methods = parseMethods();
+    if (m_token.type != Lexer::Token::kCloseCurly) {
+        m_errorReporter->addError(fmt::format("Error parsing around line {}: expecting closing curly brace '}}' to match "
+                "opening brace '{{' on line {}", m_errorReporter->getLineNumber(m_token.start),
+                m_errorReporter->getLineNumber(openCurly.start)));
+    }
+    next(); // }
+    return extension;
+}
+
+// cmdlinecode: '(' funcvardecls1 funcbody ')'
+//              | funcvardecls1 funcbody
+//              | funcbody
+std::unique_ptr<parse::Node> Parser::parseCmdLineCode() {
+    switch (m_token.type) {
+    case Lexer::Token::Type::kOpenParen: {
+        auto openParenToken = m_token;
+        next(); // (
+        auto block = std::make_unique<parse::BlockNode>();
+        block->variables = parseFuncVarDecls();
+        block->body = parseFuncBody();
+        if (m_token.type != Lexer::Token::kCloseParen) {
+            m_errorReporter->addError(fmt::format("Error parsing around line {}: expecting closing parenthesis to "
+                    "match opening parenthesis on line {}", m_errorReporter->getLineNumber(m_token.start),
+                    m_errorReporter->getLineNumber(openParenToken.start)));
+        }
+        next(); // )
+        return block;
+    } break;
+
+    case Lexer::Token::Type::kVar: {
+        auto block = std::make_unique<parse::BlockNode>();
+        block->variables = parseFuncVarDecls();
+        block->body = parseFuncBody();
+        return block;
+    } break;
+
+    default:
+        return parseFuncBody();
+    }
+}
+
+// classvardecls: <e> | classvardecls classvardecl
+// classvardecl: CLASSVAR rwslotdeflist ';'
+//               | VAR rwslotdeflist ';'
+//               | SC_CONST constdeflist ';'
+std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecls() {
+    return nullptr;
+}
+
+// methods: <e> | methods methoddef
+// methoddef: name '{' argdecls funcvardecls primitive methbody '}'
+//            | '*' name '{' argdecls funcvardecls primitive methbody '}'
+// TODO           | binop '{' argdecls funcvardecls primitive methbody '}'
+// TODO           | '*' binop '{' argdecls funcvardecls primitive methbody '}'
+std::unique_ptr<parse::MethodNode> Parser::parseMethods() {
+    switch (m_token.type) {
+    case Lexer::Token::Type::kIdentifier:
+        return nullptr;
+    case Lexer::Token::Type::kAsterisk:
+        return nullptr;
+    default:
+        return nullptr;
+    }
+}
+
+
+
+
+// funcvardecls1: funcvardecl | funcvardecls1 funcvardecl
+// funcvardecl: VAR vardeflist ';'
+std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecls() {
+    next(); // var
+    auto varDefList = parseVarDefList();
+    if (m_token.type != Lexer::Token::Type::kSemicolon) {
+        m_errorReporter->addError(fmt::format("Error parsing variable declaration at line {}, expecting semicolon ';'.",
+                    m_errorReporter->getLineNumber(m_token.start)));
+        return varDefList;
+    }
+    next(); // ;
+    if (m_token.type == Lexer::Token::Type::kVar) {
+        varDefList->append(parseFuncVarDecls());
+    }
+    return varDefList;
+}
+
+
+// funcbody: funretval
+//           | exprseq funretval
+// funretval: <e> | '^' expr optsemi
+std::unique_ptr<parse::Node> Parser::parseFuncBody() {
+    if (m_token.type == Lexer::Token::Type::kCaret) {
+        next(); // ^
+        auto expr = parseExpr();
+        if (m_token.type == Lexer::Token::Type::kSemicolon) {
+            next(); // ;
+        }
+        return expr;
+    }
+    auto exprSeq = parseExprSeq();
+    if (m_token.type == Lexer::Token::Type::kCaret) {
+        next(); // ^
+        exprSeq->append(parseExpr());
+        if (m_token.type == Lexer::Token::Type::kSemicolon) {
+            next(); // ;
+        }
+    }
+    return exprSeq;
+}
+
+// vardeflist: vardef | vardeflist ',' vardef
+// vardef: name | name '=' expr | name '(' exprseq ')'
+std::unique_ptr<parse::VarListNode> Parser::parseVarDefList() {
+    return nullptr;
+}
+
+
+// exprseq: exprn optsemi
+// exprn: expr | exprn ';' expr
+std::unique_ptr<parse::Node> Parser::parseExprSeq() {
+    return nullptr;
+}
 
 // expr: expr1
 //       | valrangexd
@@ -328,255 +577,8 @@ namespace {
 //       | '#' mavars '=' expr
 //       | expr1 '[' arglist1 ']' '=' expr
 //       | expr '.' '[' arglist1 ']' '=' expr
-std::unique_ptr<hadron::parse::Node> parseExpr(hadron::Lexer* /* lexer */,
-        hadron::ErrorReporter* /* errorReporter */) {
+std::unique_ptr<parse::Node> Parser::parseExpr() {
     return nullptr;
-}
-
-// exprseq: exprn optsemi
-// exprn: expr | exprn ';' expr
-std::unique_ptr<hadron::parse::Node> parseExprSeq(hadron::Lexer* /* lexer */,
-        hadron::ErrorReporter* /* errorReporter */) {
-    return nullptr;
-}
-
-// vardeflist: vardef | vardeflist ',' vardef
-// vardef: name | name '=' expr | name '(' exprseq ')'
-std::unique_ptr<hadron::parse::VarListNode> parseVarDefList(hadron::Lexer* /* lexer */,
-        hadron::ErrorReporter* /* errorReporter */) {
-    return nullptr;
-}
-
-// classvardecls: <e> | classvardecls classvardecl
-// classvardecl: CLASSVAR rwslotdeflist ';'
-//               | VAR rwslotdeflist ';'
-//               | SC_CONST constdeflist ';'
-std::unique_ptr<hadron::parse::VarListNode> parseClassVarDecls(hadron::Lexer* /* lexer */,
-        hadron::ErrorReporter* /* errorReporter */) {
-    return nullptr;
-}
-
-// methods: <e> | methods methoddef
-// methoddef: name '{' argdecls funcvardecls primitive methbody '}'
-//            | '*' name '{' argdecls funcvardecls primitive methbody '}'
-// TODO           | binop '{' argdecls funcvardecls primitive methbody '}'
-// TODO           | '*' binop '{' argdecls funcvardecls primitive methbody '}'
-std::unique_ptr<hadron::parse::MethodNode> parseMethods(hadron::Lexer* lexer, hadron::ErrorReporter* /* errorReporter */) {
-    switch (lexer->token().type) {
-    case hadron::Lexer::Token::Type::kIdentifier:
-        return nullptr;
-    case hadron::Lexer::Token::Type::kAsterisk:
-        return nullptr;
-    default:
-        return nullptr;
-    }
-}
-
-// funcbody: funretval
-//           | exprseq funretval
-// funretval: <e> | '^' expr optsemi
-std::unique_ptr<hadron::parse::Node> parseFuncBody(hadron::Lexer* lexer, hadron::ErrorReporter* errorReporter) {
-    if (lexer->token().type == hadron::Lexer::Token::Type::kCaret) {
-        lexer->next(); // ^
-        auto expr = parseExpr(lexer, errorReporter);
-        if (lexer->token().type == hadron::Lexer::Token::Type::kSemicolon) {
-            lexer->next(); // ;
-        }
-        return expr;
-    }
-    auto exprSeq = parseExprSeq(lexer, errorReporter);
-    if (lexer->token().type == hadron::Lexer::Token::Type::kCaret) {
-        lexer->next(); // ^
-        exprSeq->append(parseExpr(lexer, errorReporter));
-        if (lexer->token().type == hadron::Lexer::Token::Type::kSemicolon) {
-            lexer->next(); // ;
-        }
-    }
-    return exprSeq;
-}
-
-// funcvardecls1: funcvardecl | funcvardecls1 funcvardecl
-// funcvardecl: VAR vardeflist ';'
-std::unique_ptr<hadron::parse::VarListNode> parseFuncVarDecls(hadron::Lexer* lexer,
-        hadron::ErrorReporter* errorReporter) {
-    if (lexer->token().type != hadron::Lexer::Token::Type::kVar) {
-        return nullptr;
-    }
-    lexer->next(); // VAR
-    auto varDefList = parseVarDefList(lexer, errorReporter);
-    if (lexer->token().type != hadron::Lexer::Token::Type::kSemicolon) {
-        errorReporter->addError(fmt::format("Error parsing variable declaration at line {}, expecting semicolon ';'.",
-                    errorReporter->getLineNumber(lexer->token().start)));
-        return varDefList;
-    }
-    lexer->next(); // ;
-    varDefList->append(parseFuncVarDecls(lexer, errorReporter));
-    return varDefList;
-}
-
-// classdef: classname superclass '{' classvardecls methods '}'
-//           | classname '[' optname ']' superclass '{' classvardecls methods '}'
-// superclass: <e> | ':' classname
-// optname: <e> | name
-std::unique_ptr<hadron::parse::ClassNode> parseClass(hadron::Lexer* lexer, hadron::ErrorReporter* errorReporter) {
-    if (lexer->token().type != hadron::Lexer::Token::Type::kClassName) {
-        return nullptr;
-    }
-    auto classNode = std::make_unique<hadron::parse::ClassNode>(std::string_view(lexer->token().start,
-            lexer->token().length));
-    lexer->next(); // classname
-    if (lexer->token().type == hadron::Lexer::Token::Type::kColon) {
-        lexer->next(); // :
-        if (lexer->token().type != hadron::Lexer::Token::Type::kClassName) {
-            errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting superclass name after "
-                "colon ':'.", classNode->className, errorReporter->getLineNumber(lexer->token().start)));
-            return classNode;
-        }
-        classNode->superClassName = std::string_view(lexer->token().start, lexer->token().length);
-        lexer->next(); // superclass classname
-    } else if (lexer->token().type == hadron::Lexer::Token::Type::kOpenSquare) {
-        lexer->next(); // [
-        if (lexer->token().type != hadron::Lexer::Token::Type::kIdentifier) {
-            errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting valid optional name "
-                "inside square brackets '[' and ']'.", classNode->className,
-                errorReporter->getLineNumber(lexer->token().start)));
-            return classNode;
-        }
-        classNode->optionalName = std::string_view(lexer->token().start, lexer->token().length);
-        lexer->next(); // optname
-        if (lexer->token().type != hadron::Lexer::Token::Type::kCloseSquare) {
-            errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting closing square bracket "
-                "']' after optional class name.", classNode->className,
-                errorReporter->getLineNumber(lexer->token().start)));
-            return classNode;
-        }
-        lexer->next(); // ]
-    }
-
-    if (lexer->token().type != hadron::Lexer::Token::Type::kOpenCurly) {
-        errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting opening curly brace '{{'.",
-            classNode->className, errorReporter->getLineNumber(lexer->token().start)));
-        return classNode;
-    }
-    auto openCurly = lexer->token();
-    lexer->next(); // {
-
-    classNode->variables = parseClassVarDecls(lexer, errorReporter);
-    classNode->methods = parseMethods(lexer, errorReporter);
-
-    if (lexer->token().type != hadron::Lexer::Token::Type::kCloseCurly) {
-        errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting closing curly brace '}}' to "
-            "match opening brace '{{ on line {}", classNode->className,
-            errorReporter->getLineNumber(lexer->token().start), errorReporter->getLineNumber(openCurly.start)));
-        return classNode;
-    }
-
-    lexer->next(); // }
-    return classNode;
-}
-
-// classextension: '+' classname '{' methods '}'
-std::unique_ptr<hadron::parse::Node> parseClassExtension(hadron::Lexer* lexer, hadron::ErrorReporter* errorReporter) {
-    if (lexer->token().type != hadron::Lexer::Token::Type::kPlus) {
-        return nullptr;
-    }
-    lexer->next(); // +
-    if (lexer->token().type != hadron::Lexer::Token::kClassName) {
-        errorReporter->addError(fmt::format("Error parsing at line {}: expecting class name after '+' symbol.",
-                errorReporter->getLineNumber(lexer->token().start)));
-        return std::make_unique<hadron::parse::Node>();
-    }
-    auto extension = std::make_unique<hadron::parse::ClassExtNode>(std::string_view(lexer->token().start,
-            lexer->token().length));
-    lexer->next(); // classname
-    if (lexer->token().type != hadron::Lexer::Token::kOpenCurly) {
-        errorReporter->addError(fmt::format("Error parsing at line {}: expecting open curly brace '{{' after "
-                "class name in class extension.", errorReporter->getLineNumber(lexer->token().start)));
-        return extension;
-    }
-    auto openCurly = lexer->token();
-    lexer->next(); // {
-    extension->methods = parseMethods(lexer, errorReporter);
-    if (lexer->token().type != hadron::Lexer::Token::kCloseCurly) {
-        errorReporter->addError(fmt::format("Error parsing around line {}: expecting closing curly brace '}}' to match "
-                "opening brace '{{' on line {}", errorReporter->getLineNumber(lexer->token().start),
-                errorReporter->getLineNumber(openCurly.start)));
-    }
-    lexer->next(); // }
-    return extension;
-}
-
-// cmdlinecode: '(' funcvardecls1 funcbody ')'
-//              | funcvardecls1 funcbody
-//              | funcbody
-std::unique_ptr<hadron::parse::Node> parseCmdLineCode(hadron::Lexer* lexer, hadron::ErrorReporter* errorReporter) {
-    switch (lexer->token().type) {
-    case hadron::Lexer::Token::Type::kOpenParen: {
-        auto openParenToken = lexer->token();
-        lexer->next(); // (
-        auto block = std::make_unique<hadron::parse::BlockNode>();
-        block->variables = parseFuncVarDecls(lexer, errorReporter);
-        block->body = parseFuncBody(lexer, errorReporter);
-        if (lexer->token().type != hadron::Lexer::Token::kCloseParen) {
-            errorReporter->addError(fmt::format("Error parsing around line {}: expecting closing parenthesis to "
-                    "match opening parenthesis on line {}", errorReporter->getLineNumber(lexer->token().start),
-                    errorReporter->getLineNumber(openParenToken.start)));
-        }
-        lexer->next(); // )
-        return block;
-    } break;
-
-    case hadron::Lexer::Token::Type::kVar: {
-        auto block = std::make_unique<hadron::parse::BlockNode>();
-        block->variables = parseFuncVarDecls(lexer, errorReporter);
-        block->body = parseFuncBody(lexer, errorReporter);
-        return block;
-    } break;
-
-    default:
-        return parseFuncBody(lexer, errorReporter);
-    }
-}
-
-// root: classes | classextensions | INTERPRET cmdlinecode
-// classes: <e> | classes classdef
-// classextensions: classextension | classextensions classextension
-std::unique_ptr<hadron::parse::Node> parseRoot(hadron::Lexer* lexer, hadron::ErrorReporter* errorReporter) {
-    switch (lexer->token().type) {
-        case hadron::Lexer::Token::Type::kEmpty:
-            return std::make_unique<hadron::parse::Node>();
-
-        case hadron::Lexer::Token::Type::kClassName:
-            return parseClass(lexer, errorReporter);
-
-        case hadron::Lexer::Token::Type::kPlus:
-            return parseClassExtension(lexer, errorReporter);
-
-        default:
-            return parseCmdLineCode(lexer, errorReporter);
-    }
-}
-
-}
-
-namespace hadron {
-
-Parser::Parser(const char* code, std::shared_ptr<ErrorReporter> errorReporter):
-    m_lexer(std::make_unique<Lexer>(code)),
-    m_errorReporter(errorReporter) {}
-
-Parser::~Parser() {}
-
-bool Parser::parse() {
-    m_lexer->next();
-    m_root = parseRoot(m_lexer.get(), m_errorReporter.get());
-    parse::Node* node = m_root.get();
-    while (m_errorReporter->errorCount() == 0 &&
-           m_lexer->token().type != Lexer::Token::Type::kEmpty) {
-        node->append(parseRoot(m_lexer.get(), m_errorReporter.get()));
-        node = node->tail;
-    }
-    return m_root != nullptr;
 }
 
 } // namespace hadron

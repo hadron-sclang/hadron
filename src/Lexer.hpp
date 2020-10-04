@@ -52,6 +52,7 @@ public:
 
         Type type;
 
+        // TODO: refactor to use std::string_view instead of start, length
         /*! Start position of the token. */
         const char* start;
 
