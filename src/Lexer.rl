@@ -1,16 +1,6 @@
 %%{
     machine lexer;
 
-    name = '~'? lower [a-zA-Z0-9_]+;
-    const = 'const';
-    var = 'var';
-    nil = 'nil';
-    true = 'true';
-    false = 'false';
-
-    radixInteger = '-'? digit+ 'r' alnum+;
-    radixFloat = '-'? digit+' r' alnum+ '.' alnum+;
-
     action marker { marker = p; }
     action flag { flag = true; }
     action counter { ++counter; }
@@ -26,7 +16,7 @@
             m_tokens.emplace_back(Token(ts, te - ts, value));
         };
         # Hex integer base-16. Marker points at first digit past 'x'
-        digit+ ('x' %marker) xdigit+ {
+        ('0x' %marker) xdigit+ {
             int64_t value = std::strtoll(marker, nullptr, 16);
             if (flag) { value = -value; flag = false; }
             m_tokens.emplace_back(Token(ts, te - ts, value));
@@ -62,8 +52,38 @@
         ##############
         # delimiters #
         ##############
+        '(' {
+            m_tokens.emplace_back(Token(Token::Type::kOpenParen, ts, 1));
+        };
+        ')' {
+            m_tokens.emplace_back(Token(Token::Type::kCloseParen, ts, 1));
+        };
+        '{' {
+            m_tokens.emplace_back(Token(Token::Type::kOpenCurly, ts, 1));
+        };
+        '}' {
+            m_tokens.emplace_back(Token(Token::Type::kCloseCurly, ts, 1));
+        };
+        '[' {
+            m_tokens.emplace_back(Token(Token::Type::kOpenSquare, ts, 1));
+        };
+        ']' {
+            m_tokens.emplace_back(Token(Token::Type::kCloseSquare, ts, 1));
+        };
         ',' {
             m_tokens.emplace_back(Token(Token::Type::kComma, ts, 1));
+        };
+        ';' {
+            m_tokens.emplace_back(Token(Token::Type::kSemicolon, ts, 1));
+        };
+        ':' {
+            m_tokens.emplace_back(Token(Token::Type::kColon, ts, 1));
+        };
+        '^' {
+            m_tokens.emplace_back(Token(Token::Type::kCaret, ts, 1));
+        };
+        '~' {
+            m_tokens.emplace_back(Token(Token::Type::kTilde, ts, 1));
         };
 
         #############
@@ -98,6 +118,56 @@
         };
         ('!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' | '?' | '/')+ {
             m_tokens.emplace_back(Token(Token::Type::kBinop, ts, te - ts));
+        };
+
+        ############
+        # keywords #
+        ############
+        'arg' {
+            m_tokens.emplace_back(Token(Token::Type::kArg, ts, 3));
+        };
+        'false' {
+            m_tokens.emplace_back(Token(Token::Type::kFalse, ts, 5));
+        };
+        'nil' {
+            m_tokens.emplace_back(Token(Token::Type::kNil, ts, 3));
+        };
+        'true' {
+            m_tokens.emplace_back(Token(Token::Type::kTrue, ts, 4));
+        };
+        'var' {
+            m_tokens.emplace_back(Token(Token::Type::kVar, ts, 3));
+        };
+
+        ###############
+        # identifiers #
+        ###############
+        lower (alnum | '_')* {
+            m_tokens.emplace_back(Token(Token::Type::kIdentifier, ts, te - ts));
+        };
+
+        ###############
+        # class names #
+        ###############
+        upper (alnum | '_')* {
+            m_tokens.emplace_back(Token(Token::Type::kClassName, ts, te - ts));
+        };
+
+        ########
+        # dots #
+        ########
+        '.' {
+            m_tokens.emplace_back(Token(Token::Type::kDot, ts, 1));
+        };
+        '..' {
+            m_tokens.emplace_back(Token(Token::Type::kDotDot, ts, 2));
+        };
+        '...' {
+            m_tokens.emplace_back(Token(Token::Type::kEllipses, ts, 3));
+        };
+        # Four or more consecutive dots is a lexing error.
+        '.' {4, } {
+            return false;
         };
 
         space { /* ignore whitespace */ };
