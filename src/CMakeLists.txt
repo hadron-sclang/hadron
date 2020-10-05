@@ -50,6 +50,7 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
 )
 
 add_library(libhadron STATIC
+    "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     ErrorReporter.cpp
     ErrorReporter.hpp
