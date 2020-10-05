@@ -3,6 +3,8 @@
 
 #include <cstddef>
 #include <stdint.h>
+#include <string_view>
+#include <vector>
 
 namespace hadron {
 
@@ -12,9 +14,23 @@ public:
         enum Type {
             kEmpty,  // represents no token
             kInteger,
+            kFloat,
             kString,
             kSymbol,
-            kAddition,
+
+            // <<< all below could also be binops >>>
+            kPlus,         // so named because it could be an addition or a class extension
+            kMinus,        // Could be unary negation so handled separately
+            kAsterisk,     // so named because it could be a multiply or a class method
+            kAssign,
+            kLessThan,
+            kGreaterThan,
+            kPipe,
+            kReadWriteVar,
+            kLeftArrow,
+            kBinop,  // TODO: rename kGenericBinop
+            // <<< all above could also be binops >>>
+
             kOpenParen,
             kCloseParen,
             kOpenCurly,
@@ -24,20 +40,26 @@ public:
             kComma,
             kSemicolon,
             kColon,
-            kPipe,
             kCaret,
             kTilde,
+            kHash,
             kVar,
             kNil,
             kArg,
             kTrue,
             kFalse,
+            kConst,
+            kClassVar,
             kIdentifier,
-            kAssign,
+            kClassName,
+            kDot,
+            kDotDot,
+            kEllipses
         };
 
         Type type;
 
+        // TODO: refactor to use std::string_view instead of start, length
         /*! Start position of the token. */
         const char* start;
 
@@ -54,34 +76,40 @@ public:
         };
         Value value;
 
-        Token(): type(kEmpty), start(nullptr), length(0) {}
+        bool couldBeBinop;
+
+        Token(): type(kEmpty), start(nullptr), length(0), couldBeBinop(false) {}
 
         /*! Makes a kInteger token */
-        Token(const char* s, size_t l, int64_t intValue): type(kInteger), start(s), length(l), value(intValue) {}
+        Token(const char* s, size_t l, int64_t intValue):
+            type(kInteger), start(s), length(l), value(intValue), couldBeBinop(false) {}
+
+        /*! Makes a kFloat token */
+        Token(const char* s, size_t l, double doubleValue):
+            type(kFloat), start(s), length(l), value(doubleValue), couldBeBinop(false) {}
 
         /*! Makes a token with no value storage */
-        Token(Type t, const char* s, size_t l): type(t), start(s), length(l) {}
+        Token(Type t, const char* s, size_t l): type(t), start(s), length(l), couldBeBinop(false) {}
+
+        /* Makes a token with possible true value for couldBeBinop */
+        Token(Type t, const char* s, size_t l, bool binop): type(t), start(s), length(l), couldBeBinop(binop) {}
     };
 
-    Lexer(const char* code);
+    Lexer(std::string_view code);
+    bool lex();
 
-    // Update token() to the next parsed token. Returns false if at EOF or error.
-    bool next();
-    bool isError();
-    bool isEOF();
-    const Token& token() const { return m_token; }
-
-#ifdef DEBUG_LEXER
-    /*! Save a dotfile of the Lexer state machine to the provided path.
-     */
-    static void saveLexerStateMachineGraph(const char* fileName);
-#endif
-
+    const std::vector<Token>& tokens() const { return m_tokens; }
 private:
-    const char* m_code;
-    Token m_token;
-    uint8_t m_state;
-    int m_characterClass;
+    std::vector<Token> m_tokens;
+
+    // Ragel-required state variables.
+    const char* p;
+    const char* pe;
+    const char* eof;
+    int cs;
+    int act;
+    const char* ts;
+    const char* te;
 };
 
 } // namespace hadron
