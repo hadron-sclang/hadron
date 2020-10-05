@@ -17,6 +17,8 @@ public:
             kFloat,
             kString,
             kSymbol,
+
+            // <<< all below could also be binops >>>
             kPlus,         // so named because it could be an addition or a class extension
             kMinus,        // Could be unary negation so handled separately
             kAsterisk,     // so named because it could be a multiply or a class method
@@ -26,7 +28,9 @@ public:
             kPipe,
             kReadWriteVar,
             kLeftArrow,
-            kBinop,
+            kBinop,  // TODO: rename kGenericBinop
+            // <<< all above could also be binops >>>
+
             kOpenParen,
             kCloseParen,
             kOpenCurly,
@@ -38,11 +42,14 @@ public:
             kColon,
             kCaret,
             kTilde,
+            kHash,
             kVar,
             kNil,
             kArg,
             kTrue,
             kFalse,
+            kConst,
+            kClassVar,
             kIdentifier,
             kClassName,
             kDot,
@@ -69,16 +76,23 @@ public:
         };
         Value value;
 
-        Token(): type(kEmpty), start(nullptr), length(0) {}
+        bool couldBeBinop;
+
+        Token(): type(kEmpty), start(nullptr), length(0), couldBeBinop(false) {}
 
         /*! Makes a kInteger token */
-        Token(const char* s, size_t l, int64_t intValue): type(kInteger), start(s), length(l), value(intValue) {}
+        Token(const char* s, size_t l, int64_t intValue):
+            type(kInteger), start(s), length(l), value(intValue), couldBeBinop(false) {}
 
         /*! Makes a kFloat token */
-        Token(const char* s, size_t l, double doubleValue): type(kFloat), start(s), length(l), value(doubleValue) {}
+        Token(const char* s, size_t l, double doubleValue):
+            type(kFloat), start(s), length(l), value(doubleValue), couldBeBinop(false) {}
 
         /*! Makes a token with no value storage */
-        Token(Type t, const char* s, size_t l): type(t), start(s), length(l) {}
+        Token(Type t, const char* s, size_t l): type(t), start(s), length(l), couldBeBinop(false) {}
+
+        /* Makes a token with possible true value for couldBeBinop */
+        Token(Type t, const char* s, size_t l, bool binop): type(t), start(s), length(l), couldBeBinop(binop) {}
     };
 
     Lexer(std::string_view code);

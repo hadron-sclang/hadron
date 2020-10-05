@@ -89,39 +89,42 @@
         '~' {
             m_tokens.emplace_back(Token(Token::Type::kTilde, ts, 1));
         };
+        '#' {
+            m_tokens.emplace_back(Token(Token::Type::kHash, ts, 1));
+        };
 
         #############
         # operators #
         #############
         '+' {
-            m_tokens.emplace_back(Token(Token::Type::kPlus, ts, 1));
+            m_tokens.emplace_back(Token(Token::Type::kPlus, ts, 1, true));
         };
         '-' {
-            m_tokens.emplace_back(Token(Token::Type::kMinus, ts, 1));
+            m_tokens.emplace_back(Token(Token::Type::kMinus, ts, 1, true));
         };
         '*' {
-            m_tokens.emplace_back(Token(Token::Type::kAsterisk, ts, 1));
+            m_tokens.emplace_back(Token(Token::Type::kAsterisk, ts, 1, true));
         };
         '=' {
-            m_tokens.emplace_back(Token(Token::Type::kAssign, ts, 1));
+            m_tokens.emplace_back(Token(Token::Type::kAssign, ts, 1, true));
         };
         '<' {
-            m_tokens.emplace_back(Token(Token::Type::kLessThan, ts, 1));
+            m_tokens.emplace_back(Token(Token::Type::kLessThan, ts, 1, true));
         };
         '>' {
-            m_tokens.emplace_back(Token(Token::Type::kGreaterThan, ts, 1));
+            m_tokens.emplace_back(Token(Token::Type::kGreaterThan, ts, 1, true));
         };
         '|' {
-            m_tokens.emplace_back(Token(Token::Type::kPipe, ts, 1));
+            m_tokens.emplace_back(Token(Token::Type::kPipe, ts, 1, true));
         };
         '<>' {
-            m_tokens.emplace_back(Token(Token::Type::kReadWriteVar, ts, 2));
+            m_tokens.emplace_back(Token(Token::Type::kReadWriteVar, ts, 2, true));
         };
         '<-' {
-            m_tokens.emplace_back(Token(Token::Type::kLeftArrow, ts, 2));
+            m_tokens.emplace_back(Token(Token::Type::kLeftArrow, ts, 2, true));
         };
         ('!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' | '?' | '/')+ {
-            m_tokens.emplace_back(Token(Token::Type::kBinop, ts, te - ts));
+            m_tokens.emplace_back(Token(Token::Type::kBinop, ts, te - ts, true));
         };
 
         ############
@@ -129,6 +132,12 @@
         ############
         'arg' {
             m_tokens.emplace_back(Token(Token::Type::kArg, ts, 3));
+        };
+        'classvar' {
+            m_tokens.emplace_back(Token(Token::Type::kClassVar, ts, 8));
+        };
+        'const' {
+            m_tokens.emplace_back(Token(Token::Type::kConst, ts, 5));
         };
         'false' {
             m_tokens.emplace_back(Token(Token::Type::kFalse, ts, 5));
