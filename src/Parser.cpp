@@ -509,7 +509,7 @@ std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecls() {
 std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecl() {
     switch (m_token.type) {
     case Lexer::Token::Type::kClassVar: {
-        std::unique_ptr<parse::VarListNode> classVars = parseRWVarDefList();
+        auto classVars = parseRWVarDefList();
         if (m_token.type != Lexer::Token::kSemicolon) {
             m_errorReporter->addError(fmt::format("Error parsing class variable declaration at line {}, expecting "
                         "semicolon ';'.", m_errorReporter->getLineNumber(m_token.start)));
@@ -520,7 +520,7 @@ std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecl() {
     }
 
     case Lexer::Token::Type::kVar: {
-        std::unique_ptr<parse::VarListNode> vars = parseRWVarDefList();
+        auto vars = parseRWVarDefList();
         if (m_token.type != Lexer::Token::kSemicolon) {
             m_errorReporter->addError(fmt::format("Error parsing variable declaration at line {}, expecting "
                         "semicolon ';'.", m_errorReporter->getLineNumber(m_token.start)));
@@ -531,7 +531,7 @@ std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecl() {
     }
 
     case Lexer::Token::Type::kConst: {
-        std::unique_ptr<parse::VarListNode> constants = parseConstDefList();
+        auto constants = parseConstDefList();
         if (m_token.type != Lexer::Token::kSemicolon) {
             m_errorReporter->addError(fmt::format("Error parsing constant declaration at line {}, expecting "
                         "semicolon ';'.", m_errorReporter->getLineNumber(m_token.start)));
@@ -591,7 +591,7 @@ std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecls() {
     }
     if (varDecls != nullptr) {
         while (m_token.type == Lexer::Token::Type::kVar) {
-            std::unique_ptr<parse::VarListNode> furtherVarDecls = parseFuncVarDecl();
+            auto furtherVarDecls = parseFuncVarDecl();
             if (furtherVarDecls == nullptr) {
                 return nullptr;
             }
@@ -645,7 +645,7 @@ std::unique_ptr<parse::VarListNode> Parser::parseRWVarDefList() {
     if (varList->definitions != nullptr) {
         while (m_token.type == Lexer::Token::Type::kComma) {
             next(); // ,
-            std::unique_ptr<parse::VarDefNode> nextVarDef = parseRWVarDef();
+            auto nextVarDef = parseRWVarDef();
             if (nextVarDef != nullptr) {
                 varList->definitions->append(std::move(nextVarDef));
             } else {
@@ -699,7 +699,7 @@ std::unique_ptr<parse::VarListNode> Parser::parseConstDefList() {
     if (m_token.type == Lexer::Token::Type::kComma) {
         next(); // ,
     }
-    std::unique_ptr<parse::VarDefNode> nextDef = parseConstDef();
+    auto nextDef = parseConstDef();
     while (nextDef != nullptr) {
         varList->definitions->append(std::move(nextDef));
         if (m_token.type == Lexer::Token::Type::kComma) {
@@ -750,7 +750,7 @@ std::unique_ptr<parse::VarListNode> Parser::parseVarDefList() {
     }
     while (m_token.type == Lexer::Token::Type::kComma) {
         next(); // ,
-        std::unique_ptr<parse::VarDefNode> nextVarDef = parseVarDef();
+        auto nextVarDef = parseVarDef();
         if (nextVarDef == nullptr) {
             return nullptr;
         }
@@ -797,49 +797,88 @@ std::unique_ptr<parse::VarDefNode> Parser::parseVarDef() {
 //               | ARG vardeflist0 ELLIPSIS name ';'
 //               | '|' slotdeflist '|'
 //               | '|' slotdeflist0 ELLIPSIS name '|'
-
-// vardeflist0: <e> | vardeflist
-// vardeflist: vardef | vardeflist ',' vardef
-// vardef: name | name '=' expr | name '(' exprseq ')'
 std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
+    bool isArg;
     if (m_token.type == Lexer::Token::Type::kArg) {
-        next(); // arg
-        auto argList = std::make_unique<parse::ArgListNode>();
-        // Can skip directly to ellipses, check for that.
-        if (m_token.type == Lexer::Token::Type::kEllipses) {
-            next(); // ...
-            if (m_token.type != Lexer::Token::Type::kIdentifier) {
-                m_errorReporter->addError(fmt::format("Error parsing argument list on line {}, expecting name after "
-                            "ellipses '...'.", m_errorReporter->getLineNumber(m_token.start)));
-                return nullptr;
-            }
-            // TODO: parseArgNameAfterEllipsis() to re-use
+        isArg = true;
+    } else if (m_token.type == Lexer::Token::kPipe) {
+        isArg = false;
+    } else {
+        return nullptr;
+    }
+
+    next(); // arg or |
+    auto argList = std::make_unique<parse::ArgListNode>();
+    argList->varList = parseVarDefList();
+
+    if (m_token.type == Lexer::Token::Type::kEllipses) {
+        next(); // ...
+        if (m_token.type != Lexer::Token::Type::kIdentifier) {
+            m_errorReporter->addError(fmt::format("Error parsing argument list on line {}, expecting name after "
+                        "ellipses '...'.", m_errorReporter->getLineNumber(m_token.start)));
+            return nullptr;
         }
-        std::unique_ptr<parse::VarListNode> varList = parseVarDefList();
-        if (varList == nullptr) {
+        argList->varArgsName = std::string_view(m_token.start, m_token.length);
+        next(); // name
+    }
+
+    if (isArg && m_token.type != Lexer::Token::Type::kSemicolon) {
+        m_errorReporter->addError(fmt::format("Error parsing argument list on line {}, expected semicolon ';' at "
+                    "end of argument list.", m_errorReporter->getLineNumber(m_token.start)));
+        return nullptr;
+    } else if (!isArg && m_token.type != Lexer::Token::Type::kPipe) {
+        m_errorReporter->addError(fmt::format("Error parsing argument list on line {}, expected matching pipe '|' at "
+                    "end of argument list.", m_errorReporter->getLineNumber(m_token.start)));
+        return nullptr;
+    }
+    next(); // ; or |
+
+    return argList;
+}
+
+// methbody: retval | exprseq retval
+// retval: <e> | '^' expr optsemi
+std::unique_ptr<parse::Node> Parser::parseMethodBody() {
+    auto exprSeq = parseExprSeq();
+    if (m_token.type == Lexer::Token::Type::kCaret) {
+        next(); // ^
+        auto retVal = std::make_unique<parse::ReturnNode>();
+        retVal->valueExpr = parseExpr();
+        if (retVal->valueExpr == nullptr) {
             return nullptr;
         }
         if (m_token.type == Lexer::Token::Type::kSemicolon) {
             next(); // ;
-        } else if (m_token.type == Lexer::Token::Type::kEllipses) {
-            next(); // ...
-
         }
-    } else if (m_token.type == Lexer::Token::kPipe) {
+        if (exprSeq == nullptr) {
+            return retVal;
+        }
+        exprSeq->append(std::move(retVal));
     }
 
-    return nullptr;
-}
-
-// methbody: retval | exprseq retval
-std::unique_ptr<parse::Node> Parser::parseMethodBody() {
-    return nullptr;
+    return exprSeq;
 }
 
 // exprseq: exprn optsemi
 // exprn: expr | exprn ';' expr
 std::unique_ptr<parse::Node> Parser::parseExprSeq() {
-    return nullptr;
+    auto exprSeq = parseExpr();
+    if (exprSeq == nullptr) {
+        return nullptr;
+    }
+    while (m_token.type == Lexer::Token::Type::kSemicolon) {
+        next(); // ;
+        auto nextExpr = parseExpr();
+        if (nextExpr != nullptr) {
+            exprSeq->append(std::move(nextExpr));
+        } else {
+            break;
+        }
+    }
+    if (m_token.type == Lexer::Token::Type::kSemicolon) {
+        next(); // ;
+    }
+    return exprSeq;
 }
 
 // expr: expr1
@@ -856,6 +895,56 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
 //       | '#' mavars '=' expr
 //       | expr1 '[' arglist1 ']' '=' expr
 //       | expr '.' '[' arglist1 ']' '=' expr
+//
+// expr1: pushliteral
+//        | blockliteral
+//        | generator
+//        | pushname
+//        | curryarg
+//        | msgsend
+//        | '(' exprseq ')'
+//        | '~' name
+//        |  '[' arrayelems ']'
+//        |    '(' valrange2 ')'
+//        |    '(' ':' valrange3 ')'
+//        |    '(' dictslotlist ')'
+//        | pseudovar
+//        | expr1 '[' arglist1 ']'
+//        | valrangex1
+//
+// generator: '{' ':' exprseq ',' qual '}'
+//          | '{' ';' exprseq  ',' qual '}'
+//
+// pushname: name
+//
+// curryarg: CURRYARG
+//
+// msgsend: name blocklist1
+//         | '(' binop2 ')' blocklist1
+//         | name '(' ')' blocklist1
+//         | name '(' arglist1 optkeyarglist ')' blocklist
+//         | '(' binop2 ')' '(' ')' blocklist1
+//         | '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
+//         | name '(' arglistv1 optkeyarglist ')'
+//         | '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
+//         | classname '[' arrayelems ']'
+//         | classname blocklist1
+//         | classname '(' ')' blocklist
+//         | classname '(' keyarglist1 optcomma ')' blocklist
+//         | classname '(' arglist1 optkeyarglist ')' blocklist
+//         | classname '(' arglistv1 optkeyarglist ')'
+//         | expr '.' '(' ')' blocklist
+//         | expr '.' '(' keyarglist1 optcomma ')' blocklist
+//         | expr '.' name '(' keyarglist1 optcomma ')' blocklist
+//         | expr '.' '(' arglist1 optkeyarglist ')' blocklist
+//         | expr '.' '(' arglistv1 optkeyarglist ')'
+//         | expr '.' name '(' ')' blocklist
+//         | expr '.' name '(' arglist1 optkeyarglist ')' blocklist
+//         | expr '.' name '(' arglistv1 optkeyarglist ')'
+//         | expr '.' name blocklist
+//
+// pseudovar: PSEUDOVAR
+//
 std::unique_ptr<parse::Node> Parser::parseExpr() {
     return nullptr;
 }

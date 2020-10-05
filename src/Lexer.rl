@@ -188,6 +188,8 @@
     *|;
 }%%
 
+// Generated file from Ragel input file src/Lexer.rl. Please make edits to that file instead of modifying this directly.
+
 #include "Lexer.hpp"
 
 #include "spdlog/spdlog.h"
