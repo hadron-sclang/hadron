@@ -797,7 +797,37 @@ std::unique_ptr<parse::VarDefNode> Parser::parseVarDef() {
 //               | ARG vardeflist0 ELLIPSIS name ';'
 //               | '|' slotdeflist '|'
 //               | '|' slotdeflist0 ELLIPSIS name '|'
+
+// vardeflist0: <e> | vardeflist
+// vardeflist: vardef | vardeflist ',' vardef
+// vardef: name | name '=' expr | name '(' exprseq ')'
 std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
+    if (m_token.type == Lexer::Token::Type::kArg) {
+        next(); // arg
+        auto argList = std::make_unique<parse::ArgListNode>();
+        // Can skip directly to ellipses, check for that.
+        if (m_token.type == Lexer::Token::Type::kEllipses) {
+            next(); // ...
+            if (m_token.type != Lexer::Token::Type::kIdentifier) {
+                m_errorReporter->addError(fmt::format("Error parsing argument list on line {}, expecting name after "
+                            "ellipses '...'.", m_errorReporter->getLineNumber(m_token.start)));
+                return nullptr;
+            }
+            // TODO: parseArgNameAfterEllipsis() to re-use
+        }
+        std::unique_ptr<parse::VarListNode> varList = parseVarDefList();
+        if (varList == nullptr) {
+            return nullptr;
+        }
+        if (m_token.type == Lexer::Token::Type::kSemicolon) {
+            next(); // ;
+        } else if (m_token.type == Lexer::Token::Type::kEllipses) {
+            next(); // ...
+
+        }
+    } else if (m_token.type == Lexer::Token::kPipe) {
+    }
+
     return nullptr;
 }
 

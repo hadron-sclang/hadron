@@ -24,11 +24,6 @@ struct Node {
     Node* tail;
 };
 
-struct ArgListNode : public Node {
-    ArgListNode();
-    virtual ~ArgListNode() = default;
-};
-
 struct LiteralNode : public Node {
     LiteralNode();
     virtual ~LiteralNode() = default;
@@ -40,6 +35,14 @@ struct VarDefNode : public Node {
 
     std::string_view varName;
     std::unique_ptr<Node> initialValue;
+};
+
+struct ArgListNode : public Node {
+    ArgListNode();
+    virtual ~ArgListNode() = default;
+
+    std::unique_ptr<ArgDefNode> definitions;
+    std::string_view varArgsName;
 };
 
 struct VarListNode : public Node {
@@ -126,7 +129,7 @@ struct BlockNode : public Node {
     BlockNode() = default;
     virtual ~BlockNode() = default;
 
-    std::unique_ptr<ArgListNode> arguments;
+    std::unique_ptr<VarListNode> arguments;
     std::unique_ptr<VarListNode> variables;
     std::unique_ptr<Node> body;
 };
@@ -223,7 +226,7 @@ private:
     std::unique_ptr<parse::VarDefNode> parseConstDef();
     std::unique_ptr<parse::VarListNode> parseVarDefList();
     std::unique_ptr<parse::VarDefNode> parseVarDef();
-    std::unique_ptr<parse::ArgListNode> parseArgDecls();
+    std::unique_ptr<parse::VarListNode> parseArgDecls();
     std::unique_ptr<parse::Node> parseMethodBody();
     std::unique_ptr<parse::Node> parseExprSeq();
     std::unique_ptr<parse::Node> parseExpr();
