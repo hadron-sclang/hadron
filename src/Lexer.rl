@@ -92,6 +92,9 @@
         '#' {
             m_tokens.emplace_back(Token(Token::Type::kHash, ts, 1));
         };
+        '`' {
+            m_tokens.emplace_back(Token(Token::Type::kGrave, ts, 1));
+        };
 
         #############
         # operators #
@@ -195,7 +198,10 @@
 #include "spdlog/spdlog.h"
 
 namespace {
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wunused-const-variable"
     %% write data;
+#   pragma GCC diagnostic pop
 }
 
 namespace hadron {

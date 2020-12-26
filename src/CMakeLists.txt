@@ -12,6 +12,7 @@ configure_file(BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp")
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 
+# colm dependency to build Ragel
 ExternalProject_add(colm
     PREFIX ext
     STEP_TARGETS install
@@ -26,6 +27,7 @@ ExternalProject_add(colm
     EXCLUDE_FROM_ALL ON
 )
 
+# Ragel state machine generator used to generate the Lexer
 ExternalProject_add(ragel
     PREFIX ext
     STEP_TARGETS install

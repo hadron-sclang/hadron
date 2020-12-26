@@ -848,10 +848,10 @@ TEST_CASE("Binary Operators") {
 
 TEST_CASE("Lexer Delimiters") {
     SUBCASE("all delims packed") {
-        const char* code = "(){}[],;:^~#";
+        const char* code = "(){}[],;:^~#`";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
-        REQUIRE(lexer.tokens().size() == 12);
+        REQUIRE(lexer.tokens().size() == 13);
         CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kOpenParen);
         CHECK(lexer.tokens()[0].start == code);
         CHECK(lexer.tokens()[0].length == 1);
@@ -888,12 +888,15 @@ TEST_CASE("Lexer Delimiters") {
         CHECK(lexer.tokens()[11].type == Lexer::Token::Type::kHash);
         CHECK(lexer.tokens()[11].start == code + 11);
         CHECK(lexer.tokens()[11].length == 1);
+        CHECK(lexer.tokens()[12].type == Lexer::Token::Type::kGrave);
+        CHECK(lexer.tokens()[12].start == code + 12);
+        CHECK(lexer.tokens()[12].length == 1);
     }
     SUBCASE("all delims loose") {
-        const char* code = " ( ) { } [ ] , ; : ^ ~ #";
+        const char* code = " ( ) { } [ ] , ; : ^ ~ # `";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
-        REQUIRE(lexer.tokens().size() == 12);
+        REQUIRE(lexer.tokens().size() == 13);
         CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kOpenParen);
         CHECK(lexer.tokens()[0].start == code + 1);
         CHECK(lexer.tokens()[0].length == 1);
@@ -930,6 +933,9 @@ TEST_CASE("Lexer Delimiters") {
         CHECK(lexer.tokens()[11].type == Lexer::Token::Type::kHash);
         CHECK(lexer.tokens()[11].start == code + 23);
         CHECK(lexer.tokens()[11].length == 1);
+        CHECK(lexer.tokens()[12].type == Lexer::Token::Type::kGrave);
+        CHECK(lexer.tokens()[12].start == code + 25);
+        CHECK(lexer.tokens()[12].length == 1);
     }
     SUBCASE("parens") {
         const char* code = ")((( ( ) ) (";

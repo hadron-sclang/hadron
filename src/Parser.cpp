@@ -884,56 +884,23 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
 // expr: expr1
 //       | valrangexd
 //       | valrangeassign
-//       | classname
 //       | expr '.' '[' arglist1 ']'
-//       | '`' expr
 //       | expr binop2 adverb expr %prec BINOP
-//       | name '=' expr
-//       | '~' name '=' expr
 //       | expr '.' name '=' expr
-//       | name '(' arglist1 optkeyarglist ')' '=' expr
-//       | '#' mavars '=' expr
 //       | expr1 '[' arglist1 ']' '=' expr
 //       | expr '.' '[' arglist1 ']' '=' expr
 //
 // expr1: pushliteral
 //        | blockliteral
-//        | generator
-//        | pushname
 //        | curryarg
 //        | msgsend
-//        | '(' exprseq ')'
-//        | '~' name
-//        |  '[' arrayelems ']'
-//        |    '(' valrange2 ')'
-//        |    '(' ':' valrange3 ')'
-//        |    '(' dictslotlist ')'
 //        | pseudovar
 //        | expr1 '[' arglist1 ']'
 //        | valrangex1
 //
-// generator: '{' ':' exprseq ',' qual '}'
-//          | '{' ';' exprseq  ',' qual '}'
-//
-// pushname: name
-//
 // curryarg: CURRYARG
 //
-// msgsend: name blocklist1
-//         | '(' binop2 ')' blocklist1
-//         | name '(' ')' blocklist1
-//         | name '(' arglist1 optkeyarglist ')' blocklist
-//         | '(' binop2 ')' '(' ')' blocklist1
-//         | '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
-//         | name '(' arglistv1 optkeyarglist ')'
-//         | '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
-//         | classname '[' arrayelems ']'
-//         | classname blocklist1
-//         | classname '(' ')' blocklist
-//         | classname '(' keyarglist1 optcomma ')' blocklist
-//         | classname '(' arglist1 optkeyarglist ')' blocklist
-//         | classname '(' arglistv1 optkeyarglist ')'
-//         | expr '.' '(' ')' blocklist
+// msgsend:  expr '.' '(' ')' blocklist
 //         | expr '.' '(' keyarglist1 optcomma ')' blocklist
 //         | expr '.' name '(' keyarglist1 optcomma ')' blocklist
 //         | expr '.' '(' arglist1 optkeyarglist ')' blocklist
@@ -945,7 +912,62 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
 //
 // pseudovar: PSEUDOVAR
 //
+// blockliteral: block
+//
+// mavars: mavarlist | mavarlist ELLIPSIS name
+//
+// mavarlist: name | mavarlist ',' name
+//
 std::unique_ptr<parse::Node> Parser::parseExpr() {
+    switch (m_token.type) {
+    case Lexer::Token::Type::kClassName:
+        // expr: classname
+        // expr -> expr1 -> msgsend: classname '[' arrayelems ']'
+        // expr -> expr1 -> msgsend: classname blocklist1
+        // expr -> expr1 -> msgsend: classname '(' ')' blocklist
+        // expr -> expr1 -> msgsend: classname '(' keyarglist1 optcomma ')' blocklist
+        // expr -> expr1 -> msgsend: classname '(' arglist1 optkeyarglist ')' blocklist
+        // expr -> expr1 -> msgsend: classname '(' arglistv1 optkeyarglist ')'
+
+    case Lexer::Token::Type::kIdentifier:
+        // expr: name '=' expr
+        // expr: name '(' arglist1 optkeyarglist ')' '=' expr
+        // expr -> expr1 -> pushname: name
+        // expr -> expr1 -> msgsend: name blocklist1
+        // expr -> expr1 -> msgsend: name '(' ')' blocklist1
+        // expr -> expr1 -> msgsend: name '(' arglist1 optkeyarglist ')' blocklist
+        // expr -> expr1 -> msgsend: name '(' arglistv1 optkeyarglist ')'
+
+    case Lexer::Token::Type::kGrave:
+        // expr: '`' expr TODO: what does this do?
+
+    case Lexer::Token::Type::kTilde:
+        // expr: '~' name '=' expr
+        // expr -> expr1: '~' name
+
+    case Lexer::Token::Type::kHash:
+        // expr: '#' mavars '=' expr
+
+    case Lexer::Token::Type::kOpenParen:
+        // expr -> expr1: '(' exprseq ')'
+        // expr -> expr1: '(' valrange2 ')'
+        // expr -> expr1: '(' ':' valrange3 ')'
+        // expr -> expr1: '(' dictslotlist ')'
+        // expr -> expr1 -> msgsend: '(' binop2 ')' blocklist1
+        // expr -> expr1 -> msgsend: '(' binop2 ')' '(' ')' blocklist1
+        // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
+        // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
+
+    case Lexer::Token::Type::kOpenSquare:
+        // expr -> expr1: '[' arrayelems ']'
+
+    case Lexer::Token::Type::kOpenCurly:
+        // expr -> expr1 -> generator: '{' ':' exprseq ',' qual '}'
+        // expr -> expr1 -> generator: '{' ';' exprseq  ',' qual '}'
+
+    default:
+        return nullptr;
+    }
     return nullptr;
 }
 

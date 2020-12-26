@@ -43,6 +43,7 @@ public:
             kCaret,
             kTilde,
             kHash,
+            kGrave,
             kVar,
             kNil,
             kArg,
