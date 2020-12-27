@@ -2,6 +2,7 @@
 #define SRC_PARSER_HPP_
 
 #include "Lexer.hpp"
+#include "TypedValue.hpp"
 
 #include <memory>
 #include <string_view>
@@ -25,8 +26,10 @@ struct Node {
 };
 
 struct LiteralNode : public Node {
-    LiteralNode();
+    LiteralNode(const TypedValue& v): value(v) {}
     virtual ~LiteralNode() = default;
+
+    TypedValue value;
 };
 
 struct VarDefNode : public Node {
@@ -261,8 +264,6 @@ private:
     std::unique_ptr<parse::Node> parseMethodBody();
     std::unique_ptr<parse::Node> parseExprSeq();
     std::unique_ptr<parse::Node> parseExpr();
-
-    std::unique_ptr<parse::LiteralNode> parseLiteral();
 
     Lexer m_lexer;
     size_t m_tokenIndex;

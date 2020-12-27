@@ -677,10 +677,14 @@ std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
     next(); // name
     if (m_token.type == Lexer::Token::Type::kAssign) {
         next(); // =
-        varDef->initialValue = parseLiteral();
-        if (varDef->initialValue == nullptr) {
+        if (m_token.type != Lexer::Token::Type::kLiteral) {
+            m_errorReporter->addError(fmt::format("Error parsing class variable declaration at line {}, expecting "
+                    "literal (e.g. number, string, symbol) following assignment.",
+                    m_errorReporter->getLineNumber(m_token.start)));
             return nullptr;
         }
+        varDef->initialValue = std::make_unique<parse::LiteralNode>(m_token.value);
+        next(); // literal
     }
 
     return varDef;
@@ -733,11 +737,14 @@ std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
         return nullptr;
     }
     next(); // =
-    varDef->initialValue = parseLiteral();
-    if (varDef->initialValue == nullptr) {
+    if (m_token.type != Lexer::Token::Type::kLiteral) {
+        m_errorReporter->addError(fmt::format("Error parsing class constant '{}' declaration at line {}, expecting "
+                    "literal (e.g. number, string, symbol) following assignment.", varDef->varName,
+                    m_errorReporter->getLineNumber(m_token.start)));
         return nullptr;
     }
-
+    varDef->initialValue = std::make_unique<parse::LiteralNode>(m_token.value);
+    next(); // literal
     return varDef;
 }
 
@@ -976,44 +983,14 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         // expr -> expr1 -> generator: '{' ':' exprseq ',' qual '}'
         // expr -> expr1 -> generator: '{' ';' exprseq  ',' qual '}'
 
+
+    case Lexer::Token::Type::kLiteral:
+        // expr -> expr1: pushliteral
+        // expr -> expr1: blockliteral
+
     default:
         return nullptr;
     }
-    return nullptr;
-}
-
-// slotliteral: integer | floatp | ascii | string | symbol | trueobj | falseobj | nilobj | listlit
-// pushliteral: integer | floatp | ascii | string | symbol | trueobj | falseobj | nilobj | listlit
-std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
-    switch (m_token.type) {
-    default:
-    case Lexer::Token::Type::kInteger:
-        // expr -> expr1 -> slotliteral/pushliteral: integer
-
-    case Lexer::Token::Type::kFloat:
-        // expr -> expr1 -> slotliteral/pushliteral: floatp
-
-    case Lexer::Token::Type::kString:
-        // expr -> expr1 -> slotliteral/pushliteral: string
-
-    case Lexer::Token::Type::kSymbol:
-        // expr -> expr1 -> slotliteral/pushliteral: symbol
-
-    case Lexer::Token::Type::kTrue:
-        // expr -> expr1 -> slotliteral/pushliteral: trueobj
-
-    case Lexer::Token::Type::kFalse:
-        // expr -> expr1 -> slotliteral/pushliteral: falseobj
-
-    case Lexer::Token::Type::kNil:
-        // expr -> expr1 -> slotliteral/pushliteral: nilobj
-
-    case Lexer::Token::Type::kHash:  // for listlit
-        // expr -> expr1 -> slotliteral/pushliteral: hash
-
-        return nullptr;
-    }
-
     return nullptr;
 }
 

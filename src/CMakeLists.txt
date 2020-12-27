@@ -59,6 +59,8 @@ add_library(libhadron STATIC
     Lexer.hpp
     Parser.cpp
     Parser.hpp
+    TypedValue.cpp
+    TypedValue.hpp
 )
 
 target_compile_options(libhadron PUBLIC -Wall -Wextra -pedantic -Werror)

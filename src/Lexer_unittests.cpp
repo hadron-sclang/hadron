@@ -26,10 +26,18 @@ TEST_CASE("Lexer Integers") {
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 1);
+/*
         CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kInteger);
         CHECK(lexer.tokens()[0].start == code);
         CHECK(lexer.tokens()[0].length == 1);
         CHECK(lexer.tokens()[0].value.integer == 0);
+*/
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kLiteral);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 1);
+        CHECK(lexer.tokens()[0].value.type() == TypedValue::Type::kInteger);
+        CHECK(lexer.tokens()[0].value.asInteger() == 0);
+
     }
     SUBCASE("zero-padded zero") {
         const char* code = "000";

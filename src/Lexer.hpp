@@ -1,6 +1,8 @@
 #ifndef SRC_LEXER_HPP_
 #define SRC_LEXER_HPP_
 
+#include "TypedValue.hpp"
+
 #include <cstddef>
 #include <stdint.h>
 #include <string_view>
@@ -13,8 +15,9 @@ public:
     struct Token {
         enum Type {
             kEmpty,  // represents no token
+            kLiteral,
 
-            // Literals
+/*          // Literals
             kInteger,
             kFloat,
             kString,
@@ -22,6 +25,7 @@ public:
             kNil,
             kTrue,
             kFalse,
+*/
 
             // <<< all below could also be binops >>>
             kPlus,         // so named because it could be an addition or a class extension
@@ -69,6 +73,7 @@ public:
         /*! Length of the token in bytes. */
         size_t length;
 
+        /*
         union Value {
             Value(): integer(0) {}
             Value(int64_t v): integer(v) {}
@@ -78,18 +83,28 @@ public:
             double floatingPoint;
         };
         Value value;
+        */
+        TypedValue value;
 
         bool couldBeBinop;
 
         Token(): type(kEmpty), start(nullptr), length(0), couldBeBinop(false) {}
 
-        /*! Makes a kInteger token */
+        /*! Makes an integer kLiteral token */
         Token(const char* s, size_t l, int64_t intValue):
-            type(kInteger), start(s), length(l), value(intValue), couldBeBinop(false) {}
+            type(kLiteral), start(s), length(l), value(intValue), couldBeBinop(false) {}
 
-        /*! Makes a kFloat token */
+        /*! Makes a float kLiteral token */
         Token(const char* s, size_t l, double doubleValue):
-            type(kFloat), start(s), length(l), value(doubleValue), couldBeBinop(false) {}
+            type(kLiteral), start(s), length(l), value(doubleValue), couldBeBinop(false) {}
+
+        /*! Makes a boolean kLiteral token */
+        Token(const char* s, size_t l, bool boolean):
+            type(kLiteral), start(s), length(l), value(boolean), couldBeBinop(false) {}
+
+        /*! Makes a kLiteral with a provided literal type (until we figure out strings and such better) */
+        Token(const char*s, size_t l, TypedValue::Type t):
+            type(kLiteral), start(s), length(l), value(t), couldBeBinop(false) {}
 
         /*! Makes a token with no value storage */
         Token(Type t, const char* s, size_t l): type(t), start(s), length(l), couldBeBinop(false) {}
