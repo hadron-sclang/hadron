@@ -890,9 +890,7 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
 //       | expr1 '[' arglist1 ']' '=' expr
 //       | expr '.' '[' arglist1 ']' '=' expr
 //
-// expr1: pushliteral
-//        | blockliteral
-//        | curryarg
+// expr1: | curryarg
 //        | msgsend
 //        | pseudovar
 //        | expr1 '[' arglist1 ']'
@@ -914,20 +912,33 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
 //
 // blockliteral: block
 //
+// block: '{' argdecls funcvardecls funcbody '}'
+//        | BEGINCLOSEDFUNC argdecls funcvardecls funcbody '}'    (beginclosedfunc is #{, with possible whitespace
+//
 // mavars: mavarlist | mavarlist ELLIPSIS name
 //
 // mavarlist: name | mavarlist ',' name
 //
+// blocklist1: blocklistitem | blocklist1 blocklistitem
+//
+// blocklistitem : blockliteral | generator
+//
+// blocklist: <e> | blocklist1
+//
 std::unique_ptr<parse::Node> Parser::parseExpr() {
     switch (m_token.type) {
-    case Lexer::Token::Type::kClassName:
+    case Lexer::Token::Type::kClassName: {
         // expr: classname
-        // expr -> expr1 -> msgsend: classname '[' arrayelems ']'
-        // expr -> expr1 -> msgsend: classname blocklist1
-        // expr -> expr1 -> msgsend: classname '(' ')' blocklist
-        // expr -> expr1 -> msgsend: classname '(' keyarglist1 optcomma ')' blocklist
-        // expr -> expr1 -> msgsend: classname '(' arglist1 optkeyarglist ')' blocklist
-        // expr -> expr1 -> msgsend: classname '(' arglistv1 optkeyarglist ')'
+        // TODO: expr -> expr1 -> msgsend: classname '[' arrayelems ']'
+        // TODO: expr -> expr1 -> msgsend: classname blocklist1
+        // TODO: expr -> expr1 -> msgsend: classname '(' ')' blocklist
+        // TODO: expr -> expr1 -> msgsend: classname '(' keyarglist1 optcomma ')' blocklist
+        // TODO: expr -> expr1 -> msgsend: classname '(' arglist1 optkeyarglist ')' blocklist
+        // TODO: expr -> expr1 -> msgsend: classname '(' arglistv1 optkeyarglist ')'
+        auto classNode = std::make_unique<parse::ValueNode>(parse::ValueNode::Type::kClass);
+        next();  // classname
+        return classNode;
+    } break;
 
     case Lexer::Token::Type::kIdentifier:
         // expr: name '=' expr
@@ -975,15 +986,31 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
 // pushliteral: integer | floatp | ascii | string | symbol | trueobj | falseobj | nilobj | listlit
 std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
     switch (m_token.type) {
-    case Lexer::Token::Type::kInteger:
-    case Lexer::Token::Type::kFloat:
-    case Lexer::Token::Type::kString:
-    case Lexer::Token::Type::kSymbol:
-    case Lexer::Token::Type::kTrue:
-    case Lexer::Token::Type::kFalse:
-    case Lexer::Token::Type::kNil:
-    case Lexer::Token::Type::kHash:  // for listlit
     default:
+    case Lexer::Token::Type::kInteger:
+        // expr -> expr1 -> slotliteral/pushliteral: integer
+
+    case Lexer::Token::Type::kFloat:
+        // expr -> expr1 -> slotliteral/pushliteral: floatp
+
+    case Lexer::Token::Type::kString:
+        // expr -> expr1 -> slotliteral/pushliteral: string
+
+    case Lexer::Token::Type::kSymbol:
+        // expr -> expr1 -> slotliteral/pushliteral: symbol
+
+    case Lexer::Token::Type::kTrue:
+        // expr -> expr1 -> slotliteral/pushliteral: trueobj
+
+    case Lexer::Token::Type::kFalse:
+        // expr -> expr1 -> slotliteral/pushliteral: falseobj
+
+    case Lexer::Token::Type::kNil:
+        // expr -> expr1 -> slotliteral/pushliteral: nilobj
+
+    case Lexer::Token::Type::kHash:  // for listlit
+        // expr -> expr1 -> slotliteral/pushliteral: hash
+
         return nullptr;
     }
 

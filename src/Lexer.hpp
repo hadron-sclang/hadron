@@ -13,10 +13,15 @@ public:
     struct Token {
         enum Type {
             kEmpty,  // represents no token
+
+            // Literals
             kInteger,
             kFloat,
             kString,
             kSymbol,
+            kNil,
+            kTrue,
+            kFalse,
 
             // <<< all below could also be binops >>>
             kPlus,         // so named because it could be an addition or a class extension
@@ -45,10 +50,7 @@ public:
             kHash,
             kGrave,
             kVar,
-            kNil,
             kArg,
-            kTrue,
-            kFalse,
             kConst,
             kClassVar,
             kIdentifier,

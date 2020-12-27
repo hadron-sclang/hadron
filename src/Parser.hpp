@@ -142,14 +142,41 @@ struct BlockNode : public Node {
     std::unique_ptr<Node> body;
 };
 
+// TODO: reconsider name to something like ValueNode - holds a flexibly-typed value.
+
+// LSC typedefs this and SlotDef to a base Slot type, relying on the expr1 grammar to prevent nonsensical expressions
+// like "a" = "not A". One can imagine a variety of optimizations that might depend on knowing this is a literal value
+// instead of a variable slot, also type inference (which is definitely optimization but may not be exclusively
+// optimization). So if something like var a = 5; well then a's type is obviously an integer. So there's an optimization
+// that could then be done to determine if the type of a is clearly an integer for its entire lifetime, and, if so, then
+// we can emit JIT bytecode that treats a as a native int. But the general case is always going to be to treat
+// everything as a slot with messaging. Worth studying how V8 does some optimizations to optimize certain code paths by
+// collecting runtime statistics on type of variables, then emitting optimized bytecode for certain types, but
+// definitely for another day.
 struct SlotDefNode : public Node {
     SlotDefNode();
     virtual ~SlotDefNode() = default;
 };
-
 struct PushLiteralNode : public Node {
     PushLiteralNode();
     virtual ~PushLiteralNode() = default;
+};
+
+struct ValueNode : public Node {
+    enum Type {
+        kClass,  // The (singleton) Class object
+        kObject  // An *instance* of a Class
+    };
+    ValueNode(Type t): type(t) {}
+    virtual ~ValueNode() = default;
+
+    Type type;
+
+    union Value {
+        void* classPointer;
+        void* objectPointer;
+    };
+    Value value;
 };
 
 struct PushNameNode : public Node {
