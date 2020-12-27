@@ -2,7 +2,7 @@
 
 namespace hadron {
 
-ErrorReporter::ErrorReporter(const char* code): m_code(code) {}
+ErrorReporter::ErrorReporter(): m_code(nullptr) {}
 
 ErrorReporter::~ErrorReporter() {}
 

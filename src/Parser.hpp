@@ -227,6 +227,8 @@ public:
 
     bool parse();
 
+    const parse::Node* root() const { return m_root.get(); }
+
 private:
     bool next();
 

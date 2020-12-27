@@ -320,7 +320,9 @@ Parser::Parser(std::string_view code, std::shared_ptr<ErrorReporter> errorReport
     m_lexer(code),
     m_tokenIndex(0),
     m_token(Lexer::Token()),
-    m_errorReporter(errorReporter) {}
+    m_errorReporter(errorReporter) {
+    m_errorReporter->setCode(code.data());
+}
 
 Parser::~Parser() {}
 

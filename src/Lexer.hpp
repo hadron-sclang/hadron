@@ -17,16 +17,6 @@ public:
             kEmpty,  // represents no token
             kLiteral,
 
-/*          // Literals
-            kInteger,
-            kFloat,
-            kString,
-            kSymbol,
-            kNil,
-            kTrue,
-            kFalse,
-*/
-
             // <<< all below could also be binops >>>
             kPlus,         // so named because it could be an addition or a class extension
             kMinus,        // Could be unary negation so handled separately
@@ -73,17 +63,6 @@ public:
         /*! Length of the token in bytes. */
         size_t length;
 
-        /*
-        union Value {
-            Value(): integer(0) {}
-            Value(int64_t v): integer(v) {}
-            Value(double v): floatingPoint(v) {}
-
-            int64_t integer;
-            double floatingPoint;
-        };
-        Value value;
-        */
         TypedValue value;
 
         bool couldBeBinop;
