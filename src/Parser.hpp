@@ -13,27 +13,38 @@ class ErrorReporter;
 
 namespace parse {
 
+enum NodeType {
+    kEmpty, // represents an empty node
+    kVarDef,
+    kVarList,
+    kArgList,
+    kMethod,
+    kClassExt,
+    kClass,
+    kReturn,
+    kBlock,
+    kValue,
+    kLiteral,
+    kName
+};
+
 struct Node {
-    Node(): tail(this) {}
+    Node() = delete;
+    explicit Node(NodeType type, size_t index): nodeType(type), tokenIndex(index), tail(this) {}
     virtual ~Node() = default;
     void append(std::unique_ptr<Node> node) {
         tail->next = std::move(node);
         tail = node.get();
     }
 
+    NodeType nodeType;
+    size_t tokenIndex;
     std::unique_ptr<Node> next;
     Node* tail;
 };
 
-struct LiteralNode : public Node {
-    LiteralNode(const TypedValue& v): value(v) {}
-    virtual ~LiteralNode() = default;
-
-    TypedValue value;
-};
-
 struct VarDefNode : public Node {
-    VarDefNode(std::string_view name): varName(name) {}
+    VarDefNode(size_t index, std::string_view name): Node(NodeType::kVarDef, index), varName(name) {}
     virtual ~VarDefNode() = default;
 
     std::string_view varName;
@@ -41,14 +52,14 @@ struct VarDefNode : public Node {
 };
 
 struct VarListNode : public Node {
-    VarListNode();
+    VarListNode(size_t index): Node(NodeType::kVarList, index) {}
     virtual ~VarListNode() = default;
 
     std::unique_ptr<VarDefNode> definitions;
 };
 
 struct ArgListNode : public Node {
-    ArgListNode();
+    ArgListNode(size_t index): Node(NodeType::kArgList, index) {}
     virtual ~ArgListNode() = default;
 
     std::unique_ptr<VarListNode> varList;
@@ -56,7 +67,10 @@ struct ArgListNode : public Node {
 };
 
 struct MethodNode : public Node {
-    MethodNode(std::string_view name, bool classMethod): methodName(name), isClassMethod(classMethod) {}
+    MethodNode(size_t index, std::string_view name, bool classMethod):
+            Node(NodeType::kMethod, index),
+            methodName(name),
+            isClassMethod(classMethod) {}
     virtual ~MethodNode() = default;
 
     std::string_view methodName;
@@ -68,16 +82,15 @@ struct MethodNode : public Node {
 };
 
 struct ClassExtNode : public Node {
-    ClassExtNode(std::string_view name): className(name) {}
+    ClassExtNode(size_t index, std::string_view name): Node(NodeType::kClassExt, index), className(name) {}
     virtual ~ClassExtNode() = default;
 
     std::string_view className;
     std::unique_ptr<MethodNode> methods;
 };
 
-
 struct ClassNode : public Node {
-    ClassNode(std::string_view name): className(name) {}
+    ClassNode(size_t index, std::string_view name): Node(NodeType::kClass, index), className(name) {}
     virtual ~ClassNode() = default;
 
     std::string_view className;
@@ -89,13 +102,13 @@ struct ClassNode : public Node {
 };
 
 struct ReturnNode : public Node {
-    ReturnNode();
+    ReturnNode(size_t index): Node(NodeType::kReturn, index) {}
     virtual ~ReturnNode() = default;
 
     std::unique_ptr<Node> valueExpr;
 };
 
-
+/*
 struct SlotNode : public Node {
     SlotNode();
     virtual ~SlotNode() = default;
@@ -135,9 +148,9 @@ struct PoolVarListNode : public Node {
     PoolVarListNode();
     virtual ~PoolVarListNode() = default;
 };
-
+*/
 struct BlockNode : public Node {
-    BlockNode() = default;
+    BlockNode(size_t index): Node(NodeType::kBlock, index) {}
     virtual ~BlockNode() = default;
 
     std::unique_ptr<VarListNode> arguments;
@@ -145,48 +158,25 @@ struct BlockNode : public Node {
     std::unique_ptr<Node> body;
 };
 
-// TODO: reconsider name to something like ValueNode - holds a flexibly-typed value.
-
-// LSC typedefs this and SlotDef to a base Slot type, relying on the expr1 grammar to prevent nonsensical expressions
-// like "a" = "not A". One can imagine a variety of optimizations that might depend on knowing this is a literal value
-// instead of a variable slot, also type inference (which is definitely optimization but may not be exclusively
-// optimization). So if something like var a = 5; well then a's type is obviously an integer. So there's an optimization
-// that could then be done to determine if the type of a is clearly an integer for its entire lifetime, and, if so, then
-// we can emit JIT bytecode that treats a as a native int. But the general case is always going to be to treat
-// everything as a slot with messaging. Worth studying how V8 does some optimizations to optimize certain code paths by
-// collecting runtime statistics on type of variables, then emitting optimized bytecode for certain types, but
-// definitely for another day.
-struct SlotDefNode : public Node {
-    SlotDefNode();
-    virtual ~SlotDefNode() = default;
-};
-struct PushLiteralNode : public Node {
-    PushLiteralNode();
-    virtual ~PushLiteralNode() = default;
-};
-
 struct ValueNode : public Node {
-    enum Type {
-        kClass,  // The (singleton) Class object
-        kObject  // An *instance* of a Class
-    };
-    ValueNode(Type t): type(t) {}
+    ValueNode(size_t index, const TypedValue& v): Node(NodeType::kValue, index), value(v) {}
     virtual ~ValueNode() = default;
 
-    Type type;
-
-    union Value {
-        void* classPointer;
-        void* objectPointer;
-    };
-    Value value;
+    TypedValue value;
 };
 
-struct PushNameNode : public Node {
-    PushNameNode();
-    virtual ~PushNameNode() = default;
+struct LiteralNode : public Node {
+    LiteralNode(size_t index): Node(NodeType::kLiteral, index) {}
+    virtual ~LiteralNode() = default;
+    // LiteralNodes skip the copy of the TypedValue that resides in the Lexer.
 };
 
+struct NameNode : public Node {
+    NameNode(size_t index): Node(NodeType::kName, index) {}
+    virtual ~NameNode() = default;
+};
+
+/*
 struct CallNode : public Node {
     CallNode();
     virtual ~CallNode() = default;
@@ -226,7 +216,7 @@ struct BlockReturnNode : public Node {
     BlockReturnNode();
     virtual ~BlockReturnNode() = default;
 };
-
+*/
 } // namespace parse
 
 
