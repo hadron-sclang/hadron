@@ -27,3 +27,4 @@ message(STATUS "hadron v${PROJECT_VERSION}, ${GIT_BRANCH}@${GIT_COMMIT_HASH}")
 
 add_subdirectory(third_party)
 add_subdirectory(src)
+add_subdirectory(test)

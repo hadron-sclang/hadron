@@ -99,6 +99,7 @@ public:
 private:
     std::vector<Token> m_tokens;
 
+    // TODO: these can likely be moved back to lex() as local variables there.
     // Ragel-required state variables.
     const char* p;
     const char* pe;

@@ -195,8 +195,6 @@
 
 #include "Lexer.hpp"
 
-#include "spdlog/spdlog.h"
-
 namespace {
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wunused-const-variable"
