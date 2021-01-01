@@ -172,8 +172,10 @@ struct LiteralNode : public Node {
 };
 
 struct NameNode : public Node {
-    NameNode(size_t index): Node(NodeType::kName, index) {}
+    NameNode(size_t index, std::string_view n): Node(NodeType::kName, index), name(n) {}
     virtual ~NameNode() = default;
+
+    std::string_view name;
 };
 
 /*
@@ -228,6 +230,7 @@ public:
     bool parse();
 
     const parse::Node* root() const { return m_root.get(); }
+    const std::vector<Lexer::Token>& tokens() const { return m_lexer.tokens(); }
 
 private:
     bool next();
@@ -241,6 +244,7 @@ private:
     std::unique_ptr<parse::VarListNode> parseClassVarDecls();
     std::unique_ptr<parse::VarListNode> parseClassVarDecl();
     std::unique_ptr<parse::MethodNode> parseMethods();
+    std::unique_ptr<parse::MethodNode> parseMethod();
     std::unique_ptr<parse::VarListNode> parseFuncVarDecls();
     std::unique_ptr<parse::VarListNode> parseFuncVarDecl();
     std::unique_ptr<parse::Node> parseFuncBody();

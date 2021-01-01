@@ -96,6 +96,7 @@ public:
     bool lex();
 
     const std::vector<Token>& tokens() const { return m_tokens; }
+
 private:
     std::vector<Token> m_tokens;
 

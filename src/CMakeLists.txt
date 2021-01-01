@@ -63,7 +63,7 @@ add_library(libhadron STATIC
     TypedValue.hpp
 )
 
-target_compile_options(libhadron PUBLIC -Wall -Wextra -pedantic -Werror)
+target_compile_options(libhadron PUBLIC -g -Wall -Wextra -pedantic -Werror)
 target_compile_definitions(libhadron PUBLIC DEBUG_LEXER)
 
 target_link_libraries(libhadron

@@ -1,5 +1,7 @@
 #include "ErrorReporter.hpp"
 
+#include "spdlog/spdlog.h"
+
 namespace hadron {
 
 ErrorReporter::ErrorReporter(): m_code(nullptr) {}
@@ -7,6 +9,7 @@ ErrorReporter::ErrorReporter(): m_code(nullptr) {}
 ErrorReporter::~ErrorReporter() {}
 
 void ErrorReporter::addError(const std::string& error) {
+    spdlog::error(error);
     m_errors.emplace_back(error);
 }
 
