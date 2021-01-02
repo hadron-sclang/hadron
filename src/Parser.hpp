@@ -34,7 +34,7 @@ struct Node {
     virtual ~Node() = default;
     void append(std::unique_ptr<Node> node) {
         tail->next = std::move(node);
-        tail = node.get();
+        tail = tail->next.get();
     }
 
     NodeType nodeType;
@@ -49,12 +49,16 @@ struct VarDefNode : public Node {
 
     std::string_view varName;
     std::unique_ptr<Node> initialValue;
+
+    bool hasReadAccessor = false;
+    bool hasWriteAccessor = false;
 };
 
 struct VarListNode : public Node {
     VarListNode(size_t index): Node(NodeType::kVarList, index) {}
     virtual ~VarListNode() = default;
 
+    // The associated Lexer Token can be used to disambiguate between classvar, var, and const declarations.
     std::unique_ptr<VarDefNode> definitions;
 };
 

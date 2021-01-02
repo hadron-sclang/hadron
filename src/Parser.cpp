@@ -520,7 +520,6 @@ std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecls() {
 std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecl() {
     switch (m_token.type) {
     case Lexer::Token::Type::kClassVar: {
-        next(); // classvar
         auto classVars = parseRWVarDefList();
         if (m_token.type != Lexer::Token::kSemicolon) {
             m_errorReporter->addError(fmt::format("Error parsing class variable declaration at line {}, expecting "
@@ -532,7 +531,6 @@ std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecl() {
     }
 
     case Lexer::Token::Type::kVar: {
-        next(); // var
         auto vars = parseRWVarDefList();
         if (m_token.type != Lexer::Token::kSemicolon) {
             m_errorReporter->addError(fmt::format("Error parsing variable declaration at line {}, expecting "
@@ -544,7 +542,6 @@ std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecl() {
     }
 
     case Lexer::Token::Type::kConst: {
-        next(); // const
         auto constants = parseConstDefList();
         if (m_token.type != Lexer::Token::kSemicolon) {
             m_errorReporter->addError(fmt::format("Error parsing constant declaration at line {}, expecting "
@@ -629,7 +626,6 @@ std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecls() {
 // funcvardecl: VAR vardeflist ';'
 std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecl() {
     assert(m_token.type == Lexer::Token::Type::kVar);
-    next(); // var
     auto varDefList = parseVarDefList();
     if (m_token.type != Lexer::Token::Type::kSemicolon) {
         m_errorReporter->addError(fmt::format("Error parsing variable declaration at line {}, expecting semicolon ';'.",
@@ -641,7 +637,7 @@ std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecl() {
 }
 
 // funcbody: funretval
-//           | exprseq funretval
+//         | exprseq funretval
 // funretval: <e> | '^' expr optsemi
 std::unique_ptr<parse::Node> Parser::parseFuncBody() {
     if (m_token.type == Lexer::Token::Type::kCaret) {
@@ -665,7 +661,9 @@ std::unique_ptr<parse::Node> Parser::parseFuncBody() {
 
 // rwslotdeflist: rwslotdef | rwslotdeflist ',' rwslotdef
 std::unique_ptr<parse::VarListNode> Parser::parseRWVarDefList() {
+    assert(m_token.type == Lexer::Token::Type::kVar || m_token.type == Lexer::Token::Type::kClassVar);
     auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
+    next(); // var or classvar
     varList->definitions = parseRWVarDef();
     if (varList->definitions != nullptr) {
         while (m_token.type == Lexer::Token::Type::kComma) {
@@ -684,11 +682,18 @@ std::unique_ptr<parse::VarListNode> Parser::parseRWVarDefList() {
 // rwslotdef: rwspec name | rwspec name '=' slotliteral
 // rwspec: <e> | '<' | READWRITEVAR | '>'
 std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
+    bool readAccess = false;
+    bool writeAccess = false;
+
     if (m_token.type == Lexer::Token::Type::kLessThan) {
+        readAccess = true;
         next(); // <
     } else if (m_token.type == Lexer::Token::Type::kGreaterThan) {
+        writeAccess = true;
         next(); // >
     } else if (m_token.type == Lexer::Token::Type::kReadWriteVar) {
+        readAccess = true;
+        writeAccess = true;
         next(); // <>
     }
 
@@ -700,6 +705,10 @@ std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
 
     auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, std::string_view(m_token.start, m_token.length));
     next(); // name
+
+    varDef->hasReadAccessor = readAccess;
+    varDef->hasWriteAccessor = writeAccess;
+
     if (m_token.type == Lexer::Token::Type::kAssign) {
         next(); // =
         if (m_token.type != Lexer::Token::Type::kLiteral) {
@@ -718,7 +727,9 @@ std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
 // constdeflist: constdef | constdeflist optcomma constdef
 // optcomma: <e> | ','
 std::unique_ptr<parse::VarListNode> Parser::parseConstDefList() {
+    assert(m_token.type == Lexer::Token::Type::kConst);
     auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
+    next(); // const
     varList->definitions = parseConstDef();
     if (varList->definitions == nullptr) {
         m_errorReporter->addError(fmt::format("Error parsing class constant declaration at line {}, expecting constant "
@@ -743,7 +754,9 @@ std::unique_ptr<parse::VarListNode> Parser::parseConstDefList() {
 // constdef: rspec name '=' slotliteral
 // rspec:  <e> | '<'
 std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
+    bool readAccess = false;
     if (m_token.type == Lexer::Token::Type::kLessThan) {
+        readAccess = true;
         next(); // <
         if (m_token.type != Lexer::Token::Type::kIdentifier) {
             m_errorReporter->addError(fmt::format("Error parsing class constant declaration at line {}, expecting "
@@ -756,6 +769,7 @@ std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
     }
     auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, std::string_view(m_token.start, m_token.length));
     next(); // name
+    varDef->hasReadAccessor = readAccess;
     if (m_token.type != Lexer::Token::Type::kAssign) {
         m_errorReporter->addError(fmt::format("Error parsing class constant '{}' declaration at line {}, expecting "
                     "assignment operator '='.", varDef->varName, m_errorReporter->getLineNumber(m_token.start)));
@@ -775,7 +789,9 @@ std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
 
 // vardeflist: vardef | vardeflist ',' vardef
 std::unique_ptr<parse::VarListNode> Parser::parseVarDefList() {
+    assert(m_token.type == Lexer::Token::Type::kVar);
     auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
+    next(); // var
     varList->definitions = parseVarDef();
     if (varList->definitions == nullptr) {
         return nullptr;
