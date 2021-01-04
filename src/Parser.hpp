@@ -79,6 +79,7 @@ struct MethodNode : public Node {
 
     std::string_view methodName;
     bool isClassMethod;
+    std::string_view primitive;
 
     std::unique_ptr<ArgListNode> arguments;
     std::unique_ptr<VarListNode> variables;

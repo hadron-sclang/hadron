@@ -16,6 +16,7 @@ public:
         enum Type {
             kEmpty,  // represents no token
             kLiteral,
+            kPrimitive,
 
             // <<< all below could also be binops >>>
             kPlus,         // so named because it could be an addition or a class extension

@@ -1684,4 +1684,56 @@ TEST_CASE("Lexer Comments") {
     }
 }
 
+TEST_CASE("Lexer Primitives") {
+    SUBCASE("raw primitive") {
+        const char* code = "_Prim_A_B_C123";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kPrimitive);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 14);
+    }
+
+    SUBCASE("primitive in method") {
+        const char* code = "A { m { |a| _Run_Secret_Code; } }";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 11);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kClassName);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 1);
+        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kOpenCurly);
+        CHECK(lexer.tokens()[1].start == code + 2);
+        CHECK(lexer.tokens()[1].length == 1);
+        CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kIdentifier);
+        CHECK(lexer.tokens()[2].start == code + 4);
+        CHECK(lexer.tokens()[2].length == 1);
+        CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kOpenCurly);
+        CHECK(lexer.tokens()[3].start == code + 6);
+        CHECK(lexer.tokens()[3].length == 1);
+        CHECK(lexer.tokens()[4].type == Lexer::Token::Type::kPipe);
+        CHECK(lexer.tokens()[4].start == code + 8);
+        CHECK(lexer.tokens()[4].length == 1);
+        CHECK(lexer.tokens()[5].type == Lexer::Token::Type::kIdentifier);
+        CHECK(lexer.tokens()[5].start == code + 9);
+        CHECK(lexer.tokens()[5].length == 1);
+        CHECK(lexer.tokens()[6].type == Lexer::Token::Type::kPipe);
+        CHECK(lexer.tokens()[6].start == code + 10);
+        CHECK(lexer.tokens()[6].length == 1);
+        CHECK(lexer.tokens()[7].type == Lexer::Token::Type::kPrimitive);
+        CHECK(lexer.tokens()[7].start == code + 12);
+        CHECK(lexer.tokens()[7].length == 16);
+        CHECK(lexer.tokens()[8].type == Lexer::Token::Type::kSemicolon);
+        CHECK(lexer.tokens()[8].start == code + 28);
+        CHECK(lexer.tokens()[8].length == 1);
+        CHECK(lexer.tokens()[9].type == Lexer::Token::Type::kCloseCurly);
+        CHECK(lexer.tokens()[9].start == code + 30);
+        CHECK(lexer.tokens()[9].length == 1);
+        CHECK(lexer.tokens()[10].type == Lexer::Token::Type::kCloseCurly);
+        CHECK(lexer.tokens()[10].start == code + 32);
+        CHECK(lexer.tokens()[10].length == 1);
+    }
+}
+
 } // namespace hadron

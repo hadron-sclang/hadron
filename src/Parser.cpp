@@ -44,7 +44,7 @@ classvardecl: CLASSVAR rwslotdeflist ';'
                 | VAR rwslotdeflist ';'
                 | SC_CONST constdeflist ';'
 
-methods: <e> | methods methoddef
+methods: <e> | methods miethoddef
 
 methoddef: name '{' argdecls funcvardecls primitive methbody '}'
             | '*' name '{' argdecls funcvardecls primitive methbody '}'
@@ -58,7 +58,7 @@ optcomma: <e> | ','
 optequal: <e> | '='
 
 funcbody: funretval
-            | exprseq funretval
+        | exprseq funretval
 
 cmdlinecode: '(' funcvardecls1 funcbody ')'
              | funcvardecls1 funcbody
@@ -79,31 +79,31 @@ blocklistitem : blockliteral | generator
 blocklist: <e> | blocklist1
 
 msgsend: name blocklist1
-        | '(' binop2 ')' blocklist1
-        | name '(' ')' blocklist1
-        | name '(' arglist1 optkeyarglist ')' blocklist
-        | '(' binop2 ')' '(' ')' blocklist1
-        | '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
-        | name '(' arglistv1 optkeyarglist ')'
-        | '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
-        | classname '[' arrayelems ']'
-        | classname blocklist1
-        | classname '(' ')' blocklist
-        | classname '(' keyarglist1 optcomma ')' blocklist
-        | classname '(' arglist1 optkeyarglist ')' blocklist
-        | classname '(' arglistv1 optkeyarglist ')'
-        | expr '.' '(' ')' blocklist
-        | expr '.' '(' keyarglist1 optcomma ')' blocklist
-        | expr '.' name '(' keyarglist1 optcomma ')' blocklist
-        | expr '.' '(' arglist1 optkeyarglist ')' blocklist
-        | expr '.' '(' arglistv1 optkeyarglist ')'
-        | expr '.' name '(' ')' blocklist
-        | expr '.' name '(' arglist1 optkeyarglist ')' blocklist
-        | expr '.' name '(' arglistv1 optkeyarglist ')'
-        | expr '.' name blocklist
+       | '(' binop2 ')' blocklist1
+       | name '(' ')' blocklist1
+       | name '(' arglist1 optkeyarglist ')' blocklist
+       | '(' binop2 ')' '(' ')' blocklist1
+       | '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
+       | name '(' arglistv1 optkeyarglist ')'
+       | '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
+       | classname '[' arrayelems ']'
+       | classname blocklist1
+       | classname '(' ')' blocklist
+       | classname '(' keyarglist1 optcomma ')' blocklist
+       | classname '(' arglist1 optkeyarglist ')' blocklist
+       | classname '(' arglistv1 optkeyarglist ')'
+       | expr '.' '(' ')' blocklist
+       | expr '.' '(' keyarglist1 optcomma ')' blocklist
+       | expr '.' name '(' keyarglist1 optcomma ')' blocklist
+       | expr '.' '(' arglist1 optkeyarglist ')' blocklist
+       | expr '.' '(' arglistv1 optkeyarglist ')'
+       | expr '.' name '(' ')' blocklist
+       | expr '.' name '(' arglist1 optkeyarglist ')' blocklist
+       | expr '.' name '(' arglistv1 optkeyarglist ')'
+       | expr '.' name blocklist
 
 generator: '{' ':' exprseq ',' qual '}'
-        | '{' ';' exprseq  ',' qual '}'
+         | '{' ';' exprseq  ',' qual '}'
 
 nextqual: <e> | ',' qual
 
@@ -158,24 +158,24 @@ valrange3: DOTDOT exprseq
         | exprseq ',' exprseq DOTDOT exprseq
 
 expr: expr1
-        | valrangexd
-        | valrangeassign
-        | classname
-        | expr '.' '[' arglist1 ']'
-        | '`' expr
-        | expr binop2 adverb expr %prec BINOP
-        | name '=' expr
-        | '~' name '=' expr
-        | expr '.' name '=' expr
-        | name '(' arglist1 optkeyarglist ')' '=' expr
-        | '#' mavars '=' expr
-        | expr1 '[' arglist1 ']' '=' expr
-        | expr '.' '[' arglist1 ']' '=' expr
+    | valrangexd
+    | valrangeassign
+    | classname
+    | expr '.' '[' arglist1 ']'
+    | '`' expr
+    | expr binop2 adverb expr %prec BINOP
+    | name '=' expr
+    | '~' name '=' expr
+    | expr '.' name '=' expr
+    | name '(' arglist1 optkeyarglist ')' '=' expr
+    | '#' mavars '=' expr
+    | expr1 '[' arglist1 ']' '=' expr
+    | expr '.' '[' arglist1 ']' '=' expr
 
 adverb: <e>
-        | '.' name
-        | '.' integer
-        | '.' '(' exprseq ')'
+      | '.' name
+      | '.' integer
+      | '.' '(' exprseq ')'
 
 exprn: expr | exprn ';' expr
 
@@ -184,11 +184,11 @@ exprseq: exprn optsemi
 arrayelems: <e> | arrayelems1 optcomma
 
 arrayelems1: exprseq
-             | exprseq ':' exprseq
-             | keybinop exprseq
-             | arrayelems1 ',' exprseq
-             | arrayelems1 ',' keybinop exprseq
-             | arrayelems1 ',' exprseq ':' exprseq
+           | exprseq ':' exprseq
+           | keybinop exprseq
+           | arrayelems1 ',' exprseq
+           | arrayelems1 ',' keybinop exprseq
+           | arrayelems1 ',' exprseq ':' exprseq
 
 arglist1: exprseq | arglist1 ',' exprseq
 
@@ -215,7 +215,7 @@ pushliteral: integer | floatp | ascii | string | symbol | trueobj | falseobj | n
 listliteral: integer | floatp | ascii | string | symbol | name | trueobj | falseobj | nilobj | listlit2 | dictlit2
 
 block: '{' argdecls funcvardecls funcbody '}'
-        | BEGINCLOSEDFUNC argdecls funcvardecls funcbody '}'
+     | BEGINCLOSEDFUNC argdecls funcvardecls funcbody '}'
 
 funcvardecls: <e> | funcvardecls funcvardecl
 
@@ -429,7 +429,7 @@ std::unique_ptr<parse::ClassNode> Parser::parseClass() {
 
     if (m_token.type != Lexer::Token::Type::kCloseCurly) {
         m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting closing curly brace '}}' "
-            "to match opening brace '{{ on line {}", classNode->className,
+            "to match opening brace '{{' on line {}", classNode->className,
             m_errorReporter->getLineNumber(m_token.start), m_errorReporter->getLineNumber(openCurly.start)));
         return classNode;
     }
@@ -571,9 +571,11 @@ std::unique_ptr<parse::MethodNode> Parser::parseMethods() {
 }
 
 // methoddef: name '{' argdecls funcvardecls primitive methbody '}'
-//            | binop '{' argdecls funcvardecls primitive methbody '}'
-//            | '*' name '{' argdecls funcvardecls primitive methbody '}'
-//            | '*' binop '{' argdecls funcvardecls primitive methbody '}'
+//          | binop '{' argdecls funcvardecls primitive methbody '}'
+//          | '*' name '{' argdecls funcvardecls primitive methbody '}'
+//          | '*' binop '{' argdecls funcvardecls primitive methbody '}'
+// primitive: <e> | primname optsemi
+// primname: PRIMITIVENAME
 std::unique_ptr<parse::MethodNode> Parser::parseMethod() {
     bool isClassMethod = false;
     if (m_token.type == Lexer::Token::Type::kAsterisk) {
@@ -586,16 +588,25 @@ std::unique_ptr<parse::MethodNode> Parser::parseMethod() {
         next(); // name or binop (treated as name)
         if (m_token.type != Lexer::Token::Type::kOpenCurly) {
             m_errorReporter->addError(fmt::format("Error parsing method named '{}' at line {}, expecting opening curly "
-                        "brace '{'.", method->methodName, m_errorReporter->getLineNumber(m_token.start)));
+                        "brace '{{'.", method->methodName, m_errorReporter->getLineNumber(m_token.start)));
             return nullptr;
         }
         next(); // {
         method->arguments = parseArgDecls();
         method->variables = parseFuncVarDecls();
+
+        if (m_token.type == Lexer::Token::Type::kPrimitive) {
+            method->primitive = std::string_view(m_token.start, m_token.length);
+            next(); // primitive
+            if (m_token.type == Lexer::Token::Type::kSemicolon) {
+                next(); // optsemi
+            }
+        }
+
         method->body = parseMethodBody();
         if (m_token.type != Lexer::Token::Type::kCloseCurly) {
             m_errorReporter->addError(fmt::format("Error parsing method named '{}' at line {}, expecting closing curly "
-                        "brace '}'.", method->methodName, m_errorReporter->getLineNumber(m_token.start)));
+                        "brace '}}'.", method->methodName, m_errorReporter->getLineNumber(m_token.start)));
             return nullptr;
         }
         next(); // }
@@ -626,6 +637,7 @@ std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecls() {
 // funcvardecl: VAR vardeflist ';'
 std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecl() {
     assert(m_token.type == Lexer::Token::Type::kVar);
+    next(); // var
     auto varDefList = parseVarDefList();
     if (m_token.type != Lexer::Token::Type::kSemicolon) {
         m_errorReporter->addError(fmt::format("Error parsing variable declaration at line {}, expecting semicolon ';'.",
@@ -641,20 +653,23 @@ std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecl() {
 // funretval: <e> | '^' expr optsemi
 std::unique_ptr<parse::Node> Parser::parseFuncBody() {
     if (m_token.type == Lexer::Token::Type::kCaret) {
+        auto retNode = std::make_unique<parse::ReturnNode>(m_tokenIndex);
         next(); // ^
-        auto expr = parseExpr();
+        retNode->valueExpr = parseExpr();
         if (m_token.type == Lexer::Token::Type::kSemicolon) {
             next(); // ;
         }
-        return expr;
+        return retNode;
     }
     auto exprSeq = parseExprSeq();
     if (m_token.type == Lexer::Token::Type::kCaret) {
+        auto retNode = std::make_unique<parse::ReturnNode>(m_tokenIndex);
         next(); // ^
-        exprSeq->append(parseExpr());
+        retNode->valueExpr = parseExpr();
         if (m_token.type == Lexer::Token::Type::kSemicolon) {
             next(); // ;
         }
+        exprSeq->append(std::move(retNode));
     }
     return exprSeq;
 }
@@ -789,9 +804,7 @@ std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
 
 // vardeflist: vardef | vardeflist ',' vardef
 std::unique_ptr<parse::VarListNode> Parser::parseVarDefList() {
-    assert(m_token.type == Lexer::Token::Type::kVar);
     auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
-    next(); // var
     varList->definitions = parseVarDef();
     if (varList->definitions == nullptr) {
         return nullptr;
@@ -841,10 +854,11 @@ std::unique_ptr<parse::VarDefNode> Parser::parseVarDef() {
 }
 
 
-// argdecls: <e> | ARG vardeflist ';'
-//               | ARG vardeflist0 ELLIPSIS name ';'
-//               | '|' slotdeflist '|'
-//               | '|' slotdeflist0 ELLIPSIS name '|'
+// argdecls: <e>
+//         | ARG vardeflist ';'
+//         | ARG vardeflist0 ELLIPSIS name ';'
+//         | '|' slotdeflist '|'
+//         | '|' slotdeflist0 ELLIPSIS name '|'
 std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
     bool isArg;
     if (m_token.type == Lexer::Token::Type::kArg) {
@@ -889,8 +903,8 @@ std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
 std::unique_ptr<parse::Node> Parser::parseMethodBody() {
     auto exprSeq = parseExprSeq();
     if (m_token.type == Lexer::Token::Type::kCaret) {
-        next(); // ^
         auto retVal = std::make_unique<parse::ReturnNode>(m_tokenIndex);
+        next(); // ^
         retVal->valueExpr = parseExpr();
         if (retVal->valueExpr == nullptr) {
             return nullptr;

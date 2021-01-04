@@ -186,6 +186,13 @@
             return false;
         };
 
+        ##############
+        # primitives #
+        ##############
+        '_' (alnum | '_')+ {
+            m_tokens.emplace_back(Token(Token::Type::kPrimitive, ts, te - ts));
+        };
+
         space { /* ignore whitespace */ };
         any { return false; };
     *|;
