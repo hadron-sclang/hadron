@@ -41,8 +41,8 @@ superclass: <e> | ':' classname
 classvardecls: <e> | classvardecls classvardecl
 
 classvardecl: CLASSVAR rwslotdeflist ';'
-                | VAR rwslotdeflist ';'
-                | SC_CONST constdeflist ';'
+            | VAR rwslotdeflist ';'
+            | SC_CONST constdeflist ';'
 
 methods: <e> | methods miethoddef
 
