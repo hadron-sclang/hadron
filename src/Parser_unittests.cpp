@@ -1089,10 +1089,36 @@ TEST_CASE("Parser rwslotdef") {
 // optcomma: <e> | ','
 TEST_CASE("Parser constdeflist") {
     SUBCASE("constdeflist: constdef") {
+        Parser parser("UniConst { const psi=\"psi\"; }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
+        CHECK(parser.root()->tail == parser.root());
+        auto classNode = reinterpret_cast<const parse::ClassNode*>(parser.root());
+        CHECK(classNode->className.compare("UniConst") == 0);
+        CHECK(classNode->superClassName.empty());
+        CHECK(classNode->optionalName.empty());
+        CHECK(classNode->methods == nullptr);
+
+        REQUIRE(classNode->variables != nullptr);
+        const parse::VarListNode* varList = classNode->variables.get();
+        CHECK(parser.tokens()[varList->tokenIndex].type == Lexer::Token::Type::kConst);
+
+        REQUIRE(varList->definitions != nullptr);
+        const parse::VarDefNode* varDef = varList->definitions.get();
+        CHECK(varDef->varName.compare("psi") == 0);
+        REQUIRE(varDef->initialValue != nullptr);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::Type::kLiteral);
+        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kString);
+        CHECK(!varDef->hasReadAccessor);
+        CHECK(!varDef->hasWriteAccessor);
+
     }
 
     SUBCASE("constdeflist: constdeflist optcomma constdef") {
-        Parser parser("MultiConst { const a = -1.0 <b = 2 < c = 3.0 }", std::make_shared<ErrorReporter>());
+        Parser parser("MultiConst { const a = -1.0 <b=2 < c = 3.0; }", std::make_shared<ErrorReporter>());
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
@@ -1113,9 +1139,9 @@ TEST_CASE("Parser constdeflist") {
         CHECK(varDef->varName.compare("a") == 0);
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kFloat);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asFloat() == -1.0);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kFloat);
+        CHECK(literal->value.asFloat() == -1.0);
         CHECK(!varDef->hasReadAccessor);
         CHECK(!varDef->hasWriteAccessor);
 
@@ -1139,7 +1165,7 @@ TEST_CASE("Parser constdeflist") {
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::Type::kLiteral);
         CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kFloat);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 3.0);
+        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asFloat() == 3.0);
         CHECK(varDef->hasReadAccessor);
         CHECK(!varDef->hasWriteAccessor);
     }
@@ -1243,6 +1269,19 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: expr '.' '[' arglist1 ']' '=' expr") {
+    }
+}
+
+TEST_CASE("Parser literal") {
+    SUBCASE("literal: '-' INTEGER") {
+        Parser parser("- /*****/ 1", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(parser.root());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == -1);
     }
 }
 

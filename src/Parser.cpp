@@ -726,14 +726,13 @@ std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
 
     if (m_token.type == Lexer::Token::Type::kAssign) {
         next(); // =
-        if (m_token.type != Lexer::Token::Type::kLiteral) {
+        varDef->initialValue = parseLiteral();
+        if (varDef->initialValue == nullptr) {
             m_errorReporter->addError(fmt::format("Error parsing class variable declaration at line {}, expecting "
                     "literal (e.g. number, string, symbol) following assignment.",
                     m_errorReporter->getLineNumber(m_token.start)));
             return nullptr;
         }
-        varDef->initialValue = std::make_unique<parse::LiteralNode>(m_tokenIndex);
-        next(); // literal
     }
 
     return varDef;
@@ -791,14 +790,13 @@ std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
         return nullptr;
     }
     next(); // =
-    if (m_token.type != Lexer::Token::Type::kLiteral) {
+    varDef->initialValue = parseLiteral();
+    if (varDef->initialValue == nullptr) {
         m_errorReporter->addError(fmt::format("Error parsing class constant '{}' declaration at line {}, expecting "
                     "literal (e.g. number, string, symbol) following assignment.", varDef->varName,
                     m_errorReporter->getLineNumber(m_token.start)));
         return nullptr;
     }
-    varDef->initialValue = std::make_unique<parse::LiteralNode>(m_tokenIndex);
-    next(); // literal
     return varDef;
 }
 
@@ -944,13 +942,13 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
 }
 
 // expr: expr1
-//       | valrangexd
-//       | valrangeassign
-//       | expr '.' '[' arglist1 ']'
-//       | expr binop2 adverb expr %prec BINOP
-//       | expr '.' name '=' expr
-//       | expr1 '[' arglist1 ']' '=' expr
-//       | expr '.' '[' arglist1 ']' '=' expr
+//     | valrangexd
+//     | valrangeassign
+//     | expr '.' '[' arglist1 ']'
+//     | expr binop2 adverb expr %prec BINOP
+//     | expr '.' name '=' expr
+//     | expr1 '[' arglist1 ']' '=' expr
+//     | expr '.' '[' arglist1 ']' '=' expr
 //
 // expr1: | curryarg
 //        | msgsend
@@ -1043,18 +1041,40 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         // expr -> expr1 -> generator: '{' ':' exprseq ',' qual '}'
         // expr -> expr1 -> generator: '{' ';' exprseq  ',' qual '}'
 
+    case Lexer::Token::Type::kMinus:
     case Lexer::Token::Type::kLiteral: {
-        // expr -> expr1: pushliteral
-        // expr -> expr1: blockliteral
-        auto literal = std::make_unique<parse::LiteralNode>(m_tokenIndex);
-        next(); // literal
-        return literal;
+        return parseLiteral();
     };
 
     default:
         return nullptr;
     }
     return nullptr;
+}
+
+// slotliteral: integer | floatp | ascii | string | symbol | trueobj | falseobj | nilobj | listlit
+// integer: INTEGER | '-'INTEGER %prec UMINUS
+// floatr: SC_FLOAT | '-' SC_FLOAT %prec UMINUS
+std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
+    std::unique_ptr<parse::LiteralNode> literal;
+    if (m_token.type == Lexer::Token::Type::kLiteral) {
+        literal = std::make_unique<parse::LiteralNode>(m_tokenIndex, m_token.value);
+        next(); // literal
+    } else if (m_token.type == Lexer::Token::Type::kMinus && m_tokenIndex < m_lexer.tokens().size() - 1 &&
+               m_lexer.tokens()[m_tokenIndex + 1].type == Lexer::Token::Type::kLiteral) {
+        if (m_lexer.tokens()[m_tokenIndex + 1].value.type() == TypedValue::Type::kFloat) {
+            next(); // '-'
+            literal = std::make_unique<parse::LiteralNode>(m_tokenIndex - 1,
+                    TypedValue(-1.0 * m_token.value.asFloat()));
+            next(); // literal
+        } else if (m_lexer.tokens()[m_tokenIndex + 1].value.type() == TypedValue::Type::kInteger) {
+            next(); // '-'
+            literal = std::make_unique<parse::LiteralNode>(m_tokenIndex - 1,
+                    TypedValue(-1 * m_token.value.asInteger()));
+            next(); // literal
+        }
+    }
+    return literal;
 }
 
 } // namespace hadron

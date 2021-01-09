@@ -171,9 +171,12 @@ struct ValueNode : public Node {
 };
 
 struct LiteralNode : public Node {
-    LiteralNode(size_t index): Node(NodeType::kLiteral, index) {}
+    LiteralNode(size_t index, const TypedValue& v): Node(NodeType::kLiteral, index), value(v) {}
     virtual ~LiteralNode() = default;
-    // LiteralNodes skip the copy of the TypedValue that resides in the Lexer.
+
+    // Due to unary negation of literals, this value may differ from the token value at tokenIndex.
+    // TODO: consider merging LiteralNode and ValueNode.
+    TypedValue value;
 };
 
 struct NameNode : public Node {
@@ -265,6 +268,10 @@ private:
     std::unique_ptr<parse::Node> parseMethodBody();
     std::unique_ptr<parse::Node> parseExprSeq();
     std::unique_ptr<parse::Node> parseExpr();
+
+    // If the current token is a literal, or a unary negation token followed by an int or float literal, consumes those
+    // tokens and returns a LiteralNode with the value. Otherwise consumes no tokens and returns nullptr.
+    std::unique_ptr<parse::LiteralNode> parseLiteral();
 
     Lexer m_lexer;
     size_t m_tokenIndex;
