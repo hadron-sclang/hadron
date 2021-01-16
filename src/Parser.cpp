@@ -108,11 +108,11 @@ generator: '{' ':' exprseq ',' qual '}'
 nextqual: <e> | ',' qual
 
 qual: name LEFTARROW exprseq nextqual
-        | name name LEFTARROW exprseq nextqual
-        | VAR name '=' exprseq nextqual
-        | exprseq nextqual
-        | ':' ':' exprseq nextqual
-        | ':' WHILE exprseq nextqual
+    | name name LEFTARROW exprseq nextqual
+    | VAR name '=' exprseq nextqual
+    | exprseq nextqual
+    | ':' ':' exprseq nextqual
+    | ':' WHILE exprseq nextqual
 
 expr1: pushliteral
         | blockliteral
@@ -338,6 +338,8 @@ bool Parser::parse() {
     }
 
     m_root = parseRoot();
+    if (!m_root) return false;
+
     while (m_errorReporter->errorCount() == 0 && m_token.type != Lexer::Token::Type::kEmpty) {
         m_root->append(parseRoot());
     }
@@ -476,9 +478,7 @@ std::unique_ptr<parse::Node> Parser::parseCmdLineCode() {
         auto openParenToken = m_token;
         next(); // (
         auto block = std::make_unique<parse::BlockNode>(m_tokenIndex);
-        if (m_token.type == Lexer::Token::Type::kVar) {
-            block->variables = parseFuncVarDecls();
-        }
+        block->variables = parseFuncVarDecls();
         block->body = parseFuncBody();
         if (m_token.type != Lexer::Token::kCloseParen) {
             m_errorReporter->addError(fmt::format("Error parsing around line {}: expecting closing parenthesis to "
@@ -851,7 +851,6 @@ std::unique_ptr<parse::VarDefNode> Parser::parseVarDef() {
     return varDef;
 }
 
-
 // argdecls: <e>
 //         | ARG vardeflist ';'
 //         | ARG vardeflist0 ELLIPSIS name ';'
@@ -944,29 +943,15 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
 // expr: expr1
 //     | valrangexd
 //     | valrangeassign
-//     | expr '.' '[' arglist1 ']'
-//     | expr binop2 adverb expr %prec BINOP
-//     | expr '.' name '=' expr
-//     | expr1 '[' arglist1 ']' '=' expr
-//     | expr '.' '[' arglist1 ']' '=' expr
 //
-// expr1: | curryarg
-//        | msgsend
-//        | pseudovar
-//        | expr1 '[' arglist1 ']'
-//        | valrangex1
+// expr1: blockliteral
+//      | curryarg
+//      | msgsend
+//      | pseudovar
+//      | valrangex1
 //
 // curryarg: CURRYARG
 //
-// msgsend:  expr '.' '(' ')' blocklist
-//         | expr '.' '(' keyarglist1 optcomma ')' blocklist
-//         | expr '.' name '(' keyarglist1 optcomma ')' blocklist
-//         | expr '.' '(' arglist1 optkeyarglist ')' blocklist
-//         | expr '.' '(' arglistv1 optkeyarglist ')'
-//         | expr '.' name '(' ')' blocklist
-//         | expr '.' name '(' arglist1 optkeyarglist ')' blocklist
-//         | expr '.' name '(' arglistv1 optkeyarglist ')'
-//         | expr '.' name blocklist
 //
 // pseudovar: PSEUDOVAR
 //
@@ -986,43 +971,91 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
 // blocklist: <e> | blocklist1
 //
 std::unique_ptr<parse::Node> Parser::parseExpr() {
+    std::unique_ptr<parse::Node> expr;
+    bool isSingleExpression = false;
+
     switch (m_token.type) {
     case Lexer::Token::Type::kClassName: {
-        // expr: classname
-        // TODO: expr -> expr1 -> msgsend: classname '[' arrayelems ']'
-        // TODO: expr -> expr1 -> msgsend: classname blocklist1
-        // TODO: expr -> expr1 -> msgsend: classname '(' ')' blocklist
-        // TODO: expr -> expr1 -> msgsend: classname '(' keyarglist1 optcomma ')' blocklist
-        // TODO: expr -> expr1 -> msgsend: classname '(' arglist1 optkeyarglist ')' blocklist
-        // TODO: expr -> expr1 -> msgsend: classname '(' arglistv1 optkeyarglist ')'
-        auto classNode = std::make_unique<parse::ValueNode>(m_tokenIndex, TypedValue::Type::kClass);
+        Lexer::Token className = m_token;
         next();  // classname
-        return classNode;
+        if (m_token.type == Lexer::Token::kOpenSquare) {
+            // expr -> expr1 -> msgsend: classname '[' arrayelems ']'
+            auto dynList = std::make_unique<parse::DynListNode>(m_tokenIndex - 1);
+            next(); // [
+            dynList->className = std::string_view(className.start, className.length);
+            dynList->elements = parseArrayElements();
+            next(); // ]
+            expr = std::move(dynList);
+            isSingleExpression = true;
+        } else if (m_token.type == Lexer::Token::kOpenParen) {
+            // expr -> expr1 -> msgsend: classname '(' ')' blocklist
+            // expr -> expr1 -> msgsend: classname '(' keyarglist1 optcomma ')' blocklist
+            // expr -> expr1 -> msgsend: classname '(' arglist1 optkeyarglist ')' blocklist
+            // expr -> expr1 -> msgsend: classname '(' arglistv1 optkeyarglist ')'
+        } else if (m_token.type == Lexer::Token::kOpenCurly) {
+            // expr -> expr1 -> msgsend: classname blocklist1
+        } else {
+            // expr: classname
+            expr = std::make_unique<parse::NameNode>(m_tokenIndex - 1, std::string_view(className.start,
+                className.length));
+        }
     } break;
 
     case Lexer::Token::Type::kIdentifier: {
-        // expr: name '=' expr
         // expr: name '(' arglist1 optkeyarglist ')' '=' expr
-        // expr -> expr1 -> pushname: name
         // expr -> expr1 -> msgsend: name blocklist1
         // expr -> expr1 -> msgsend: name '(' ')' blocklist1
         // expr -> expr1 -> msgsend: name '(' arglist1 optkeyarglist ')' blocklist
         // expr -> expr1 -> msgsend: name '(' arglistv1 optkeyarglist ')'
-        auto nameNode = std::make_unique<parse::NameNode>(m_tokenIndex, std::string_view(m_token.start,
-                m_token.length));
-        next();  // name
-        return nameNode;
+        auto name = std::make_unique<parse::NameNode>(m_tokenIndex, std::string_view(m_token.start, m_token.length));
+        next(); // name
+        if (m_token.type == Lexer::Token::kAssign) {
+            // expr: name '=' expr
+            auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex);
+            next(); // =
+            assign->name = std::move(name);
+            assign->value = parseExpr();
+            expr = std::move(assign);
+        } else {
+            // expr -> expr1 -> pushname: name
+            expr = std::move(name);
+            isSingleExpression = true;
+        }
     } break;
 
     case Lexer::Token::Type::kGrave:
-        // expr: '`' expr TODO: what does this do?
+        // expr: '`' expr
+        break;
 
-    case Lexer::Token::Type::kTilde:
+    case Lexer::Token::Type::kTilde: {
         // expr: '~' name '=' expr
         // expr -> expr1: '~' name
+        next(); // ~
+        if (m_token.type == Lexer::Token::kIdentifier) {
+            auto name = std::make_unique<parse::NameNode>(m_tokenIndex, std::string_view(m_token.start,
+                    m_token.length));
+            name->isGlobal = true;
+            next(); // name
+            if (m_token.type == Lexer::Token::kAssign) {
+                auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex);
+                next();
+                assign->name = std::move(name);
+                assign->value = parseExpr();
+                expr = std::move(assign);
+            } else {
+                expr = std::move(name);
+                isSingleExpression = true;
+            }
+        } else {
+            m_errorReporter->addError(fmt::format("Error parsing code on line {}, expected variable name after global "
+                    "symbol '~'.", m_errorReporter->getLineNumber(m_token.start)));
+            return nullptr;
+        }
+    } break;
 
     case Lexer::Token::Type::kHash:
         // expr: '#' mavars '=' expr
+        break;
 
     case Lexer::Token::Type::kOpenParen:
         // expr -> expr1: '(' exprseq ')'
@@ -1033,23 +1066,91 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' ')' blocklist1
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
+        break;
 
     case Lexer::Token::Type::kOpenSquare:
         // expr -> expr1: '[' arrayelems ']'
+        break;
 
-    case Lexer::Token::Type::kOpenCurly:
+    case Lexer::Token::Type::kOpenCurly: {
         // expr -> expr1 -> generator: '{' ':' exprseq ',' qual '}'
         // expr -> expr1 -> generator: '{' ';' exprseq  ',' qual '}'
+        // expr -> expr1 -> blockliteral -> block -> '{' argdecls funcvardecls funcbody '}'
+        // expr -> expr1 -> blockliteral -> block -> BEGINCLOSEDFUNC argdecls funcvardecls funcbody '}'
+        Lexer::Token openCurly = m_token;
+        next(); // {
+        if (m_token.type == Lexer::Token::Type::kColon || m_token.type == Lexer::Token::Type::kSemicolon) {
+            // Generator expressions parse here.
+            return nullptr;
+        } else {
+            auto block = std::make_unique<parse::BlockNode>(m_tokenIndex - 1);
+            block->arguments = parseArgDecls();
+            block->variables = parseFuncVarDecls();
+            block->body = parseFuncBody();
+            if (m_token.type != Lexer::Token::Type::kCloseCurly) {
+                m_errorReporter->addError(fmt::format("Error parsing function on line {}, expecting closing curly "
+                        "brace '}}' to match opening curly brace '{{' on line {}.",
+                        m_errorReporter->getLineNumber(m_token.start),
+                        m_errorReporter->getLineNumber(openCurly.start)));
+                return nullptr;
+            }
+            next(); // }
+            return block;
+        }
+    }
 
     case Lexer::Token::Type::kMinus:
-    case Lexer::Token::Type::kLiteral: {
-        return parseLiteral();
-    };
+    case Lexer::Token::Type::kLiteral:
+        expr = parseLiteral();
+        break;
 
     default:
         return nullptr;
     }
-    return nullptr;
+
+    if (expr == nullptr) {
+        return nullptr;
+    }
+
+    if (isSingleExpression && m_token.type == Lexer::Token::Type::kOpenSquare) {
+        // expr -> expr1: expr1 '[' arglist1 ']' '=' expr
+        // expr: expr1 '[' arglist1 ']'
+    } else {
+        if (m_token.type == Lexer::Token::Type::kDot) {
+            next(); // .
+            if (m_token.type == Lexer::Token::kIdentifier) {
+                Lexer::Token name = m_token;
+                next(); // name
+                if (m_token.type == Lexer::Token::kAssign) {
+                    // expr: expr '.' name '=' expr
+                    auto setter = std::make_unique<parse::SetterNode>(m_tokenIndex);
+                    next(); // =
+                    setter->target = std::move(expr);
+                    setter->selector = std::string_view(name.start, name.length);
+                    setter->value = parseExpr();
+                    expr = std::move(setter);
+                }
+                // expr -> expr1 -> msgsend: expr '.' name '(' keyarglist1 optcomma ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' name '(' ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' name '(' arglist1 optkeyarglist ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' name '(' arglistv1 optkeyarglist ')'
+                // expr -> expr1 -> msgsend: expr '.' name blocklist
+            } else if (m_token.type == Lexer::Token::Type::kOpenSquare) {
+                // expr: expr '.' '[' arglist1 ']'
+                // expr: expr '.' '[' arglist1 ']' '=' expr
+            } else if (m_token.type == Lexer::Token::Type::kOpenParen) {
+                // expr -> expr1 -> msgsend: expr '.' '(' ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' '(' keyarglist1 optcomma ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' '(' arglist1 optkeyarglist ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' '(' arglistv1 optkeyarglist ')'
+            }
+        } else if (m_token.couldBeBinop) {
+            // expr: expr binop2 adverb expr %prec BINOP
+            // adverb: <e> | '.' name | '.' integer | '.' '(' exprseq ')'
+        }
+    }
+
+    return expr;
 }
 
 // slotliteral: integer | floatp | ascii | string | symbol | trueobj | falseobj | nilobj | listlit
@@ -1075,6 +1176,17 @@ std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
         }
     }
     return literal;
+}
+
+// arrayelems: <e> | arrayelems1 optcomma
+// arrayelems1: exprseq
+//            | exprseq ':' exprseq
+//            | keybinop exprseq
+//            | arrayelems1 ',' exprseq
+//            | arrayelems1 ',' keybinop exprseq
+//            | arrayelems1 ',' exprseq ':' exprseq
+std::unique_ptr<parse::Node> Parser::parseArrayElements() {
+    return nullptr;
 }
 
 } // namespace hadron

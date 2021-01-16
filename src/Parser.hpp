@@ -22,10 +22,13 @@ enum NodeType {
     kClassExt,
     kClass,
     kReturn,
+    kDynList,
     kBlock,
     kValue,
     kLiteral,
-    kName
+    kName,
+    kAssign,
+    kSetter
 };
 
 struct Node {
@@ -123,12 +126,17 @@ struct DynDictNode : public Node {
     DynDictNode();
     virtual ~DynDictNode() = default;
 };
+*/
 
 struct DynListNode : public Node {
-    DynListNode();
+    DynListNode(size_t index): Node(NodeType::kDynList, index) {}
     virtual ~DynListNode() = default;
+
+    std::string_view className;
+    std::unique_ptr<Node> elements;
 };
 
+/*
 struct LitListNode : public Node {
     LitListNode();
     virtual ~LitListNode() = default;
@@ -158,7 +166,7 @@ struct BlockNode : public Node {
     BlockNode(size_t index): Node(NodeType::kBlock, index) {}
     virtual ~BlockNode() = default;
 
-    std::unique_ptr<VarListNode> arguments;
+    std::unique_ptr<ArgListNode> arguments;
     std::unique_ptr<VarListNode> variables;
     std::unique_ptr<Node> body;
 };
@@ -183,6 +191,7 @@ struct NameNode : public Node {
     NameNode(size_t index, std::string_view n): Node(NodeType::kName, index), name(n) {}
     virtual ~NameNode() = default;
 
+    bool isGlobal = false;
     std::string_view name;
 };
 
@@ -201,22 +210,34 @@ struct DropNode : public Node {
     DropNode();
     virtual ~DropNode() = default;
 };
+*/
 
 struct AssignNode : public Node {
-    AssignNode();
+    AssignNode(size_t index): Node(NodeType::kAssign, index) {}
     virtual ~AssignNode() = default;
+
+    std::unique_ptr<NameNode> name;
+    std::unique_ptr<Node> value;
 };
 
+/*
 struct MultiAssignNode : public Node {
     MultiAssignNode();
     virtual ~MultiAssignNode() = default;
 };
+*/
 
 struct SetterNode : public Node {
-    SetterNode();
+    SetterNode(size_t index): Node(NodeType::kSetter, index) {}
     virtual ~SetterNode() = default;
+
+    // The recipient of the assigned value.
+    std::unique_ptr<Node> target;
+    std::string_view selector;
+    std::unique_ptr<Node> value;
 };
 
+/*
 struct CurryArgNode : public Node {
     CurryArgNode();
     virtual ~CurryArgNode() = default;
@@ -272,6 +293,8 @@ private:
     // If the current token is a literal, or a unary negation token followed by an int or float literal, consumes those
     // tokens and returns a LiteralNode with the value. Otherwise consumes no tokens and returns nullptr.
     std::unique_ptr<parse::LiteralNode> parseLiteral();
+
+    std::unique_ptr<parse::Node> parseArrayElements();
 
     Lexer m_lexer;
     size_t m_tokenIndex;

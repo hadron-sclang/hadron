@@ -71,10 +71,9 @@ TEST_CASE("Parser root") {
         CHECK(parser.root()->next == nullptr);
         CHECK(parser.root()->tail == parser.root());
         auto literal = reinterpret_cast<const parse::LiteralNode*>(parser.root());
-        REQUIRE(literal->tokenIndex == 0);
-        CHECK(parser.tokens()[literal->tokenIndex].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[literal->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[literal->tokenIndex].value.asInteger() == 42);
+        CHECK(literal->tokenIndex == 0);
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 42);
     }
 }
 
@@ -110,7 +109,7 @@ TEST_CASE("Parser classdef") {
     }
 
     SUBCASE("classdef: classname '[' optname ']' superclass '{' classvardecls methods '}'") {
-        Parser parser("Sub [ opt ] : Super { const c = 5; *meth { } }", std::make_shared<ErrorReporter>());
+        Parser parser("Sub [ opt ] : Super { const c = -5; *meth { } }", std::make_shared<ErrorReporter>());
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
@@ -129,11 +128,10 @@ TEST_CASE("Parser classdef") {
 
         REQUIRE(classNode->variables->definitions->initialValue);
         REQUIRE(classNode->variables->definitions->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[classNode->variables->definitions->initialValue->tokenIndex].type ==
-                Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[classNode->variables->definitions->initialValue->tokenIndex].value.type() ==
-                TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[classNode->variables->definitions->initialValue->tokenIndex].value.asInteger() == 5);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(
+                classNode->variables->definitions->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == -5);
         CHECK(classNode->variables->definitions->next == nullptr);
 
         REQUIRE(classNode->methods);
@@ -200,9 +198,9 @@ TEST_CASE("Parser cmdlinecode") {
 
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[block->body->tokenIndex].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[block->body->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[block->body->tokenIndex].value.asInteger() == 0xa);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(block->body.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 0xa);
         CHECK(block->body->next == nullptr);
     }
 
@@ -224,10 +222,8 @@ TEST_CASE("Parser cmdlinecode") {
 
         REQUIRE(block->variables->definitions->initialValue != nullptr);
         REQUIRE(block->variables->definitions->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[block->variables->definitions->initialValue->tokenIndex].type ==
-                Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[block->variables->definitions->initialValue->tokenIndex].value.type() ==
-                TypedValue::Type::kSymbol);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(block->variables->definitions->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kSymbol);
         CHECK(block->variables->definitions->initialValue->next == nullptr);
 
         REQUIRE(block->body != nullptr);
@@ -243,10 +239,9 @@ TEST_CASE("Parser cmdlinecode") {
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(parser.root());
+        CHECK(literal->value.type() == TypedValue::Type::kString);
         CHECK(parser.root()->next == nullptr);
-        REQUIRE(parser.root()->tokenIndex == 0);
-        CHECK(parser.tokens()[0].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[0].value.type() == TypedValue::Type::kString);
     }
 }
 
@@ -336,9 +331,9 @@ TEST_CASE("Parser classvardecls") {
         CHECK(varDef->varName.compare("g") == 0);
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 1);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 1);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
@@ -346,9 +341,9 @@ TEST_CASE("Parser classvardecls") {
         CHECK(varDef->varName.compare("h") == 0);
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 2);
+        literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 2);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
@@ -356,9 +351,9 @@ TEST_CASE("Parser classvardecls") {
         CHECK(varDef->varName.compare("i") == 0);
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 3);
+        literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 3);
 
         CHECK(varDef->next == nullptr);
         CHECK(varList->next == nullptr);
@@ -475,9 +470,9 @@ TEST_CASE("Parser classvardecl") {
         CHECK(varDef->varName.compare("bogon") == 0);
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 42);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 42);
         CHECK(!varDef->hasReadAccessor);
         CHECK(!varDef->hasWriteAccessor);
 
@@ -487,8 +482,8 @@ TEST_CASE("Parser classvardecl") {
         CHECK(varDef->varName.compare("red5") == 0);
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kString);
+        literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kString);
         CHECK(varDef->hasReadAccessor);
         CHECK(!varDef->hasWriteAccessor);
     }
@@ -649,10 +644,10 @@ TEST_CASE("Parser methoddef") {
         CHECK(varDef->next == nullptr);
 
         REQUIRE(method->body != nullptr);
-        CHECK(method->body->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[method->body->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[method->body->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[method->body->tokenIndex].value.asInteger() == 17);
+        REQUIRE(method->body->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(method->body.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 17);
 
         CHECK(classNode->next == nullptr);
     }
@@ -682,19 +677,19 @@ TEST_CASE("Parser methoddef") {
         const parse::VarDefNode* varDef = argList->varList->definitions.get();
         CHECK(varDef->varName.compare("m") == 0);
         REQUIRE(varDef->initialValue != nullptr);
-        CHECK(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 5);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 5);
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("n") == 0);
         REQUIRE(varDef->initialValue != nullptr);
-        CHECK(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 7);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 7);
         CHECK(varDef->next == nullptr);
 
         REQUIRE(method->variables != nullptr);
@@ -703,10 +698,10 @@ TEST_CASE("Parser methoddef") {
         varDef = varList->definitions.get();
         CHECK(varDef->varName.compare("k") == 0);
         REQUIRE(varDef->initialValue != nullptr);
-        CHECK(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 0);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 0);
         CHECK(varDef->next == nullptr);
         REQUIRE(varList->next != nullptr);
         REQUIRE(varList->next->nodeType == parse::NodeType::kVarList);
@@ -715,9 +710,9 @@ TEST_CASE("Parser methoddef") {
         varDef = varList->definitions.get();
         CHECK(varDef->varName.compare("z") == 0);
         REQUIRE(varDef->initialValue != nullptr);
-        CHECK(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kSymbol);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kSymbol);
         CHECK(varDef->next == nullptr);
         CHECK(varList->next == nullptr);
 
@@ -726,8 +721,8 @@ TEST_CASE("Parser methoddef") {
         auto retNode = reinterpret_cast<const parse::ReturnNode*>(method->body.get());
         REQUIRE(retNode->valueExpr != nullptr);
         REQUIRE(retNode->valueExpr->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[retNode->valueExpr->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[retNode->valueExpr->tokenIndex].value.type() == TypedValue::Type::kSymbol);
+        literal = reinterpret_cast<const parse::LiteralNode*>(retNode->valueExpr.get());
+        CHECK(literal->value.type() == TypedValue::Type::kSymbol);
 
         CHECK(classNode->next == nullptr);
     }
@@ -757,18 +752,18 @@ TEST_CASE("Parser methoddef") {
         const parse::VarDefNode* varDef = argList->varList->definitions.get();
         CHECK(varDef->varName.compare("x") == 0);
         REQUIRE(varDef->initialValue != nullptr);
-        CHECK(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kNil);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kNil);
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("y") == 0);
         REQUIRE(varDef->initialValue != nullptr);
-        CHECK(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kBoolean);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asBoolean());
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kBoolean);
+        CHECK(literal->value.asBoolean());
         CHECK(varDef->next == nullptr);
 
         REQUIRE(method->variables != nullptr);
@@ -793,8 +788,8 @@ TEST_CASE("Parser methoddef") {
         auto retNode = reinterpret_cast<const parse::ReturnNode*>(method->body.get());
         REQUIRE(retNode->valueExpr != nullptr);
         REQUIRE(retNode->valueExpr->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[retNode->valueExpr->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[retNode->valueExpr->tokenIndex].value.type() == TypedValue::Type::kNil);
+        literal = reinterpret_cast<const parse::LiteralNode*>(retNode->valueExpr.get());
+        CHECK(literal->value.type() == TypedValue::Type::kNil);
 
         CHECK(classNode->next == nullptr);
     }
@@ -837,10 +832,10 @@ TEST_CASE("Parser funcvardecls1") {
         const parse::VarDefNode* varDef = block->variables->definitions.get();
         CHECK(varDef->varName.compare("abc") == 0);
         REQUIRE(varDef->initialValue != nullptr);
-        CHECK(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 2);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 2);
         CHECK(varDef->next == nullptr);
 
         REQUIRE(block->variables->next != nullptr);
@@ -855,10 +850,10 @@ TEST_CASE("Parser funcvardecls1") {
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("e") == 0);
         REQUIRE(varDef->initialValue != nullptr);
-        CHECK(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 4);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 4);
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
@@ -886,17 +881,17 @@ TEST_CASE("Parser funcvardecl") {
         const parse::VarDefNode* varDef = block->variables->definitions.get();
         CHECK(varDef->varName.compare("first") == 0);
         REQUIRE(varDef->initialValue != nullptr);
-        CHECK(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kString);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kString);
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("second") == 0);
         REQUIRE(varDef->initialValue != nullptr);
-        CHECK(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kSymbol);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kSymbol);
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
@@ -917,9 +912,9 @@ TEST_CASE("Parser funcbody") {
         auto retNode = reinterpret_cast<const parse::ReturnNode*>(parser.root());
         REQUIRE(retNode->valueExpr != nullptr);
         REQUIRE(retNode->valueExpr->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[retNode->valueExpr->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[retNode->valueExpr->tokenIndex].value.type() == TypedValue::Type::kBoolean);
-        CHECK(!parser.tokens()[retNode->valueExpr->tokenIndex].value.asBoolean());
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(retNode->valueExpr.get());
+        CHECK(literal->value.type() == TypedValue::Type::kBoolean);
+        CHECK(!literal->value.asBoolean());
         CHECK(retNode->next == nullptr);
     }
 
@@ -930,15 +925,13 @@ TEST_CASE("Parser funcbody") {
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kLiteral);
         const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(parser.root());
-        CHECK(parser.tokens()[literal->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[literal->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[literal->tokenIndex].value.asInteger() == 1);
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 1);
 
         REQUIRE(literal->next != nullptr);
         REQUIRE(literal->next->nodeType == parse::NodeType::kLiteral);
         literal = reinterpret_cast<const parse::LiteralNode*>(literal->next.get());
-        CHECK(parser.tokens()[literal->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[literal->tokenIndex].value.type() == TypedValue::Type::kSymbol);
+        CHECK(literal->value.type() == TypedValue::Type::kSymbol);
 
         REQUIRE(literal->next != nullptr);
         REQUIRE(literal->next->nodeType == parse::NodeType::kReturn);
@@ -1077,10 +1070,10 @@ TEST_CASE("Parser rwslotdef") {
         CHECK(varDef->hasWriteAccessor);
         CHECK(varDef->next == nullptr);
         REQUIRE(varDef->initialValue != nullptr);
-        CHECK(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 2);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 2);
 
         CHECK(classNode->next == nullptr);
     }
@@ -1110,11 +1103,10 @@ TEST_CASE("Parser constdeflist") {
         CHECK(varDef->varName.compare("psi") == 0);
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kString);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kString);
         CHECK(!varDef->hasReadAccessor);
         CHECK(!varDef->hasWriteAccessor);
-
     }
 
     SUBCASE("constdeflist: constdeflist optcomma constdef") {
@@ -1151,9 +1143,9 @@ TEST_CASE("Parser constdeflist") {
         CHECK(varDef->varName.compare("b") == 0);
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kInteger);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asInteger() == 2);
+        literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 2);
         CHECK(varDef->hasReadAccessor);
         CHECK(!varDef->hasWriteAccessor);
 
@@ -1163,9 +1155,9 @@ TEST_CASE("Parser constdeflist") {
         CHECK(varDef->varName.compare("c") == 0);
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].type == Lexer::Token::Type::kLiteral);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.type() == TypedValue::Type::kFloat);
-        CHECK(parser.tokens()[varDef->initialValue->tokenIndex].value.asFloat() == 3.0);
+        literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kFloat);
+        CHECK(literal->value.asFloat() == 3.0);
         CHECK(varDef->hasReadAccessor);
         CHECK(!varDef->hasWriteAccessor);
     }
@@ -1174,62 +1166,497 @@ TEST_CASE("Parser constdeflist") {
 // rspec: <e> | '<'
 TEST_CASE("Parser constdef") {
     SUBCASE("constdef: rspec name '=' slotliteral") {
+        Parser parser("Math { const <epsilon= -0.0001; }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
+        CHECK(parser.root()->tail == parser.root());
+        auto classNode = reinterpret_cast<const parse::ClassNode*>(parser.root());
+        CHECK(classNode->className.compare("Math") == 0);
+        CHECK(classNode->superClassName.empty());
+        CHECK(classNode->optionalName.empty());
+        CHECK(classNode->methods == nullptr);
+
+        REQUIRE(classNode->variables != nullptr);
+        const parse::VarListNode* varList = classNode->variables.get();
+        CHECK(parser.tokens()[varList->tokenIndex].type == Lexer::Token::Type::kConst);
+
+        REQUIRE(varList->definitions != nullptr);
+        const parse::VarDefNode* varDef = varList->definitions.get();
+        CHECK(varDef->varName.compare("epsilon") == 0);
+        REQUIRE(varDef->initialValue != nullptr);
+        REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kFloat);
+        CHECK(literal->value.asFloat() == -0.0001);
+        CHECK(varDef->hasReadAccessor);
+        CHECK(!varDef->hasWriteAccessor);
     }
 }
 
 TEST_CASE("Parser vardeflist") {
     SUBCASE("vardeflist: vardef") {
+        Parser parser("( var ax7; )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        CHECK(parser.root()->next == nullptr);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+
+        REQUIRE(block->variables != nullptr);
+        REQUIRE(block->variables->definitions);
+        CHECK(block->variables->definitions->varName.compare("ax7") == 0);
+        CHECK(block->variables->definitions->initialValue == nullptr);
+        CHECK(block->variables->definitions->next == nullptr);
+        CHECK(block->variables->next == nullptr);
+        CHECK(block->body == nullptr);
     }
 
     SUBCASE("vardeflist: vardeflist ',' vardef") {
+        Parser parser("( var m,n,o,p; )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        CHECK(parser.root()->next == nullptr);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+
+        REQUIRE(block->variables != nullptr);
+        REQUIRE(block->variables->definitions);
+        const parse::VarDefNode* varDef = block->variables->definitions.get();
+        CHECK(varDef->varName.compare("m") == 0);
+        CHECK(varDef->initialValue == nullptr);
+
+        REQUIRE(varDef->next != nullptr);
+        REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
+        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+        CHECK(varDef->varName.compare("n") == 0);
+        CHECK(varDef->initialValue == nullptr);
+
+        REQUIRE(varDef->next != nullptr);
+        REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
+        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+        CHECK(varDef->varName.compare("o") == 0);
+        CHECK(varDef->initialValue == nullptr);
+
+        REQUIRE(varDef->next != nullptr);
+        REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
+        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+        CHECK(varDef->varName.compare("p") == 0);
+        CHECK(varDef->initialValue == nullptr);
+        CHECK(varDef->next == nullptr);
     }
 }
 
 TEST_CASE("Parser vardef") {
     SUBCASE("vardef: name") {
+        Parser parser("( var very_long_name_with_numbers_12345; )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        CHECK(parser.root()->next == nullptr);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+
+        REQUIRE(block->variables != nullptr);
+        REQUIRE(block->variables->definitions);
+        CHECK(block->variables->definitions->varName.compare("very_long_name_with_numbers_12345") == 0);
+        CHECK(block->variables->definitions->initialValue == nullptr);
+        CHECK(block->variables->definitions->next == nullptr);
+        CHECK(block->variables->next == nullptr);
+        CHECK(block->body == nullptr);
     }
 
     SUBCASE("vardef: name '=' expr") {
+        Parser parser("( var x = -5.8; )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        CHECK(parser.root()->next == nullptr);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+
+        REQUIRE(block->variables != nullptr);
+        REQUIRE(block->variables->definitions);
+        CHECK(block->variables->definitions->varName.compare("x") == 0);
+        REQUIRE(block->variables->definitions->initialValue != nullptr);
+        REQUIRE(block->variables->definitions->initialValue->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(block->variables->definitions->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kFloat);
+        CHECK(literal->value.asFloat() == -5.8);
+
+        CHECK(block->variables->definitions->next == nullptr);
+        CHECK(block->variables->next == nullptr);
+        CHECK(block->body == nullptr);
     }
 
     SUBCASE("vardef: name '(' exprseq ')'") {
+        Parser parser("( var seq(1; 2); )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        CHECK(parser.root()->next == nullptr);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+
+        REQUIRE(block->variables != nullptr);
+        REQUIRE(block->variables->definitions);
+        CHECK(block->variables->definitions->varName.compare("seq") == 0);
+        REQUIRE(block->variables->definitions->initialValue != nullptr);
+        REQUIRE(block->variables->definitions->initialValue->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(
+                block->variables->definitions->initialValue.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 1);
+        REQUIRE(literal->next != nullptr);
+        REQUIRE(literal->next->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(literal->next.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 2);
+
+        CHECK(block->variables->next == nullptr);
+        CHECK(block->body == nullptr);
     }
 }
 
 TEST_CASE("Parser argdecls") {
     SUBCASE("argdecls: <e>") {
+        Parser parser("{ 1 }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(block->body.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 1);
+        CHECK(literal->next == nullptr);
     }
 
     SUBCASE("argdecls: ARG vardeflist ';'") {
+        Parser parser("{ arg arg1, arg2, arg3; }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+        CHECK(block->body == nullptr);
+
+        REQUIRE(block->arguments != nullptr);
+        CHECK(block->arguments->varArgsName.empty());
+        REQUIRE(block->arguments->varList != nullptr);
+
+        REQUIRE(block->arguments->varList->definitions != nullptr);
+        const parse::VarDefNode* varDef = block->arguments->varList->definitions.get();
+        CHECK(varDef->varName.compare("arg1") == 0);
+        CHECK(varDef->initialValue == nullptr);
+
+        REQUIRE(varDef->next != nullptr);
+        REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
+        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+        CHECK(varDef->varName.compare("arg2") == 0);
+        CHECK(varDef->initialValue == nullptr);
+
+        REQUIRE(varDef->next != nullptr);
+        REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
+        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+        CHECK(varDef->varName.compare("arg3") == 0);
+        CHECK(varDef->initialValue == nullptr);
+        CHECK(varDef->next == nullptr);
     }
 
     SUBCASE("argdecls: ARG vardeflist0 ELLIPSIS name ';'") {
+        Parser parser("{ arg x, y, z ... w; }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+        CHECK(block->body == nullptr);
+
+        REQUIRE(block->arguments != nullptr);
+        CHECK(block->arguments->varArgsName.compare("w") == 0);
+        REQUIRE(block->arguments->varList != nullptr);
+
+        REQUIRE(block->arguments->varList->definitions != nullptr);
+        const parse::VarDefNode* varDef = block->arguments->varList->definitions.get();
+        CHECK(varDef->varName.compare("x") == 0);
+        CHECK(varDef->initialValue == nullptr);
+
+        REQUIRE(varDef->next != nullptr);
+        REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
+        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+        CHECK(varDef->varName.compare("y") == 0);
+        CHECK(varDef->initialValue == nullptr);
+
+        REQUIRE(varDef->next != nullptr);
+        REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
+        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+        CHECK(varDef->varName.compare("z") == 0);
+        CHECK(varDef->initialValue == nullptr);
+        CHECK(varDef->next == nullptr);
     }
 
     SUBCASE("argdecls: '|' slotdeflist '|'") {
+        Parser parser("{ |i,j,k| }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+        CHECK(block->body == nullptr);
+
+        REQUIRE(block->arguments != nullptr);
+        CHECK(block->arguments->varArgsName.empty());
+        REQUIRE(block->arguments->varList != nullptr);
+
+        REQUIRE(block->arguments->varList->definitions != nullptr);
+        const parse::VarDefNode* varDef = block->arguments->varList->definitions.get();
+        CHECK(varDef->varName.compare("i") == 0);
+        CHECK(varDef->initialValue == nullptr);
+
+        REQUIRE(varDef->next != nullptr);
+        REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
+        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+        CHECK(varDef->varName.compare("j") == 0);
+        CHECK(varDef->initialValue == nullptr);
+
+        REQUIRE(varDef->next != nullptr);
+        REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
+        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+        CHECK(varDef->varName.compare("k") == 0);
+        CHECK(varDef->initialValue == nullptr);
+        CHECK(varDef->next == nullptr);
     }
 
     SUBCASE("argdecls: '|' slotdeflist0 ELLIPSIS name '|'") {
+        Parser parser("{ |i0,j1,k2...w3| }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+        CHECK(block->body == nullptr);
+
+        REQUIRE(block->arguments != nullptr);
+        CHECK(block->arguments->varArgsName.compare("w3") == 0);
+        REQUIRE(block->arguments->varList != nullptr);
+
+        REQUIRE(block->arguments->varList->definitions != nullptr);
+        const parse::VarDefNode* varDef = block->arguments->varList->definitions.get();
+        CHECK(varDef->varName.compare("i0") == 0);
+        CHECK(varDef->initialValue == nullptr);
+
+        REQUIRE(varDef->next != nullptr);
+        REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
+        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+        CHECK(varDef->varName.compare("j1") == 0);
+        CHECK(varDef->initialValue == nullptr);
+
+        REQUIRE(varDef->next != nullptr);
+        REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
+        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+        CHECK(varDef->varName.compare("k2") == 0);
+        CHECK(varDef->initialValue == nullptr);
+        CHECK(varDef->next == nullptr);
     }
 }
 
 // retval: <e> | '^' expr optsemi
 TEST_CASE("Parser methbody") {
     SUBCASE("methbody: retval") {
+        Parser parser("{ ^this }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kReturn);
+        auto retVal = reinterpret_cast<const parse::ReturnNode*>(block->body.get());
+        REQUIRE(retVal->valueExpr != nullptr);
+        REQUIRE(retVal->valueExpr->nodeType == parse::NodeType::kName);
+        auto nameNode = reinterpret_cast<const parse::NameNode*>(retVal->valueExpr.get());
+        CHECK(nameNode->name.compare("this") == 0);
     }
 
     SUBCASE("methbody: exprseq retval") {
+        Parser parser("{ 1; 2; ^3; }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(block->body.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 1);
+
+        REQUIRE(literal->next != nullptr);
+        REQUIRE(literal->next->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(literal->next.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 2);
+
+        REQUIRE(literal->next != nullptr);
+        REQUIRE(literal->next->nodeType == parse::NodeType::kReturn);
+        auto retVal = reinterpret_cast<const parse::ReturnNode*>(literal->next.get());
+        REQUIRE(retVal->valueExpr != nullptr);
+        REQUIRE(retVal->valueExpr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(retVal->valueExpr.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 3);
     }
 }
 
 // exprn: expr | exprn ';' expr
 TEST_CASE("Parser exprseq") {
     SUBCASE("exprseq: exprn optsemi") {
+        Parser parser("( x; y; z )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kName);
+        const parse::NameNode* nameNode = reinterpret_cast<const parse::NameNode*>(block->body.get());
+        CHECK(nameNode->name.compare("x") == 0);
+
+        REQUIRE(nameNode->next != nullptr);
+        REQUIRE(nameNode->next->nodeType == parse::NodeType::kName);
+        nameNode = reinterpret_cast<const parse::NameNode*>(nameNode->next.get());
+        CHECK(nameNode->name.compare("y") == 0);
+
+        REQUIRE(nameNode->next != nullptr);
+        REQUIRE(nameNode->next->nodeType == parse::NodeType::kName);
+        nameNode = reinterpret_cast<const parse::NameNode*>(nameNode->next.get());
+        CHECK(nameNode->name.compare("z") == 0);
+        CHECK(nameNode->next == nullptr);
+    }
+}
+
+TEST_CASE("Parser msgsend") {
+    SUBCASE("msgsend: name blocklist1") {
+    }
+
+    SUBCASE("msgsend: '(' binop2 ')' blocklist1") {
+    }
+
+    SUBCASE("msgsend: name '(' ')' blocklist1") {
+    }
+
+    SUBCASE("msgsend: name '(' arglist1 optkeyarglist ')' blocklist") {
+    }
+
+    SUBCASE("msgsend: '(' binop2 ')' '(' ')' blocklist1") {
+    }
+
+    SUBCASE("msgsend: '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist") {
+    }
+
+    SUBCASE("msgsend: name '(' arglistv1 optkeyarglist ')'") {
+    }
+
+    SUBCASE("msgsend: '(' binop2 ')' '(' arglistv1 optkeyarglist ')'") {
+    }
+
+    SUBCASE("msgsend: classname '[' arrayelems ']'") {
+    }
+
+    SUBCASE("msgsend: classname blocklist1") {
+    }
+
+    SUBCASE("msgsend: classname '(' ')' blocklist") {
+    }
+
+    SUBCASE("msgsend: classname '(' keyarglist1 optcomma ')' blocklist") {
+    }
+
+    SUBCASE("msgsend: classname '(' arglist1 optkeyarglist ')' blocklist") {
+    }
+
+    SUBCASE("msgsend: classname '(' arglistv1 optkeyarglist ')'") {
+    }
+
+    SUBCASE("msgsend: expr '.' '(' ')' blocklist") {
+    }
+
+    SUBCASE("msgsend: expr '.' '(' keyarglist1 optcomma ')' blocklist") {
+    }
+
+    SUBCASE("msgsend: expr '.' name '(' keyarglist1 optcomma ')' blocklist") {
+    }
+
+    SUBCASE("msgsend: expr '.' '(' arglist1 optkeyarglist ')' blocklist") {
+    }
+
+    SUBCASE("msgsend: expr '.' '(' arglistv1 optkeyarglist ')'") {
+    }
+
+    SUBCASE("msgsend: expr '.' name '(' ')' blocklist") {
+    }
+
+    SUBCASE("msgsend: expr '.' name '(' arglist1 optkeyarglist ')' blocklist") {
+    }
+
+    SUBCASE("msgsend: expr '.' name '(' arglistv1 optkeyarglist ')'") {
+    }
+
+    SUBCASE("msgsend: expr '.' name blocklist") {
     }
 }
 
 TEST_CASE("Parser expr") {
     SUBCASE("expr: expr1") {
+        Parser parser("( \\g )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(block->body.get());
+        CHECK(literal->value.type() == TypedValue::Type::kSymbol);
     }
 
     SUBCASE("expr: valrangexd") {
@@ -1239,6 +1666,21 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: classname") {
+        Parser parser("( Object )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kName);
+        auto name = reinterpret_cast<const parse::NameNode*>(block->body.get());
+        CHECK(name->name.compare("Object") == 0);
+        CHECK(!name->isGlobal);
     }
 
     SUBCASE("expr: expr '.' '[' arglist1 ']'") {
@@ -1251,12 +1693,80 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: name '=' expr") {
+        Parser parser("( four = 4 )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kAssign);
+        auto assign = reinterpret_cast<const parse::AssignNode*>(block->body.get());
+        CHECK(assign->name->name.compare("four") == 0);
+        CHECK(!assign->name->isGlobal);
+        CHECK(assign->name->next == nullptr);
+        REQUIRE(assign->value != nullptr);
+        REQUIRE(assign->value->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(assign->value.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 4);
     }
 
     SUBCASE("expr: '~' name '=' expr") {
+        Parser parser("( ~globez = \"xyz\" )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kAssign);
+        auto assign = reinterpret_cast<const parse::AssignNode*>(block->body.get());
+        CHECK(assign->name->name.compare("globez") == 0);
+        CHECK(assign->name->isGlobal);
+        CHECK(assign->name->next == nullptr);
+        REQUIRE(assign->value != nullptr);
+        REQUIRE(assign->value->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(assign->value.get());
+        CHECK(literal->value.type() == TypedValue::Type::kString);
     }
 
     SUBCASE("expr: expr '.' name '=' expr") {
+        Parser parser("( ~object.property = true )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kSetter);
+        auto setter = reinterpret_cast<const parse::SetterNode*>(block->body.get());
+        CHECK(setter->selector.compare("property") == 0);
+        CHECK(setter->next == nullptr);
+
+        REQUIRE(setter->target != nullptr);
+        REQUIRE(setter->target->nodeType == parse::NodeType::kName);
+        auto name = reinterpret_cast<const parse::NameNode*>(setter->target.get());
+        CHECK(name->isGlobal);
+        CHECK(name->name.compare("object") == 0);
+
+        REQUIRE(setter->value != nullptr);
+        REQUIRE(setter->value->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(setter->value.get());
+        CHECK(literal->value.type() == TypedValue::Type::kBoolean);
+        CHECK(literal->value.asBoolean());
     }
 
     SUBCASE("expr: name '(' arglist1 optkeyarglist ')' '=' expr") {
@@ -1269,6 +1779,53 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: expr '.' '[' arglist1 ']' '=' expr") {
+    }
+}
+
+TEST_CASE("Parser expr1") {
+    SUBCASE("expr1: pushliteral") {
+    }
+
+    SUBCASE("expr1: blockliteral") {
+    }
+
+    SUBCASE("expr1: generator") {
+    }
+
+    SUBCASE("expr1: pushname") {
+    }
+
+    SUBCASE("expr1: curryarg") {
+    }
+
+    SUBCASE("expr1: msgsend") {
+    }
+
+    SUBCASE("expr1: '(' exprseq ')'") {
+    }
+
+    SUBCASE("expr1: '~' name") {
+    }
+
+    SUBCASE("expr1: '[' arrayelems ']'") {
+    }
+
+    SUBCASE("expr1: '(' valrange2 ')'") {
+    }
+
+    SUBCASE("expr1: '(' ':' valrange3 ')'") {
+    }
+
+    SUBCASE("expr1: '(' dictslotlist ')'") {
+    }
+
+    SUBCASE("expr1: pseudovar") {
+    }
+
+    SUBCASE("expr1: expr1 '[' arglist1 ']'") {
+    }
+
+    SUBCASE("expr1: valrangexd") {
     }
 }
 
