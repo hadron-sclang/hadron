@@ -923,6 +923,32 @@ TEST_CASE("Binary Operators") {
         CHECK(lexer.tokens()[2].value.type() == TypedValue::Type::kString);
         CHECK(!lexer.tokens()[2].couldBeBinop);
     }
+    SUBCASE("keyword binops") {
+        const char* code = "a: x, b: y";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 5);
+        CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kKeyword);
+        CHECK(lexer.tokens()[0].start == code);
+        CHECK(lexer.tokens()[0].length == 1);
+        CHECK(lexer.tokens()[0].couldBeBinop);
+        CHECK(lexer.tokens()[1].type == Lexer::Token::Type::kIdentifier);
+        CHECK(lexer.tokens()[1].start == code + 3);
+        CHECK(lexer.tokens()[1].length == 1);
+        CHECK(!lexer.tokens()[1].couldBeBinop);
+        CHECK(lexer.tokens()[2].type == Lexer::Token::Type::kComma);
+        CHECK(lexer.tokens()[2].start == code + 4);
+        CHECK(lexer.tokens()[2].length == 1);
+        CHECK(!lexer.tokens()[2].couldBeBinop);
+        CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kKeyword);
+        CHECK(lexer.tokens()[3].start == code + 6);
+        CHECK(lexer.tokens()[3].length == 1);
+        CHECK(lexer.tokens()[3].couldBeBinop);
+        CHECK(lexer.tokens()[4].type == Lexer::Token::Type::kIdentifier);
+        CHECK(lexer.tokens()[4].start == code + 9);
+        CHECK(lexer.tokens()[4].length == 1);
+        CHECK(!lexer.tokens()[4].couldBeBinop);
+    }
 }
 
 TEST_CASE("Lexer Delimiters") {
@@ -1448,7 +1474,7 @@ TEST_CASE("Lexer Class Names") {
         const char* code = "Class.method(label: 4)";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
-        REQUIRE(lexer.tokens().size() == 8);
+        REQUIRE(lexer.tokens().size() == 7);
         CHECK(lexer.tokens()[0].type == Lexer::Token::Type::kClassName);
         CHECK(lexer.tokens()[0].start == code);
         CHECK(lexer.tokens()[0].length == 5);
@@ -1461,20 +1487,17 @@ TEST_CASE("Lexer Class Names") {
         CHECK(lexer.tokens()[3].type == Lexer::Token::Type::kOpenParen);
         CHECK(lexer.tokens()[3].start == code + 12);
         CHECK(lexer.tokens()[3].length == 1);
-        CHECK(lexer.tokens()[4].type == Lexer::Token::Type::kIdentifier);
+        CHECK(lexer.tokens()[4].type == Lexer::Token::Type::kKeyword);
         CHECK(lexer.tokens()[4].start == code + 13);
         CHECK(lexer.tokens()[4].length == 5);
-        CHECK(lexer.tokens()[5].type == Lexer::Token::Type::kColon);
-        CHECK(lexer.tokens()[5].start == code + 18);
+        CHECK(lexer.tokens()[5].type == Lexer::Token::Type::kLiteral);
+        CHECK(lexer.tokens()[5].start == code + 20);
         CHECK(lexer.tokens()[5].length == 1);
-        CHECK(lexer.tokens()[6].type == Lexer::Token::Type::kLiteral);
-        CHECK(lexer.tokens()[6].start == code + 20);
+        CHECK(lexer.tokens()[5].value.type() == TypedValue::Type::kInteger);
+        CHECK(lexer.tokens()[5].value.asInteger() == 4);
+        CHECK(lexer.tokens()[6].type == Lexer::Token::Type::kCloseParen);
+        CHECK(lexer.tokens()[6].start == code + 21);
         CHECK(lexer.tokens()[6].length == 1);
-        CHECK(lexer.tokens()[6].value.type() == TypedValue::Type::kInteger);
-        CHECK(lexer.tokens()[6].value.asInteger() == 4);
-        CHECK(lexer.tokens()[7].type == Lexer::Token::Type::kCloseParen);
-        CHECK(lexer.tokens()[7].start == code + 21);
-        CHECK(lexer.tokens()[7].length == 1);
     }
     SUBCASE("construction") {
         const char* code = "SynthDef(\\t, { SinOsc.ar(880) }).add;";

@@ -1206,6 +1206,20 @@ std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
 //            | arrayelems1 ',' keybinop exprseq
 //            | arrayelems1 ',' exprseq ':' exprseq
 std::unique_ptr<parse::Node> Parser::parseArrayElements() {
+    std::unique_ptr<parse::Node> elem;
+    if (m_token.type == Lexer::Token::Type::kKeyword) {
+        Lexer::Token keyword = m_token;
+        elem = std::make_unique<parse::LiteralNode>(m_tokenIndex, TypedValue(TypedValue::Type::kSymbol));
+        next(); // keyword
+        std::unique_ptr<parse::Node> exprseq = parseExprSeq();
+        if (exprseq == nullptr) {
+            // FIXME
+            return nullptr;
+        }
+        elem->append(exprseq);
+    } else {
+        elem = parseExprSeq();
+    }
     return nullptr;
 }
 

@@ -129,6 +129,10 @@
         ('!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' | '?' | '/')+ {
             m_tokens.emplace_back(Token(Token::Type::kBinop, ts, te - ts, true));
         };
+        # We don't include the colon at the end of the keyword to simplify parsing.
+        lower (alnum | '_')* ':' {
+            m_tokens.emplace_back(Token(Token::Type::kKeyword, ts, te - ts - 1, true));
+        };
 
         ############
         # keywords #

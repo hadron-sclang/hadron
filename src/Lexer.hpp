@@ -28,7 +28,8 @@ public:
             kPipe,
             kReadWriteVar,
             kLeftArrow,
-            kBinop,  // TODO: rename kGenericBinop
+            kBinop,  // TODO: rename kGenericBinop, this is some arbitrary collection of the valid binop characters.
+            kKeyword,      // Any identifier with a colon after it.
             // <<< all above could also be binops >>>
 
             kOpenParen,
@@ -52,7 +53,7 @@ public:
             kClassName,
             kDot,
             kDotDot,
-            kEllipses
+            kEllipses,
         };
 
         Type type;
