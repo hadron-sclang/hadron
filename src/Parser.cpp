@@ -981,9 +981,16 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         if (m_token.type == Lexer::Token::kOpenSquare) {
             // expr -> expr1 -> msgsend: classname '[' arrayelems ']'
             auto dynList = std::make_unique<parse::DynListNode>(m_tokenIndex - 1);
+            Lexer::Token openSquare = m_token;
             next(); // [
             dynList->className = std::string_view(className.start, className.length);
             dynList->elements = parseArrayElements();
+            if (m_token.type != Lexer::Token::kCloseSquare) {
+                m_errorReporter->addError(fmt::format("Error parsing dynamic list on line {}, expecting closing square "
+                        "bracket ']' to match opening square bracket '[' on line {}",
+                        m_errorReporter->getLineNumber(m_token.start),
+                        m_errorReporter->getLineNumber(openSquare.start)));
+            }
             next(); // ]
             expr = std::move(dynList);
             isSingleExpression = true;
@@ -1068,9 +1075,22 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
         break;
 
-    case Lexer::Token::Type::kOpenSquare:
+    case Lexer::Token::Type::kOpenSquare: {
         // expr -> expr1: '[' arrayelems ']'
-        break;
+        auto dynList = std::make_unique<parse::DynListNode>(m_tokenIndex);
+        Lexer::Token openSquare = m_token;
+        next(); // [
+        dynList->elements = parseArrayElements();
+        if (m_token.type != Lexer::Token::kCloseSquare) {
+            m_errorReporter->addError(fmt::format("Error parsing dynamic list on line {}, expecting closing square "
+                    "bracket ']' to match opening square bracket '[' on line {}",
+                    m_errorReporter->getLineNumber(m_token.start),
+                    m_errorReporter->getLineNumber(openSquare.start)));
+        }
+        next(); // ]
+        expr = std::move(dynList);
+        isSingleExpression = true;
+    } break;
 
     case Lexer::Token::Type::kOpenCurly: {
         // expr -> expr1 -> generator: '{' ':' exprseq ',' qual '}'

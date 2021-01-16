@@ -1773,6 +1773,8 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: '#' mavars '=' expr") {
+        // #a, b, c = [1, 2, 3];
+
     }
 
     SUBCASE("expr: expr1 '[' arglist1 ']' '=' expr") {
@@ -1805,6 +1807,21 @@ TEST_CASE("Parser expr1") {
     }
 
     SUBCASE("expr1: '~' name") {
+        Parser parser("( ~z )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kName);
+        auto name = reinterpret_cast<const parse::NameNode*>(block->body.get());
+        CHECK(name->isGlobal);
+        CHECK(name->name.compare("z") == 0);
     }
 
     SUBCASE("expr1: '[' arrayelems ']'") {
@@ -1841,5 +1858,34 @@ TEST_CASE("Parser literal") {
         CHECK(literal->value.asInteger() == -1);
     }
 }
+
+TEST_CASE("Parser arrayelems") {
+    SUBCASE("arrayelems: <e>") {
+    }
+
+    SUBCASE("arrayelems: arrayelems1 optcomma") {
+    }
+}
+
+TEST_CASE("Parser arrayelems1") {
+    SUBCASE("arrayelems1: exprseq") {
+    }
+
+    SUBCASE("arrayelems1: exprseq ':' exprseq") {
+    }
+
+    SUBCASE("keybinop exprseq") {
+    }
+
+    SUBCASE("arrayelems1 ',' exprseq") {
+    }
+
+    SUBCASE("arrayelems1 ',' keybinop exprseq") {
+    }
+
+    SUBCASE("arrayelems1 ',' exprseq ':' exprseq") {
+    }
+}
+
 
 } // namespace hadron
