@@ -36,7 +36,7 @@
         ###################
         # Double-quoted string. Increments counter on escape characters for length computation.
         '"' (('\\' any %counter) | (extend - '"'))* '"' {
-            m_tokens.emplace_back(Token(Token::Type::kString, ts + 1, te - ts - 2 - counter));
+            m_tokens.emplace_back(Token(ts + 1, te - ts - 2 - counter, TypedValue::Type::kString));
             counter = 0;
         };
 
@@ -45,12 +45,12 @@
         ###########
         # Single-quoted symbol. Increments counter on escape characters for length computation.
         '\'' (('\\' any %counter) | (extend - '\''))* '\'' {
-            m_tokens.emplace_back(Token(Token::Type::kSymbol, ts + 1, te - ts - 2 - counter));
+            m_tokens.emplace_back(Token(ts + 1, te - ts - 2 - counter, TypedValue::Type::kSymbol));
             counter = 0;
         };
         # Slash symbols.
         '\\' [a-zA-Z0-9_]* {
-            m_tokens.emplace_back(Token(Token::Type::kSymbol, ts + 1, te - ts - 1));
+            m_tokens.emplace_back(Token(ts + 1, te - ts - 1, TypedValue::Type::kSymbol));
         };
 
         ##############
@@ -92,6 +92,9 @@
         '#' {
             m_tokens.emplace_back(Token(Token::Type::kHash, ts, 1));
         };
+        '`' {
+            m_tokens.emplace_back(Token(Token::Type::kGrave, ts, 1));
+        };
 
         #############
         # operators #
@@ -126,6 +129,10 @@
         ('!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' | '?' | '/')+ {
             m_tokens.emplace_back(Token(Token::Type::kBinop, ts, te - ts, true));
         };
+        # We don't include the colon at the end of the keyword to simplify parsing.
+        lower (alnum | '_')* ':' {
+            m_tokens.emplace_back(Token(Token::Type::kKeyword, ts, te - ts - 1, true));
+        };
 
         ############
         # keywords #
@@ -140,13 +147,13 @@
             m_tokens.emplace_back(Token(Token::Type::kConst, ts, 5));
         };
         'false' {
-            m_tokens.emplace_back(Token(Token::Type::kFalse, ts, 5));
+            m_tokens.emplace_back(Token(ts, 5, false));
         };
         'nil' {
-            m_tokens.emplace_back(Token(Token::Type::kNil, ts, 3));
+            m_tokens.emplace_back(Token(ts, 3, TypedValue::Type::kNil));
         };
         'true' {
-            m_tokens.emplace_back(Token(Token::Type::kTrue, ts, 4));
+            m_tokens.emplace_back(Token(ts, 4, true));
         };
         'var' {
             m_tokens.emplace_back(Token(Token::Type::kVar, ts, 3));
@@ -183,6 +190,13 @@
             return false;
         };
 
+        ##############
+        # primitives #
+        ##############
+        '_' (alnum | '_')+ {
+            m_tokens.emplace_back(Token(Token::Type::kPrimitive, ts, te - ts));
+        };
+
         space { /* ignore whitespace */ };
         any { return false; };
     *|;
@@ -192,10 +206,11 @@
 
 #include "Lexer.hpp"
 
-#include "spdlog/spdlog.h"
-
 namespace {
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wunused-const-variable"
     %% write data;
+#   pragma GCC diagnostic pop
 }
 
 namespace hadron {

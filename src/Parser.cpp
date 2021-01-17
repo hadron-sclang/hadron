@@ -41,10 +41,10 @@ superclass: <e> | ':' classname
 classvardecls: <e> | classvardecls classvardecl
 
 classvardecl: CLASSVAR rwslotdeflist ';'
-                | VAR rwslotdeflist ';'
-                | SC_CONST constdeflist ';'
+            | VAR rwslotdeflist ';'
+            | SC_CONST constdeflist ';'
 
-methods: <e> | methods methoddef
+methods: <e> | methods miethoddef
 
 methoddef: name '{' argdecls funcvardecls primitive methbody '}'
             | '*' name '{' argdecls funcvardecls primitive methbody '}'
@@ -58,7 +58,7 @@ optcomma: <e> | ','
 optequal: <e> | '='
 
 funcbody: funretval
-            | exprseq funretval
+        | exprseq funretval
 
 cmdlinecode: '(' funcvardecls1 funcbody ')'
              | funcvardecls1 funcbody
@@ -79,40 +79,40 @@ blocklistitem : blockliteral | generator
 blocklist: <e> | blocklist1
 
 msgsend: name blocklist1
-        | '(' binop2 ')' blocklist1
-        | name '(' ')' blocklist1
-        | name '(' arglist1 optkeyarglist ')' blocklist
-        | '(' binop2 ')' '(' ')' blocklist1
-        | '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
-        | name '(' arglistv1 optkeyarglist ')'
-        | '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
-        | classname '[' arrayelems ']'
-        | classname blocklist1
-        | classname '(' ')' blocklist
-        | classname '(' keyarglist1 optcomma ')' blocklist
-        | classname '(' arglist1 optkeyarglist ')' blocklist
-        | classname '(' arglistv1 optkeyarglist ')'
-        | expr '.' '(' ')' blocklist
-        | expr '.' '(' keyarglist1 optcomma ')' blocklist
-        | expr '.' name '(' keyarglist1 optcomma ')' blocklist
-        | expr '.' '(' arglist1 optkeyarglist ')' blocklist
-        | expr '.' '(' arglistv1 optkeyarglist ')'
-        | expr '.' name '(' ')' blocklist
-        | expr '.' name '(' arglist1 optkeyarglist ')' blocklist
-        | expr '.' name '(' arglistv1 optkeyarglist ')'
-        | expr '.' name blocklist
+       | '(' binop2 ')' blocklist1
+       | name '(' ')' blocklist1
+       | name '(' arglist1 optkeyarglist ')' blocklist
+       | '(' binop2 ')' '(' ')' blocklist1
+       | '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
+       | name '(' arglistv1 optkeyarglist ')'
+       | '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
+       | classname '[' arrayelems ']'
+       | classname blocklist1
+       | classname '(' ')' blocklist
+       | classname '(' keyarglist1 optcomma ')' blocklist
+       | classname '(' arglist1 optkeyarglist ')' blocklist
+       | classname '(' arglistv1 optkeyarglist ')'
+       | expr '.' '(' ')' blocklist
+       | expr '.' '(' keyarglist1 optcomma ')' blocklist
+       | expr '.' name '(' keyarglist1 optcomma ')' blocklist
+       | expr '.' '(' arglist1 optkeyarglist ')' blocklist
+       | expr '.' '(' arglistv1 optkeyarglist ')'
+       | expr '.' name '(' ')' blocklist
+       | expr '.' name '(' arglist1 optkeyarglist ')' blocklist
+       | expr '.' name '(' arglistv1 optkeyarglist ')'
+       | expr '.' name blocklist
 
 generator: '{' ':' exprseq ',' qual '}'
-        | '{' ';' exprseq  ',' qual '}'
+         | '{' ';' exprseq  ',' qual '}'
 
 nextqual: <e> | ',' qual
 
 qual: name LEFTARROW exprseq nextqual
-        | name name LEFTARROW exprseq nextqual
-        | VAR name '=' exprseq nextqual
-        | exprseq nextqual
-        | ':' ':' exprseq nextqual
-        | ':' WHILE exprseq nextqual
+    | name name LEFTARROW exprseq nextqual
+    | VAR name '=' exprseq nextqual
+    | exprseq nextqual
+    | ':' ':' exprseq nextqual
+    | ':' WHILE exprseq nextqual
 
 expr1: pushliteral
         | blockliteral
@@ -158,24 +158,24 @@ valrange3: DOTDOT exprseq
         | exprseq ',' exprseq DOTDOT exprseq
 
 expr: expr1
-        | valrangexd
-        | valrangeassign
-        | classname
-        | expr '.' '[' arglist1 ']'
-        | '`' expr
-        | expr binop2 adverb expr %prec BINOP
-        | name '=' expr
-        | '~' name '=' expr
-        | expr '.' name '=' expr
-        | name '(' arglist1 optkeyarglist ')' '=' expr
-        | '#' mavars '=' expr
-        | expr1 '[' arglist1 ']' '=' expr
-        | expr '.' '[' arglist1 ']' '=' expr
+    | valrangexd
+    | valrangeassign
+    | classname
+    | expr '.' '[' arglist1 ']'
+    | '`' expr
+    | expr binop2 adverb expr %prec BINOP
+    | name '=' expr
+    | '~' name '=' expr
+    | expr '.' name '=' expr
+    | name '(' arglist1 optkeyarglist ')' '=' expr
+    | '#' mavars '=' expr
+    | expr1 '[' arglist1 ']' '=' expr
+    | expr '.' '[' arglist1 ']' '=' expr
 
 adverb: <e>
-        | '.' name
-        | '.' integer
-        | '.' '(' exprseq ')'
+      | '.' name
+      | '.' integer
+      | '.' '(' exprseq ')'
 
 exprn: expr | exprn ';' expr
 
@@ -184,11 +184,11 @@ exprseq: exprn optsemi
 arrayelems: <e> | arrayelems1 optcomma
 
 arrayelems1: exprseq
-             | exprseq ':' exprseq
-             | keybinop exprseq
-             | arrayelems1 ',' exprseq
-             | arrayelems1 ',' keybinop exprseq
-             | arrayelems1 ',' exprseq ':' exprseq
+           | exprseq ':' exprseq
+           | keybinop exprseq
+           | arrayelems1 ',' exprseq
+           | arrayelems1 ',' keybinop exprseq
+           | arrayelems1 ',' exprseq ':' exprseq
 
 arglist1: exprseq | arglist1 ',' exprseq
 
@@ -215,7 +215,7 @@ pushliteral: integer | floatp | ascii | string | symbol | trueobj | falseobj | n
 listliteral: integer | floatp | ascii | string | symbol | name | trueobj | falseobj | nilobj | listlit2 | dictlit2
 
 block: '{' argdecls funcvardecls funcbody '}'
-        | BEGINCLOSEDFUNC argdecls funcvardecls funcbody '}'
+     | BEGINCLOSEDFUNC argdecls funcvardecls funcbody '}'
 
 funcvardecls: <e> | funcvardecls funcvardecl
 
@@ -320,7 +320,9 @@ Parser::Parser(std::string_view code, std::shared_ptr<ErrorReporter> errorReport
     m_lexer(code),
     m_tokenIndex(0),
     m_token(Lexer::Token()),
-    m_errorReporter(errorReporter) {}
+    m_errorReporter(errorReporter) {
+    m_errorReporter->setCode(code.data());
+}
 
 Parser::~Parser() {}
 
@@ -328,9 +330,16 @@ bool Parser::parse() {
     if (!m_lexer.lex()) {
         return false;
     }
-    next();
+
+    if (m_lexer.tokens().size() > 0) {
+        m_token = m_lexer.tokens()[0];
+    } else {
+        m_token = Lexer::Token(Lexer::Token::Type::kEmpty, nullptr, 0);
+    }
 
     m_root = parseRoot();
+    if (!m_root) return false;
+
     while (m_errorReporter->errorCount() == 0 && m_token.type != Lexer::Token::Type::kEmpty) {
         m_root->append(parseRoot());
     }
@@ -339,9 +348,9 @@ bool Parser::parse() {
 }
 
 bool Parser::next() {
+    ++m_tokenIndex;
     if (m_tokenIndex < m_lexer.tokens().size()) {
         m_token = m_lexer.tokens()[m_tokenIndex];
-        ++m_tokenIndex;
         return true;
     }
     m_token = Lexer::Token(Lexer::Token::Type::kEmpty, nullptr, 0);
@@ -352,13 +361,13 @@ bool Parser::next() {
 // Entry conditions are documented with asserts().
 // Tail recursion is avoided using the while/node->append pattern.
 
-// root: classes | classextensions | INTERPRET cmdlinecode
+// root: classes | classextensions | cmdlinecode
 // classes: <e> | classes classdef
 // classextensions: classextension | classextensions classextension
 std::unique_ptr<parse::Node> Parser::parseRoot() {
     switch (m_token.type) {
         case Lexer::Token::Type::kEmpty:
-            return std::make_unique<parse::Node>();
+            return std::make_unique<parse::Node>(parse::NodeType::kEmpty, m_tokenIndex);
 
         case Lexer::Token::Type::kClassName:
             return parseClass();
@@ -372,23 +381,15 @@ std::unique_ptr<parse::Node> Parser::parseRoot() {
 }
 
 // classdef: classname superclass '{' classvardecls methods '}'
-//           | classname '[' optname ']' superclass '{' classvardecls methods '}'
+//         | classname '[' optname ']' superclass '{' classvardecls methods '}'
 // superclass: <e> | ':' classname
 // optname: <e> | name
 std::unique_ptr<parse::ClassNode> Parser::parseClass() {
     assert(m_token.type == Lexer::Token::Type::kClassName);
-    auto classNode = std::make_unique<parse::ClassNode>(std::string_view(m_token.start, m_token.length));
+    auto classNode = std::make_unique<parse::ClassNode>(m_tokenIndex, std::string_view(m_token.start, m_token.length));
     next(); // classname
-    if (m_token.type == Lexer::Token::Type::kColon) {
-        next(); // :
-        if (m_token.type != Lexer::Token::Type::kClassName) {
-            m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting superclass name after "
-                "colon ':'.", classNode->className, m_errorReporter->getLineNumber(m_token.start)));
-            return classNode;
-        }
-        classNode->superClassName = std::string_view(m_token.start, m_token.length);
-        next(); // superclass classname
-    } else if (m_token.type == Lexer::Token::Type::kOpenSquare) {
+
+    if (m_token.type == Lexer::Token::Type::kOpenSquare) {
         next(); // [
         if (m_token.type != Lexer::Token::Type::kIdentifier) {
             m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting valid optional name "
@@ -406,6 +407,17 @@ std::unique_ptr<parse::ClassNode> Parser::parseClass() {
         next(); // ]
     }
 
+    if (m_token.type == Lexer::Token::Type::kColon) {
+        next(); // :
+        if (m_token.type != Lexer::Token::Type::kClassName) {
+            m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting superclass name after "
+                "colon ':'.", classNode->className, m_errorReporter->getLineNumber(m_token.start)));
+            return classNode;
+        }
+        classNode->superClassName = std::string_view(m_token.start, m_token.length);
+        next(); // superclass classname
+    }
+
     if (m_token.type != Lexer::Token::Type::kOpenCurly) {
         m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting opening curly brace '{{'.",
             classNode->className, m_errorReporter->getLineNumber(m_token.start)));
@@ -418,8 +430,8 @@ std::unique_ptr<parse::ClassNode> Parser::parseClass() {
     classNode->methods = parseMethods();
 
     if (m_token.type != Lexer::Token::Type::kCloseCurly) {
-        m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting closing curly brace '}}' to "
-            "match opening brace '{{ on line {}", classNode->className,
+        m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting closing curly brace '}}' "
+            "to match opening brace '{{' on line {}", classNode->className,
             m_errorReporter->getLineNumber(m_token.start), m_errorReporter->getLineNumber(openCurly.start)));
         return classNode;
     }
@@ -435,9 +447,10 @@ std::unique_ptr<parse::ClassExtNode> Parser::parseClassExtension() {
     if (m_token.type != Lexer::Token::Type::kClassName) {
         m_errorReporter->addError(fmt::format("Error parsing at line {}: expecting class name after '+' symbol.",
                 m_errorReporter->getLineNumber(m_token.start)));
-        return std::make_unique<parse::ClassExtNode>(std::string_view());
+        return std::make_unique<parse::ClassExtNode>(m_tokenIndex, std::string_view());
     }
-    auto extension = std::make_unique<parse::ClassExtNode>(std::string_view(m_token.start, m_token.length));
+    auto extension = std::make_unique<parse::ClassExtNode>(m_tokenIndex,
+            std::string_view(m_token.start, m_token.length));
     next(); // classname
     if (m_token.type != Lexer::Token::kOpenCurly) {
         m_errorReporter->addError(fmt::format("Error parsing at line {}: expecting open curly brace '{{' after "
@@ -448,8 +461,8 @@ std::unique_ptr<parse::ClassExtNode> Parser::parseClassExtension() {
     next(); // {
     extension->methods = parseMethods();
     if (m_token.type != Lexer::Token::kCloseCurly) {
-        m_errorReporter->addError(fmt::format("Error parsing around line {}: expecting closing curly brace '}}' to match "
-                "opening brace '{{' on line {}", m_errorReporter->getLineNumber(m_token.start),
+        m_errorReporter->addError(fmt::format("Error parsing around line {}: expecting closing curly brace '}}' to "
+                "match opening brace '{{' on line {}", m_errorReporter->getLineNumber(m_token.start),
                 m_errorReporter->getLineNumber(openCurly.start)));
     }
     next(); // }
@@ -457,17 +470,15 @@ std::unique_ptr<parse::ClassExtNode> Parser::parseClassExtension() {
 }
 
 // cmdlinecode: '(' funcvardecls1 funcbody ')'
-//              | funcvardecls1 funcbody
-//              | funcbody
+//            | funcvardecls1 funcbody
+//            | funcbody
 std::unique_ptr<parse::Node> Parser::parseCmdLineCode() {
     switch (m_token.type) {
     case Lexer::Token::Type::kOpenParen: {
         auto openParenToken = m_token;
         next(); // (
-        auto block = std::make_unique<parse::BlockNode>();
-        if (m_token.type == Lexer::Token::Type::kVar) {
-            block->variables = parseFuncVarDecls();
-        }
+        auto block = std::make_unique<parse::BlockNode>(m_tokenIndex);
+        block->variables = parseFuncVarDecls();
         block->body = parseFuncBody();
         if (m_token.type != Lexer::Token::kCloseParen) {
             m_errorReporter->addError(fmt::format("Error parsing around line {}: expecting closing parenthesis to "
@@ -479,7 +490,7 @@ std::unique_ptr<parse::Node> Parser::parseCmdLineCode() {
     } break;
 
     case Lexer::Token::Type::kVar: {
-        auto block = std::make_unique<parse::BlockNode>();
+        auto block = std::make_unique<parse::BlockNode>(m_tokenIndex);
         block->variables = parseFuncVarDecls();
         block->body = parseFuncBody();
         return block;
@@ -492,9 +503,9 @@ std::unique_ptr<parse::Node> Parser::parseCmdLineCode() {
 
 // classvardecls: <e> | classvardecls classvardecl
 std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecls() {
-    std::unique_ptr<parse::VarListNode> classVars = parseClassVarDecl();
+    auto classVars = parseClassVarDecl();
     if (classVars != nullptr) {
-        std::unique_ptr<parse::VarListNode> furtherClassVars = parseClassVarDecl();
+        auto furtherClassVars = parseClassVarDecl();
         while (furtherClassVars != nullptr) {
             classVars->append(std::move(furtherClassVars));
             furtherClassVars = parseClassVarDecl();
@@ -504,8 +515,8 @@ std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecls() {
 }
 
 // classvardecl: CLASSVAR rwslotdeflist ';'
-//               | VAR rwslotdeflist ';'
-//               | SC_CONST constdeflist ';'
+//             | VAR rwslotdeflist ';'
+//             | SC_CONST constdeflist ';'
 std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecl() {
     switch (m_token.type) {
     case Lexer::Token::Type::kClassVar: {
@@ -547,33 +558,55 @@ std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecl() {
 }
 
 // methods: <e> | methods methoddef
-// methoddef: name '{' argdecls funcvardecls primitive methbody '}'
-//            | binop '{' argdecls funcvardecls primitive methbody '}'
-//            | '*' name '{' argdecls funcvardecls primitive methbody '}'
-//            | '*' binop '{' argdecls funcvardecls primitive methbody '}'
-// TODO: support primitives
 std::unique_ptr<parse::MethodNode> Parser::parseMethods() {
+    auto method = parseMethod();
+    if (method != nullptr) {
+        auto nextMethod = parseMethod();
+        while (nextMethod != nullptr) {
+            method->append(std::move(nextMethod));
+            nextMethod = parseMethod();
+        }
+    }
+    return method;
+}
+
+// methoddef: name '{' argdecls funcvardecls primitive methbody '}'
+//          | binop '{' argdecls funcvardecls primitive methbody '}'
+//          | '*' name '{' argdecls funcvardecls primitive methbody '}'
+//          | '*' binop '{' argdecls funcvardecls primitive methbody '}'
+// primitive: <e> | primname optsemi
+// primname: PRIMITIVENAME
+std::unique_ptr<parse::MethodNode> Parser::parseMethod() {
     bool isClassMethod = false;
     if (m_token.type == Lexer::Token::Type::kAsterisk) {
         isClassMethod = true;
         next(); // *
     }
     if (m_token.type == Lexer::Token::Type::kIdentifier || m_token.couldBeBinop) {
-        auto method = std::make_unique<parse::MethodNode>(std::string_view(m_token.start, m_token.length),
+        auto method = std::make_unique<parse::MethodNode>(m_tokenIndex, std::string_view(m_token.start, m_token.length),
                 isClassMethod);
         next(); // name or binop (treated as name)
         if (m_token.type != Lexer::Token::Type::kOpenCurly) {
             m_errorReporter->addError(fmt::format("Error parsing method named '{}' at line {}, expecting opening curly "
-                        "brace '{'.", method->methodName, m_errorReporter->getLineNumber(m_token.start)));
+                        "brace '{{'.", method->methodName, m_errorReporter->getLineNumber(m_token.start)));
             return nullptr;
         }
         next(); // {
         method->arguments = parseArgDecls();
         method->variables = parseFuncVarDecls();
+
+        if (m_token.type == Lexer::Token::Type::kPrimitive) {
+            method->primitive = std::string_view(m_token.start, m_token.length);
+            next(); // primitive
+            if (m_token.type == Lexer::Token::Type::kSemicolon) {
+                next(); // optsemi
+            }
+        }
+
         method->body = parseMethodBody();
         if (m_token.type != Lexer::Token::Type::kCloseCurly) {
             m_errorReporter->addError(fmt::format("Error parsing method named '{}' at line {}, expecting closing curly "
-                        "brace '}'.", method->methodName, m_errorReporter->getLineNumber(m_token.start)));
+                        "brace '}}'.", method->methodName, m_errorReporter->getLineNumber(m_token.start)));
             return nullptr;
         }
         next(); // }
@@ -616,31 +649,46 @@ std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecl() {
 }
 
 // funcbody: funretval
-//           | exprseq funretval
+//         | exprseq funretval
 // funretval: <e> | '^' expr optsemi
 std::unique_ptr<parse::Node> Parser::parseFuncBody() {
     if (m_token.type == Lexer::Token::Type::kCaret) {
+        auto retNode = std::make_unique<parse::ReturnNode>(m_tokenIndex);
         next(); // ^
-        auto expr = parseExpr();
+        retNode->valueExpr = parseExpr();
         if (m_token.type == Lexer::Token::Type::kSemicolon) {
             next(); // ;
         }
-        return expr;
+        return retNode;
     }
-    auto exprSeq = parseExprSeq();
+    size_t bodyStart = m_tokenIndex;
+    auto prefix = parseExprSeq();
+    if (!prefix) return nullptr;
+
     if (m_token.type == Lexer::Token::Type::kCaret) {
+        auto retNode = std::make_unique<parse::ReturnNode>(m_tokenIndex);
         next(); // ^
-        exprSeq->append(parseExpr());
+        retNode->valueExpr = parseExpr();
         if (m_token.type == Lexer::Token::Type::kSemicolon) {
             next(); // ;
         }
+        if (prefix->nodeType == parse::NodeType::kExprSeq) {
+            auto exprSeq = reinterpret_cast<parse::ExprSeqNode*>(prefix.get());
+            exprSeq->expr->append(std::move(retNode));
+        } else {
+            auto exprSeq = std::make_unique<parse::ExprSeqNode>(bodyStart, std::move(prefix));
+            exprSeq->expr->append(std::move(retNode));
+            return exprSeq;
+        }
     }
-    return exprSeq;
+    return prefix;
 }
 
 // rwslotdeflist: rwslotdef | rwslotdeflist ',' rwslotdef
 std::unique_ptr<parse::VarListNode> Parser::parseRWVarDefList() {
-    auto varList = std::make_unique<parse::VarListNode>();
+    assert(m_token.type == Lexer::Token::Type::kVar || m_token.type == Lexer::Token::Type::kClassVar);
+    auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
+    next(); // var or classvar
     varList->definitions = parseRWVarDef();
     if (varList->definitions != nullptr) {
         while (m_token.type == Lexer::Token::Type::kComma) {
@@ -659,11 +707,18 @@ std::unique_ptr<parse::VarListNode> Parser::parseRWVarDefList() {
 // rwslotdef: rwspec name | rwspec name '=' slotliteral
 // rwspec: <e> | '<' | READWRITEVAR | '>'
 std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
+    bool readAccess = false;
+    bool writeAccess = false;
+
     if (m_token.type == Lexer::Token::Type::kLessThan) {
+        readAccess = true;
         next(); // <
     } else if (m_token.type == Lexer::Token::Type::kGreaterThan) {
+        writeAccess = true;
         next(); // >
     } else if (m_token.type == Lexer::Token::Type::kReadWriteVar) {
+        readAccess = true;
+        writeAccess = true;
         next(); // <>
     }
 
@@ -673,12 +728,19 @@ std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
         return nullptr;
     }
 
-    auto varDef = std::make_unique<parse::VarDefNode>(std::string_view(m_token.start, m_token.length));
+    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, std::string_view(m_token.start, m_token.length));
     next(); // name
+
+    varDef->hasReadAccessor = readAccess;
+    varDef->hasWriteAccessor = writeAccess;
+
     if (m_token.type == Lexer::Token::Type::kAssign) {
         next(); // =
         varDef->initialValue = parseLiteral();
         if (varDef->initialValue == nullptr) {
+            m_errorReporter->addError(fmt::format("Error parsing class variable declaration at line {}, expecting "
+                    "literal (e.g. number, string, symbol) following assignment.",
+                    m_errorReporter->getLineNumber(m_token.start)));
             return nullptr;
         }
     }
@@ -689,7 +751,9 @@ std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
 // constdeflist: constdef | constdeflist optcomma constdef
 // optcomma: <e> | ','
 std::unique_ptr<parse::VarListNode> Parser::parseConstDefList() {
-    auto varList = std::make_unique<parse::VarListNode>();
+    assert(m_token.type == Lexer::Token::Type::kConst);
+    auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
+    next(); // const
     varList->definitions = parseConstDef();
     if (varList->definitions == nullptr) {
         m_errorReporter->addError(fmt::format("Error parsing class constant declaration at line {}, expecting constant "
@@ -714,7 +778,9 @@ std::unique_ptr<parse::VarListNode> Parser::parseConstDefList() {
 // constdef: rspec name '=' slotliteral
 // rspec:  <e> | '<'
 std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
+    bool readAccess = false;
     if (m_token.type == Lexer::Token::Type::kLessThan) {
+        readAccess = true;
         next(); // <
         if (m_token.type != Lexer::Token::Type::kIdentifier) {
             m_errorReporter->addError(fmt::format("Error parsing class constant declaration at line {}, expecting "
@@ -725,8 +791,9 @@ std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
         // May not be an error, in this case, may just be the end of the constant list.
         return nullptr;
     }
-    auto varDef = std::make_unique<parse::VarDefNode>(std::string_view(m_token.start, m_token.length));
+    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, std::string_view(m_token.start, m_token.length));
     next(); // name
+    varDef->hasReadAccessor = readAccess;
     if (m_token.type != Lexer::Token::Type::kAssign) {
         m_errorReporter->addError(fmt::format("Error parsing class constant '{}' declaration at line {}, expecting "
                     "assignment operator '='.", varDef->varName, m_errorReporter->getLineNumber(m_token.start)));
@@ -735,15 +802,17 @@ std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
     next(); // =
     varDef->initialValue = parseLiteral();
     if (varDef->initialValue == nullptr) {
+        m_errorReporter->addError(fmt::format("Error parsing class constant '{}' declaration at line {}, expecting "
+                    "literal (e.g. number, string, symbol) following assignment.", varDef->varName,
+                    m_errorReporter->getLineNumber(m_token.start)));
         return nullptr;
     }
-
     return varDef;
 }
 
 // vardeflist: vardef | vardeflist ',' vardef
 std::unique_ptr<parse::VarListNode> Parser::parseVarDefList() {
-    auto varList = std::make_unique<parse::VarListNode>();
+    auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
     varList->definitions = parseVarDef();
     if (varList->definitions == nullptr) {
         return nullptr;
@@ -766,7 +835,7 @@ std::unique_ptr<parse::VarDefNode> Parser::parseVarDef() {
                     m_errorReporter->getLineNumber(m_token.start)));
         return nullptr;
     }
-    auto varDef = std::make_unique<parse::VarDefNode>(std::string_view(m_token.start, m_token.length));
+    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, std::string_view(m_token.start, m_token.length));
     next(); // name
     if (m_token.type == Lexer::Token::kAssign) {
         next(); // =
@@ -792,11 +861,11 @@ std::unique_ptr<parse::VarDefNode> Parser::parseVarDef() {
     return varDef;
 }
 
-
-// argdecls: <e> | ARG vardeflist ';'
-//               | ARG vardeflist0 ELLIPSIS name ';'
-//               | '|' slotdeflist '|'
-//               | '|' slotdeflist0 ELLIPSIS name '|'
+// argdecls: <e>
+//         | ARG vardeflist ';'
+//         | ARG vardeflist0 ELLIPSIS name ';'
+//         | '|' slotdeflist '|'
+//         | '|' slotdeflist0 ELLIPSIS name '|'
 std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
     bool isArg;
     if (m_token.type == Lexer::Token::Type::kArg) {
@@ -808,7 +877,7 @@ std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
     }
 
     next(); // arg or |
-    auto argList = std::make_unique<parse::ArgListNode>();
+    auto argList = std::make_unique<parse::ArgListNode>(m_tokenIndex);
     argList->varList = parseVarDefList();
 
     if (m_token.type == Lexer::Token::Type::kEllipses) {
@@ -839,10 +908,12 @@ std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
 // methbody: retval | exprseq retval
 // retval: <e> | '^' expr optsemi
 std::unique_ptr<parse::Node> Parser::parseMethodBody() {
-    auto exprSeq = parseExprSeq();
+    size_t bodyIndex = m_tokenIndex;
+    auto prefix = parseExprSeq();
+
     if (m_token.type == Lexer::Token::Type::kCaret) {
+        auto retVal = std::make_unique<parse::ReturnNode>(m_tokenIndex);
         next(); // ^
-        auto retVal = std::make_unique<parse::ReturnNode>();
         retVal->valueExpr = parseExpr();
         if (retVal->valueExpr == nullptr) {
             return nullptr;
@@ -850,122 +921,376 @@ std::unique_ptr<parse::Node> Parser::parseMethodBody() {
         if (m_token.type == Lexer::Token::Type::kSemicolon) {
             next(); // ;
         }
-        if (exprSeq == nullptr) {
+
+        if (prefix == nullptr) {
             return retVal;
         }
-        exprSeq->append(std::move(retVal));
+
+        // If we had already parsed an expression sequence we can append the return value to the existing sequence.
+        if (prefix->nodeType == parse::NodeType::kExprSeq) {
+            auto exprSeq = reinterpret_cast<parse::ExprSeqNode*>(prefix.get());
+            exprSeq->expr->append(std::move(retVal));
+        } else {
+            // This case is a single expression was parsed, so the returned node from parseExprSeq() is not an
+            // ExprSeqNode. Construct a new ExprSeqNode with the prefix as the first expr and append the retval to that.
+            auto exprSeq = std::make_unique<parse::ExprSeqNode>(bodyIndex, std::move(prefix));
+            exprSeq->expr->append(std::move(retVal));
+            return exprSeq;
+        }
     }
 
-    return exprSeq;
+    return prefix;
 }
 
 // exprseq: exprn optsemi
 // exprn: expr | exprn ';' expr
 std::unique_ptr<parse::Node> Parser::parseExprSeq() {
-    auto exprSeq = parseExpr();
-    if (exprSeq == nullptr) {
-        return nullptr;
-    }
-    while (m_token.type == Lexer::Token::Type::kSemicolon) {
-        next(); // ;
-        auto nextExpr = parseExpr();
-        if (nextExpr != nullptr) {
-            exprSeq->append(std::move(nextExpr));
-        } else {
-            break;
-        }
-    }
+    size_t startIndex = m_tokenIndex;
+    auto expr = parseExpr();
+    if (!expr) return nullptr;
+
     if (m_token.type == Lexer::Token::Type::kSemicolon) {
         next(); // ;
+        auto secondExpr = parseExpr();
+        if (secondExpr) {
+            auto exprSeq = std::make_unique<parse::ExprSeqNode>(startIndex, std::move(expr));
+            exprSeq->expr->append(std::move(secondExpr));
+            while (m_token.type == Lexer::Token::Type::kSemicolon) {
+                next(); // ;
+                auto nextExpr = parseExpr();
+                if (nextExpr) {
+                    exprSeq->expr->append(std::move(nextExpr));
+                } else {
+                    return exprSeq;
+                }
+            }
+            return exprSeq;
+        }
     }
-    return exprSeq;
+
+    return expr;
 }
 
 // expr: expr1
-//       | valrangexd
-//       | valrangeassign
-//       | classname
-//       | expr '.' '[' arglist1 ']'
-//       | '`' expr
-//       | expr binop2 adverb expr %prec BINOP
-//       | name '=' expr
-//       | '~' name '=' expr
-//       | expr '.' name '=' expr
-//       | name '(' arglist1 optkeyarglist ')' '=' expr
-//       | '#' mavars '=' expr
-//       | expr1 '[' arglist1 ']' '=' expr
-//       | expr '.' '[' arglist1 ']' '=' expr
+//     | valrangexd
+//     | valrangeassign
 //
-// expr1: pushliteral
-//        | blockliteral
-//        | generator
-//        | pushname
-//        | curryarg
-//        | msgsend
-//        | '(' exprseq ')'
-//        | '~' name
-//        |  '[' arrayelems ']'
-//        |    '(' valrange2 ')'
-//        |    '(' ':' valrange3 ')'
-//        |    '(' dictslotlist ')'
-//        | pseudovar
-//        | expr1 '[' arglist1 ']'
-//        | valrangex1
-//
-// generator: '{' ':' exprseq ',' qual '}'
-//          | '{' ';' exprseq  ',' qual '}'
-//
-// pushname: name
+// expr1: blockliteral
+//      | curryarg
+//      | msgsend
+//      | pseudovar
+//      | valrangex1
 //
 // curryarg: CURRYARG
 //
-// msgsend: name blocklist1
-//         | '(' binop2 ')' blocklist1
-//         | name '(' ')' blocklist1
-//         | name '(' arglist1 optkeyarglist ')' blocklist
-//         | '(' binop2 ')' '(' ')' blocklist1
-//         | '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
-//         | name '(' arglistv1 optkeyarglist ')'
-//         | '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
-//         | classname '[' arrayelems ']'
-//         | classname blocklist1
-//         | classname '(' ')' blocklist
-//         | classname '(' keyarglist1 optcomma ')' blocklist
-//         | classname '(' arglist1 optkeyarglist ')' blocklist
-//         | classname '(' arglistv1 optkeyarglist ')'
-//         | expr '.' '(' ')' blocklist
-//         | expr '.' '(' keyarglist1 optcomma ')' blocklist
-//         | expr '.' name '(' keyarglist1 optcomma ')' blocklist
-//         | expr '.' '(' arglist1 optkeyarglist ')' blocklist
-//         | expr '.' '(' arglistv1 optkeyarglist ')'
-//         | expr '.' name '(' ')' blocklist
-//         | expr '.' name '(' arglist1 optkeyarglist ')' blocklist
-//         | expr '.' name '(' arglistv1 optkeyarglist ')'
-//         | expr '.' name blocklist
 //
 // pseudovar: PSEUDOVAR
 //
+// blockliteral: block
+//
+// block: '{' argdecls funcvardecls funcbody '}'
+//        | BEGINCLOSEDFUNC argdecls funcvardecls funcbody '}'    (beginclosedfunc is #{, with possible whitespace
+//
+// mavars: mavarlist | mavarlist ELLIPSIS name
+//
+// mavarlist: name | mavarlist ',' name
+//
+// blocklist1: blocklistitem | blocklist1 blocklistitem
+//
+// blocklistitem : blockliteral | generator
+//
+// blocklist: <e> | blocklist1
+//
 std::unique_ptr<parse::Node> Parser::parseExpr() {
-    return nullptr;
-}
+    std::unique_ptr<parse::Node> expr;
+    bool isSingleExpression = false;
 
-// slotliteral: integer | floatp | ascii | string | symbol | trueobj | falseobj | nilobj | listlit
-// pushliteral: integer | floatp | ascii | string | symbol | trueobj | falseobj | nilobj | listlit
-std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
     switch (m_token.type) {
-    case Lexer::Token::Type::kInteger:
-    case Lexer::Token::Type::kFloat:
-    case Lexer::Token::Type::kString:
-    case Lexer::Token::Type::kSymbol:
-    case Lexer::Token::Type::kTrue:
-    case Lexer::Token::Type::kFalse:
-    case Lexer::Token::Type::kNil:
-    case Lexer::Token::Type::kHash:  // for listlit
+    case Lexer::Token::Type::kClassName: {
+        Lexer::Token className = m_token;
+        next();  // classname
+        if (m_token.type == Lexer::Token::kOpenSquare) {
+            // expr -> expr1 -> msgsend: classname '[' arrayelems ']'
+            auto dynList = std::make_unique<parse::DynListNode>(m_tokenIndex - 1);
+            Lexer::Token openSquare = m_token;
+            next(); // [
+            dynList->className = std::string_view(className.start, className.length);
+            dynList->elements = parseArrayElements();
+            if (m_token.type != Lexer::Token::kCloseSquare) {
+                m_errorReporter->addError(fmt::format("Error parsing dynamic list on line {}, expecting closing square "
+                        "bracket ']' to match opening square bracket '[' on line {}",
+                        m_errorReporter->getLineNumber(m_token.start),
+                        m_errorReporter->getLineNumber(openSquare.start)));
+            }
+            next(); // ]
+            expr = std::move(dynList);
+            isSingleExpression = true;
+        } else if (m_token.type == Lexer::Token::kOpenParen) {
+            // expr -> expr1 -> msgsend: classname '(' ')' blocklist
+            // expr -> expr1 -> msgsend: classname '(' keyarglist1 optcomma ')' blocklist
+            // expr -> expr1 -> msgsend: classname '(' arglist1 optkeyarglist ')' blocklist
+            // expr -> expr1 -> msgsend: classname '(' arglistv1 optkeyarglist ')'
+        } else if (m_token.type == Lexer::Token::kOpenCurly) {
+            // expr -> expr1 -> msgsend: classname blocklist1
+        } else {
+            // expr: classname
+            expr = std::make_unique<parse::NameNode>(m_tokenIndex - 1, std::string_view(className.start,
+                className.length));
+        }
+    } break;
+
+    case Lexer::Token::Type::kIdentifier: {
+        // expr: name '(' arglist1 optkeyarglist ')' '=' expr
+        // expr -> expr1 -> msgsend: name blocklist1
+        // expr -> expr1 -> msgsend: name '(' ')' blocklist1
+        // expr -> expr1 -> msgsend: name '(' arglist1 optkeyarglist ')' blocklist
+        // expr -> expr1 -> msgsend: name '(' arglistv1 optkeyarglist ')'
+        auto name = std::make_unique<parse::NameNode>(m_tokenIndex, std::string_view(m_token.start, m_token.length));
+        next(); // name
+        if (m_token.type == Lexer::Token::kAssign) {
+            // expr: name '=' expr
+            auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex);
+            next(); // =
+            assign->name = std::move(name);
+            assign->value = parseExpr();
+            expr = std::move(assign);
+        } else {
+            // expr -> expr1 -> pushname: name
+            expr = std::move(name);
+            isSingleExpression = true;
+        }
+    } break;
+
+    case Lexer::Token::Type::kGrave:
+        // expr: '`' expr
+        break;
+
+    case Lexer::Token::Type::kTilde: {
+        // expr: '~' name '=' expr
+        // expr -> expr1: '~' name
+        next(); // ~
+        if (m_token.type == Lexer::Token::kIdentifier) {
+            auto name = std::make_unique<parse::NameNode>(m_tokenIndex, std::string_view(m_token.start,
+                    m_token.length));
+            name->isGlobal = true;
+            next(); // name
+            if (m_token.type == Lexer::Token::kAssign) {
+                auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex);
+                next();
+                assign->name = std::move(name);
+                assign->value = parseExpr();
+                expr = std::move(assign);
+            } else {
+                expr = std::move(name);
+                isSingleExpression = true;
+            }
+        } else {
+            m_errorReporter->addError(fmt::format("Error parsing code on line {}, expected variable name after global "
+                    "symbol '~'.", m_errorReporter->getLineNumber(m_token.start)));
+            return nullptr;
+        }
+    } break;
+
+    case Lexer::Token::Type::kHash:
+        // expr: '#' mavars '=' expr
+        break;
+
+    case Lexer::Token::Type::kOpenParen:
+        // expr -> expr1: '(' exprseq ')'
+        // expr -> expr1: '(' valrange2 ')'
+        // expr -> expr1: '(' ':' valrange3 ')'
+        // expr -> expr1: '(' dictslotlist ')'
+        // expr -> expr1 -> msgsend: '(' binop2 ')' blocklist1
+        // expr -> expr1 -> msgsend: '(' binop2 ')' '(' ')' blocklist1
+        // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
+        // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
+        break;
+
+    case Lexer::Token::Type::kOpenSquare: {
+        // expr -> expr1: '[' arrayelems ']'
+        auto dynList = std::make_unique<parse::DynListNode>(m_tokenIndex);
+        Lexer::Token openSquare = m_token;
+        next(); // [
+        dynList->elements = parseArrayElements();
+        if (m_token.type != Lexer::Token::kCloseSquare) {
+            m_errorReporter->addError(fmt::format("Error parsing dynamic list on line {}, expecting closing square "
+                    "bracket ']' to match opening square bracket '[' on line {}",
+                    m_errorReporter->getLineNumber(m_token.start),
+                    m_errorReporter->getLineNumber(openSquare.start)));
+        }
+        next(); // ]
+        expr = std::move(dynList);
+        isSingleExpression = true;
+    } break;
+
+    case Lexer::Token::Type::kOpenCurly: {
+        // expr -> expr1 -> generator: '{' ':' exprseq ',' qual '}'
+        // expr -> expr1 -> generator: '{' ';' exprseq  ',' qual '}'
+        // expr -> expr1 -> blockliteral -> block -> '{' argdecls funcvardecls funcbody '}'
+        // expr -> expr1 -> blockliteral -> block -> BEGINCLOSEDFUNC argdecls funcvardecls funcbody '}'
+        Lexer::Token openCurly = m_token;
+        next(); // {
+        if (m_token.type == Lexer::Token::Type::kColon || m_token.type == Lexer::Token::Type::kSemicolon) {
+            // Generator expressions parse here.
+            return nullptr;
+        } else {
+            auto block = std::make_unique<parse::BlockNode>(m_tokenIndex - 1);
+            block->arguments = parseArgDecls();
+            block->variables = parseFuncVarDecls();
+            block->body = parseFuncBody();
+            if (m_token.type != Lexer::Token::Type::kCloseCurly) {
+                m_errorReporter->addError(fmt::format("Error parsing function on line {}, expecting closing curly "
+                        "brace '}}' to match opening curly brace '{{' on line {}.",
+                        m_errorReporter->getLineNumber(m_token.start),
+                        m_errorReporter->getLineNumber(openCurly.start)));
+                return nullptr;
+            }
+            next(); // }
+            return block;
+        }
+    }
+
+    case Lexer::Token::Type::kMinus:
+    case Lexer::Token::Type::kLiteral:
+        expr = parseLiteral();
+        break;
+
     default:
         return nullptr;
     }
 
-    return nullptr;
+    if (expr == nullptr) {
+        return nullptr;
+    }
+
+    if (isSingleExpression && m_token.type == Lexer::Token::Type::kOpenSquare) {
+        // expr -> expr1: expr1 '[' arglist1 ']' '=' expr
+        // expr: expr1 '[' arglist1 ']'
+    } else {
+        if (m_token.type == Lexer::Token::Type::kDot) {
+            next(); // .
+            if (m_token.type == Lexer::Token::kIdentifier) {
+                Lexer::Token name = m_token;
+                next(); // name
+                if (m_token.type == Lexer::Token::kAssign) {
+                    // expr: expr '.' name '=' expr
+                    auto setter = std::make_unique<parse::SetterNode>(m_tokenIndex);
+                    next(); // =
+                    setter->target = std::move(expr);
+                    setter->selector = std::string_view(name.start, name.length);
+                    setter->value = parseExpr();
+                    expr = std::move(setter);
+                }
+                // expr -> expr1 -> msgsend: expr '.' name '(' keyarglist1 optcomma ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' name '(' ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' name '(' arglist1 optkeyarglist ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' name '(' arglistv1 optkeyarglist ')'
+                // expr -> expr1 -> msgsend: expr '.' name blocklist
+            } else if (m_token.type == Lexer::Token::Type::kOpenSquare) {
+                // expr: expr '.' '[' arglist1 ']'
+                // expr: expr '.' '[' arglist1 ']' '=' expr
+            } else if (m_token.type == Lexer::Token::Type::kOpenParen) {
+                // expr -> expr1 -> msgsend: expr '.' '(' ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' '(' keyarglist1 optcomma ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' '(' arglist1 optkeyarglist ')' blocklist
+                // expr -> expr1 -> msgsend: expr '.' '(' arglistv1 optkeyarglist ')'
+            }
+        } else if (m_token.couldBeBinop) {
+            // expr: expr binop2 adverb expr %prec BINOP
+            // adverb: <e> | '.' name | '.' integer | '.' '(' exprseq ')'
+        }
+    }
+
+    return expr;
+}
+
+// slotliteral: integer | floatp | ascii | string | symbol | trueobj | falseobj | nilobj | listlit
+// integer: INTEGER | '-'INTEGER %prec UMINUS
+// floatr: SC_FLOAT | '-' SC_FLOAT %prec UMINUS
+std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
+    std::unique_ptr<parse::LiteralNode> literal;
+    if (m_token.type == Lexer::Token::Type::kLiteral) {
+        literal = std::make_unique<parse::LiteralNode>(m_tokenIndex, m_token.value);
+        next(); // literal
+    } else if (m_token.type == Lexer::Token::Type::kMinus && m_tokenIndex < m_lexer.tokens().size() - 1 &&
+               m_lexer.tokens()[m_tokenIndex + 1].type == Lexer::Token::Type::kLiteral) {
+        if (m_lexer.tokens()[m_tokenIndex + 1].value.type() == TypedValue::Type::kFloat) {
+            next(); // '-'
+            literal = std::make_unique<parse::LiteralNode>(m_tokenIndex - 1,
+                    TypedValue(-1.0 * m_token.value.asFloat()));
+            next(); // literal
+        } else if (m_lexer.tokens()[m_tokenIndex + 1].value.type() == TypedValue::Type::kInteger) {
+            next(); // '-'
+            literal = std::make_unique<parse::LiteralNode>(m_tokenIndex - 1,
+                    TypedValue(-1 * m_token.value.asInteger()));
+            next(); // literal
+        }
+    }
+    return literal;
+}
+
+// arrayelems: <e> | arrayelems1 optcomma
+// arrayelems1: exprseq
+//            | exprseq ':' exprseq
+//            | keybinop exprseq
+//            | arrayelems1 ',' exprseq
+//            | arrayelems1 ',' keybinop exprseq
+//            | arrayelems1 ',' exprseq ':' exprseq
+std::unique_ptr<parse::Node> Parser::parseArrayElements() {
+    std::unique_ptr<parse::Node> firstElem;
+    if (m_token.type == Lexer::Token::Type::kKeyword) {
+        // keybinop exprseq
+        firstElem = std::make_unique<parse::LiteralNode>(m_tokenIndex, TypedValue(TypedValue::Type::kSymbol));
+        next(); // keyword
+        auto exprSeq = parseExprSeq();
+        if (!exprSeq) {
+            return nullptr;
+        }
+        firstElem->append(std::move(exprSeq));
+    } else {
+        firstElem = parseExprSeq();
+        if (!firstElem) {
+            return nullptr;
+        }
+        if (m_token.type == Lexer::Token::Type::kColon) {
+            next(); // :
+            auto exprSeq = parseExprSeq();
+            if (!exprSeq) {
+                return nullptr;
+            }
+            firstElem->append(std::move(exprSeq));
+        }
+    }
+
+    while (m_token.type == Lexer::Token::Type::kComma) {
+        next(); // ,
+        if (m_token.type == Lexer::Token::Type::kKeyword) {
+            firstElem->append(std::make_unique<parse::LiteralNode>(m_tokenIndex,
+                    TypedValue(TypedValue::Type::kSymbol)));
+            next(); // keyword
+            auto exprSeq = parseExprSeq();
+            if (!exprSeq) {
+                return nullptr;
+            }
+            firstElem->append(std::move(exprSeq));
+        } else {
+            auto exprSeq = parseExprSeq();
+            if (!exprSeq) {
+                return firstElem;
+            }
+            firstElem->append(std::move(exprSeq));
+            if (m_token.type == Lexer::Token::Type::kColon) {
+                next(); // :
+                auto secondSeq = parseExprSeq();
+                if (!secondSeq) {
+                    return nullptr;
+                }
+                firstElem->append(std::move(secondSeq));
+            }
+        }
+    }
+
+    return firstElem;
 }
 
 } // namespace hadron

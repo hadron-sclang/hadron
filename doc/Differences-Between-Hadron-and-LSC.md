@@ -30,5 +30,6 @@ The hexadecimal prefix "0x" must be exactly "0x".
 In LSC:
 
 ```
-12345x0 => 0
+12345xa => 10
 ```
+

@@ -8,8 +8,11 @@ namespace hadron {
 
 class ErrorReporter {
 public:
-    ErrorReporter(const char* code);
+    ErrorReporter();
     ~ErrorReporter();
+
+    // Most be called before getLineNumber() can be called.
+    void setCode(const char* code) { m_code = code; }
 
     void addError(const std::string& error);
 

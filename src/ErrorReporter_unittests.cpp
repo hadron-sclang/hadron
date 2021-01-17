@@ -6,20 +6,23 @@ namespace hadron {
 
 TEST_CASE("line numbers") {
     SUBCASE("empty string") {
+        ErrorReporter er;
         std::string code("");
-        ErrorReporter er(code.data());
+        er.setCode(code.data());
         CHECK(er.getLineNumber(code.data()) == 1);
     }
     SUBCASE("one liner") {
+        ErrorReporter er;
         std::string code("I met a man with a wooden leg named Steve. Oh yeah? What was his other leg named?");
-        ErrorReporter er(code.data());
+        er.setCode(code.data());
         CHECK(er.getLineNumber(code.data()) == 1);
         CHECK(er.getLineNumber(code.data() + 10) == 1);
         CHECK(er.getLineNumber(code.data() + code.size()) == 1);
     }
     SUBCASE("multiline string") {
+        ErrorReporter er;
         std::string code("one\n two\n three\n four\n five\n six\n seven\n eight\n nine\n ten\n");
-        ErrorReporter er(code.data());
+        er.setCode(code.data());
         CHECK(er.getLineNumber(code.data() + 1) == 1);
         CHECK(er.getLineNumber(code.data() + 4) == 2);
         CHECK(er.getLineNumber(code.data() + 9) == 3);
@@ -32,8 +35,9 @@ TEST_CASE("line numbers") {
         CHECK(er.getLineNumber(code.data() + 53) == 10);
     }
     SUBCASE("multiple empty lines") {
+        ErrorReporter er;
         std::string code("\n\n\n\n\n\n\n7");
-        ErrorReporter er(code.data());
+        er.setCode(code.data());
         CHECK(er.getLineNumber(code.data()) == 1);
         CHECK(er.getLineNumber(code.data() + 1) == 2);
         CHECK(er.getLineNumber(code.data() + 2) == 3);

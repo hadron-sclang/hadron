@@ -2,6 +2,7 @@
 #define SRC_PARSER_HPP_
 
 #include "Lexer.hpp"
+#include "TypedValue.hpp"
 
 #include <memory>
 #include <string_view>
@@ -12,40 +13,61 @@ class ErrorReporter;
 
 namespace parse {
 
+enum NodeType {
+    kEmpty, // represents an empty node
+    kVarDef,
+    kVarList,
+    kArgList,
+    kMethod,
+    kClassExt,
+    kClass,
+    kReturn,
+    kDynList,
+    kBlock,
+    kValue,
+    kLiteral,
+    kName,
+    kExprSeq,
+    kAssign,
+    kSetter
+};
+
 struct Node {
-    Node(): tail(this) {}
+    Node() = delete;
+    explicit Node(NodeType type, size_t index): nodeType(type), tokenIndex(index), tail(this) {}
     virtual ~Node() = default;
     void append(std::unique_ptr<Node> node) {
         tail->next = std::move(node);
-        tail = node.get();
+        tail = tail->next.get();
     }
 
+    NodeType nodeType;
+    size_t tokenIndex;
     std::unique_ptr<Node> next;
     Node* tail;
 };
 
-struct LiteralNode : public Node {
-    LiteralNode();
-    virtual ~LiteralNode() = default;
-};
-
 struct VarDefNode : public Node {
-    VarDefNode(std::string_view name): varName(name) {}
+    VarDefNode(size_t index, std::string_view name): Node(NodeType::kVarDef, index), varName(name) {}
     virtual ~VarDefNode() = default;
 
     std::string_view varName;
     std::unique_ptr<Node> initialValue;
+
+    bool hasReadAccessor = false;
+    bool hasWriteAccessor = false;
 };
 
 struct VarListNode : public Node {
-    VarListNode();
+    VarListNode(size_t index): Node(NodeType::kVarList, index) {}
     virtual ~VarListNode() = default;
 
+    // The associated Lexer Token can be used to disambiguate between classvar, var, and const declarations.
     std::unique_ptr<VarDefNode> definitions;
 };
 
 struct ArgListNode : public Node {
-    ArgListNode();
+    ArgListNode(size_t index): Node(NodeType::kArgList, index) {}
     virtual ~ArgListNode() = default;
 
     std::unique_ptr<VarListNode> varList;
@@ -53,11 +75,15 @@ struct ArgListNode : public Node {
 };
 
 struct MethodNode : public Node {
-    MethodNode(std::string_view name, bool classMethod): methodName(name), isClassMethod(classMethod) {}
+    MethodNode(size_t index, std::string_view name, bool classMethod):
+            Node(NodeType::kMethod, index),
+            methodName(name),
+            isClassMethod(classMethod) {}
     virtual ~MethodNode() = default;
 
     std::string_view methodName;
     bool isClassMethod;
+    std::string_view primitive;
 
     std::unique_ptr<ArgListNode> arguments;
     std::unique_ptr<VarListNode> variables;
@@ -65,16 +91,15 @@ struct MethodNode : public Node {
 };
 
 struct ClassExtNode : public Node {
-    ClassExtNode(std::string_view name): className(name) {}
+    ClassExtNode(size_t index, std::string_view name): Node(NodeType::kClassExt, index), className(name) {}
     virtual ~ClassExtNode() = default;
 
     std::string_view className;
     std::unique_ptr<MethodNode> methods;
 };
 
-
 struct ClassNode : public Node {
-    ClassNode(std::string_view name): className(name) {}
+    ClassNode(size_t index, std::string_view name): Node(NodeType::kClass, index), className(name) {}
     virtual ~ClassNode() = default;
 
     std::string_view className;
@@ -86,13 +111,13 @@ struct ClassNode : public Node {
 };
 
 struct ReturnNode : public Node {
-    ReturnNode();
+    ReturnNode(size_t index): Node(NodeType::kReturn, index) {}
     virtual ~ReturnNode() = default;
 
     std::unique_ptr<Node> valueExpr;
 };
 
-
+/*
 struct SlotNode : public Node {
     SlotNode();
     virtual ~SlotNode() = default;
@@ -102,12 +127,17 @@ struct DynDictNode : public Node {
     DynDictNode();
     virtual ~DynDictNode() = default;
 };
+*/
 
 struct DynListNode : public Node {
-    DynListNode();
+    DynListNode(size_t index): Node(NodeType::kDynList, index) {}
     virtual ~DynListNode() = default;
+
+    std::string_view className;
+    std::unique_ptr<Node> elements;
 };
 
+/*
 struct LitListNode : public Node {
     LitListNode();
     virtual ~LitListNode() = default;
@@ -132,31 +162,41 @@ struct PoolVarListNode : public Node {
     PoolVarListNode();
     virtual ~PoolVarListNode() = default;
 };
-
+*/
 struct BlockNode : public Node {
-    BlockNode() = default;
+    BlockNode(size_t index): Node(NodeType::kBlock, index) {}
     virtual ~BlockNode() = default;
 
-    std::unique_ptr<VarListNode> arguments;
+    std::unique_ptr<ArgListNode> arguments;
     std::unique_ptr<VarListNode> variables;
     std::unique_ptr<Node> body;
 };
 
-struct SlotDefNode : public Node {
-    SlotDefNode();
-    virtual ~SlotDefNode() = default;
+struct ValueNode : public Node {
+    ValueNode(size_t index, const TypedValue& v): Node(NodeType::kValue, index), value(v) {}
+    virtual ~ValueNode() = default;
+
+    TypedValue value;
 };
 
-struct PushLiteralNode : public Node {
-    PushLiteralNode();
-    virtual ~PushLiteralNode() = default;
+struct LiteralNode : public Node {
+    LiteralNode(size_t index, const TypedValue& v): Node(NodeType::kLiteral, index), value(v) {}
+    virtual ~LiteralNode() = default;
+
+    // Due to unary negation of literals, this value may differ from the token value at tokenIndex.
+    // TODO: consider merging LiteralNode and ValueNode.
+    TypedValue value;
 };
 
-struct PushNameNode : public Node {
-    PushNameNode();
-    virtual ~PushNameNode() = default;
+struct NameNode : public Node {
+    NameNode(size_t index, std::string_view n): Node(NodeType::kName, index), name(n) {}
+    virtual ~NameNode() = default;
+
+    bool isGlobal = false;
+    std::string_view name;
 };
 
+/*
 struct CallNode : public Node {
     CallNode();
     virtual ~CallNode() = default;
@@ -167,26 +207,54 @@ struct BinopCallNode : public Node {
     virtual ~BinopCallNode() = default;
 };
 
+// DropNodes in LSC represent exprs that could be potentially dropped, such that
+// "1; 2; 3;" would result in expr "1" and "2" being dropped and never being evaluated.
+// This is a parse tree transformation that we would prefer to do as a separate step.
+// The different optimization steps will be easier to design, configure, and verify if
+// they happen in discrete steps, rather than all at once.
+
 struct DropNode : public Node {
     DropNode();
     virtual ~DropNode() = default;
 };
+*/
 
-struct AssignNode : public Node {
-    AssignNode();
-    virtual ~AssignNode() = default;
+struct ExprSeqNode : public Node {
+    ExprSeqNode(size_t index, std::unique_ptr<Node> firstExpr):
+        Node(NodeType::kExprSeq, index), expr(std::move(firstExpr)) {}
+    virtual ~ExprSeqNode() = default;
+
+    std::unique_ptr<Node> expr;
 };
 
+// From an = command, assigns value to the identifier in name.
+struct AssignNode : public Node {
+    AssignNode(size_t index): Node(NodeType::kAssign, index) {}
+    virtual ~AssignNode() = default;
+
+    std::unique_ptr<NameNode> name;
+    std::unique_ptr<Node> value;
+};
+
+/*
 struct MultiAssignNode : public Node {
     MultiAssignNode();
     virtual ~MultiAssignNode() = default;
 };
+*/
 
+// target.selector = value
 struct SetterNode : public Node {
-    SetterNode();
+    SetterNode(size_t index): Node(NodeType::kSetter, index) {}
     virtual ~SetterNode() = default;
+
+    // The recipient of the assigned value.
+    std::unique_ptr<Node> target;
+    std::string_view selector;
+    std::unique_ptr<Node> value;
 };
 
+/*
 struct CurryArgNode : public Node {
     CurryArgNode();
     virtual ~CurryArgNode() = default;
@@ -196,7 +264,7 @@ struct BlockReturnNode : public Node {
     BlockReturnNode();
     virtual ~BlockReturnNode() = default;
 };
-
+*/
 } // namespace parse
 
 
@@ -206,6 +274,9 @@ public:
     ~Parser();
 
     bool parse();
+
+    const parse::Node* root() const { return m_root.get(); }
+    const std::vector<Lexer::Token>& tokens() const { return m_lexer.tokens(); }
 
 private:
     bool next();
@@ -219,6 +290,7 @@ private:
     std::unique_ptr<parse::VarListNode> parseClassVarDecls();
     std::unique_ptr<parse::VarListNode> parseClassVarDecl();
     std::unique_ptr<parse::MethodNode> parseMethods();
+    std::unique_ptr<parse::MethodNode> parseMethod();
     std::unique_ptr<parse::VarListNode> parseFuncVarDecls();
     std::unique_ptr<parse::VarListNode> parseFuncVarDecl();
     std::unique_ptr<parse::Node> parseFuncBody();
@@ -235,7 +307,11 @@ private:
     std::unique_ptr<parse::Node> parseExprSeq();
     std::unique_ptr<parse::Node> parseExpr();
 
+    // If the current token is a literal, or a unary negation token followed by an int or float literal, consumes those
+    // tokens and returns a LiteralNode with the value. Otherwise consumes no tokens and returns nullptr.
     std::unique_ptr<parse::LiteralNode> parseLiteral();
+
+    std::unique_ptr<parse::Node> parseArrayElements();
 
     Lexer m_lexer;
     size_t m_tokenIndex;
