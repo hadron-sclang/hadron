@@ -27,6 +27,7 @@ enum NodeType {
     kValue,
     kLiteral,
     kName,
+    kExprSeq,
     kAssign,
     kSetter
 };
@@ -206,12 +207,27 @@ struct BinopCallNode : public Node {
     virtual ~BinopCallNode() = default;
 };
 
+// DropNodes in LSC represent exprs that could be potentially dropped, such that
+// "1; 2; 3;" would result in expr "1" and "2" being dropped and never being evaluated.
+// This is a parse tree transformation that we would prefer to do as a separate step.
+// The different optimization steps will be easier to design, configure, and verify if
+// they happen in discrete steps, rather than all at once.
+
 struct DropNode : public Node {
     DropNode();
     virtual ~DropNode() = default;
 };
 */
 
+struct ExprSeqNode : public Node {
+    ExprSeqNode(size_t index, std::unique_ptr<Node> firstExpr):
+        Node(NodeType::kExprSeq, index), expr(std::move(firstExpr)) {}
+    virtual ~ExprSeqNode() = default;
+
+    std::unique_ptr<Node> expr;
+};
+
+// From an = command, assigns value to the identifier in name.
 struct AssignNode : public Node {
     AssignNode(size_t index): Node(NodeType::kAssign, index) {}
     virtual ~AssignNode() = default;
@@ -227,6 +243,7 @@ struct MultiAssignNode : public Node {
 };
 */
 
+// target.selector = value
 struct SetterNode : public Node {
     SetterNode(size_t index): Node(NodeType::kSetter, index) {}
     virtual ~SetterNode() = default;

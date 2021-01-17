@@ -661,7 +661,10 @@ std::unique_ptr<parse::Node> Parser::parseFuncBody() {
         }
         return retNode;
     }
-    auto exprSeq = parseExprSeq();
+    size_t bodyStart = m_tokenIndex;
+    auto prefix = parseExprSeq();
+    if (!prefix) return nullptr;
+
     if (m_token.type == Lexer::Token::Type::kCaret) {
         auto retNode = std::make_unique<parse::ReturnNode>(m_tokenIndex);
         next(); // ^
@@ -669,9 +672,16 @@ std::unique_ptr<parse::Node> Parser::parseFuncBody() {
         if (m_token.type == Lexer::Token::Type::kSemicolon) {
             next(); // ;
         }
-        exprSeq->append(std::move(retNode));
+        if (prefix->nodeType == parse::NodeType::kExprSeq) {
+            auto exprSeq = reinterpret_cast<parse::ExprSeqNode*>(prefix.get());
+            exprSeq->expr->append(std::move(retNode));
+        } else {
+            auto exprSeq = std::make_unique<parse::ExprSeqNode>(bodyStart, std::move(prefix));
+            exprSeq->expr->append(std::move(retNode));
+            return exprSeq;
+        }
     }
-    return exprSeq;
+    return prefix;
 }
 
 // rwslotdeflist: rwslotdef | rwslotdeflist ',' rwslotdef
@@ -898,7 +908,9 @@ std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
 // methbody: retval | exprseq retval
 // retval: <e> | '^' expr optsemi
 std::unique_ptr<parse::Node> Parser::parseMethodBody() {
-    auto exprSeq = parseExprSeq();
+    size_t bodyIndex = m_tokenIndex;
+    auto prefix = parseExprSeq();
+
     if (m_token.type == Lexer::Token::Type::kCaret) {
         auto retVal = std::make_unique<parse::ReturnNode>(m_tokenIndex);
         next(); // ^
@@ -909,35 +921,54 @@ std::unique_ptr<parse::Node> Parser::parseMethodBody() {
         if (m_token.type == Lexer::Token::Type::kSemicolon) {
             next(); // ;
         }
-        if (exprSeq == nullptr) {
+
+        if (prefix == nullptr) {
             return retVal;
         }
-        exprSeq->append(std::move(retVal));
+
+        // If we had already parsed an expression sequence we can append the return value to the existing sequence.
+        if (prefix->nodeType == parse::NodeType::kExprSeq) {
+            auto exprSeq = reinterpret_cast<parse::ExprSeqNode*>(prefix.get());
+            exprSeq->expr->append(std::move(retVal));
+        } else {
+            // This case is a single expression was parsed, so the returned node from parseExprSeq() is not an
+            // ExprSeqNode. Construct a new ExprSeqNode with the prefix as the first expr and append the retval to that.
+            auto exprSeq = std::make_unique<parse::ExprSeqNode>(bodyIndex, std::move(prefix));
+            exprSeq->expr->append(std::move(retVal));
+            return exprSeq;
+        }
     }
 
-    return exprSeq;
+    return prefix;
 }
 
 // exprseq: exprn optsemi
 // exprn: expr | exprn ';' expr
 std::unique_ptr<parse::Node> Parser::parseExprSeq() {
-    auto exprSeq = parseExpr();
-    if (exprSeq == nullptr) {
-        return nullptr;
-    }
-    while (m_token.type == Lexer::Token::Type::kSemicolon) {
-        next(); // ;
-        auto nextExpr = parseExpr();
-        if (nextExpr != nullptr) {
-            exprSeq->append(std::move(nextExpr));
-        } else {
-            break;
-        }
-    }
+    size_t startIndex = m_tokenIndex;
+    auto expr = parseExpr();
+    if (!expr) return nullptr;
+
     if (m_token.type == Lexer::Token::Type::kSemicolon) {
         next(); // ;
+        auto secondExpr = parseExpr();
+        if (secondExpr) {
+            auto exprSeq = std::make_unique<parse::ExprSeqNode>(startIndex, std::move(expr));
+            exprSeq->expr->append(std::move(secondExpr));
+            while (m_token.type == Lexer::Token::Type::kSemicolon) {
+                next(); // ;
+                auto nextExpr = parseExpr();
+                if (nextExpr) {
+                    exprSeq->expr->append(std::move(nextExpr));
+                } else {
+                    return exprSeq;
+                }
+            }
+            return exprSeq;
+        }
     }
-    return exprSeq;
+
+    return expr;
 }
 
 // expr: expr1
@@ -1206,21 +1237,60 @@ std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
 //            | arrayelems1 ',' keybinop exprseq
 //            | arrayelems1 ',' exprseq ':' exprseq
 std::unique_ptr<parse::Node> Parser::parseArrayElements() {
-    std::unique_ptr<parse::Node> elem;
+    std::unique_ptr<parse::Node> firstElem;
     if (m_token.type == Lexer::Token::Type::kKeyword) {
-        Lexer::Token keyword = m_token;
-        elem = std::make_unique<parse::LiteralNode>(m_tokenIndex, TypedValue(TypedValue::Type::kSymbol));
+        // keybinop exprseq
+        firstElem = std::make_unique<parse::LiteralNode>(m_tokenIndex, TypedValue(TypedValue::Type::kSymbol));
         next(); // keyword
-        std::unique_ptr<parse::Node> exprseq = parseExprSeq();
-        if (exprseq == nullptr) {
-            // FIXME
+        auto exprSeq = parseExprSeq();
+        if (!exprSeq) {
             return nullptr;
         }
-        elem->append(exprseq);
+        firstElem->append(std::move(exprSeq));
     } else {
-        elem = parseExprSeq();
+        firstElem = parseExprSeq();
+        if (!firstElem) {
+            return nullptr;
+        }
+        if (m_token.type == Lexer::Token::Type::kColon) {
+            next(); // :
+            auto exprSeq = parseExprSeq();
+            if (!exprSeq) {
+                return nullptr;
+            }
+            firstElem->append(std::move(exprSeq));
+        }
     }
-    return nullptr;
+
+    while (m_token.type == Lexer::Token::Type::kComma) {
+        next(); // ,
+        if (m_token.type == Lexer::Token::Type::kKeyword) {
+            firstElem->append(std::make_unique<parse::LiteralNode>(m_tokenIndex,
+                    TypedValue(TypedValue::Type::kSymbol)));
+            next(); // keyword
+            auto exprSeq = parseExprSeq();
+            if (!exprSeq) {
+                return nullptr;
+            }
+            firstElem->append(std::move(exprSeq));
+        } else {
+            auto exprSeq = parseExprSeq();
+            if (!exprSeq) {
+                return firstElem;
+            }
+            firstElem->append(std::move(exprSeq));
+            if (m_token.type == Lexer::Token::Type::kColon) {
+                next(); // :
+                auto secondSeq = parseExprSeq();
+                if (!secondSeq) {
+                    return nullptr;
+                }
+                firstElem->append(std::move(secondSeq));
+            }
+        }
+    }
+
+    return firstElem;
 }
 
 } // namespace hadron

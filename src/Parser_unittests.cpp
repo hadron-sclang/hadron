@@ -923,8 +923,12 @@ TEST_CASE("Parser funcbody") {
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
-        REQUIRE(parser.root()->nodeType == parse::NodeType::kLiteral);
-        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kExprSeq);
+        auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(parser.root());
+
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
         CHECK(literal->value.type() == TypedValue::Type::kInteger);
         CHECK(literal->value.asInteger() == 1);
 
@@ -1310,9 +1314,11 @@ TEST_CASE("Parser vardef") {
         REQUIRE(block->variables->definitions);
         CHECK(block->variables->definitions->varName.compare("seq") == 0);
         REQUIRE(block->variables->definitions->initialValue != nullptr);
-        REQUIRE(block->variables->definitions->initialValue->nodeType == parse::NodeType::kLiteral);
-        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(
-                block->variables->definitions->initialValue.get());
+        REQUIRE(block->variables->definitions->initialValue->nodeType == parse::NodeType::kExprSeq);
+        auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(block->variables->definitions->initialValue.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
         CHECK(literal->value.type() == TypedValue::Type::kInteger);
         CHECK(literal->value.asInteger() == 1);
         REQUIRE(literal->next != nullptr);
@@ -1321,6 +1327,7 @@ TEST_CASE("Parser vardef") {
         CHECK(literal->value.type() == TypedValue::Type::kInteger);
         CHECK(literal->value.asInteger() == 2);
 
+        CHECK(exprSeq->next == nullptr);
         CHECK(block->variables->next == nullptr);
         CHECK(block->body == nullptr);
     }
@@ -1517,8 +1524,12 @@ TEST_CASE("Parser methbody") {
         CHECK(block->next == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kLiteral);
-        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(block->body.get());
+        REQUIRE(block->body->nodeType == parse::NodeType::kExprSeq);
+        auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(block->body.get());
+
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
         CHECK(literal->value.type() == TypedValue::Type::kInteger);
         CHECK(literal->value.asInteger() == 1);
 
@@ -1553,8 +1564,12 @@ TEST_CASE("Parser exprseq") {
         CHECK(block->next == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kName);
-        const parse::NameNode* nameNode = reinterpret_cast<const parse::NameNode*>(block->body.get());
+        REQUIRE(block->body->nodeType == parse::NodeType::kExprSeq);
+        auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(block->body.get());
+
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kName);
+        const parse::NameNode* nameNode = reinterpret_cast<const parse::NameNode*>(exprSeq->expr.get());
         CHECK(nameNode->name.compare("x") == 0);
 
         REQUIRE(nameNode->next != nullptr);
@@ -1861,20 +1876,128 @@ TEST_CASE("Parser literal") {
 
 TEST_CASE("Parser arrayelems") {
     SUBCASE("arrayelems: <e>") {
+        Parser parser("[ ]", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kDynList);
+        auto array = reinterpret_cast<const parse::DynListNode*>(parser.root());
+        CHECK(array->elements == nullptr);
     }
 
     SUBCASE("arrayelems: arrayelems1 optcomma") {
+        Parser parser("[1,-2,]", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kDynList);
+        auto array = reinterpret_cast<const parse::DynListNode*>(parser.root());
+
+        REQUIRE(array->elements != nullptr);
+        REQUIRE(array->elements->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(array->elements.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 1);
+
+        REQUIRE(literal->next != nullptr);
+        REQUIRE(literal->next->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(literal->next.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == -2);
     }
 }
 
 TEST_CASE("Parser arrayelems1") {
     SUBCASE("arrayelems1: exprseq") {
+        Parser parser("[ 3; a; nil, ]", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kDynList);
+        auto array = reinterpret_cast<const parse::DynListNode*>(parser.root());
+
+        REQUIRE(array->elements != nullptr);
+        REQUIRE(array->elements->nodeType == parse::NodeType::kExprSeq);
+        auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(array->elements.get());
+
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 3);
+
+        REQUIRE(literal->next != nullptr);
+        REQUIRE(literal->next->nodeType == parse::NodeType::kName);
+        auto name = reinterpret_cast<const parse::NameNode*>(literal->next.get());
+        CHECK(name->name.compare("a") == 0);
+
+        REQUIRE(name->next != nullptr);
+        REQUIRE(name->next->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(name->next.get());
+        CHECK(literal->value.type() == TypedValue::Type::kNil);
+        CHECK(literal->next == nullptr);
     }
 
     SUBCASE("arrayelems1: exprseq ':' exprseq") {
+        Parser parser("[ 1;2: 3;4 ]", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kDynList);
+        auto array = reinterpret_cast<const parse::DynListNode*>(parser.root());
+
+        REQUIRE(array->elements != nullptr);
+        REQUIRE(array->elements->nodeType == parse::NodeType::kExprSeq);
+        const parse::ExprSeqNode* exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(array->elements.get());
+
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 1);
+
+        REQUIRE(literal->next != nullptr);
+        REQUIRE(literal->next->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(literal->next.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 2);
+
+        REQUIRE(exprSeq->next != nullptr);
+        REQUIRE(exprSeq->next->nodeType == parse::NodeType::kExprSeq);
+        exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(exprSeq->next.get());
+
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 3);
+
+        REQUIRE(literal->next != nullptr);
+        REQUIRE(literal->next->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(literal->next.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 4);
     }
 
     SUBCASE("keybinop exprseq") {
+        Parser parser("[freq: 440,]", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kDynList);
+        auto array = reinterpret_cast<const parse::DynListNode*>(parser.root());
+
+        REQUIRE(array->elements != nullptr);
+        REQUIRE(array->elements->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(array->elements.get());
+        CHECK(literal->value.type() == TypedValue::Type::kSymbol);
+
+        REQUIRE(literal->next != nullptr);
+        REQUIRE(literal->next->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(literal->next.get());
+        CHECK(literal->value.type() == TypedValue::Type::kInteger);
+        CHECK(literal->value.asInteger() == 440);
+        CHECK(literal->next == nullptr);
     }
 
     SUBCASE("arrayelems1 ',' exprseq") {
