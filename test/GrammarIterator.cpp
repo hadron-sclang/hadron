@@ -32,7 +32,6 @@ size_t GrammarIterator::GrammarRule::countExpansions(std::unordered_set<std::str
     }
 
     visited.insert(name);
-//    spdlog::info(name);
 
     size_t count = 0;
     for (const auto& pattern : patterns) {
@@ -70,4 +69,4 @@ size_t GrammarIterator::countExpansions() {
     return root->countExpansions(visited);
 }
 
-};
+}

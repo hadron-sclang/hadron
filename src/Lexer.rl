@@ -17,17 +17,17 @@
         ###################
         # Integer base-10
         digit+ {
-            int64_t value = std::strtoll(ts, nullptr, 10);
+            int64_t value = strtoll(ts, nullptr, 10);
             m_tokens.emplace_back(Token(ts, te - ts, value));
         };
         # Hex integer base-16. Marker points at first digit past 'x'
         ('0x' %marker) xdigit+ {
-            int64_t value = std::strtoll(marker, nullptr, 16);
+            int64_t value = strtoll(marker, nullptr, 16);
             m_tokens.emplace_back(Token(ts, te - ts, value));
         };
         # Float base-10
         digit+ '.' digit+ {
-            double value = std::strtod(ts, nullptr);
+            double value = strtod(ts, nullptr);
             m_tokens.emplace_back(Token(ts, te - ts, value));
         };
 
