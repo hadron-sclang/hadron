@@ -1,6 +1,7 @@
 #ifndef TEST_GRAMMAR_ITERATOR_HPP_
 #define TEST_GRAMMAR_ITERATOR_HPP_
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
