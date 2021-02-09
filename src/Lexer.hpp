@@ -1,7 +1,7 @@
 #ifndef SRC_LEXER_HPP_
 #define SRC_LEXER_HPP_
 
-#include "TypedValue.hpp"
+#include "TypedLiteral.hpp"
 
 #include <cstddef>
 #include <stdint.h>
@@ -66,7 +66,7 @@ public:
         /*! Length of the token in bytes. */
         size_t length;
 
-        TypedValue value;
+        TypedLiteral value;
 
         bool couldBeBinop;
 
@@ -85,7 +85,7 @@ public:
             type(kLiteral), start(s), length(l), value(boolean), couldBeBinop(false) {}
 
         /*! Makes a kLiteral with a provided literal type (until we figure out strings and such better) */
-        Token(const char*s, size_t l, TypedValue::Type t):
+        Token(const char*s, size_t l, TypedLiteral::Type t):
             type(kLiteral), start(s), length(l), value(t), couldBeBinop(false) {}
 
         /*! Makes a token with no value storage */

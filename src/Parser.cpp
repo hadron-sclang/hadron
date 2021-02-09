@@ -861,6 +861,65 @@ std::unique_ptr<parse::VarDefNode> Parser::parseVarDef() {
     return varDef;
 }
 
+// slotdeflist0: <e> | slotdeflist
+// slotdeflist: slotdef
+//            | slotdeflist optcomma slotdef
+std::unique_ptr<parse::VarListNode> Parser::parseSlotDefList() {
+    auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
+    varList->definitions = parseSlotDef();
+    if (varList->definitions == nullptr) {
+        return nullptr;
+    }
+    while (m_token.type == Lexer::Token::Type::kComma) {
+        next(); // ,
+        auto nextVarDef = parseSlotDef();
+        if (nextVarDef == nullptr) {
+            return nullptr;
+        }
+        varList->definitions->append(std::move(nextVarDef));
+    }
+    return varList;
+
+}
+
+// slotdef: name
+//        | name optequal slotliteral
+//        | name optequal '(' exprseq ')'
+std::unique_ptr<parse::VarDefNode> Parser::parseSlotDef() {
+    if (m_token.type != Lexer::Token::kIdentifier) {
+        m_errorReporter->addError(fmt::format("Error parsing argument definition at line {}, expecting argument name.",
+                    m_errorReporter->getLineNumber(m_token.start)));
+        return nullptr;
+    }
+    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, std::string_view(m_token.start, m_token.length));
+    next(); // name
+    if (m_token.type == Lexer::Token::kAssign) {
+        next(); // =
+        varDef->initialValue = parseLiteral();
+        if (varDef->initialValue == nullptr) {
+            return nullptr;
+        }
+    } else if (m_token.type == Lexer::Token::kOpenParen) {
+        Lexer::Token openParen = m_token;
+        next(); // (
+        varDef->initialValue = parseExprSeq();
+        if (varDef->initialValue == nullptr) {
+            return nullptr;
+        }
+        if (m_token.type != Lexer::Token::kCloseParen) {
+            m_errorReporter->addError(fmt::format("Error parsing variable definition for variable '{}' on line {}, "
+                        "expecting closing parenthesis ')' to match opening parenthesis '(' on line {}",
+                        varDef->varName, m_errorReporter->getLineNumber(m_token.start),
+                        m_errorReporter->getLineNumber(openParen.start)));
+        }
+        next(); // )
+    }
+    return varDef;
+}
+
+// Pipe argument lists have tighter requirements, slotdeflist vs. vardeflist, for initial values because the pipe
+// terminating the argument list could be mistaken for a binop and so results in an ambiguous parse
+
 // argdecls: <e>
 //         | ARG vardeflist ';'
 //         | ARG vardeflist0 ELLIPSIS name ';'
@@ -868,17 +927,20 @@ std::unique_ptr<parse::VarDefNode> Parser::parseVarDef() {
 //         | '|' slotdeflist0 ELLIPSIS name '|'
 std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
     bool isArg;
+    std::unique_ptr<parse::ArgListNode> argList;
     if (m_token.type == Lexer::Token::Type::kArg) {
         isArg = true;
+        next(); // arg
+        argList = std::make_unique<parse::ArgListNode>(m_tokenIndex);
+        argList->varList = parseVarDefList();
     } else if (m_token.type == Lexer::Token::kPipe) {
         isArg = false;
+        next(); // |
+        argList = std::make_unique<parse::ArgListNode>(m_tokenIndex);
+        argList->varList = parseSlotDefList();
     } else {
         return nullptr;
     }
-
-    next(); // arg or |
-    auto argList = std::make_unique<parse::ArgListNode>(m_tokenIndex);
-    argList->varList = parseVarDefList();
 
     if (m_token.type == Lexer::Token::Type::kEllipses) {
         next(); // ...
@@ -1195,9 +1257,19 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
                 // expr -> expr1 -> msgsend: expr '.' '(' arglist1 optkeyarglist ')' blocklist
                 // expr -> expr1 -> msgsend: expr '.' '(' arglistv1 optkeyarglist ')'
             }
-        } else if (m_token.couldBeBinop) {
-            // expr: expr binop2 adverb expr %prec BINOP
+        } else if (m_token.couldBeBinop || m_token.type == Lexer::Token::Type::kKeyword) {
+            // expr: expr binop2 adverb expr %prec binop
             // adverb: <e> | '.' name | '.' integer | '.' '(' exprseq ')'
+            auto binopCall = std::make_unique<parse::BinopCallNode>(m_tokenIndex, std::string_view(m_token.start,
+                        m_token.length));
+            next(); // binop2
+            // TODO: adverb
+            binopCall->rightHand = parseExpr();
+            if (!binopCall->rightHand) {
+                return nullptr;
+            }
+            binopCall->leftHand = std::move(expr);
+            expr = std::move(binopCall);
         }
     }
 
@@ -1214,15 +1286,15 @@ std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
         next(); // literal
     } else if (m_token.type == Lexer::Token::Type::kMinus && m_tokenIndex < m_lexer.tokens().size() - 1 &&
                m_lexer.tokens()[m_tokenIndex + 1].type == Lexer::Token::Type::kLiteral) {
-        if (m_lexer.tokens()[m_tokenIndex + 1].value.type() == TypedValue::Type::kFloat) {
+        if (m_lexer.tokens()[m_tokenIndex + 1].value.type() == TypedLiteral::Type::kFloat) {
             next(); // '-'
             literal = std::make_unique<parse::LiteralNode>(m_tokenIndex - 1,
-                    TypedValue(-1.0 * m_token.value.asFloat()));
+                    TypedLiteral(-1.0 * m_token.value.asFloat()));
             next(); // literal
-        } else if (m_lexer.tokens()[m_tokenIndex + 1].value.type() == TypedValue::Type::kInteger) {
+        } else if (m_lexer.tokens()[m_tokenIndex + 1].value.type() == TypedLiteral::Type::kInteger) {
             next(); // '-'
             literal = std::make_unique<parse::LiteralNode>(m_tokenIndex - 1,
-                    TypedValue(-1 * m_token.value.asInteger()));
+                    TypedLiteral(-1 * m_token.value.asInteger()));
             next(); // literal
         }
     }
@@ -1240,7 +1312,7 @@ std::unique_ptr<parse::Node> Parser::parseArrayElements() {
     std::unique_ptr<parse::Node> firstElem;
     if (m_token.type == Lexer::Token::Type::kKeyword) {
         // keybinop exprseq
-        firstElem = std::make_unique<parse::LiteralNode>(m_tokenIndex, TypedValue(TypedValue::Type::kSymbol));
+        firstElem = std::make_unique<parse::LiteralNode>(m_tokenIndex, TypedLiteral(TypedLiteral::Type::kSymbol));
         next(); // keyword
         auto exprSeq = parseExprSeq();
         if (!exprSeq) {
@@ -1266,7 +1338,7 @@ std::unique_ptr<parse::Node> Parser::parseArrayElements() {
         next(); // ,
         if (m_token.type == Lexer::Token::Type::kKeyword) {
             firstElem->append(std::make_unique<parse::LiteralNode>(m_tokenIndex,
-                    TypedValue(TypedValue::Type::kSymbol)));
+                    TypedLiteral(TypedLiteral::Type::kSymbol)));
             next(); // keyword
             auto exprSeq = parseExprSeq();
             if (!exprSeq) {

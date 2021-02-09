@@ -1,12 +1,12 @@
-#ifndef SRC_TYPED_VALUE_HPP_
-#define SRC_TYPED_VALUE_HPP_
+#ifndef SRC_TYPED_LITERAL_HPP_
+#define SRC_TYPED_LITERAL_HPP_
 
 #include <stdint.h>
 
 namespace hadron {
 
-// sclang is a dynamically typed language
-class TypedValue {
+// Used in lexing and parsing, includes type information 
+class TypedLiteral {
 public:
     enum Type {
         kNil,
@@ -24,13 +24,13 @@ public:
         // maybe kArray?
     };
 
-    TypedValue(): m_type(kNil) {}
-    TypedValue(int64_t value): m_type(kInteger), m_value(value) {}
-    TypedValue(double value): m_type(kFloat), m_value(value) {}
-    TypedValue(bool value): m_type(kBoolean), m_value(value) {}
+    TypedLiteral(): m_type(kNil) {}
+    TypedLiteral(int64_t value): m_type(kInteger), m_value(value) {}
+    TypedLiteral(double value): m_type(kFloat), m_value(value) {}
+    TypedLiteral(bool value): m_type(kBoolean), m_value(value) {}
 
-    // Make an empty TypedValue with provided type.
-    TypedValue(Type t): m_type(t) {}
+    // Make an empty TypedLiteral with provided type.
+    TypedLiteral(Type t): m_type(t) {}
 
     Type type() const { return m_type; }
 
@@ -57,4 +57,4 @@ private:
 
 } // namespace hadron
 
-#endif // SRC_TYPED_VALUE_HPP_
+#endif // SRC_TYPED_LITERAL_HPP_

@@ -2,7 +2,7 @@
 #define SRC_PARSER_HPP_
 
 #include "Lexer.hpp"
-#include "TypedValue.hpp"
+#include "TypedLiteral.hpp"
 
 #include <memory>
 #include <string_view>
@@ -29,7 +29,8 @@ enum NodeType {
     kName,
     kExprSeq,
     kAssign,
-    kSetter
+    kSetter,
+    kBinopCall
 };
 
 struct Node {
@@ -173,19 +174,19 @@ struct BlockNode : public Node {
 };
 
 struct ValueNode : public Node {
-    ValueNode(size_t index, const TypedValue& v): Node(NodeType::kValue, index), value(v) {}
+    ValueNode(size_t index, const TypedLiteral& v): Node(NodeType::kValue, index), value(v) {}
     virtual ~ValueNode() = default;
 
-    TypedValue value;
+    TypedLiteral value;
 };
 
 struct LiteralNode : public Node {
-    LiteralNode(size_t index, const TypedValue& v): Node(NodeType::kLiteral, index), value(v) {}
+    LiteralNode(size_t index, const TypedLiteral& v): Node(NodeType::kLiteral, index), value(v) {}
     virtual ~LiteralNode() = default;
 
     // Due to unary negation of literals, this value may differ from the token value at tokenIndex.
     // TODO: consider merging LiteralNode and ValueNode.
-    TypedValue value;
+    TypedLiteral value;
 };
 
 struct NameNode : public Node {
@@ -201,10 +202,15 @@ struct CallNode : public Node {
     CallNode();
     virtual ~CallNode() = default;
 };
+*/
 
 struct BinopCallNode : public Node {
-    BinopCallNode();
+    BinopCallNode(size_t index, std::string_view sel): Node(NodeType::kBinopCall, index), selector(sel) {}
     virtual ~BinopCallNode() = default;
+
+    std::string_view selector;
+    std::unique_ptr<Node> leftHand;
+    std::unique_ptr<Node> rightHand;
 };
 
 // DropNodes in LSC represent exprs that could be potentially dropped, such that
@@ -212,7 +218,7 @@ struct BinopCallNode : public Node {
 // This is a parse tree transformation that we would prefer to do as a separate step.
 // The different optimization steps will be easier to design, configure, and verify if
 // they happen in discrete steps, rather than all at once.
-
+/*
 struct DropNode : public Node {
     DropNode();
     virtual ~DropNode() = default;
@@ -301,6 +307,8 @@ private:
     std::unique_ptr<parse::VarDefNode> parseConstDef();
     std::unique_ptr<parse::VarListNode> parseVarDefList();
     std::unique_ptr<parse::VarDefNode> parseVarDef();
+    std::unique_ptr<parse::VarListNode> parseSlotDefList();
+    std::unique_ptr<parse::VarDefNode> parseSlotDef();
     std::unique_ptr<parse::ArgListNode> parseArgDecls();
 
     std::unique_ptr<parse::Node> parseMethodBody();

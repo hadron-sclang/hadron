@@ -36,7 +36,7 @@
         ###################
         # Double-quoted string. Increments counter on escape characters for length computation.
         '"' (('\\' any %counter) | (extend - '"'))* '"' {
-            m_tokens.emplace_back(Token(ts + 1, te - ts - 2 - counter, TypedValue::Type::kString));
+            m_tokens.emplace_back(Token(ts + 1, te - ts - 2 - counter, TypedLiteral::Type::kString));
             counter = 0;
         };
 
@@ -45,12 +45,12 @@
         ###########
         # Single-quoted symbol. Increments counter on escape characters for length computation.
         '\'' (('\\' any %counter) | (extend - '\''))* '\'' {
-            m_tokens.emplace_back(Token(ts + 1, te - ts - 2 - counter, TypedValue::Type::kSymbol));
+            m_tokens.emplace_back(Token(ts + 1, te - ts - 2 - counter, TypedLiteral::Type::kSymbol));
             counter = 0;
         };
         # Slash symbols.
         '\\' [a-zA-Z0-9_]* {
-            m_tokens.emplace_back(Token(ts + 1, te - ts - 1, TypedValue::Type::kSymbol));
+            m_tokens.emplace_back(Token(ts + 1, te - ts - 1, TypedLiteral::Type::kSymbol));
         };
 
         ##############
@@ -150,7 +150,7 @@
             m_tokens.emplace_back(Token(ts, 5, false));
         };
         'nil' {
-            m_tokens.emplace_back(Token(ts, 3, TypedValue::Type::kNil));
+            m_tokens.emplace_back(Token(ts, 3, TypedLiteral::Type::kNil));
         };
         'true' {
             m_tokens.emplace_back(Token(ts, 4, true));
