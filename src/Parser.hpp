@@ -2,7 +2,8 @@
 #define SRC_PARSER_HPP_
 
 #include "Lexer.hpp"
-#include "TypedLiteral.hpp"
+#include "Literal.hpp"
+#include "Type.hpp"
 
 #include <memory>
 #include <string_view>
@@ -174,19 +175,19 @@ struct BlockNode : public Node {
 };
 
 struct ValueNode : public Node {
-    ValueNode(size_t index, const TypedLiteral& v): Node(NodeType::kValue, index), value(v) {}
+    ValueNode(size_t index, const Literal& v): Node(NodeType::kValue, index), value(v) {}
     virtual ~ValueNode() = default;
 
-    TypedLiteral value;
+    Literal value;
 };
 
 struct LiteralNode : public Node {
-    LiteralNode(size_t index, const TypedLiteral& v): Node(NodeType::kLiteral, index), value(v) {}
+    LiteralNode(size_t index, const Literal& v): Node(NodeType::kLiteral, index), value(v) {}
     virtual ~LiteralNode() = default;
 
     // Due to unary negation of literals, this value may differ from the token value at tokenIndex.
     // TODO: consider merging LiteralNode and ValueNode.
-    TypedLiteral value;
+    Literal value;
 };
 
 struct NameNode : public Node {

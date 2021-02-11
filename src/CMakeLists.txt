@@ -80,9 +80,10 @@ add_library(libhadron STATIC
     ErrorReporter.cpp
     ErrorReporter.hpp
     Lexer.hpp
+    Literal.hpp
     Parser.cpp
     Parser.hpp
-    TypedLiteral.hpp
+    Type.hpp
 )
 
 add_dependencies(libhadron
