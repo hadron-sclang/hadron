@@ -31,6 +31,8 @@ enum NodeType {
     kExprSeq,
     kAssign,
     kSetter,
+    kKeyValue,
+    kCall,
     kBinopCall
 };
 
@@ -198,12 +200,24 @@ struct NameNode : public Node {
     std::string_view name;
 };
 
-/*
-struct CallNode : public Node {
-    CallNode();
-    virtual ~CallNode() = default;
+struct KeyValueNode : public Node {
+    KeyValueNode(size_t index, std::string_view key): Node(NodeType::kKeyValue, index), keyword(key) {}
+    virtual ~KeyValueNode() = default;
+
+    std::string_view keyword;
+    std::unique_ptr<Node> value;
 };
-*/
+
+// target.selector(arguments, keyword: arguments)
+struct CallNode : public Node {
+    CallNode(size_t index): Node(NodeType::kCall, index) {}
+    virtual ~CallNode() = default;
+
+    std::unique_ptr<Node> target;
+    std::string_view selector;
+    std::unique_ptr<Node> arguments;
+    std::unique_ptr<KeyValueNode> keywordArguments;
+};
 
 struct BinopCallNode : public Node {
     BinopCallNode(size_t index, std::string_view sel): Node(NodeType::kBinopCall, index), selector(sel) {}
@@ -321,6 +335,10 @@ private:
     std::unique_ptr<parse::LiteralNode> parseLiteral();
 
     std::unique_ptr<parse::Node> parseArrayElements();
+    std::unique_ptr<parse::Node> parseArgList();
+    std::unique_ptr<parse::KeyValueNode> parseKeywordArgList();
+    std::unique_ptr<parse::Node> parseBlockList();
+    std::unique_ptr<parse::Node> parseBlockOrGenerator();
 
     Lexer m_lexer;
     size_t m_tokenIndex;

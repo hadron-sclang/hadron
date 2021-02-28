@@ -1635,6 +1635,58 @@ TEST_CASE("Parser msgsend") {
     }
 
     SUBCASE("msgsend: expr '.' name '(' keyarglist1 optcomma ')' blocklist") {
+        Parser parser("( SinOsc.ar(freq: 440, phase: 0, mul: 0.7,) )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(block->body.get());
+        CHECK(call->selector.compare("ar") == 0);
+        CHECK(call->arguments == nullptr);
+
+        REQUIRE(call->target != nullptr);
+        REQUIRE(call->target->nodeType == parse::NodeType::kName);
+        auto name = reinterpret_cast<const parse::NameNode*>(call->target.get());
+        CHECK(name->name.compare("SinOsc") == 0);
+
+        REQUIRE(call->keywordArguments != nullptr);
+        REQUIRE(call->keywordArguments->nodeType == parse::NodeType::kKeyValue);
+        const parse::KeyValueNode* keyValue = reinterpret_cast<const parse::KeyValueNode*>(
+                call->keywordArguments.get());
+        CHECK(keyValue->keyword.compare("freq") == 0);
+        REQUIRE(keyValue->value != nullptr);
+        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        CHECK(literal->value.type() == Type::kInteger);
+        CHECK(literal->value.asInteger() == 440);
+
+        REQUIRE(keyValue->next != nullptr);
+        REQUIRE(keyValue->next->nodeType == parse::NodeType::kKeyValue);
+        keyValue = reinterpret_cast<const parse::KeyValueNode*>(keyValue->next.get());
+        CHECK(keyValue->keyword.compare("phase") == 0);
+        REQUIRE(keyValue->value != nullptr);
+        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        CHECK(literal->value.type() == Type::kInteger);
+        CHECK(literal->value.asInteger() == 0);
+
+        REQUIRE(keyValue->next != nullptr);
+        REQUIRE(keyValue->next->nodeType == parse::NodeType::kKeyValue);
+        keyValue = reinterpret_cast<const parse::KeyValueNode*>(keyValue->next.get());
+        CHECK(keyValue->keyword.compare("mul") == 0);
+        REQUIRE(keyValue->value != nullptr);
+        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        CHECK(literal->value.type() == Type::kFloat);
+        CHECK(literal->value.asFloat() == 0.7);
+        CHECK(keyValue->next == nullptr);
     }
 
     SUBCASE("msgsend: expr '.' '(' arglist1 optkeyarglist ')' blocklist") {
@@ -1644,9 +1696,91 @@ TEST_CASE("Parser msgsend") {
     }
 
     SUBCASE("msgsend: expr '.' name '(' ')' blocklist") {
+        Parser parser("( Array.new(); )", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(block->body.get());
+        CHECK(call->selector.compare("new") == 0);
+        CHECK(call->arguments == nullptr);
+        CHECK(call->keywordArguments == nullptr);
+
+        REQUIRE(call->target != nullptr);
+        REQUIRE(call->target->nodeType == parse::NodeType::kName);
+        auto name = reinterpret_cast<const parse::NameNode*>(call->target.get());
+        CHECK(name->name.compare("Array") == 0);
     }
 
+    // TODO: remove needless blocks around everything?
     SUBCASE("msgsend: expr '.' name '(' arglist1 optkeyarglist ')' blocklist") {
+        Parser parser("this.method(x, y, z, a: 1, b: 2, c: 3)", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(parser.root());
+        CHECK(call->selector.compare("method") == 0);
+
+        REQUIRE(call->target != nullptr);
+        REQUIRE(call->target->nodeType == parse::NodeType::kName);
+        const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(call->target.get());
+        CHECK(name->name.compare("this") == 0);
+
+        REQUIRE(call->arguments != nullptr);
+        REQUIRE(call->arguments->nodeType == parse::NodeType::kName);
+        name = reinterpret_cast<const parse::NameNode*>(call->arguments.get());
+        CHECK(name->name.compare("x") == 0);
+
+        REQUIRE(name->next != nullptr);
+        REQUIRE(name->next->nodeType == parse::NodeType::kName);
+        name = reinterpret_cast<const parse::NameNode*>(name->next.get());
+        CHECK(name->name.compare("y") == 0);
+
+        REQUIRE(name->next != nullptr);
+        REQUIRE(name->next->nodeType == parse::NodeType::kName);
+        name = reinterpret_cast<const parse::NameNode*>(name->next.get());
+        CHECK(name->name.compare("z") == 0);
+        CHECK(name->next == nullptr);
+
+        REQUIRE(call->keywordArguments != nullptr);
+        REQUIRE(call->keywordArguments->nodeType == parse::NodeType::kKeyValue);
+        const parse::KeyValueNode* keyValue = reinterpret_cast<const parse::KeyValueNode*>(
+                call->keywordArguments.get());
+        CHECK(keyValue->keyword.compare("a") == 0);
+        REQUIRE(keyValue->value != nullptr);
+        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        CHECK(literal->value.type() == Type::kInteger);
+        CHECK(literal->value.asInteger() == 1);
+
+        REQUIRE(keyValue->next != nullptr);
+        REQUIRE(keyValue->next->nodeType == parse::NodeType::kKeyValue);
+        keyValue = reinterpret_cast<const parse::KeyValueNode*>(keyValue->next.get());
+        CHECK(keyValue->keyword.compare("b") == 0);
+        REQUIRE(keyValue->value != nullptr);
+        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        CHECK(literal->value.type() == Type::kInteger);
+        CHECK(literal->value.asInteger() == 2);
+
+        REQUIRE(keyValue->next != nullptr);
+        REQUIRE(keyValue->next->nodeType == parse::NodeType::kKeyValue);
+        keyValue = reinterpret_cast<const parse::KeyValueNode*>(keyValue->next.get());
+        CHECK(keyValue->keyword.compare("c") == 0);
+        REQUIRE(keyValue->value != nullptr);
+        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        CHECK(literal->value.type() == Type::kInteger);
+        CHECK(literal->value.asInteger() == 3);
+        CHECK(keyValue->next == nullptr);
     }
 
     SUBCASE("msgsend: expr '.' name '(' arglistv1 optkeyarglist ')'") {

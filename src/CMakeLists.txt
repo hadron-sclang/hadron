@@ -75,10 +75,11 @@ ExternalProject_add(llvm
 add_library(libhadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
-    CodeGenerator.cpp
-    CodeGenerator.hpp
+    ClassLibrary.cpp
+    ClassLibrary.hpp
     ErrorReporter.cpp
     ErrorReporter.hpp
+    FileSystem.hpp
     Lexer.hpp
     Literal.hpp
     Parser.cpp
