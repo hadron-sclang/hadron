@@ -1046,7 +1046,6 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
 //
 // curryarg: CURRYARG
 //
-//
 // pseudovar: PSEUDOVAR
 //
 // blockliteral: block
@@ -1156,8 +1155,21 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         // expr: '#' mavars '=' expr
         break;
 
-    case Lexer::Token::Name::kOpenParen:
+    case Lexer::Token::Name::kOpenParen: {
+        Lexer::Token openParen = m_token;
         // expr -> expr1: '(' exprseq ')'
+        next(); // (
+        expr = parseExprSeq();
+        if (m_token.name != Lexer::Token::kCloseParen) {
+            m_errorReporter->addError(fmt::format("Error parsing code on line {}, expected closing parenthesis ')' to "
+                        "match opening parenthesis '(' on line {}.",
+                        m_errorReporter->getLineNumber(m_token.range.data()),
+                        m_errorReporter->getLineNumber(openParen.range.data())));
+            return nullptr;
+        }
+        next(); // )
+        isSingleExpression = true;
+
         // expr -> expr1: '(' valrange2 ')'
         // expr -> expr1: '(' ':' valrange3 ')'
         // expr -> expr1: '(' dictslotlist ')'
@@ -1165,7 +1177,7 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' ')' blocklist1
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
-        break;
+        } break;
 
     case Lexer::Token::Name::kOpenSquare: {
         // expr -> expr1: '[' arrayelems ']'
@@ -1259,11 +1271,16 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
                         m_errorReporter->getLineNumber(openParen.range.data())));
                     }
                     next(); // )
-                    // blocklist, if present, gets appended to arglist
+                    // TODO: blocklist, if present, gets appended to arglist
+                    expr = std::move(call);
+                    // TODO: expr -> expr1 -> msgsend: expr '.' name '(' arglistv1 optkeyarglist ')'
+                } else {
+                    // expr -> expr1 -> msgsend: expr '.' name blocklist
+                    auto call = std::make_unique<parse::CallNode>(m_tokenIndex);
+                    call->target = std::move(expr);
+                    call->selector = name.range;
                     expr = std::move(call);
                 }
-                // expr -> expr1 -> msgsend: expr '.' name '(' arglistv1 optkeyarglist ')'
-                // expr -> expr1 -> msgsend: expr '.' name blocklist
             } else if (m_token.name == Lexer::Token::Name::kOpenSquare) {
                 // expr: expr '.' '[' arglist1 ']'
                 // expr: expr '.' '[' arglist1 ']' '=' expr

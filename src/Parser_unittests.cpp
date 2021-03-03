@@ -1787,6 +1787,21 @@ TEST_CASE("Parser msgsend") {
     }
 
     SUBCASE("msgsend: expr '.' name blocklist") {
+        Parser parser("4.neg", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(parser.root());
+        CHECK(call->selector.compare("neg") == 0);
+        CHECK(call->arguments == nullptr);
+        CHECK(call->keywordArguments == nullptr);
+
+        REQUIRE(call->target != nullptr);
+        REQUIRE(call->target->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(call->target.get());
+        CHECK(literal->value.type() == Type::kInteger);
+        CHECK(literal->value.asInteger() == 4);
     }
 }
 
@@ -1984,6 +1999,45 @@ TEST_CASE("Parser expr1") {
     }
 
     SUBCASE("expr1: '(' exprseq ')'") {
+        Parser parser("{ arg bool; ^(this === bool).not }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->variables == nullptr);
+
+        REQUIRE(block->arguments != nullptr);
+        REQUIRE(block->arguments->varList != nullptr);
+        REQUIRE(block->arguments->varList->definitions != nullptr);
+        const auto defs = block->arguments->varList->definitions.get();
+        CHECK(defs->varName.compare("bool") == 0);
+        CHECK(defs->initialValue == nullptr);
+
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kReturn);
+        auto ret = reinterpret_cast<const parse::ReturnNode*>(block->body.get());
+
+        REQUIRE(ret->valueExpr != nullptr);
+        REQUIRE(ret->valueExpr->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(ret->valueExpr.get());
+        CHECK(call->selector.compare("not") == 0);
+        CHECK(call->arguments == nullptr);
+        CHECK(call->keywordArguments == nullptr);
+
+        REQUIRE(call->target->nodeType == parse::NodeType::kBinopCall);
+        auto binop = reinterpret_cast<const parse::BinopCallNode*>(call->target.get());
+        CHECK(binop->selector.compare("===") == 0);
+        REQUIRE(binop->leftHand != nullptr);
+        REQUIRE(binop->leftHand->nodeType == parse::NodeType::kName);
+        const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
+        CHECK(!name->isGlobal);
+        CHECK(name->name.compare("this") == 0);
+        REQUIRE(binop->rightHand != nullptr);
+        REQUIRE(binop->rightHand->nodeType == parse::NodeType::kName);
+        name = reinterpret_cast<const parse::NameNode*>(binop->rightHand.get());
+        CHECK(!name->isGlobal);
+        CHECK(name->name.compare("bool") == 0);
     }
 
     SUBCASE("expr1: '~' name") {
