@@ -1421,6 +1421,22 @@ TEST_CASE("Parser argdecls") {
         CHECK(varDef->next == nullptr);
     }
 
+    SUBCASE("argdecls: ARG <e> ELLIPSIS name ';'") {
+        Parser parser("{ arg ... args; }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+        CHECK(block->body == nullptr);
+
+        REQUIRE(block->arguments != nullptr);
+        CHECK(block->arguments->varArgsName.compare("args") == 0);
+        CHECK(block->arguments->varList == nullptr);
+    }
+
     SUBCASE("argdecls: '|' slotdeflist '|'") {
         Parser parser("{ |i,j,k| }", std::make_shared<ErrorReporter>());
         REQUIRE(parser.parse());
@@ -1487,6 +1503,22 @@ TEST_CASE("Parser argdecls") {
         CHECK(varDef->varName.compare("k2") == 0);
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
+    }
+
+    SUBCASE("argdecls: '|' <e> ELLIPSIS name '|'") {
+        Parser parser("{ |...args| }", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+        CHECK(block->body == nullptr);
+
+        REQUIRE(block->arguments != nullptr);
+        CHECK(block->arguments->varArgsName.compare("args") == 0);
+        CHECK(block->arguments->varList == nullptr);
     }
 }
 

@@ -95,6 +95,9 @@
         '`' {
             m_tokens.emplace_back(Token(Token::Name::kGrave, ts, 1));
         };
+        '_' {
+            m_tokens.emplace_back(Token(Token::Name::kCurryArgument, ts, 1));
+        };
 
         #############
         # operators #
@@ -198,13 +201,22 @@
         };
 
         space { /* ignore whitespace */ };
-        any { return false; };
+        any {
+            if (errorReporter) {
+                errorReporter->addError(fmt::format("Lexing error at line {}: unrecognized token '{}'",
+                    errorReporter->getLineNumber(ts), std::string(ts, te - ts)));
+            }
+            return false;
+        };
     *|;
 }%%
 
 // Generated file from Ragel input file src/Lexer.rl. Please make edits to that file instead of modifying this directly.
 
 #include "Lexer.hpp"
+#include "ErrorReporter.hpp"
+
+#include "fmt/core.h"
 
 namespace {
 #   pragma GCC diagnostic push
@@ -218,7 +230,7 @@ namespace hadron {
 Lexer::Lexer(std::string_view code):
     m_code(code) { }
 
-bool Lexer::lex() {
+bool Lexer::lex(ErrorReporter* errorReporter) {
     // Ragel-required state variables.
     const char* p = m_code.data();
     const char* pe = p + m_code.size();

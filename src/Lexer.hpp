@@ -5,12 +5,15 @@
 #include "Type.hpp"
 
 #include <cstddef>
+#include <memory>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string_view>
 #include <vector>
 
 namespace hadron {
+
+class ErrorReporter;
 
 class Lexer {
 public:
@@ -55,7 +58,8 @@ public:
             kClassName,
             kDot,
             kDotDot,
-            kEllipses
+            kEllipses,
+            kCurryArgument
         };
 
         Name name;
@@ -90,7 +94,7 @@ public:
     };
 
     Lexer(std::string_view code);
-    bool lex();
+    bool lex(ErrorReporter* errorReporter = nullptr);
 
     const std::vector<Token>& tokens() const { return m_tokens; }
 

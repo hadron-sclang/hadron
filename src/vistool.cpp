@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
         auto errorReporter = std::make_shared<hadron::ErrorReporter>();
         hadron::Parser parser(std::string_view(fileContents.get(), fileSize), errorReporter);
         if (!parser.parse()) {
-            spdlog::error("Class Library failed to parse file {}", filePath.string());
+            spdlog::error("Failed to parse file {}", filePath.string());
             return -1;
         }
     }
