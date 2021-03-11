@@ -1680,7 +1680,7 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(block->body.get());
-        CHECK(call->selector.compare("ar") == 0);
+        CHECK(parser.symbolTable()->getSymbol(call->selector).compare("ar") == 0);
         CHECK(call->arguments == nullptr);
 
         REQUIRE(call->target != nullptr);
@@ -1741,7 +1741,7 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(block->body.get());
-        CHECK(call->selector.compare("new") == 0);
+        CHECK(parser.symbolTable()->getSymbol(call->selector).compare("new") == 0);
         CHECK(call->arguments == nullptr);
         CHECK(call->keywordArguments == nullptr);
 
@@ -1759,7 +1759,7 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(parser.root());
-        CHECK(call->selector.compare("method") == 0);
+        CHECK(parser.symbolTable()->getSymbol(call->selector).compare("method") == 0);
 
         REQUIRE(call->target != nullptr);
         REQUIRE(call->target->nodeType == parse::NodeType::kName);
@@ -1816,6 +1816,36 @@ TEST_CASE("Parser msgsend") {
     }
 
     SUBCASE("msgsend: expr '.' name '(' arglistv1 optkeyarglist ')'") {
+        Parser parser("target.method(a, b, *array)", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(parser.root());
+        CHECK(parser.symbolTable()->getSymbol(call->selector).compare("performList") == 0);
+        CHECK(call->keywordArguments == nullptr);
+
+        REQUIRE(call->arguments != nullptr);
+        REQUIRE(call->arguments->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(call->arguments.get());
+        CHECK(literal->value.type() == Type::kSymbol);
+        CHECK(parser.symbolTable()->getSymbol(literal->value.asSymbolHash()).compare("method") == 0);
+
+        REQUIRE(literal->next != nullptr);
+        REQUIRE(literal->next->nodeType == parse::NodeType::kName);
+        const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(literal->next.get());
+        CHECK(name->name.compare("a") == 0);
+
+        REQUIRE(name->next != nullptr);
+        REQUIRE(name->next->nodeType == parse::NodeType::kName);
+        name = reinterpret_cast<const parse::NameNode*>(name->next.get());
+        CHECK(name->name.compare("b") == 0);
+
+        REQUIRE(name->next != nullptr);
+        REQUIRE(name->next->nodeType == parse::NodeType::kName);
+        name = reinterpret_cast<const parse::NameNode*>(name->next.get());
+        CHECK(name->name.compare("array") == 0);
+        CHECK(name->next == nullptr);
     }
 
     SUBCASE("msgsend: expr '.' name blocklist") {
@@ -1825,7 +1855,7 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(parser.root());
-        CHECK(call->selector.compare("neg") == 0);
+        CHECK(parser.symbolTable()->getSymbol(call->selector).compare("neg") == 0);
         CHECK(call->arguments == nullptr);
         CHECK(call->keywordArguments == nullptr);
 
@@ -1899,7 +1929,7 @@ TEST_CASE("Parser expr") {
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->nodeType == parse::NodeType::kBinopCall);
         const parse::BinopCallNode* binop = reinterpret_cast<const parse::BinopCallNode*>(block->body.get());
-        CHECK(binop->selector.compare("+") == 0);
+        CHECK(parser.symbolTable()->getSymbol(binop->selector).compare("+") == 0);
         REQUIRE(binop->leftHand != nullptr);
         REQUIRE(binop->leftHand->nodeType == parse::NodeType::kName);
         const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
@@ -1908,7 +1938,7 @@ TEST_CASE("Parser expr") {
         REQUIRE(binop->rightHand != nullptr);
         REQUIRE(binop->rightHand->nodeType == parse::NodeType::kBinopCall);
         binop = reinterpret_cast<const parse::BinopCallNode*>(binop->rightHand.get());
-        CHECK(binop->selector.compare("not") == 0);
+        CHECK(parser.symbolTable()->getSymbol(binop->selector).compare("not") == 0);
         REQUIRE(binop->leftHand != nullptr);
         REQUIRE(binop->leftHand->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
@@ -1980,7 +2010,7 @@ TEST_CASE("Parser expr") {
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->nodeType == parse::NodeType::kSetter);
         auto setter = reinterpret_cast<const parse::SetterNode*>(block->body.get());
-        CHECK(setter->selector.compare("property") == 0);
+        CHECK(parser.symbolTable()->getSymbol(setter->selector).compare("property") == 0);
         CHECK(setter->next == nullptr);
 
         REQUIRE(setter->target != nullptr);
@@ -2053,13 +2083,13 @@ TEST_CASE("Parser expr1") {
         REQUIRE(ret->valueExpr != nullptr);
         REQUIRE(ret->valueExpr->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(ret->valueExpr.get());
-        CHECK(call->selector.compare("not") == 0);
+        CHECK(parser.symbolTable()->getSymbol(call->selector).compare("not") == 0);
         CHECK(call->arguments == nullptr);
         CHECK(call->keywordArguments == nullptr);
 
         REQUIRE(call->target->nodeType == parse::NodeType::kBinopCall);
         auto binop = reinterpret_cast<const parse::BinopCallNode*>(call->target.get());
-        CHECK(binop->selector.compare("===") == 0);
+        CHECK(parser.symbolTable()->getSymbol(binop->selector).compare("===") == 0);
         REQUIRE(binop->leftHand != nullptr);
         REQUIRE(binop->leftHand->nodeType == parse::NodeType::kName);
         const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());

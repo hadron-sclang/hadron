@@ -84,6 +84,8 @@ add_library(libhadron STATIC
     Literal.hpp
     Parser.cpp
     Parser.hpp
+    SymbolTable.cpp
+    SymbolTable.hpp
     Type.hpp
 )
 
@@ -101,6 +103,7 @@ target_compile_options(libhadron PUBLIC -g -Wall -Wextra -Wpedantic -Werror)
 target_link_libraries(libhadron
     fmt
     spdlog
+    xxHash::xxhash
     ${LLVM_JIT_LIBS}
 )
 

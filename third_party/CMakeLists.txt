@@ -13,3 +13,5 @@ add_subdirectory(gflags)
 set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "require spdlog to use our external fmt")
 add_subdirectory(spdlog)
 
+#### xxHash
+add_subdirectory(xxHash/cmake_unofficial)

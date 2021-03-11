@@ -3,6 +3,7 @@
 
 #include "Lexer.hpp"
 #include "Literal.hpp"
+#include "SymbolTable.hpp"
 #include "Type.hpp"
 
 #include <memory>
@@ -42,7 +43,7 @@ struct Node {
     virtual ~Node() = default;
     void append(std::unique_ptr<Node> node) {
         tail->next = std::move(node);
-        tail = tail->next.get();
+        tail = tail->next->tail;
     }
 
     NodeType nodeType;
@@ -214,16 +215,16 @@ struct CallNode : public Node {
     virtual ~CallNode() = default;
 
     std::unique_ptr<Node> target;
-    std::string_view selector;
+    uint64_t selector;
     std::unique_ptr<Node> arguments;
     std::unique_ptr<KeyValueNode> keywordArguments;
 };
 
 struct BinopCallNode : public Node {
-    BinopCallNode(size_t index, std::string_view sel): Node(NodeType::kBinopCall, index), selector(sel) {}
+    BinopCallNode(size_t index): Node(NodeType::kBinopCall, index) {}
     virtual ~BinopCallNode() = default;
 
-    std::string_view selector;
+    uint64_t selector;
     std::unique_ptr<Node> leftHand;
     std::unique_ptr<Node> rightHand;
 };
@@ -271,7 +272,7 @@ struct SetterNode : public Node {
 
     // The recipient of the assigned value.
     std::unique_ptr<Node> target;
-    std::string_view selector;
+    uint64_t selector;
     std::unique_ptr<Node> value;
 };
 
@@ -298,6 +299,7 @@ public:
 
     const parse::Node* root() const { return m_root.get(); }
     const std::vector<Lexer::Token>& tokens() const { return m_lexer.tokens(); }
+    const SymbolTable* symbolTable() const { return &m_symbolTable; }
 
 private:
     bool next();
@@ -343,6 +345,7 @@ private:
     Lexer m_lexer;
     size_t m_tokenIndex;
     Lexer::Token m_token;
+    SymbolTable m_symbolTable;
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     std::unique_ptr<parse::Node> m_root;

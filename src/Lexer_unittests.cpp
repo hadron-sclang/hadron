@@ -1,5 +1,8 @@
 #include "Lexer.hpp"
 
+#include "ErrorReporter.hpp"
+#include "SymbolTable.hpp"
+
 #include "doctest/doctest.h"
 
 #include <cstring>

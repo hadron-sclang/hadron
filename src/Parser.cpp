@@ -328,7 +328,7 @@ Parser::Parser(std::string_view code, std::shared_ptr<ErrorReporter> errorReport
 Parser::~Parser() {}
 
 bool Parser::parse() {
-    if (!m_lexer.lex(m_errorReporter.get())) {
+    if (!m_lexer.lex(&m_symbolTable, m_errorReporter.get())) {
         return false;
     }
 
@@ -1115,10 +1115,6 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
 
     case Lexer::Token::Name::kIdentifier: {
         // expr: name '(' arglist1 optkeyarglist ')' '=' expr
-        // expr -> expr1 -> msgsend: name blocklist1
-        // expr -> expr1 -> msgsend: name '(' ')' blocklist1
-        // expr -> expr1 -> msgsend: name '(' arglist1 optkeyarglist ')' blocklist
-        // expr -> expr1 -> msgsend: name '(' arglistv1 optkeyarglist ')'
         auto name = std::make_unique<parse::NameNode>(m_tokenIndex, m_token.range);
         next(); // name
         if (m_token.name == Lexer::Token::kAssign) {
@@ -1133,6 +1129,11 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
             expr = std::move(name);
             isSingleExpression = true;
         }
+
+        // expr -> expr1 -> msgsend: name blocklist1
+        // expr -> expr1 -> msgsend: name '(' ')' blocklist1
+        // expr -> expr1 -> msgsend: name '(' arglist1 optkeyarglist ')' blocklist
+        // expr -> expr1 -> msgsend: name '(' arglistv1 optkeyarglist ')'
     } break;
 
     case Lexer::Token::Name::kGrave:
@@ -1266,7 +1267,7 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
                         auto setter = std::make_unique<parse::SetterNode>(m_tokenIndex);
                         next(); // =
                         setter->target = std::move(expr);
-                        setter->selector = name.range;
+                        setter->selector = m_symbolTable.addSymbolVerbatim(name.range);
                         setter->value = parseExpr();
                         expr = std::move(setter);
                     } else if (m_token.name == Lexer::Token::kOpenParen) {
@@ -1277,24 +1278,52 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
                         Lexer::Token openParen = m_token;
                         next(); // (
                         call->target = std::move(expr);
-                        call->selector = name.range;
-                        call->arguments = parseArgList();
+                        call->selector = m_symbolTable.addSymbolVerbatim(name.range);
+                        auto args = parseArgList();
+                        bool blocklist = true;
+                        if (m_token.name == Lexer::Token::kAsterisk) {
+                            // expr -> expr1 -> msgsend: expr '.' name '(' arglistv1 optkeyarglist ')'
+                            // Shorthand for performList transformation
+                            // target.selector(a, b, *array) => target.performList(\selector, a, b, array)
+                            Lexer::Token star = m_token;
+                            auto methodSymbol = std::make_unique<parse::LiteralNode>(m_tokenIndex, Literal(
+                                    call->selector));
+                            if (args) {
+                                methodSymbol->append(std::move(args));
+                            }
+                            next(); // *
+                            auto listArg = parseExprSeq();
+                            if (!listArg) {
+                                m_errorReporter->addError(fmt::format("Error parsing performList arguments on method "
+                                    "call on line {}, expecting expression sequence after asertisk '*' on line {}",
+                                    m_errorReporter->getLineNumber(openParen.range.data()),
+                                    m_errorReporter->getLineNumber(star.range.data())));
+                                return nullptr;
+                            }
+                            methodSymbol->append(std::move(listArg));
+                            call->selector = m_symbolTable.addSymbolVerbatim("performList");
+                            call->arguments = std::move(methodSymbol);
+                            blocklist = false;
+                        } else {
+                            call->arguments = std::move(args);
+                        }
                         call->keywordArguments = parseKeywordArgList();
                         if (m_token.name != Lexer::Token::kCloseParen) {
                             m_errorReporter->addError(fmt::format("Error parsing method call on line {}, expecting "
-                            "closing parenthesis ')' to match opening parenthesis '(' on line {}.",
-                            m_errorReporter->getLineNumber(m_token.range.data()),
-                            m_errorReporter->getLineNumber(openParen.range.data())));
+                                "closing parenthesis ')' to match opening parenthesis '(' on line {}.",
+                                m_errorReporter->getLineNumber(m_token.range.data()),
+                                m_errorReporter->getLineNumber(openParen.range.data())));
                         }
                         next(); // )
                         // TODO: blocklist, if present, gets appended to arglist
+                        if (blocklist) {
+                        }
                         expr = std::move(call);
-                        // TODO: expr -> expr1 -> msgsend: expr '.' name '(' arglistv1 optkeyarglist ')'
                     } else {
                         // expr -> expr1 -> msgsend: expr '.' name blocklist
                         auto call = std::make_unique<parse::CallNode>(m_tokenIndex);
                         call->target = std::move(expr);
-                        call->selector = name.range;
+                        call->selector = m_symbolTable.addSymbolVerbatim(name.range);
                         expr = std::move(call);
                     }
                 } else if (m_token.name == Lexer::Token::Name::kOpenSquare) {
@@ -1311,7 +1340,8 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
             } else if (m_token.couldBeBinop || m_token.name == Lexer::Token::Name::kKeyword) {
                 // expr: expr binop2 adverb expr %prec binop
                 // adverb: <e> | '.' name | '.' integer | '.' '(' exprseq ')'
-                auto binopCall = std::make_unique<parse::BinopCallNode>(m_tokenIndex, m_token.range);
+                auto binopCall = std::make_unique<parse::BinopCallNode>(m_tokenIndex);
+                binopCall->selector = m_symbolTable.addSymbolVerbatim(m_token.range);
                 next(); // binop2
                 // TODO: adverb
                 binopCall->rightHand = parseExpr();

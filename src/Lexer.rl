@@ -45,12 +45,24 @@
         ###########
         # Single-quoted symbol. Increments counter on escape characters for length computation.
         '\'' (('\\' any %counter) | (extend - '\''))* '\'' {
-            m_tokens.emplace_back(Token(ts + 1, te - ts - 2 - counter, Type::kSymbol));
+            const char* symbolStart = ts + 1;
+            if (counter > 0) {
+                size_t symbolLength = te - ts - 2 - counter;
+                uint64_t symbolHash = symbolTable->addSymbolEscaped(std::string_view(symbolStart, symbolLength));
+                m_tokens.emplace_back(Token(symbolStart, symbolLength, symbolHash));
+            } else {
+                size_t symbolLength = te - ts - 2;
+                uint64_t symbolHash = symbolTable->addSymbolVerbatim(std::string_view(symbolStart, symbolLength));
+                m_tokens.emplace_back(Token(symbolStart, symbolLength, symbolHash));
+            }
             counter = 0;
         };
         # Slash symbols.
         '\\' [a-zA-Z0-9_]* {
-            m_tokens.emplace_back(Token(ts + 1, te - ts - 1, Type::kSymbol));
+            const char* symbolStart = ts + 1;
+            size_t symbolLength = te - ts - 1;
+            uint64_t symbolHash = symbolTable->addSymbolVerbatim(std::string_view(symbolStart, symbolLength));
+            m_tokens.emplace_back(Token(ts + 1, te - ts - 1, symbolHash));
         };
 
         ##############
@@ -202,10 +214,8 @@
 
         space { /* ignore whitespace */ };
         any {
-            if (errorReporter) {
-                errorReporter->addError(fmt::format("Lexing error at line {}: unrecognized token '{}'",
-                    errorReporter->getLineNumber(ts), std::string(ts, te - ts)));
-            }
+            errorReporter->addError(fmt::format("Lexing error at line {}: unrecognized token '{}'",
+                errorReporter->getLineNumber(ts), std::string(ts, te - ts)));
             return false;
         };
     *|;
@@ -215,6 +225,7 @@
 
 #include "Lexer.hpp"
 #include "ErrorReporter.hpp"
+#include "SymbolTable.hpp"
 
 #include "fmt/core.h"
 
@@ -230,7 +241,14 @@ namespace hadron {
 Lexer::Lexer(std::string_view code):
     m_code(code) { }
 
-bool Lexer::lex(ErrorReporter* errorReporter) {
+bool Lexer::lex() {
+    m_symbolTable = std::make_unique<SymbolTable>();
+    m_errorReporter = std::make_unique<ErrorReporter>();
+    m_errorReporter->setCode(m_code.data());
+    return lex(m_symbolTable.get(), m_errorReporter.get());
+}
+
+bool Lexer::lex(SymbolTable* symbolTable, ErrorReporter* errorReporter) {
     // Ragel-required state variables.
     const char* p = m_code.data();
     const char* pe = p + m_code.size();

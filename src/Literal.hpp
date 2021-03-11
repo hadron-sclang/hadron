@@ -14,6 +14,7 @@ public:
     Literal(int64_t value): m_type(kInteger), m_value(value) {}
     Literal(double value): m_type(kFloat), m_value(value) {}
     Literal(bool value): m_type(kBoolean), m_value(value) {}
+    Literal(uint64_t value): m_type(kSymbol), m_value(value) {}
 
     // Make an empty Literal with provided type.
     Literal(Type t): m_type(t) {}
@@ -25,6 +26,7 @@ public:
     int64_t asInteger() const { return m_value.integer; }
     double asFloat() const { return m_value.floatingPoint; }
     bool asBoolean() const { return m_value.boolean; }
+    uint64_t asSymbolHash() const { return m_value.symbolHash; }
 
 private:
     Type m_type;
@@ -33,10 +35,12 @@ private:
         Value(int64_t v): integer(v) {}
         Value(double v): floatingPoint(v) {}
         Value(bool v): boolean(v) {}
+        Value(uint64_t v): symbolHash(v) {}
 
         int64_t integer;
         double floatingPoint;
         bool boolean;
+        uint64_t symbolHash;
     };
     Value m_value;
 };
