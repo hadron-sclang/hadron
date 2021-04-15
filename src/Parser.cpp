@@ -1169,24 +1169,56 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         // expr: '#' mavars '=' expr
         break;
 
+    // valrange2: exprseq DOTDOT
+    //          | DOTDOT exprseq
+    //          | exprseq DOTDOT exprseq
+    //          | exprseq ',' exprseq DOTDOT exprseq
+    //          | exprseq ',' exprseq DOTDOT
     case Lexer::Token::Name::kOpenParen: {
+        isSingleExpression = true;
         Lexer::Token openParen = m_token;
         // expr -> expr1: '(' exprseq ')'
+        // expr -> expr1: '(' valrange2 ')'
         next(); // (
-        expr = parseExprSeq();
-        if (m_token.name != Lexer::Token::kCloseParen) {
-            m_errorReporter->addError(fmt::format("Error parsing code on line {}, expected closing parenthesis ')' to "
-                        "match opening parenthesis '(' on line {}.",
-                        m_errorReporter->getLineNumber(m_token.range.data()),
-                        m_errorReporter->getLineNumber(openParen.range.data())));
+//        bool isValRange = false;
+        if (m_token.name == Lexer::Token::kColon) {
+            // expr -> expr1: '(' ':' valrange3 ')'
+            next(); // :
+//            isValRange = true;
+        }
+        if (m_token.name == Lexer::Token::kDotDot) {
+            next(); // ..
+        }
+        auto seq = parseExprSeq();
+        if (!seq) {
             return nullptr;
         }
-        next(); // )
-        isSingleExpression = true;
+        if (m_token.name == Lexer::Token::kComma) {
+            next(); // ,
+        }
 
-        // expr -> expr1: '(' valrange2 ')'
-        // expr -> expr1: '(' ':' valrange3 ')'
+// -------
+        if (m_token.name == Lexer::Token::kDotDot) {
+            next(); // ..
+        } else {
+            expr = parseExprSeq();
+            if (m_token.name == Lexer::Token::kComma) {
+//                isValRange = true;
+                next(); // ,
+            }
+
+            if (m_token.name != Lexer::Token::kCloseParen) {
+                m_errorReporter->addError(fmt::format("Error parsing code on line {}, expected closing parenthesis ')' "
+                            "to match opening parenthesis '(' on line {}.",
+                            m_errorReporter->getLineNumber(m_token.range.data()),
+                            m_errorReporter->getLineNumber(openParen.range.data())));
+                return nullptr;
+            }
+        }
+        next(); // )
+
         // expr -> expr1: '(' dictslotlist ')'
+        // dictslotdef: exprseq ':' exprseq | keybinop exprseq
         // expr -> expr1 -> msgsend: '(' binop2 ')' blocklist1
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' ')' blocklist1
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
@@ -1317,6 +1349,14 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
                         next(); // )
                         // TODO: blocklist, if present, gets appended to arglist
                         if (blocklist) {
+                            auto blocks = parseBlockList();
+                            if (blocks) {
+                                if (call->arguments) {
+                                    call->arguments->append(std::move(blocks));
+                                } else {
+                                    call->arguments = std::move(blocks);
+                                }
+                            }
                         }
                         expr = std::move(call);
                     } else {

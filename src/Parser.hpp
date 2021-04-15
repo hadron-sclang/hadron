@@ -34,7 +34,9 @@ enum NodeType {
     kSetter,
     kKeyValue,
     kCall,
-    kBinopCall
+    kBinopCall,
+    kPerformList,
+    kNumericSeries
 };
 
 struct Node {
@@ -287,6 +289,27 @@ struct BlockReturnNode : public Node {
     virtual ~BlockReturnNode() = default;
 };
 */
+
+// Below nodes are higher-level syntax constructs that LSC processes into lower-level function calls during parsing.
+// We keep these high-level for first parsing pass.
+struct PerformListNode : public Node {
+    PerformListNode(size_t index): Node(NodeType::kPerformList, index) {}
+    virtual ~PerformListNode() = default;
+
+    std::unique_ptr<Node> target;
+    uint64_t selector;
+    std::unique_ptr<Node> arguments;
+};
+
+struct NumericSeriesNode : public Node {
+    NumericSeriesNode(size_t index): Node(NodeType::kNumericSeries, index) {}
+    virtual ~NumericSeriesNode() = default;
+
+    std::unique_ptr<Node> start;
+    std::unique_ptr<Node> step;
+    std::unique_ptr<Node> stop;
+};
+
 } // namespace parse
 
 

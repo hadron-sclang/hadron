@@ -107,15 +107,6 @@ target_link_libraries(libhadron
     ${LLVM_JIT_LIBS}
 )
 
-add_executable(adder
-    adder.cpp
-)
-
-target_link_libraries(adder
-    spdlog
-    libhadron
-)
-
 ######
 # unittests
 add_executable(unittests
