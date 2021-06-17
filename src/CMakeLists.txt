@@ -107,6 +107,12 @@ target_link_libraries(libhadron
     ${LLVM_JIT_LIBS}
 )
 
+if(APPLE)
+    add_dependencies(scintillator_base
+        ghc_filesystem-install
+    )
+endif()
+
 ######
 # unittests
 add_executable(unittests
