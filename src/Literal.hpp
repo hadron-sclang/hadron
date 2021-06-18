@@ -1,36 +1,23 @@
-#ifndef SRC_TYPED_VALUE_HPP_
-#define SRC_TYPED_VALUE_HPP_
+#ifndef SRC_LITERAL_HPP_
+#define SRC_LITERAL_HPP_
+
+#include "Type.hpp"
 
 #include <stdint.h>
 
 namespace hadron {
 
-// sclang is a dynamically typed language
-class TypedValue {
+// Represents a literal value in the input source code.
+class Literal {
 public:
-    enum Type {
-        kNil,
-        kInteger,
-        kFloat,
-        kBoolean,
+    Literal(): m_type(kNil) {}
+    Literal(int64_t value): m_type(kInteger), m_value(value) {}
+    Literal(double value): m_type(kFloat), m_value(value) {}
+    Literal(bool value): m_type(kBoolean), m_value(value) {}
+    Literal(uint64_t value): m_type(kSymbol), m_value(value) {}
 
-        // TODO: implement actual storage for these values with some kind of elementary garbage collection
-        kString,
-        kSymbol,
-
-        kClass,
-        kObject
-
-        // maybe kArray?
-    };
-
-    TypedValue(): m_type(kNil) {}
-    TypedValue(int64_t value): m_type(kInteger), m_value(value) {}
-    TypedValue(double value): m_type(kFloat), m_value(value) {}
-    TypedValue(bool value): m_type(kBoolean), m_value(value) {}
-
-    // Make an empty TypedValue with provided type.
-    TypedValue(Type t): m_type(t) {}
+    // Make an empty Literal with provided type.
+    Literal(Type t): m_type(t) {}
 
     Type type() const { return m_type; }
 
@@ -39,6 +26,7 @@ public:
     int64_t asInteger() const { return m_value.integer; }
     double asFloat() const { return m_value.floatingPoint; }
     bool asBoolean() const { return m_value.boolean; }
+    uint64_t asSymbolHash() const { return m_value.symbolHash; }
 
 private:
     Type m_type;
@@ -47,14 +35,16 @@ private:
         Value(int64_t v): integer(v) {}
         Value(double v): floatingPoint(v) {}
         Value(bool v): boolean(v) {}
+        Value(uint64_t v): symbolHash(v) {}
 
         int64_t integer;
         double floatingPoint;
         bool boolean;
+        uint64_t symbolHash;
     };
     Value m_value;
 };
 
 } // namespace hadron
 
-#endif // SRC_TYPED_VALUE_HPP_
+#endif // SRC_LITERAL_HPP_

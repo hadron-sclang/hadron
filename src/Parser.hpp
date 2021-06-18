@@ -2,7 +2,9 @@
 #define SRC_PARSER_HPP_
 
 #include "Lexer.hpp"
-#include "TypedValue.hpp"
+#include "Literal.hpp"
+#include "SymbolTable.hpp"
+#include "Type.hpp"
 
 #include <memory>
 #include <string_view>
@@ -29,7 +31,12 @@ enum NodeType {
     kName,
     kExprSeq,
     kAssign,
-    kSetter
+    kSetter,
+    kKeyValue,
+    kCall,
+    kBinopCall,
+    kPerformList,
+    kNumericSeries
 };
 
 struct Node {
@@ -38,7 +45,7 @@ struct Node {
     virtual ~Node() = default;
     void append(std::unique_ptr<Node> node) {
         tail->next = std::move(node);
-        tail = tail->next.get();
+        tail = tail->next->tail;
     }
 
     NodeType nodeType;
@@ -173,19 +180,19 @@ struct BlockNode : public Node {
 };
 
 struct ValueNode : public Node {
-    ValueNode(size_t index, const TypedValue& v): Node(NodeType::kValue, index), value(v) {}
+    ValueNode(size_t index, const Literal& v): Node(NodeType::kValue, index), value(v) {}
     virtual ~ValueNode() = default;
 
-    TypedValue value;
+    Literal value;
 };
 
 struct LiteralNode : public Node {
-    LiteralNode(size_t index, const TypedValue& v): Node(NodeType::kLiteral, index), value(v) {}
+    LiteralNode(size_t index, const Literal& v): Node(NodeType::kLiteral, index), value(v) {}
     virtual ~LiteralNode() = default;
 
     // Due to unary negation of literals, this value may differ from the token value at tokenIndex.
     // TODO: consider merging LiteralNode and ValueNode.
-    TypedValue value;
+    Literal value;
 };
 
 struct NameNode : public Node {
@@ -196,15 +203,32 @@ struct NameNode : public Node {
     std::string_view name;
 };
 
-/*
+struct KeyValueNode : public Node {
+    KeyValueNode(size_t index, std::string_view key): Node(NodeType::kKeyValue, index), keyword(key) {}
+    virtual ~KeyValueNode() = default;
+
+    std::string_view keyword;
+    std::unique_ptr<Node> value;
+};
+
+// target.selector(arguments, keyword: arguments)
 struct CallNode : public Node {
-    CallNode();
+    CallNode(size_t index): Node(NodeType::kCall, index) {}
     virtual ~CallNode() = default;
+
+    std::unique_ptr<Node> target;
+    uint64_t selector;
+    std::unique_ptr<Node> arguments;
+    std::unique_ptr<KeyValueNode> keywordArguments;
 };
 
 struct BinopCallNode : public Node {
-    BinopCallNode();
+    BinopCallNode(size_t index): Node(NodeType::kBinopCall, index) {}
     virtual ~BinopCallNode() = default;
+
+    uint64_t selector;
+    std::unique_ptr<Node> leftHand;
+    std::unique_ptr<Node> rightHand;
 };
 
 // DropNodes in LSC represent exprs that could be potentially dropped, such that
@@ -212,7 +236,7 @@ struct BinopCallNode : public Node {
 // This is a parse tree transformation that we would prefer to do as a separate step.
 // The different optimization steps will be easier to design, configure, and verify if
 // they happen in discrete steps, rather than all at once.
-
+/*
 struct DropNode : public Node {
     DropNode();
     virtual ~DropNode() = default;
@@ -250,7 +274,7 @@ struct SetterNode : public Node {
 
     // The recipient of the assigned value.
     std::unique_ptr<Node> target;
-    std::string_view selector;
+    uint64_t selector;
     std::unique_ptr<Node> value;
 };
 
@@ -265,6 +289,27 @@ struct BlockReturnNode : public Node {
     virtual ~BlockReturnNode() = default;
 };
 */
+
+// Below nodes are higher-level syntax constructs that LSC processes into lower-level function calls during parsing.
+// We keep these high-level for first parsing pass.
+struct PerformListNode : public Node {
+    PerformListNode(size_t index): Node(NodeType::kPerformList, index) {}
+    virtual ~PerformListNode() = default;
+
+    std::unique_ptr<Node> target;
+    uint64_t selector;
+    std::unique_ptr<Node> arguments;
+};
+
+struct NumericSeriesNode : public Node {
+    NumericSeriesNode(size_t index): Node(NodeType::kNumericSeries, index) {}
+    virtual ~NumericSeriesNode() = default;
+
+    std::unique_ptr<Node> start;
+    std::unique_ptr<Node> step;
+    std::unique_ptr<Node> stop;
+};
+
 } // namespace parse
 
 
@@ -277,6 +322,7 @@ public:
 
     const parse::Node* root() const { return m_root.get(); }
     const std::vector<Lexer::Token>& tokens() const { return m_lexer.tokens(); }
+    const SymbolTable* symbolTable() const { return &m_symbolTable; }
 
 private:
     bool next();
@@ -301,6 +347,8 @@ private:
     std::unique_ptr<parse::VarDefNode> parseConstDef();
     std::unique_ptr<parse::VarListNode> parseVarDefList();
     std::unique_ptr<parse::VarDefNode> parseVarDef();
+    std::unique_ptr<parse::VarListNode> parseSlotDefList();
+    std::unique_ptr<parse::VarDefNode> parseSlotDef();
     std::unique_ptr<parse::ArgListNode> parseArgDecls();
 
     std::unique_ptr<parse::Node> parseMethodBody();
@@ -312,10 +360,15 @@ private:
     std::unique_ptr<parse::LiteralNode> parseLiteral();
 
     std::unique_ptr<parse::Node> parseArrayElements();
+    std::unique_ptr<parse::Node> parseArgList();
+    std::unique_ptr<parse::KeyValueNode> parseKeywordArgList();
+    std::unique_ptr<parse::Node> parseBlockList();
+    std::unique_ptr<parse::Node> parseBlockOrGenerator();
 
     Lexer m_lexer;
     size_t m_tokenIndex;
     Lexer::Token m_token;
+    SymbolTable m_symbolTable;
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     std::unique_ptr<parse::Node> m_root;
