@@ -41,10 +41,6 @@ for native machine code generation, and another important function that LLVM can
 libraries. This, with supporting engineering, should allow calls to C and C++-based libraries from SuperCollider code
 *without* recompilation of either the interpreter or the class library.
 
-C Bindingsz
-WebAssembly
-AoT
-
 ## Usability
 
 One of the great strengths of the SuperCollider user base is its diversity. For many SuperCollider users, the SC
