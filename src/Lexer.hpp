@@ -1,9 +1,11 @@
 #ifndef SRC_LEXER_HPP_
 #define SRC_LEXER_HPP_
 
-#include "TypedValue.hpp"
+#include "Literal.hpp"
+#include "Type.hpp"
 
 #include <cstddef>
+#include <memory>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string_view>
@@ -11,10 +13,13 @@
 
 namespace hadron {
 
+class ErrorReporter;
+class SymbolTable;
+
 class Lexer {
 public:
     struct Token {
-        enum Type {
+        enum Name {
             kEmpty,  // represents no token
             kLiteral,
             kPrimitive,
@@ -55,63 +60,63 @@ public:
             kDot,
             kDotDot,
             kEllipses,
+            kCurryArgument
         };
 
-        Type type;
-
-        // TODO: refactor to use std::string_view instead of start, length
-        /*! Start position of the token. */
-        const char* start;
-
-        /*! Length of the token in bytes. */
-        size_t length;
-
-        TypedValue value;
-
+        Name name;
+        std::string_view range;
+        Literal value;
         bool couldBeBinop;
 
-        Token(): type(kEmpty), start(nullptr), length(0), couldBeBinop(false) {}
+        Token(): name(kEmpty), couldBeBinop(false) {}
 
         /*! Makes an integer kLiteral token */
-        Token(const char* s, size_t l, int64_t intValue):
-            type(kLiteral), start(s), length(l), value(intValue), couldBeBinop(false) {}
+        Token(const char* start, size_t length, int64_t intValue):
+            name(kLiteral), range(start, length), value(intValue), couldBeBinop(false) {}
 
         /*! Makes a float kLiteral token */
-        Token(const char* s, size_t l, double doubleValue):
-            type(kLiteral), start(s), length(l), value(doubleValue), couldBeBinop(false) {}
+        Token(const char* start, size_t length, double doubleValue):
+            name(kLiteral), range(start, length), value(doubleValue), couldBeBinop(false) {}
 
         /*! Makes a boolean kLiteral token */
-        Token(const char* s, size_t l, bool boolean):
-            type(kLiteral), start(s), length(l), value(boolean), couldBeBinop(false) {}
+        Token(const char* start, size_t length, bool boolean):
+            name(kLiteral), range(start, length), value(boolean), couldBeBinop(false) {}
 
-        /*! Makes a kLiteral with a provided literal type (until we figure out strings and such better) */
-        Token(const char*s, size_t l, TypedValue::Type t):
-            type(kLiteral), start(s), length(l), value(t), couldBeBinop(false) {}
+        /*! Makes a symbol kLiteral token */
+        Token(const char* start, size_t length, uint64_t symbolHash):
+            name(kLiteral), range(start, length), value(symbolHash), couldBeBinop(false) {}
+
+        /*! Makes a kLiteral with the provided type*/
+        Token(const char* start, size_t length, Type type):
+            name(kLiteral), range(start, length), value(type), couldBeBinop(false) {}
 
         /*! Makes a token with no value storage */
-        Token(Type t, const char* s, size_t l): type(t), start(s), length(l), couldBeBinop(false) {}
+        Token(Name n, const char* start, size_t length): name(n), range(start, length), couldBeBinop(false) {}
 
         /* Makes a token with possible true value for couldBeBinop */
-        Token(Type t, const char* s, size_t l, bool binop): type(t), start(s), length(l), couldBeBinop(binop) {}
+        Token(Name n, const char* start, size_t length, bool binop): name(n), range(start, length), couldBeBinop(binop)
+            {}
     };
 
     Lexer(std::string_view code);
+    ~Lexer() = default;
+
+    // For testing, use a local SymbolTable and ErrorReporter
     bool lex();
+    bool lex(SymbolTable* symbolTable, ErrorReporter* errorReporter);
 
     const std::vector<Token>& tokens() const { return m_tokens; }
 
+    // Access for testing
+    const SymbolTable* symbolTable() const { return m_symbolTable.get(); }
+    const ErrorReporter* errorReporter() const { return m_errorReporter.get(); }
+
 private:
+    std::string_view m_code;
     std::vector<Token> m_tokens;
 
-    // TODO: these can likely be moved back to lex() as local variables there.
-    // Ragel-required state variables.
-    const char* p;
-    const char* pe;
-    const char* eof;
-    int cs;
-    int act;
-    const char* ts;
-    const char* te;
+    std::unique_ptr<SymbolTable> m_symbolTable;
+    std::unique_ptr<ErrorReporter> m_errorReporter;
 };
 
 } // namespace hadron
