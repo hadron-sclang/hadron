@@ -93,6 +93,9 @@ SCv3 has some options to influence the compilation of code, such as the `Interpr
 extends this to add full metaprogramming capability, enabling access to and manipulation of the abstract syntax tree of
 an expression in the language.
 
+Important also to try and ensure that higher-level languages that rely on sclang as a backend interpreter, such as
+Tidal, could continue to work (with modification) on Hadron.
+
 ### Code Distribution
 
 The Quark system has been great for distributing SuperCollider code. We should keep it, possibly extending it as needed.
