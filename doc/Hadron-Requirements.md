@@ -103,8 +103,9 @@ Tracking dependencies between modules needs improvement.
 
 ## Backwards Compatibility
 
-The goal is "tech transfer," meaning that someone who has gone to the trouble of learning how to write code in
-SuperCollider would feel that their time hadn't been wasted and they can pick up Hadron relatively quickly.
+Hadron will make a best effort to maintain backwards compatability with sclang, to allow for most code that ran on
+sclang to also run on Hadron. There are some possibility for breaking changes to occur but to maximize tech transfer we
+will keep these to a minimum.
 
 ## Developer Interface
 

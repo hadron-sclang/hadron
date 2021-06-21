@@ -2,14 +2,9 @@
 
 ## Type Formatting
 
-Hadron is *strongly typed*, meaning that the type of every expression in the language must be known at compile time.
-This is different than the SuperCollider language, which has *dynamic typing.* There are many advantages to static
-typing in programming languages, but they do require the programmer to provide additional information in the code about
-the type of each expression.
-
-Not all types have to be specified, some can be inferred by the compiler. Because the type syntax extends existing
-SuperCollider grammar, and we can infer some types, we hope that SuperCollider code can be used in Hadron with only
-minimal effort to add the missing type information.
+Hadron extends SuperCollider grammer to allow for specification of static types for variables, arguments, and functions.
+This allows the compiler to generate much more efficient machine code, yet keeps backward compatibility with existing
+SuperCollider code.
 
 ### Fundamental Types of Hadron
 
