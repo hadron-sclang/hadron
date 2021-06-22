@@ -11,13 +11,14 @@ public:
     ErrorReporter();
     ~ErrorReporter();
 
-    // Most be called before getLineNumber() can be called.
+    // Must be called before getLineNumber() can be called.
     void setCode(const char* code) { m_code = code; }
 
     void addError(const std::string& error);
 
-    size_t getLineNumber(const char* location);
-    size_t errorCount() { return m_errors.size(); }
+    size_t getLineNumber(const char* location);    
+    size_t errorCount() const { return m_errors.size(); }
+    const char* getLineStart(size_t lineNumber) const { return m_lineEndings[lineNumber - 1]; }
 
 private:
     const char* m_code;

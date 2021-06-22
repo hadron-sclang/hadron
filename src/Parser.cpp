@@ -1178,52 +1178,25 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         isSingleExpression = true;
         Lexer::Token openParen = m_token;
         // expr -> expr1: '(' exprseq ')'
-        // expr -> expr1: '(' valrange2 ')'
         next(); // (
-//        bool isValRange = false;
-        if (m_token.name == Lexer::Token::kColon) {
-            // expr -> expr1: '(' ':' valrange3 ')'
-            next(); // :
-//            isValRange = true;
-        }
-        if (m_token.name == Lexer::Token::kDotDot) {
-            next(); // ..
-        }
-        auto seq = parseExprSeq();
-        if (!seq) {
+        expr = parseExprSeq();
+        if (m_token.name != Lexer::Token::kCloseParen) {
+            m_errorReporter->addError(fmt::format("Error parsing expression sequence on line {}, expecting closing "
+                    "parenthesis ')' to match opening parenthesis '(' on line {}",
+                    m_errorReporter->getLineNumber(m_token.range.data()),
+                    m_errorReporter->getLineNumber(openParen.range.data())));
             return nullptr;
         }
-        if (m_token.name == Lexer::Token::kComma) {
-            next(); // ,
-        }
-
-// -------
-        if (m_token.name == Lexer::Token::kDotDot) {
-            next(); // ..
-        } else {
-            expr = parseExprSeq();
-            if (m_token.name == Lexer::Token::kComma) {
-//                isValRange = true;
-                next(); // ,
-            }
-
-            if (m_token.name != Lexer::Token::kCloseParen) {
-                m_errorReporter->addError(fmt::format("Error parsing code on line {}, expected closing parenthesis ')' "
-                            "to match opening parenthesis '(' on line {}.",
-                            m_errorReporter->getLineNumber(m_token.range.data()),
-                            m_errorReporter->getLineNumber(openParen.range.data())));
-                return nullptr;
-            }
-        }
         next(); // )
-
+        // expr -> expr1: '(' valrange2 ')'
+        // expr -> expr1: '(' ':' valrange3 ')'
         // expr -> expr1: '(' dictslotlist ')'
         // dictslotdef: exprseq ':' exprseq | keybinop exprseq
         // expr -> expr1 -> msgsend: '(' binop2 ')' blocklist1
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' ')' blocklist1
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglist1 optkeyarglist ')' blocklist
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
-        } break;
+    } break;
 
     case Lexer::Token::Name::kOpenSquare: {
         // expr -> expr1: '[' arrayelems ']'
@@ -1236,6 +1209,7 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
                     "bracket ']' to match opening square bracket '[' on line {}",
                     m_errorReporter->getLineNumber(m_token.range.data()),
                     m_errorReporter->getLineNumber(openSquare.range.data())));
+                    return nullptr;
         }
         next(); // ]
         expr = std::move(dynList);
