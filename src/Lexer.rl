@@ -214,8 +214,9 @@
 
         space { /* ignore whitespace */ };
         any {
-            errorReporter->addError(fmt::format("Lexing error at line {}: unrecognized token '{}'",
-                errorReporter->getLineNumber(ts), std::string(ts, te - ts)));
+            size_t lineNumber = errorReporter->getLineNumber(ts);
+            errorReporter->addError(fmt::format("Lexing error at line {} character {}: unrecognized token '{}'",
+                lineNumber, ts - errorReporter->getLineStart(lineNumber), std::string(ts, te - ts)));
             return false;
         };
     *|;
