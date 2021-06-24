@@ -323,6 +323,7 @@ public:
     const parse::Node* root() const { return m_root.get(); }
     const std::vector<Lexer::Token>& tokens() const { return m_lexer.tokens(); }
     const SymbolTable* symbolTable() const { return &m_symbolTable; }
+    std::shared_ptr<ErrorReporter> errorReporter() { return m_errorReporter; }
 
 private:
     bool next();
