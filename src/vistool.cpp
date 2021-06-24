@@ -49,7 +49,7 @@ std::string printLiteral(const hadron::Literal& literal) {
 
         case hadron::Type::kClass:
             return "(class)";
-        
+
         case hadron::Type::kObject:
             return "(object)";
 
@@ -111,9 +111,10 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
     auto token = parser.tokens()[node->tokenIndex];
     int nodeSerial = serial;
     ++serial;
-    outFile << fmt::format("    node_{}:token -> token_{}\n", nodeSerial, node->tokenIndex);
+    outFile << fmt::format("     node_{}:token -> line_{}:token_{} [color=darkGray]\n", nodeSerial,
+        parser.errorReporter()->getLineNumber(token.range.data()), node->tokenIndex);
 
-    // Generally the format of the labels is a table:
+    // Generally the format of the labels is a vertically stacked table:
     //    top row is node type in bold
     //    then the next pointer
     //    next row is the token in monospace
@@ -124,7 +125,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
     case hadron::parse::NodeType::kEmpty:
         spdlog::error("Parser returned Empty node!");
         return;
-    
+
     case hadron::parse::NodeType::kVarDef: {
         const auto varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(node);
         outFile << fmt::format("    node_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
@@ -181,7 +182,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         if (argList->varList) {
             outFile << fmt::format("    node_{}:varList -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, argList->varList.get());
-        }     
+        }
     } break;
 
     case hadron::parse::NodeType::kMethod: {
@@ -208,7 +209,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         if (method->arguments) {
             outFile << fmt::format("    node_{}:arguments -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, method->arguments.get());
-        }            
+        }
         if (method->variables) {
             outFile << fmt::format("    node_{}:variables -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, method->variables.get());
@@ -253,7 +254,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         if (block->arguments) {
             outFile << fmt::format("    node_{}:arguments -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, block->arguments.get());
-        }            
+        }
         if (block->variables) {
             outFile << fmt::format("    node_{}:variables -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, block->variables.get());
@@ -319,7 +320,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         if (exprSeq->expr) {
             outFile << fmt::format("    node_{}:expr -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, exprSeq->expr.get());
-        }            
+        }
     } break;
 
     case hadron::parse::NodeType::kAssign: {
@@ -338,7 +339,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         if (assign->name) {
             outFile << fmt::format("    node_{}:name -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, assign->name.get());
-        }            
+        }
         if (assign->value) {
             outFile << fmt::format("    node_{}:value -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, assign->value.get());
@@ -377,7 +378,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         if (call->arguments) {
             outFile << fmt::format("    node_{}:arguments -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, call->arguments.get());
-        }            
+        }
         if (call->keywordArguments) {
             outFile << fmt::format("    node_{}:keywordArguments -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, call->keywordArguments.get());
@@ -406,7 +407,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         if (binopCall->rightHand) {
             outFile << fmt::format("    node_{}:rightHand -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, binopCall->rightHand.get());
-        }            
+        }
     } break;
 
     case hadron::parse::NodeType::kPerformList:
@@ -468,17 +469,33 @@ int main(int argc, char* argv[]) {
         outFile << "digraph HadronAST {" << std::endl;
         outFile << "    subgraph {" << std::endl;
         outFile << "        edge [style=\"invis\"]" << std::endl;
-        // First describe the lexer symbols in order, for connecting to the AST.
-        for (size_t i = 0; i < parser.tokens().size(); ++i) {
-            outFile << fmt::format("        token_{} [shape=box label=<<font face=\"monospace\">{}</font>>]\n", i,
-                htmlEscape(std::string(parser.tokens()[i].range.data(), parser.tokens()[i].range.size())));
-            if (i > 0) {
-                outFile << fmt::format("        token_{} -> token_{}\n", i-1, i);
+        size_t currentLine = 1;
+        size_t tokenIndex = 0;
+        while (tokenIndex < parser.tokens().size()) {
+            outFile << fmt::format("        line_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" "
+                "cellspacing=\"0\"><tr><td><font point-size=\"24\">line {}:</font></td>", currentLine, currentLine);
+            size_t tokenLine = errorReporter->getLineNumber(parser.tokens()[tokenIndex].range.data());
+            while (tokenLine == currentLine) {
+                outFile << fmt::format("<td port=\"token_{}\"><font face=\"monospace\" "
+                    "point-size=\"24\">{}</font></td>", tokenIndex,
+                    htmlEscape(std::string(parser.tokens()[tokenIndex].range.data(),
+                        parser.tokens()[tokenIndex].range.size())));
+                ++tokenIndex;
+                if (tokenIndex < parser.tokens().size()) {
+                    tokenLine = errorReporter->getLineNumber(parser.tokens()[tokenIndex].range.data());
+                } else {
+                    tokenLine = 0;
+                }
+            }
+            currentLine = tokenLine;
+            outFile << "</tr></table>>]" << std::endl;
+            if (currentLine > 1) {
+                outFile << fmt::format("        line_{} -> line_{}\n", currentLine - 1, currentLine);
             }
         }
         outFile << "    }  // end of code subgraph" << std::endl;
         int serial = 0;
-        visualizeParseNode(outFile, parser, serial, parser.root());    
+        visualizeParseNode(outFile, parser, serial, parser.root());
         outFile << "}" << std::endl;
     }
 
