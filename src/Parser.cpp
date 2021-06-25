@@ -478,8 +478,8 @@ std::unique_ptr<parse::Node> Parser::parseCmdLineCode() {
     switch (m_token.name) {
     case Lexer::Token::Name::kOpenParen: {
         auto openParenToken = m_token;
-        next(); // (
         auto block = std::make_unique<parse::BlockNode>(m_tokenIndex);
+        next(); // (
         block->variables = parseFuncVarDecls();
         block->body = parseFuncBody();
         if (m_token.name != Lexer::Token::kCloseParen) {
@@ -646,7 +646,6 @@ std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecls() {
 // funcvardecl: VAR vardeflist ';'
 std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecl() {
     assert(m_token.name == Lexer::Token::Name::kVar);
-    next(); // var
     auto varDefList = parseVarDefList();
     if (m_token.name != Lexer::Token::Name::kSemicolon) {
         m_errorReporter->addError(fmt::format("Error parsing variable declaration at line {}, expecting semicolon ';'.",
@@ -823,6 +822,9 @@ std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
 // vardeflist: vardef | vardeflist ',' vardef
 std::unique_ptr<parse::VarListNode> Parser::parseVarDefList() {
     auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
+    if (m_token.name == Lexer::Token::Name::kVar) {
+        next(); // var
+    }
     varList->definitions = parseVarDef();
     if (varList->definitions == nullptr) {
         return nullptr;
@@ -940,15 +942,15 @@ std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
     std::unique_ptr<parse::ArgListNode> argList;
     if (m_token.name == Lexer::Token::Name::kArg) {
         isArg = true;
-        next(); // arg
         argList = std::make_unique<parse::ArgListNode>(m_tokenIndex);
+        next(); // arg
         if (m_token.name != Lexer::Token::Name::kEllipses) {
             argList->varList = parseVarDefList();
         }
     } else if (m_token.name == Lexer::Token::kPipe) {
         isArg = false;
-        next(); // |
         argList = std::make_unique<parse::ArgListNode>(m_tokenIndex);
+        next(); // |
         if (m_token.name != Lexer::Token::Name::kEllipses) {
             argList->varList = parseSlotDefList();
         }
