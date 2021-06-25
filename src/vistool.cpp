@@ -111,7 +111,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
     auto token = parser.tokens()[node->tokenIndex];
     int nodeSerial = serial;
     ++serial;
-    outFile << fmt::format("     node_{}:token -> line_{}:token_{} [color=darkGray]\n", nodeSerial,
+    outFile << fmt::format("    node_{} -> line_{}:token_{} [color=darkGray]\n", nodeSerial,
         parser.errorReporter()->getLineNumber(token.range.data()), node->tokenIndex);
 
     // Generally the format of the labels is a vertically stacked table:
@@ -188,7 +188,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
     case hadron::parse::NodeType::kMethod: {
         const auto method = reinterpret_cast<const hadron::parse::MethodNode*>(node);
         outFile << fmt::format("    node_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
-            "<tr><td bgcolor=\"lightGray\"><b>Method</b></td>"
+            "<tr><td bgcolor=\"lightGray\"><b>Method</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
             "<tr><td>methodName: {}</td></tr>"
@@ -199,8 +199,8 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td port=\"body\">body {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
-            std::string(token.range.data(), token.range.size()),
-            std::string(method->methodName.data(), method->methodName.size()),
+            htmlEscape(std::string(token.range.data(), token.range.size())),
+            htmlEscape(std::string(method->methodName.data(), method->methodName.size())),
             trueFalse(method->isClassMethod),
             std::string(method->primitive.data(), method->primitive.size()),
             nullOrNo(method->arguments.get()),
@@ -224,13 +224,51 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         spdlog::warn("TODO: ClassExtNode");
         break;
 
-    case hadron::parse::NodeType::kClass:
-        spdlog::warn("TODO: ClassNode");
-        break;
+    case hadron::parse::NodeType::kClass: {
+        const auto classNode = reinterpret_cast<const hadron::parse::ClassNode*>(node);
+        outFile << fmt::format("    node_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
+            "<tr><td bgcolor=\"lightGray\"><b>Class</b></td></tr>"
+            "<tr><td port=\"next\">next {}</td></tr>"
+            "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
+            "<tr><td>className: {}</td></tr>"
+            "<tr><td>superClassName: {}</td></tr>"
+            "<tr><td>optionalName: {}</td></tr>"
+            "<tr><td port=\"variables\">variables {}</td></tr>"
+            "<tr><td port=\"methods\">methods {}</td></tr></table>>]\n",
+            nodeSerial,
+            nullOrNo(node->next.get()),
+            std::string(token.range.data(), token.range.size()),
+            std::string(classNode->className.data(), classNode->className.size()),
+            std::string(classNode->superClassName.data(), classNode->superClassName.size()),
+            std::string(classNode->optionalName.data(), classNode->optionalName.size()),
+            nullOrNo(classNode->variables.get()),
+            nullOrNo(classNode->methods.get()));
+        if (classNode->variables) {
+            outFile << fmt::format("    node_{}:variables -> node_{}\n", nodeSerial, serial);
+            visualizeParseNode(outFile, parser, serial, classNode->variables.get());
+        }
+        if (classNode->methods) {
+            outFile << fmt::format("    node_{}:methods -> node_{}\n", nodeSerial, serial);
+            visualizeParseNode(outFile, parser, serial, classNode->methods.get());
+        }
+    } break;
 
-    case hadron::parse::NodeType::kReturn:
-        spdlog::warn("TODO: ReturnNode");
-        break;
+    case hadron::parse::NodeType::kReturn: {
+        const auto returnNode = reinterpret_cast<const hadron::parse::ReturnNode*>(node);
+        outFile << fmt::format("    node_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
+            "<tr><td bgcolor=\"lightGray\"><b>Return</b></td></tr>"
+            "<tr><td port=\"next\">next {}</td></tr>"
+            "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
+            "<tr><td port=\"valueExpr\">valueExpr {}</td></tr></table>>]\n",
+            nodeSerial,
+            nullOrNo(node->next.get()),
+            std::string(token.range.data(), token.range.size()),
+            nullOrNo(returnNode->valueExpr.get()));
+        if (returnNode->valueExpr) {
+            outFile << fmt::format("    node_{}:valueExpr -> node_{}\n", nodeSerial, serial);
+            visualizeParseNode(outFile, parser, serial, returnNode->valueExpr.get());
+        }
+    } break;
 
     case hadron::parse::NodeType::kDynList:
         spdlog::warn("TODO: DynListNode");
@@ -475,11 +513,13 @@ int main(int argc, char* argv[]) {
             outFile << fmt::format("        line_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" "
                 "cellspacing=\"0\"><tr><td><font point-size=\"24\">line {}:</font></td>", currentLine, currentLine);
             size_t tokenLine = errorReporter->getLineNumber(parser.tokens()[tokenIndex].range.data());
+            int tokenLineCount = 0;
             while (tokenLine == currentLine) {
                 outFile << fmt::format("<td port=\"token_{}\"><font face=\"monospace\" "
                     "point-size=\"24\">{}</font></td>", tokenIndex,
                     htmlEscape(std::string(parser.tokens()[tokenIndex].range.data(),
                         parser.tokens()[tokenIndex].range.size())));
+                ++tokenLineCount;
                 ++tokenIndex;
                 if (tokenIndex < parser.tokens().size()) {
                     tokenLine = errorReporter->getLineNumber(parser.tokens()[tokenIndex].range.data());
@@ -487,11 +527,11 @@ int main(int argc, char* argv[]) {
                     tokenLine = 0;
                 }
             }
-            currentLine = tokenLine;
             outFile << "</tr></table>>]" << std::endl;
-            if (currentLine > 1) {
-                outFile << fmt::format("        line_{} -> line_{}\n", currentLine - 1, currentLine);
+            if (tokenLine > 1 && tokenLineCount > 0) {
+                outFile << fmt::format("        line_{} -> line_{}\n", currentLine, tokenLine);
             }
+            currentLine = tokenLine;
         }
         outFile << "    }  // end of code subgraph" << std::endl;
         int serial = 0;
