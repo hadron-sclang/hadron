@@ -1619,6 +1619,38 @@ TEST_CASE("Parser exprseq") {
 
 TEST_CASE("Parser msgsend") {
     SUBCASE("msgsend: name blocklist1") {
+        Parser parser("while { false } { nil };", std::make_shared<ErrorReporter>());
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(parser.root());
+        CHECK(call->target == nullptr);
+        CHECK(parser.symbolTable()->getSymbol(call->selector).compare("while") == 0);
+        CHECK(call->keywordArguments == nullptr);
+        CHECK(call->next == nullptr);
+        REQUIRE(call->arguments != nullptr);
+        REQUIRE(call->arguments->nodeType == parse::NodeType::kBlock);
+
+        const parse::BlockNode* block = reinterpret_cast<const parse::BlockNode*>(call->arguments.get());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kLiteral);
+
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(block->body.get());
+        REQUIRE(literal->value.type() == Type::kBoolean);
+        CHECK(!literal->value.asBoolean());
+
+        REQUIRE(block->next != nullptr);
+        REQUIRE(block->next->nodeType == parse::NodeType::kBlock);
+        block = reinterpret_cast<const parse::BlockNode*>(block->next.get());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(block->body.get());
+        CHECK(literal->value.type() == Type::kNil);
     }
 
     SUBCASE("msgsend: '(' binop2 ')' blocklist1") {

@@ -8,10 +8,18 @@
 namespace hadron {
 
 namespace parse {
-class Node;
+struct Node;
 }
 
-class IRModule;
+namespace gen {
+
+
+// Transform parse tree nodes into code blocks and instructions, for control flow analysis, subsequent transformation
+// into SSA form, and finishing IR code generation.
+struct Block {
+
+};
+}  // namespace gen
 
 // While LLVM is multi-threaded this CodeGenerator is not, so for multithreaded code generation each thread should use
 // their own CodeGen object.
@@ -23,7 +31,7 @@ public:
     std::unique_ptr<llvm::Module> genInterpreterIR(const parse::Node* root, uint64_t uniqueID);
 
 private:
-    void buildIR(const parse::Node* root);
+    void buildIR(const parse::Node* node);
 
     std::unique_ptr<llvm::LLVMContext> m_context;
     std::unique_ptr<llvm::IRBuilder<>> m_builder;

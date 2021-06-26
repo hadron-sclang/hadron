@@ -3,6 +3,7 @@
 #include "Parser.hpp"
 
 #include "fmt/core.h"
+#include "spdlog/spdlog.h"
 
 #include <vector>
 
@@ -34,8 +35,15 @@ std::unique_ptr<llvm::Module> CodeGenerator::genInterpreterIR(const parse::Node*
     return module;
 }
 
-void CodeGenerator::buildIR(const parse::Node* /* root */) {
+void CodeGenerator::buildIR(const parse::Node* node) {
+    switch (node->nodeType) {
+    case hadron::parse::NodeType::kEmpty:
+        spdlog::error("CodeGenerator encountered empty parse node.");
+        return;
 
+    default:
+        return;
+    }
 }
 
 } // namespace hadron

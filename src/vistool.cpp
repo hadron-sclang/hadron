@@ -404,8 +404,8 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td port=\"keywordArguments\">keywordArguments {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
-            std::string(token.range.data(), token.range.size()),
-            parser.symbolTable()->getSymbol(call->selector),
+            htmlEscape(std::string(token.range.data(), token.range.size())),
+            htmlEscape(parser.symbolTable()->getSymbol(call->selector)),
             nullOrNo(call->target.get()),
             nullOrNo(call->arguments.get()),
             nullOrNo(call->keywordArguments.get()));
@@ -434,8 +434,8 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td port=\"rightHand\">rightHand {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
-            std::string(token.range.data(), token.range.size()),
-            parser.symbolTable()->getSymbol(binopCall->selector),
+            htmlEscape(std::string(token.range.data(), token.range.size())),
+            htmlEscape(parser.symbolTable()->getSymbol(binopCall->selector)),
             nullOrNo(binopCall->leftHand.get()),
             nullOrNo(binopCall->rightHand.get()));
         if (binopCall->leftHand) {

@@ -56,31 +56,17 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     VERBATIM
 )
 
-#if(APPLE)
-#else()
-#set(LLVM_DOWNLOAD clang+llvm-11.0.0-x86_64-linux-gnu-ubuntu-20.04)
-#endif()
-
-#ExternalProject_add(llvm
-#    PREFIX ext
-#    STEP_TARGETS install
-#    URL https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/${LLVM_DOWNLOAD}.tar.xz
-#    DOWNLOAD_NO_EXTRACT ON
-#    UPDATE_COMMAND ""
-#    CONFIGURE_COMMAND ""
-#    BUILD_COMMAND ""
-#    INSTALL_COMMAND tar xf <DOWNLOADED_FILE> -C ${INSTALL_EXT} && mv ${INSTALL_EXT}/${LLVM_DOWNLOAD} ${INSTALL_EXT}/llvm
-#    EXCLUDE_FROM_ALL ON
-#)
-
 add_library(libhadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     ClassLibrary.cpp
     ClassLibrary.hpp
+    CodeGenerator.cpp
+    CodeGenerator.hpp
     ErrorReporter.cpp
     ErrorReporter.hpp
     FileSystem.hpp
+    LLVM.hpp
     Lexer.hpp
     Literal.hpp
     Parser.cpp
@@ -90,14 +76,14 @@ add_library(libhadron STATIC
     Type.hpp
 )
 
-#add_dependencies(libhadron
-#    llvm-install
-#)
+add_dependencies(libhadron
+    llvm-install
+)
 
-#set(LLVM_JIT_LIBS
-#    "${INSTALL_EXT}/llvm/lib/libLLVMCore.a"
-#    "${INSTALL_EXT}/llvm/lib/libLLVMSupport.a"
-#)
+set(LLVM_JIT_LIBS
+    "${INSTALL_EXT}/llvm/lib/libLLVMCore.a"
+    "${INSTALL_EXT}/llvm/lib/libLLVMSupport.a"
+)
 
 target_compile_options(libhadron PUBLIC -g -Wall -Wextra -Wpedantic -Werror)
 
@@ -105,7 +91,7 @@ target_link_libraries(libhadron
     fmt
     spdlog
     xxHash::xxhash
-#    ${LLVM_JIT_LIBS}
+    ${LLVM_JIT_LIBS}
 )
 
 if(APPLE)

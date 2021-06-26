@@ -1103,12 +1103,12 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
             expr = std::move(dynList);
             isSingleExpression = true;
         } else if (m_token.name == Lexer::Token::kOpenParen) {
-            // expr -> expr1 -> msgsend: classname '(' ')' blocklist
-            // expr -> expr1 -> msgsend: classname '(' keyarglist1 optcomma ')' blocklist
-            // expr -> expr1 -> msgsend: classname '(' arglist1 optkeyarglist ')' blocklist
-            // expr -> expr1 -> msgsend: classname '(' arglistv1 optkeyarglist ')'
+            // TODO: expr -> expr1 -> msgsend: classname '(' ')' blocklist
+            // TODO: expr -> expr1 -> msgsend: classname '(' keyarglist1 optcomma ')' blocklist
+            // TODO: expr -> expr1 -> msgsend: classname '(' arglist1 optkeyarglist ')' blocklist
+            // TODO: expr -> expr1 -> msgsend: classname '(' arglistv1 optkeyarglist ')'
         } else if (m_token.name == Lexer::Token::kOpenCurly) {
-            // expr -> expr1 -> msgsend: classname blocklist1
+            // TODO: expr -> expr1 -> msgsend: classname blocklist1
         } else {
             // expr: classname
             expr = std::make_unique<parse::NameNode>(m_tokenIndex - 1, className.range);
@@ -1116,26 +1116,36 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
     } break;
 
     case Lexer::Token::Name::kIdentifier: {
-        // expr: name '(' arglist1 optkeyarglist ')' '=' expr
-        auto name = std::make_unique<parse::NameNode>(m_tokenIndex, m_token.range);
+        size_t nameIndex = m_tokenIndex;
+        auto nameToken = m_token;
         next(); // name
         if (m_token.name == Lexer::Token::kAssign) {
             // expr: name '=' expr
             auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex);
             next(); // =
-            assign->name = std::move(name);
+            assign->name = std::make_unique<parse::NameNode>(nameIndex, nameToken.range);
             assign->value = parseExpr();
             expr = std::move(assign);
+        } else if (m_token.name == Lexer::Token::kOpenParen) {
+            // TODO: expr: name '(' arglist1 optkeyarglist ')' '=' expr
+            // TODO: expr -> expr1 -> msgsend: name '(' ')' blocklist1
+            // TODO: expr -> expr1 -> msgsend: name '(' arglist1 optkeyarglist ')' blocklist
+            // TODO: expr -> expr1 -> msgsend: name '(' arglistv1 optkeyarglist ')'
         } else {
-            // expr -> expr1 -> pushname: name
-            expr = std::move(name);
-            isSingleExpression = true;
+            auto blockList = parseBlockList();
+            if (blockList) {
+                // expr -> expr1 -> msgsend: name blocklist1
+                auto call = std::make_unique<parse::CallNode>(nameIndex);
+                call->selector = m_symbolTable.addSymbolVerbatim(nameToken.range);
+                call->arguments = std::move(blockList);
+                expr = std::move(call);
+            } else {
+                // expr -> expr1 -> pushname: name
+                expr = std::make_unique<parse::NameNode>(nameIndex, nameToken.range);
+                isSingleExpression = true;
+            }
         }
 
-        // expr -> expr1 -> msgsend: name blocklist1
-        // expr -> expr1 -> msgsend: name '(' ')' blocklist1
-        // expr -> expr1 -> msgsend: name '(' arglist1 optkeyarglist ')' blocklist
-        // expr -> expr1 -> msgsend: name '(' arglistv1 optkeyarglist ')'
     } break;
 
     case Lexer::Token::Name::kGrave:
