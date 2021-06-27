@@ -2,6 +2,7 @@
 
 #include "Block.hpp"
 #include "HIR.hpp"
+#include "Keywords.hpp"
 #include "Parser.hpp"
 #include "Value.hpp"
 
@@ -105,7 +106,10 @@ void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
     kKeyValue,
 */
     case hadron::parse::kCall: {
-
+        const auto call = reinterpret_cast<const parse::CallNode*>(node);
+        if (call->selector == kWhileHash) {
+            // bingo
+        }
     } break;
 
     case hadron::parse::kBinopCall: {

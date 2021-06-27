@@ -1,3 +1,5 @@
+// vistool generates dot files, suitable for consumption with graphviz, of different outputs of the Hadron compiler
+// processess. It currently can generate parse tree and Control Flow Graph (CFG) block tree visualizations.
 #include "FileSystem.hpp"
 
 #include "ErrorReporter.hpp"
@@ -525,7 +527,6 @@ void visualizeBlockNode(std::ofstream& outFile, const hadron::Block* block) {
         visualizeBlockNode(outFile, child.get());
     }
 }
-
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);

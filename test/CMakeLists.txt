@@ -23,6 +23,6 @@ add_executable(parser_exhaustive_test
 
 target_link_libraries(parser_exhaustive_test
     gflags
-    libhadron
+    hadron
 )
 

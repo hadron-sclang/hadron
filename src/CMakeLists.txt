@@ -9,6 +9,7 @@ configure_file(BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp")
 
 include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}"
     "${INSTALL_EXT}/include"
     "${INSTALL_EXT}/llvm/include"
 )
@@ -56,8 +57,28 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     VERBATIM
 )
 
-add_library(libhadron STATIC
+# predefined symbol hash table
+add_executable(hashkw
+    hashkw.cpp
+)
+
+target_link_libraries(hashkw
+    fmt
+    xxHash::xxhash
+)
+
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
+    COMMAND hashkw
+    DEPENDS hashkw
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    VERBATIM
+)
+
+######
+# libhadron
+add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     ClassLibrary.cpp
     ClassLibrary.hpp
@@ -66,7 +87,6 @@ add_library(libhadron STATIC
     ErrorReporter.cpp
     ErrorReporter.hpp
     FileSystem.hpp
-    LLVM.hpp
     Lexer.hpp
     Literal.hpp
     Parser.cpp
@@ -76,26 +96,26 @@ add_library(libhadron STATIC
     Type.hpp
 )
 
-add_dependencies(libhadron
-    llvm-install
-)
+#add_dependencies(hadron
+#    llvm-install
+#)
 
-set(LLVM_JIT_LIBS
+set(LLVM_LIBS
     "${INSTALL_EXT}/llvm/lib/libLLVMCore.a"
     "${INSTALL_EXT}/llvm/lib/libLLVMSupport.a"
 )
 
-target_compile_options(libhadron PUBLIC -g -Wall -Wextra -Wpedantic -Werror)
+target_compile_options(hadron PUBLIC -g -Wall -Wextra -Wpedantic -Werror)
 
-target_link_libraries(libhadron
+target_link_libraries(hadron
     fmt
     spdlog
     xxHash::xxhash
-    ${LLVM_JIT_LIBS}
+#    ${LLVM_LIBS}
 )
 
 if(APPLE)
-    add_dependencies(libhadron
+    add_dependencies(hadron
         ghc_filesystem-install
     )
 endif()
@@ -111,7 +131,7 @@ add_executable(unittests
 
 target_link_libraries(unittests
     doctest
-    libhadron
+    hadron
 )
 
 add_custom_target(run_unittests ALL
@@ -127,6 +147,6 @@ add_executable(vistool
 
 target_link_libraries(vistool
     gflags
-    libhadron
+    hadron
 )
 
