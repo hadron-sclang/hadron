@@ -20,6 +20,10 @@ uint64_t SymbolTable::addSymbolEscaped(std::string_view symbol) {
     return hash;
 }
 
+uint64_t SymbolTable::hashOnly(std::string_view symbol) const {
+    return XXH3_64bits(symbol.data(), symbol.size());
+}
+
 std::string_view SymbolTable::getSymbol(uint64_t hash) const {
     auto it = m_symbolMap.find(hash);
     if (it != m_symbolMap.end()) {

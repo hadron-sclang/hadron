@@ -18,6 +18,8 @@ public:
     uint64_t addSymbolVerbatim(std::string_view symbol);
     // Adds a symbol by processing escape characters first.
     uint64_t addSymbolEscaped(std::string_view symbol);
+    // Hash a symbol only without adding it to the table.
+    uint64_t hashOnly(std::string_view symbol) const;
 
     std::string_view getSymbol(uint64_t hash) const;
 

@@ -60,3 +60,8 @@ For example:
     var c = a.toString() + k;
 )
 ```
+
+## Inline Variable Declarations
+
+Hadron should not require variable definitions to only exist at the start of blocks. This will require modification of
+the parser to accept `var` keywords as part of an expression sequence.

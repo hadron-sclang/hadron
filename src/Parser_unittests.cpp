@@ -283,18 +283,21 @@ TEST_CASE("Parser classvardecls") {
         REQUIRE(varList->definitions != nullptr);
         const parse::VarDefNode* varDef = varList->definitions.get();
         CHECK(varDef->varName.compare("a") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("a"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("b") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("b"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("c") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("c"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
 
@@ -312,12 +315,14 @@ TEST_CASE("Parser classvardecls") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("e") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("e"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("f") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("f"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
 
@@ -339,6 +344,7 @@ TEST_CASE("Parser classvardecls") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("h") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("h"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -349,6 +355,7 @@ TEST_CASE("Parser classvardecls") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("i") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("i"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -384,6 +391,7 @@ TEST_CASE("Parser classvardecl") {
         REQUIRE(varList->definitions != nullptr);
         const parse::VarDefNode* varDef = varList->definitions.get();
         CHECK(varDef->varName.compare("a") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("a"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->hasReadAccessor);
         CHECK(varDef->hasWriteAccessor);
@@ -392,6 +400,7 @@ TEST_CASE("Parser classvardecl") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("b") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("b"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(!varDef->hasReadAccessor);
         CHECK(varDef->hasWriteAccessor);
@@ -400,6 +409,7 @@ TEST_CASE("Parser classvardecl") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("c") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("c"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
         CHECK(varDef->hasReadAccessor);
@@ -434,6 +444,7 @@ TEST_CASE("Parser classvardecl") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("e2") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("e2"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->hasReadAccessor);
         CHECK(varDef->hasWriteAccessor);
@@ -442,6 +453,7 @@ TEST_CASE("Parser classvardecl") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("f3") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("f3"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
         CHECK(!varDef->hasReadAccessor);
@@ -622,11 +634,13 @@ TEST_CASE("Parser methoddef") {
         REQUIRE(argList->varList->definitions != nullptr);
         const parse::VarDefNode* varDef = argList->varList->definitions.get();
         CHECK(varDef->varName.compare("b") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("b"));
         CHECK(varDef->initialValue == nullptr);
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("c") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("c"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
 
@@ -640,6 +654,7 @@ TEST_CASE("Parser methoddef") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("n") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("n"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
 
@@ -676,6 +691,7 @@ TEST_CASE("Parser methoddef") {
         REQUIRE(argList->varList->definitions != nullptr);
         const parse::VarDefNode* varDef = argList->varList->definitions.get();
         CHECK(varDef->varName.compare("m") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("m"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -685,6 +701,7 @@ TEST_CASE("Parser methoddef") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("n") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("n"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -751,6 +768,7 @@ TEST_CASE("Parser methoddef") {
         REQUIRE(argList->varList->definitions != nullptr);
         const parse::VarDefNode* varDef = argList->varList->definitions.get();
         CHECK(varDef->varName.compare("x") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("x"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -759,6 +777,7 @@ TEST_CASE("Parser methoddef") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("y") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("y"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -831,6 +850,7 @@ TEST_CASE("Parser funcvardecls1") {
         REQUIRE(block->variables->definitions != nullptr);
         const parse::VarDefNode* varDef = block->variables->definitions.get();
         CHECK(varDef->varName.compare("abc") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("abc"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -849,6 +869,7 @@ TEST_CASE("Parser funcvardecls1") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("e") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("e"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -858,6 +879,7 @@ TEST_CASE("Parser funcvardecls1") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("f") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("f"));
         CHECK(varDef->next == nullptr);
 
         CHECK(varList->next == nullptr);
@@ -880,6 +902,7 @@ TEST_CASE("Parser funcvardecl") {
         REQUIRE(block->variables->definitions != nullptr);
         const parse::VarDefNode* varDef = block->variables->definitions.get();
         CHECK(varDef->varName.compare("first") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("first"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -888,6 +911,7 @@ TEST_CASE("Parser funcvardecl") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("second") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("second"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -896,6 +920,7 @@ TEST_CASE("Parser funcvardecl") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("third") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("third"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
     }
@@ -969,6 +994,7 @@ TEST_CASE("Parser rwslotdeflist") {
         REQUIRE(varList->definitions != nullptr);
         const parse::VarDefNode* varDef = varList->definitions.get();
         CHECK(varDef->varName.compare("rw") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("rw"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->hasReadAccessor);
         CHECK(varDef->hasWriteAccessor);
@@ -997,6 +1023,7 @@ TEST_CASE("Parser rwslotdeflist") {
         REQUIRE(varList->definitions != nullptr);
         const parse::VarDefNode* varDef = varList->definitions.get();
         CHECK(varDef->varName.compare("a") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("a"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(!varDef->hasReadAccessor);
         CHECK(!varDef->hasWriteAccessor);
@@ -1005,6 +1032,7 @@ TEST_CASE("Parser rwslotdeflist") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("b") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("b"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->hasReadAccessor);
         CHECK(!varDef->hasWriteAccessor);
@@ -1013,6 +1041,7 @@ TEST_CASE("Parser rwslotdeflist") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("c") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("c"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
         CHECK(!varDef->hasReadAccessor);
@@ -1042,6 +1071,7 @@ TEST_CASE("Parser rwslotdef") {
         REQUIRE(varList->definitions != nullptr);
         const parse::VarDefNode* varDef = varList->definitions.get();
         CHECK(varDef->varName.compare("prv_x") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("prv_x"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(!varDef->hasReadAccessor);
         CHECK(!varDef->hasWriteAccessor);
@@ -1070,6 +1100,7 @@ TEST_CASE("Parser rwslotdef") {
         REQUIRE(varList->definitions != nullptr);
         const parse::VarDefNode* varDef = varList->definitions.get();
         CHECK(varDef->varName.compare("ax") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("ax"));
         CHECK(!varDef->hasReadAccessor);
         CHECK(varDef->hasWriteAccessor);
         CHECK(varDef->next == nullptr);
@@ -1105,6 +1136,7 @@ TEST_CASE("Parser constdeflist") {
         REQUIRE(varList->definitions != nullptr);
         const parse::VarDefNode* varDef = varList->definitions.get();
         CHECK(varDef->varName.compare("psi") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("psi"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -1133,6 +1165,7 @@ TEST_CASE("Parser constdeflist") {
         REQUIRE(varList->definitions != nullptr);
         const parse::VarDefNode* varDef = varList->definitions.get();
         CHECK(varDef->varName.compare("a") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("a"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -1145,6 +1178,7 @@ TEST_CASE("Parser constdeflist") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("b") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("b"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -1157,6 +1191,7 @@ TEST_CASE("Parser constdeflist") {
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("c") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("c"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -1189,6 +1224,7 @@ TEST_CASE("Parser constdef") {
         REQUIRE(varList->definitions != nullptr);
         const parse::VarDefNode* varDef = varList->definitions.get();
         CHECK(varDef->varName.compare("epsilon") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("epsilon"));
         REQUIRE(varDef->initialValue != nullptr);
         REQUIRE(varDef->initialValue->nodeType == parse::NodeType::kLiteral);
         auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -1233,24 +1269,28 @@ TEST_CASE("Parser vardeflist") {
         REQUIRE(block->variables->definitions);
         const parse::VarDefNode* varDef = block->variables->definitions.get();
         CHECK(varDef->varName.compare("m") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("m"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("n") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("n"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("o") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("o"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("p") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("p"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
     }
@@ -1371,18 +1411,21 @@ TEST_CASE("Parser argdecls") {
         REQUIRE(block->arguments->varList->definitions != nullptr);
         const parse::VarDefNode* varDef = block->arguments->varList->definitions.get();
         CHECK(varDef->varName.compare("arg1") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("arg1"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("arg2") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("arg2"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("arg3") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("arg3"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
     }
@@ -1405,18 +1448,21 @@ TEST_CASE("Parser argdecls") {
         REQUIRE(block->arguments->varList->definitions != nullptr);
         const parse::VarDefNode* varDef = block->arguments->varList->definitions.get();
         CHECK(varDef->varName.compare("x") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("x"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("y") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("y"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("z") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("z"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
     }
@@ -1455,18 +1501,21 @@ TEST_CASE("Parser argdecls") {
         REQUIRE(block->arguments->varList->definitions != nullptr);
         const parse::VarDefNode* varDef = block->arguments->varList->definitions.get();
         CHECK(varDef->varName.compare("i") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("i"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("j") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("j"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("k") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("k"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
     }
@@ -1489,18 +1538,21 @@ TEST_CASE("Parser argdecls") {
         REQUIRE(block->arguments->varList->definitions != nullptr);
         const parse::VarDefNode* varDef = block->arguments->varList->definitions.get();
         CHECK(varDef->varName.compare("i0") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("i0"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("j1") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("j1"));
         CHECK(varDef->initialValue == nullptr);
 
         REQUIRE(varDef->next != nullptr);
         REQUIRE(varDef->next->nodeType == parse::NodeType::kVarDef);
         varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         CHECK(varDef->varName.compare("k2") == 0);
+        CHECK(varDef->nameHash == parser.symbolTable()->hashOnly("k2"));
         CHECK(varDef->initialValue == nullptr);
         CHECK(varDef->next == nullptr);
     }

@@ -1,40 +1,36 @@
 #ifndef SRC_CODE_GENERATOR_HPP_
 #define SRC_CODE_GENERATOR_HPP_
 
-#include "LLVM.hpp"
+#include "Block.hpp"
 
 #include <memory>
 
 namespace hadron {
 
 namespace parse {
+struct BlockNode;
 struct Node;
 }
 
-namespace gen {
-
-
-// Transform parse tree nodes into code blocks and instructions, for control flow analysis, subsequent transformation
-// into SSA form, and finishing IR code generation.
-struct Block {
-
-};
-}  // namespace gen
-
-// While LLVM is multi-threaded this CodeGenerator is not, so for multithreaded code generation each thread should use
-// their own CodeGen object.
 class CodeGenerator {
 public:
-    CodeGenerator();
-    ~CodeGenerator();
+    CodeGenerator() = default;
+    ~CodeGenerator() = default;
 
-    std::unique_ptr<llvm::Module> genInterpreterIR(const parse::Node* root, uint64_t uniqueID);
+    // We only accept Blocks as the root node for parse trees via this method.
+    std::unique_ptr<Block> buildBlock(const parse::BlockNode* blockNode);
 
 private:
-    void buildIR(const parse::Node* node);
+    // For block->arguments nodes
+    // void buildBlockArguments(const parse::Node* node, Block* block);
+    // For Class/ClassExt and Method nodes?
+    // void buildClassHIR();
 
-    std::unique_ptr<llvm::LLVMContext> m_context;
-    std::unique_ptr<llvm::IRBuilder<>> m_builder;
+    // For block internals, expecting ExprSeqs + variable definitions (not excluded, to leave support for
+    // inline variable declaration support someday)
+    void buildBlockHIR(const parse::Node* node, Block* block);
+
+    int m_blockSerial = 0;
 };
 
 } // namespace hadron

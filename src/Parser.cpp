@@ -736,7 +736,8 @@ std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
         return nullptr;
     }
 
-    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, m_token.range);
+    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, m_token.range,
+        m_symbolTable.hashOnly(m_token.range));
     next(); // name
 
     varDef->hasReadAccessor = readAccess;
@@ -800,7 +801,8 @@ std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
         // May not be an error, in this case, may just be the end of the constant list.
         return nullptr;
     }
-    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, m_token.range);
+    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, m_token.range,
+        m_symbolTable.hashOnly(m_token.range));
     next(); // name
     varDef->hasReadAccessor = readAccess;
     if (m_token.name != Lexer::Token::Name::kAssign) {
@@ -847,7 +849,8 @@ std::unique_ptr<parse::VarDefNode> Parser::parseVarDef() {
                     m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
     }
-    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, m_token.range);
+    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, m_token.range,
+        m_symbolTable.hashOnly(m_token.range));
     next(); // name
     if (m_token.name == Lexer::Token::kAssign) {
         next(); // =
@@ -903,7 +906,8 @@ std::unique_ptr<parse::VarDefNode> Parser::parseSlotDef() {
                     m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
     }
-    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, m_token.range);
+    auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex, m_token.range,
+        m_symbolTable.hashOnly(m_token.range));
     next(); // name
     if (m_token.name == Lexer::Token::kAssign) {
         next(); // =

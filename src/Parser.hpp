@@ -55,10 +55,12 @@ struct Node {
 };
 
 struct VarDefNode : public Node {
-    VarDefNode(size_t index, std::string_view name): Node(NodeType::kVarDef, index), varName(name) {}
+    VarDefNode(size_t index, std::string_view name, uint64_t hash): Node(NodeType::kVarDef, index), varName(name),
+        nameHash(hash) {}
     virtual ~VarDefNode() = default;
 
     std::string_view varName;
+    uint64_t nameHash;
     std::unique_ptr<Node> initialValue;
 
     bool hasReadAccessor = false;
@@ -373,6 +375,11 @@ private:
     Lexer m_lexer;
     size_t m_tokenIndex;
     Lexer::Token m_token;
+    // TODO: Does Parser really need this or should every symbol just also ride along with its hash the parse tree?
+    // SymbolTables seem more useful in Blocks, like essentialy the Block map data structure seems like a more useful
+    // symbol table now, at least for variables. The tracking of actual symbol types is a different matter. They seem
+    // more like just "jumped up" immutable strings - other than that there was plans to process the escape characters
+    // of the symbols when copying them into this table.
     SymbolTable m_symbolTable;
 
     std::shared_ptr<ErrorReporter> m_errorReporter;

@@ -15,7 +15,7 @@ enum Type : std::uint_fast16_t {
     kClass   = 0x0040,
     kObject  = 0x0080,
     kArray   = 0x0100,
-    kAny     = 0x01ff
+    kSlot    = 0x01ff
 };
 
 } // namespace hadron

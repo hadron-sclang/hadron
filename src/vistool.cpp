@@ -1,6 +1,8 @@
 #include "FileSystem.hpp"
 
 #include "ErrorReporter.hpp"
+#include "HIR.hpp"
+#include "CodeGenerator.hpp"
 #include "Literal.hpp"
 #include "Parser.hpp"
 #include "SymbolTable.hpp"
@@ -12,10 +14,12 @@
 #include <fstream>
 #include <memory>
 #include <string_view>
+#include <variant>
 
 DEFINE_string(inputFile, "", "path to input file to process");
-DEFINE_bool(parseTree, false, "print the parse tree");
 DEFINE_string(outputFile, "", "path to output file to save to");
+DEFINE_bool(parseTree, false, "print the parse tree");
+DEFINE_bool(blockTree, false, "print the block tree");
 
 std::string nullOrNo(const hadron::parse::Node* node) {
     if (node) return "";
@@ -56,8 +60,8 @@ std::string printLiteral(const hadron::Literal& literal) {
         case hadron::Type::kArray:
             return "(array)";
 
-        case hadron::Type::kAny:
-            return "(any)";
+        case hadron::Type::kSlot:
+            return "(slot)";
     }
 
     return "(unknown type!)";
@@ -111,6 +115,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
     auto token = parser.tokens()[node->tokenIndex];
     int nodeSerial = serial;
     ++serial;
+    // Make an edge in gray from this parse tree node to the token in the code subgraph that it relates to.
     outFile << fmt::format("    node_{} -> line_{}:token_{} [color=darkGray]\n", nodeSerial,
         parser.errorReporter()->getLineNumber(token.range.data()), node->tokenIndex);
 
@@ -133,6 +138,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
             "<tr><td>varName: {}</td></tr>"
+            "<tr><td>nameHash: {:x}</td></tr>"
             "<tr><td>hasReadAccessor: {}</td></tr>"
             "<tr><td>hasWriteAccessor: {}</td></tr>"
             "<tr><td port=\"initialValue\">initialValue {}</td></tr></table>>]\n",
@@ -140,6 +146,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             nullOrNo(node->next.get()),
             std::string(token.range.data(), token.range.size()),
             std::string(varDef->varName.data(), varDef->varName.size()),
+            varDef->nameHash,
             trueFalse(varDef->hasReadAccessor),
             trueFalse(varDef->hasWriteAccessor),
             nullOrNo(varDef->initialValue.get()));
@@ -467,6 +474,59 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
     }
 }
 
+std::string printOperand(const hadron::HIR::Operand& operand) {
+    if (std::holds_alternative<hadron::ValueRef>(operand)) {
+        const hadron::ValueRef& valueRef = std::get<hadron::ValueRef>(operand);
+        return std::string(valueRef.name.data(), valueRef.name.size());
+    } else if (std::holds_alternative<hadron::Literal>(operand)) {
+        return printLiteral(std::get<hadron::Literal>(operand));
+    }
+    return "<unknown operand>";
+}
+
+std::string printHIR(const hadron::HIR& hir) {
+    std::string hirString;
+    switch (hir.opcode) {
+    case hadron::Opcode::kAssignI32:
+        hirString = fmt::format("{} &#8592; {}", printOperand(hir.operands[0]), printOperand(hir.operands[1]));
+        break;
+
+    default:
+        break;
+    }
+
+    return hirString;
+}
+
+void visualizeBlockNode(std::ofstream& outFile, const hadron::Block* block) {
+    // The format for blocks is a vertical table first with Values in the scope for this block, just a list of comma
+    // separated names in a cell. The next cell is vertically stacked instructions. Control flow arrows are drawn in
+    // black, scoping arrows drawn in gray.
+    outFile << fmt::format("    block_{} [shape=plain\n label=<<table border=\"0\" cellborder=\"1\" "
+        "cellspacing=\"0\">\n", block->id);
+    outFile << "        <tr><td><font face=\"monospace\">";
+    for (const auto& v : block->values) {
+        outFile << fmt::format("{} ", v.second.name);
+    }
+    outFile << "</font></td></tr>" << std::endl;
+    for (const auto& hir : block->instructions) {
+        outFile << fmt::format("        <tr><td sides=\"LR\">{}</td></tr>\n", printHIR(hir));
+    }
+    outFile << "        <tr><td sides=\"LRB\"></td></tr></table>>]" << std::endl;
+
+    // Control flow arrows in black
+    for (const auto& exit : block->exits) {
+        outFile << fmt::format("    block_{} -> block_{}\n", block->id, exit->id);
+    }
+
+    // Scoping arrows in gray, and recurse into each to render.
+    for (const auto& child : block->scopeChildren) {
+        outFile << fmt::format("    block_{} -> block_{} [color=darkGray]\n", block->id, child->id);
+        visualizeBlockNode(outFile, child.get());
+    }
+}
+
+
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
     spdlog::set_level(spdlog::level::debug);
@@ -490,21 +550,21 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
+    hadron::Parser parser(std::string_view(fileContents.get(), fileSize), errorReporter);
+    if (!parser.parse()) {
+        spdlog::error("Failed to parse file {}", filePath.string());
+        return -1;
+    }
+
+    std::ofstream outFile(FLAGS_outputFile);
+    if (!outFile) {
+        spdlog::error("Failed to open output file {}", FLAGS_outputFile);
+    }
+
     if (FLAGS_parseTree) {
-        auto errorReporter = std::make_shared<hadron::ErrorReporter>();
-        hadron::Parser parser(std::string_view(fileContents.get(), fileSize), errorReporter);
-        if (!parser.parse()) {
-            spdlog::error("Failed to parse file {}", filePath.string());
-            return -1;
-        }
-
-        std::ofstream outFile(FLAGS_outputFile);
-        if (!outFile) {
-            spdlog::error("Failed to open output file {}", FLAGS_outputFile);
-        }
-
         outFile << fmt::format("// parse tree visualization of {}\n", FLAGS_inputFile);
-        outFile << "digraph HadronAST {" << std::endl;
+        outFile << "digraph HadronParseTree {" << std::endl;
         outFile << "    subgraph {" << std::endl;
         outFile << "        edge [style=\"invis\"]" << std::endl;
         size_t currentLine = 1;
@@ -536,6 +596,14 @@ int main(int argc, char* argv[]) {
         outFile << "    }  // end of code subgraph" << std::endl;
         int serial = 0;
         visualizeParseNode(outFile, parser, serial, parser.root());
+        outFile << "}" << std::endl;
+    } else if (FLAGS_blockTree) {
+        hadron::CodeGenerator codeGen;
+        auto block = codeGen.buildBlock(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
+
+        outFile << fmt::format("// block tree visualization of {}\n", FLAGS_inputFile);
+        outFile << "digraph HadronBlockTree {" << std::endl;
+        visualizeBlockNode(outFile, block.get());
         outFile << "}" << std::endl;
     }
 
