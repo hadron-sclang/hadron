@@ -1115,7 +1115,8 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
             // TODO: expr -> expr1 -> msgsend: classname blocklist1
         } else {
             // expr: classname
-            expr = std::make_unique<parse::NameNode>(m_tokenIndex - 1, className.range);
+            expr = std::make_unique<parse::NameNode>(m_tokenIndex - 1, className.range, m_symbolTable.hashOnly(
+                className.range));
         }
     } break;
 
@@ -1127,7 +1128,8 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
             // expr: name '=' expr
             auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex);
             next(); // =
-            assign->name = std::make_unique<parse::NameNode>(nameIndex, nameToken.range);
+            assign->name = std::make_unique<parse::NameNode>(nameIndex, nameToken.range, m_symbolTable.hashOnly(
+                nameToken.range));
             assign->value = parseExpr();
             expr = std::move(assign);
         } else if (m_token.name == Lexer::Token::kOpenParen) {
@@ -1145,7 +1147,8 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
                 expr = std::move(call);
             } else {
                 // expr -> expr1 -> pushname: name
-                expr = std::make_unique<parse::NameNode>(nameIndex, nameToken.range);
+                expr = std::make_unique<parse::NameNode>(nameIndex, nameToken.range, m_symbolTable.hashOnly(
+                    nameToken.range));
                 isSingleExpression = true;
             }
         }
@@ -1161,7 +1164,8 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         // expr -> expr1: '~' name
         next(); // ~
         if (m_token.name == Lexer::Token::kIdentifier) {
-            auto name = std::make_unique<parse::NameNode>(m_tokenIndex, m_token.range);
+            auto name = std::make_unique<parse::NameNode>(m_tokenIndex, m_token.range, m_symbolTable.hashOnly(
+                m_token.range));
             name->isGlobal = true;
             next(); // name
             if (m_token.name == Lexer::Token::kAssign) {

@@ -12,9 +12,10 @@
 
 int main(int argc, char* argv[]) {
     std::vector<std::array<std::string, 2>> hashNames = {
-        { "kIfHash   ", "if"},
-        { "kPlusHash ", "+"},
-        { "kWhileHash", "while"}
+        { "kIfHash      ", "if"},
+        { "kLessThanHash", "<"},
+        { "kPlusHash    ", "+"},
+        { "kWhileHash   ", "while"}
     };
 
     std::ofstream outFile("Keywords.hpp");

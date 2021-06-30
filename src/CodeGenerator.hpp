@@ -18,13 +18,16 @@ public:
     ~CodeGenerator() = default;
 
     // We only accept Blocks as the root node for parse trees via this method.
-    std::unique_ptr<Block> buildBlock(const parse::BlockNode* blockNode);
+    std::unique_ptr<Block> buildBlock(const parse::BlockNode* blockNode, Block* parent);
 
 private:
     // For block->arguments nodes
     // void buildBlockArguments(const parse::Node* node, Block* block);
     // For Class/ClassExt and Method nodes?
     // void buildClassHIR();
+
+    // Expr and ExprSeq can be used to produce a value, like in assignments, built inline to the provided block..
+    // void buildExprValue(const parse::Node* node, Block* block, ValueRef targetValue);
 
     // For block internals, expecting ExprSeqs + variable definitions (not excluded, to leave support for
     // inline variable declaration support someday)

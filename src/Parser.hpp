@@ -198,11 +198,12 @@ struct LiteralNode : public Node {
 };
 
 struct NameNode : public Node {
-    NameNode(size_t index, std::string_view n): Node(NodeType::kName, index), name(n) {}
+    NameNode(size_t index, std::string_view n, uint64_t hash): Node(NodeType::kName, index), name(n), nameHash(hash) {}
     virtual ~NameNode() = default;
 
     bool isGlobal = false;
     std::string_view name;
+    uint64_t nameHash;
 };
 
 struct KeyValueNode : public Node {

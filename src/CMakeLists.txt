@@ -80,6 +80,8 @@ add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
+    Block.hpp
+    Block.cpp
     ClassLibrary.cpp
     ClassLibrary.hpp
     CodeGenerator.cpp

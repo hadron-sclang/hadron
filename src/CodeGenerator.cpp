@@ -13,9 +13,10 @@
 
 namespace hadron {
 
-std::unique_ptr<Block> CodeGenerator::buildBlock(const parse::BlockNode* blockNode) {
+std::unique_ptr<Block> CodeGenerator::buildBlock(const parse::BlockNode* blockNode, Block* parent) {
     auto block = std::make_unique<Block>(m_blockSerial);
     m_blockSerial++;
+    block->scopeParent = parent;
 
     // TODO:arguments
     if (blockNode->variables) {
@@ -27,7 +28,7 @@ std::unique_ptr<Block> CodeGenerator::buildBlock(const parse::BlockNode* blockNo
     return block;
 }
 
-// Processes both variable declaration and expr IRs. 
+// Processes both variable declaration and expr IRs.
 void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
     switch (node->nodeType) {
     case hadron::parse::NodeType::kEmpty:
@@ -40,7 +41,7 @@ void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
         const auto varDef = reinterpret_cast<const parse::VarDefNode*>(node);
         block->values.emplace(std::make_pair(varDef->nameHash, Value(Type::kInteger, varDef->varName)));
         // Initial value computation can be a whole expression sequence which we would add to the block. For this first
-        // pass we look only for literal ints, and if we find none, issue a warning and choose zero.
+        // pass we look only for literal ints, and if we find none, issue a warning and choose zero. - buildExprValue()
         if (varDef->initialValue) {
             if (varDef->initialValue->nodeType == parse::NodeType::kLiteral) {
                 const auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -108,12 +109,61 @@ void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
     case hadron::parse::kCall: {
         const auto call = reinterpret_cast<const parse::CallNode*>(node);
         if (call->selector == kWhileHash) {
-            // bingo
+            if (call->arguments != nullptr && call->arguments->nodeType == parse::NodeType::kBlock) {
+                const auto condBlockNode = reinterpret_cast<const parse::BlockNode*>(call->arguments.get());
+                auto condBlock = buildBlock(condBlockNode, block);
+                if (condBlockNode->next != nullptr && condBlockNode->next->nodeType == parse::NodeType::kBlock) {
+                    const auto loopBlockNode = reinterpret_cast<const parse::BlockNode*>(condBlockNode->next.get());
+                    auto loopBlock = buildBlock(loopBlockNode, block);
+                    // Branch into the conditional block from this current containing block.
+                    block->exits.emplace_back(condBlock.get());
+                    // Loop Block branches back to conditional block.
+                    loopBlock->exits.emplace_back(condBlock.get());
+                    // Conditional block gets a conditional branch and both exits
+                    condBlock->instructions.emplace_back(HIR(Opcode::kBranchIf, { ValueRef(condBlock.get()) }));
+                    // For scope, both new blocks are added into current block as children.
+                    block->scopeChildren.emplace_back(std::move(condBlock));
+                    block->scopeChildren.emplace_back(std::move(loopBlock));
+                    if (call->next) {
+                        // Create a new block for continued code generation at this level.
+                        auto contBlock = std::make_unique<Block>(m_blockSerial);
+                        ++m_blockSerial;
+                        Block* nextBlock = contBlock.get();
+                        contBlock->scopeParent = block;
+                        block->scopeChildren.emplace_back(std::move(contBlock));
+                        block->exits.emplace_back(nextBlock);
+                        // Modify recursion variables to continue adding code to the new Block
+                        node = call->next.get();
+                        block = nextBlock;
+                    }
+                }
+            } else {
+                spdlog::error("while statement without Block args, time for dispatch");
+            }
         }
     } break;
 
     case hadron::parse::kBinopCall: {
-
+        const auto binop = reinterpret_cast<const parse::BinopCallNode*>(node);
+        if (binop->selector == kLessThanHash) {
+            std::vector<HIR::Operand> operands;
+            operands.emplace_back(ValueRef(block));
+            if (binop->leftHand->nodeType == parse::NodeType::kName) {
+                const auto nameNode = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
+                Block* nameBlock = block->findContainingScope(nameNode->nameHash);
+                if (nameBlock) {
+                    operands.emplace_back(ValueRef(nameBlock, nameNode->nameHash, nameNode->name));
+                } else {
+                    spdlog::warn("Could not find reference for name {}", std::string(nameNode->name.data(),
+                        nameNode->name.size()));
+                }
+            }
+            if (binop->rightHand->nodeType == parse::NodeType::kLiteral) {
+                const auto literal = reinterpret_cast<const parse::LiteralNode*>(binop->rightHand.get());
+                operands.emplace_back(literal->value);
+            }
+            block->instructions.emplace_back(HIR(kLessThanI32, std::move(operands)));
+        }
     } break;
 
 /*

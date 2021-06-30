@@ -32,8 +32,14 @@ enum Opcode {
     /* arithmetic */
     kAddI32, // add 2 i32 args, store result
 
+    /* comparisons */
+    kLessThanI32, // first op = second op < third op
+
     /* Value Assignment */
     kAssignI32, // assign value of variable or constant to argument
+
+    /* Flow Control (these are terminal instructions in a Block) */
+    kBranchIf // conditional branch, takes a single operand
 };
 
 struct HIR {

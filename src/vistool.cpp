@@ -479,16 +479,24 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
 std::string printOperand(const hadron::HIR::Operand& operand) {
     if (std::holds_alternative<hadron::ValueRef>(operand)) {
         const hadron::ValueRef& valueRef = std::get<hadron::ValueRef>(operand);
+        if (valueRef.isBlockValue) {
+            return fmt::format("<i>block<sub>{}</sub></i>", valueRef.block->id);
+        }
         return std::string(valueRef.name.data(), valueRef.name.size());
     } else if (std::holds_alternative<hadron::Literal>(operand)) {
         return printLiteral(std::get<hadron::Literal>(operand));
     }
-    return "<unknown operand>";
+    return "&lt;unknown operand&gt;";
 }
 
 std::string printHIR(const hadron::HIR& hir) {
     std::string hirString;
     switch (hir.opcode) {
+    case hadron::kLessThanI32:
+        hirString = fmt::format("{} &#8592; {} &lt; {}", printOperand(hir.operands[0]), printOperand(hir.operands[1]),
+            printOperand(hir.operands[2]));
+        break;
+
     case hadron::Opcode::kAssignI32:
         hirString = fmt::format("{} &#8592; {}", printOperand(hir.operands[0]), printOperand(hir.operands[1]));
         break;
@@ -504,9 +512,13 @@ void visualizeBlockNode(std::ofstream& outFile, const hadron::Block* block) {
     // The format for blocks is a vertical table first with Values in the scope for this block, just a list of comma
     // separated names in a cell. The next cell is vertically stacked instructions. Control flow arrows are drawn in
     // black, scoping arrows drawn in gray.
-    outFile << fmt::format("    block_{} [shape=plain\n label=<<table border=\"0\" cellborder=\"1\" "
-        "cellspacing=\"0\">\n", block->id);
-    outFile << "        <tr><td><font face=\"monospace\">";
+    if (block->scopeParent) {
+        outFile << fmt::format("    block_{} -> block_{} [color=darkGray]\n", block->id, block->scopeParent->id);
+    }
+
+    outFile << fmt::format("    block_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" "
+    "cellspacing=\"0\">\n", block->id);
+    outFile << "        <tr><td><font face=\"monospace\">&nbsp;";
     for (const auto& v : block->values) {
         outFile << fmt::format("{} ", v.second.name);
     }
@@ -521,9 +533,7 @@ void visualizeBlockNode(std::ofstream& outFile, const hadron::Block* block) {
         outFile << fmt::format("    block_{} -> block_{}\n", block->id, exit->id);
     }
 
-    // Scoping arrows in gray, and recurse into each to render.
     for (const auto& child : block->scopeChildren) {
-        outFile << fmt::format("    block_{} -> block_{} [color=darkGray]\n", block->id, child->id);
         visualizeBlockNode(outFile, child.get());
     }
 }
@@ -600,7 +610,7 @@ int main(int argc, char* argv[]) {
         outFile << "}" << std::endl;
     } else if (FLAGS_blockTree) {
         hadron::CodeGenerator codeGen;
-        auto block = codeGen.buildBlock(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
+        auto block = codeGen.buildBlock(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()), nullptr);
 
         outFile << fmt::format("// block tree visualization of {}\n", FLAGS_inputFile);
         outFile << "digraph HadronBlockTree {" << std::endl;

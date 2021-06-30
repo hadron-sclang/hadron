@@ -16,6 +16,8 @@ namespace hadron {
 // has exactly one entry point and one exit point (with possibly multiple destinations)
 struct Block {
     Block(int uniqueID): id(uniqueID) {}
+    // Search this scope and any parents to find containing Block, return nullptr if not found.
+    Block* findContainingScope(uint64_t nameHash);
 
     // To facilitate control flow graph traversal (which may be cyclic) each Block is given a number intended to be
     // unique within the graph this Block is in.
@@ -32,6 +34,11 @@ struct Block {
     // because control flow graphs are not necessarily acyclic.
     Block* scopeParent = nullptr;
     std::vector<std::unique_ptr<Block>> scopeChildren;
+
+    // LSC is stack-based, meaning that blocks push their value on to the stack as normal
+    // part of execution. Hadron tries to pack local scoped variables into registers, so
+    // treats the value of a block like any other local value, tracking here.
+    Value blockValue;
 };
 
 } // namespace hadron

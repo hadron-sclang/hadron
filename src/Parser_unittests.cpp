@@ -230,6 +230,7 @@ TEST_CASE("Parser cmdlinecode") {
         REQUIRE(block->body->nodeType == parse::NodeType::kName);
         auto name = reinterpret_cast<const parse::NameNode*>(block->body.get());
         CHECK(name->name.compare("x") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("x"));
         CHECK(name->next == nullptr);
     }
 
@@ -602,11 +603,13 @@ TEST_CASE("Parser methoddef") {
         REQUIRE(varList->definitions->initialValue->nodeType == parse::NodeType::kName);
         auto nameNode = reinterpret_cast<const parse::NameNode*>(varList->definitions->initialValue.get());
         CHECK(nameNode->name.compare("z") == 0);
+        CHECK(nameNode->nameHash == parser.symbolTable()->hashOnly("z"));
 
         REQUIRE(method->body != nullptr);
         REQUIRE(method->body->nodeType == parse::NodeType::kName);
         nameNode = reinterpret_cast<const parse::NameNode*>(method->body.get());
         CHECK(nameNode->name.compare("c") == 0);
+        CHECK(nameNode->nameHash == parser.symbolTable()->hashOnly("c"));
 
         CHECK(classNode->next == nullptr);
     }
@@ -969,6 +972,7 @@ TEST_CASE("Parser funcbody") {
         REQUIRE(retNode->valueExpr->nodeType == parse::NodeType::kName);
         auto name = reinterpret_cast<const parse::NameNode*>(retNode->valueExpr.get());
         CHECK(name->name.compare("x") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("x"));
         CHECK(name->next == nullptr);
     }
 }
@@ -1594,6 +1598,7 @@ TEST_CASE("Parser methbody") {
         REQUIRE(retVal->valueExpr->nodeType == parse::NodeType::kName);
         auto nameNode = reinterpret_cast<const parse::NameNode*>(retVal->valueExpr.get());
         CHECK(nameNode->name.compare("this") == 0);
+        CHECK(nameNode->nameHash == parser.symbolTable()->hashOnly("this"));
     }
 
     SUBCASE("methbody: exprseq retval") {
@@ -1655,16 +1660,19 @@ TEST_CASE("Parser exprseq") {
         REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kName);
         const parse::NameNode* nameNode = reinterpret_cast<const parse::NameNode*>(exprSeq->expr.get());
         CHECK(nameNode->name.compare("x") == 0);
+        CHECK(nameNode->nameHash == parser.symbolTable()->hashOnly("x"));
 
         REQUIRE(nameNode->next != nullptr);
         REQUIRE(nameNode->next->nodeType == parse::NodeType::kName);
         nameNode = reinterpret_cast<const parse::NameNode*>(nameNode->next.get());
         CHECK(nameNode->name.compare("y") == 0);
+        CHECK(nameNode->nameHash == parser.symbolTable()->hashOnly("y"));
 
         REQUIRE(nameNode->next != nullptr);
         REQUIRE(nameNode->next->nodeType == parse::NodeType::kName);
         nameNode = reinterpret_cast<const parse::NameNode*>(nameNode->next.get());
         CHECK(nameNode->name.compare("z") == 0);
+        CHECK(nameNode->nameHash == parser.symbolTable()->hashOnly("z"));
         CHECK(nameNode->next == nullptr);
     }
 }
@@ -1771,6 +1779,7 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(call->target->nodeType == parse::NodeType::kName);
         auto name = reinterpret_cast<const parse::NameNode*>(call->target.get());
         CHECK(name->name.compare("SinOsc") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("SinOsc"));
 
         REQUIRE(call->keywordArguments != nullptr);
         REQUIRE(call->keywordArguments->nodeType == parse::NodeType::kKeyValue);
@@ -1849,21 +1858,25 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(call->target->nodeType == parse::NodeType::kName);
         const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(call->target.get());
         CHECK(name->name.compare("this") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("this"));
 
         REQUIRE(call->arguments != nullptr);
         REQUIRE(call->arguments->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(call->arguments.get());
         CHECK(name->name.compare("x") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("x"));
 
         REQUIRE(name->next != nullptr);
         REQUIRE(name->next->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(name->next.get());
         CHECK(name->name.compare("y") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("y"));
 
         REQUIRE(name->next != nullptr);
         REQUIRE(name->next->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(name->next.get());
         CHECK(name->name.compare("z") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("z"));
         CHECK(name->next == nullptr);
 
         REQUIRE(call->keywordArguments != nullptr);
@@ -1919,16 +1932,19 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(literal->next->nodeType == parse::NodeType::kName);
         const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(literal->next.get());
         CHECK(name->name.compare("a") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("a"));
 
         REQUIRE(name->next != nullptr);
         REQUIRE(name->next->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(name->next.get());
         CHECK(name->name.compare("b") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("b"));
 
         REQUIRE(name->next != nullptr);
         REQUIRE(name->next->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(name->next.get());
         CHECK(name->name.compare("array") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("array"));
         CHECK(name->next == nullptr);
     }
 
@@ -1990,6 +2006,7 @@ TEST_CASE("Parser expr") {
         REQUIRE(block->body->nodeType == parse::NodeType::kName);
         auto name = reinterpret_cast<const parse::NameNode*>(block->body.get());
         CHECK(name->name.compare("Object") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("Object"));
         CHECK(!name->isGlobal);
     }
 
@@ -2018,6 +2035,7 @@ TEST_CASE("Parser expr") {
         REQUIRE(binop->leftHand->nodeType == parse::NodeType::kName);
         const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
         CHECK(name->name.compare("a") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("a"));
 
         REQUIRE(binop->rightHand != nullptr);
         REQUIRE(binop->rightHand->nodeType == parse::NodeType::kBinopCall);
@@ -2027,10 +2045,12 @@ TEST_CASE("Parser expr") {
         REQUIRE(binop->leftHand->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
         CHECK(name->name.compare("b") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("b"));
         REQUIRE(binop->rightHand != nullptr);
         REQUIRE(binop->rightHand->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(binop->rightHand.get());
         CHECK(name->name.compare("c") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("c"));
     }
 
     SUBCASE("expr: name '=' expr") {
@@ -2102,6 +2122,7 @@ TEST_CASE("Parser expr") {
         auto name = reinterpret_cast<const parse::NameNode*>(setter->target.get());
         CHECK(name->isGlobal);
         CHECK(name->name.compare("object") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("object"));
 
         REQUIRE(setter->value != nullptr);
         REQUIRE(setter->value->nodeType == parse::NodeType::kLiteral);
@@ -2179,11 +2200,13 @@ TEST_CASE("Parser expr1") {
         const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
         CHECK(!name->isGlobal);
         CHECK(name->name.compare("this") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("this"));
         REQUIRE(binop->rightHand != nullptr);
         REQUIRE(binop->rightHand->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(binop->rightHand.get());
         CHECK(!name->isGlobal);
         CHECK(name->name.compare("bool") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("bool"));
     }
 
     SUBCASE("expr1: '~' name") {
@@ -2202,6 +2225,7 @@ TEST_CASE("Parser expr1") {
         auto name = reinterpret_cast<const parse::NameNode*>(block->body.get());
         CHECK(name->isGlobal);
         CHECK(name->name.compare("z") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("z"));
     }
 
     SUBCASE("expr1: '[' arrayelems ']'") {
@@ -2295,6 +2319,7 @@ TEST_CASE("Parser arrayelems1") {
         REQUIRE(literal->next->nodeType == parse::NodeType::kName);
         auto name = reinterpret_cast<const parse::NameNode*>(literal->next.get());
         CHECK(name->name.compare("a") == 0);
+        CHECK(name->nameHash == parser.symbolTable()->hashOnly("a"));
 
         REQUIRE(name->next != nullptr);
         REQUIRE(name->next->nodeType == parse::NodeType::kLiteral);
