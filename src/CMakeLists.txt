@@ -95,6 +95,8 @@ add_library(hadron STATIC
     Parser.hpp
     SymbolTable.cpp
     SymbolTable.hpp
+    SyntaxAnalyzer.cpp
+    SyntaxAnalyzer.hpp
     Type.hpp
 )
 

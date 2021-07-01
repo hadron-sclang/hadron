@@ -29,7 +29,8 @@ std::unique_ptr<Block> CodeGenerator::buildBlock(const parse::BlockNode* blockNo
 }
 
 // Processes both variable declaration and expr IRs.
-void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
+void CodeGenerator::buildBlockHIR(const parse::Node* /* node */, Block* /* block */) {
+    /*
     switch (node->nodeType) {
     case hadron::parse::NodeType::kEmpty:
         spdlog::error("CodeGenerator encountered empty parse node.");
@@ -71,7 +72,7 @@ void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
             spdlog::warn("VarList with absent definitions - parse error.");
         }
     } break;
-
+*/
 /*
     kArgList, leave out
     kMethod, leave out
@@ -80,11 +81,12 @@ void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
     kReturn,
     kDynList,
 */
+/*
     case hadron::parse::NodeType::kBlock: {
         // Kind of a weird one to run across in this context
         spdlog::error("got Block while parsing block");
     } break;
-
+*/
 /*
     kValue,
     kLiteral,
@@ -93,7 +95,7 @@ void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
 
     } break;
 */
-
+/*
     case hadron::parse::kExprSeq: {
         // Appending to existing block.
         const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(node);
@@ -101,11 +103,13 @@ void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
             buildBlockHIR(exprSeq->expr.get(), block);
         }
     } break;
+    */
 /*
     kAssign,
     kSetter,
     kKeyValue,
 */
+/*
     case hadron::parse::kCall: {
         const auto call = reinterpret_cast<const parse::CallNode*>(node);
         if (call->selector == kWhileHash) {
@@ -130,7 +134,7 @@ void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
                         ++m_blockSerial;
                         Block* nextBlock = contBlock.get();
                         contBlock->scopeParent = block;
-                        block->scopeChildren.emplace_back(std::move(contBlock));
+                            block->scopeChildren.emplace_back(std::move(contBlock));
                         block->exits.emplace_back(nextBlock);
                         // Modify recursion variables to continue adding code to the new Block
                         node = call->next.get();
@@ -165,12 +169,12 @@ void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
             block->instructions.emplace_back(HIR(kLessThanI32, std::move(operands)));
         }
     } break;
-
+*/
 /*
     kPerformList,
     kNumericSeries
 */
-
+/*
     default:
         spdlog::warn("buildHIR got unsupported ParseTree node");
         break;
@@ -179,6 +183,7 @@ void CodeGenerator::buildBlockHIR(const parse::Node* node, Block* block) {
     if (node->next) {
         buildBlockHIR(node->next.get(), block);
     }
+    */
 }
 
 } // namespace hadron

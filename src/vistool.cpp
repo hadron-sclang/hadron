@@ -51,7 +51,7 @@ std::string printLiteral(const hadron::Literal& literal) {
             return "(string)";
 
         case hadron::Type::kSymbol:
-            return fmt::format("(symbol) hash: {:x}", literal.asSymbolHash());
+            return "(symbol)";
 
         case hadron::Type::kClass:
             return "(class)";
@@ -139,16 +139,12 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>VarDef</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>varName: {}</td></tr>"
-            "<tr><td>nameHash: {:x}</td></tr>"
             "<tr><td>hasReadAccessor: {}</td></tr>"
             "<tr><td>hasWriteAccessor: {}</td></tr>"
             "<tr><td port=\"initialValue\">initialValue {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             std::string(token.range.data(), token.range.size()),
-            std::string(varDef->varName.data(), varDef->varName.size()),
-            varDef->nameHash,
             trueFalse(varDef->hasReadAccessor),
             trueFalse(varDef->hasWriteAccessor),
             nullOrNo(varDef->initialValue.get()));
@@ -181,12 +177,10 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>ArgList</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>varArgsName: {}</td></tr>"
             "<tr><td port=\"varList\">varList {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             std::string(token.range.data(), token.range.size()),
-            std::string(argList->varArgsName.data(), argList->varArgsName.size()),
             nullOrNo(argList->varList.get()));
         if (argList->varList) {
             outFile << fmt::format("    node_{}:varList -> node_{}\n", nodeSerial, serial);
@@ -200,18 +194,14 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>Method</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>methodName: {}</td></tr>"
             "<tr><td>isClassMethod: {}</td></tr>"
-            "<tr><td>primitive: {}</td></tr>"
             "<tr><td port=\"arguments\">arguments {}</td></tr>"
             "<tr><td port=\"variables\">variables {}</td></tr>"
             "<tr><td port=\"body\">body {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             htmlEscape(std::string(token.range.data(), token.range.size())),
-            htmlEscape(std::string(method->methodName.data(), method->methodName.size())),
             trueFalse(method->isClassMethod),
-            std::string(method->primitive.data(), method->primitive.size()),
             nullOrNo(method->arguments.get()),
             nullOrNo(method->variables.get()),
             nullOrNo(method->body.get()));
@@ -239,17 +229,11 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>Class</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>className: {}</td></tr>"
-            "<tr><td>superClassName: {}</td></tr>"
-            "<tr><td>optionalName: {}</td></tr>"
             "<tr><td port=\"variables\">variables {}</td></tr>"
             "<tr><td port=\"methods\">methods {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             std::string(token.range.data(), token.range.size()),
-            std::string(classNode->className.data(), classNode->className.size()),
-            std::string(classNode->superClassName.data(), classNode->superClassName.size()),
-            std::string(classNode->optionalName.data(), classNode->optionalName.size()),
             nullOrNo(classNode->variables.get()),
             nullOrNo(classNode->methods.get()));
         if (classNode->variables) {
@@ -312,19 +296,6 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         }
     } break;
 
-    case hadron::parse::NodeType::kValue: {
-        const auto value = reinterpret_cast<const hadron::parse::ValueNode*>(node);
-        outFile << fmt::format("    node_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
-            "<tr><td bgcolor=\"lightGray\"><b>Value</b></td></tr>"
-            "<tr><td port=\"next\">next {}</td></tr>"
-            "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>value: {}</td></tr></table>>]\n",
-            nodeSerial,
-            nullOrNo(node->next.get()),
-            std::string(token.range.data(), token.range.size()),
-            printLiteral(value->value)); 
-    } break;
-
     case hadron::parse::NodeType::kLiteral: {
         const auto literal = reinterpret_cast<const hadron::parse::LiteralNode*>(node);
         outFile << fmt::format("    node_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
@@ -344,12 +315,10 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>Name</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>name: {}</td></tr>"
             "<tr><td>isGlobal: {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             std::string(token.range.data(), token.range.size()),
-            std::string(name->name.data(), name->name.size()),
             trueFalse(name->isGlobal)); 
     } break;
 
@@ -407,14 +376,12 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>Call</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>selector '{}'</td></tr>"
             "<tr><td port=\"target\">target {}</td></tr>"
             "<tr><td port=\"arguments\">arguments {}</td></tr>"
             "<tr><td port=\"keywordArguments\">keywordArguments {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             htmlEscape(std::string(token.range.data(), token.range.size())),
-            htmlEscape(parser.symbolTable()->getSymbol(call->selector)),
             nullOrNo(call->target.get()),
             nullOrNo(call->arguments.get()),
             nullOrNo(call->keywordArguments.get()));
@@ -438,13 +405,11 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>BinopCall</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>selector: '{}'</td></tr>"
             "<tr><td port=\"leftHand\">leftHand {}</td></tr>"
             "<tr><td port=\"rightHand\">rightHand {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             htmlEscape(std::string(token.range.data(), token.range.size())),
-            htmlEscape(parser.symbolTable()->getSymbol(binopCall->selector)),
             nullOrNo(binopCall->leftHand.get()),
             nullOrNo(binopCall->rightHand.get()));
         if (binopCall->leftHand) {

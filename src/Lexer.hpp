@@ -14,7 +14,6 @@
 namespace hadron {
 
 class ErrorReporter;
-class SymbolTable;
 
 class Lexer {
 public:
@@ -67,55 +66,47 @@ public:
         std::string_view range;
         Literal value;
         bool couldBeBinop;
+        uint64_t hash;
 
         Token(): name(kEmpty), couldBeBinop(false) {}
 
         /*! Makes an integer kLiteral token */
-        Token(const char* start, size_t length, int64_t intValue):
+        Token(const char* start, size_t length, int32_t intValue):
             name(kLiteral), range(start, length), value(intValue), couldBeBinop(false) {}
 
         /*! Makes a float kLiteral token */
-        Token(const char* start, size_t length, double doubleValue):
+        Token(const char* start, size_t length, float doubleValue):
             name(kLiteral), range(start, length), value(doubleValue), couldBeBinop(false) {}
 
         /*! Makes a boolean kLiteral token */
         Token(const char* start, size_t length, bool boolean):
             name(kLiteral), range(start, length), value(boolean), couldBeBinop(false) {}
 
-        /*! Makes a symbol kLiteral token */
-        Token(const char* start, size_t length, uint64_t symbolHash):
-            name(kLiteral), range(start, length), value(symbolHash), couldBeBinop(false) {}
-
-        /*! Makes a kLiteral with the provided type*/
-        Token(const char* start, size_t length, Type type):
-            name(kLiteral), range(start, length), value(type), couldBeBinop(false) {}
+        /*! Makes a symbol or string kLiteral token */
+        Token(const char* start, size_t length, Type literalType, bool hasEscapeCharacters = false):
+            name(kLiteral), range(start, length), value(literalType, hasEscapeCharacters), couldBeBinop(false) {}
 
         /*! Makes a token with no value storage */
-        Token(Name n, const char* start, size_t length): name(n), range(start, length), couldBeBinop(false) {}
-
-        /* Makes a token with possible true value for couldBeBinop */
-        Token(Name n, const char* start, size_t length, bool binop): name(n), range(start, length), couldBeBinop(binop)
-            {}
+        Token(Name n, const char* start, size_t length, bool binop = false, uint64_t h = 0):
+            name(n), range(start, length), couldBeBinop(binop), hash(h) {}
     };
 
     Lexer(std::string_view code);
     ~Lexer() = default;
 
-    // For testing, use a local SymbolTable and ErrorReporter
+    // For testing, use a local ErrorReporter
     bool lex();
-    bool lex(SymbolTable* symbolTable, ErrorReporter* errorReporter);
+    bool lex(ErrorReporter* errorReporter);
 
     const std::vector<Token>& tokens() const { return m_tokens; }
 
     // Access for testing
-    const SymbolTable* symbolTable() const { return m_symbolTable.get(); }
     const ErrorReporter* errorReporter() const { return m_errorReporter.get(); }
 
 private:
     std::string_view m_code;
     std::vector<Token> m_tokens;
 
-    std::unique_ptr<SymbolTable> m_symbolTable;
     std::unique_ptr<ErrorReporter> m_errorReporter;
 };
 

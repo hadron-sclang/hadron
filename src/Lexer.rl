@@ -17,17 +17,17 @@
         ###################
         # Integer base-10
         digit+ {
-            int64_t value = strtoll(ts, nullptr, 10);
+            int32_t value = strtol(ts, nullptr, 10);
             m_tokens.emplace_back(Token(ts, te - ts, value));
         };
         # Hex integer base-16. Marker points at first digit past 'x'
         ('0x' %marker) xdigit+ {
-            int64_t value = strtoll(marker, nullptr, 16);
+            int32_t value = strtol(marker, nullptr, 16);
             m_tokens.emplace_back(Token(ts, te - ts, value));
         };
         # Float base-10
         digit+ '.' digit+ {
-            double value = strtod(ts, nullptr);
+            float value = strtof(ts, nullptr);
             m_tokens.emplace_back(Token(ts, te - ts, value));
         };
 
@@ -36,7 +36,7 @@
         ###################
         # Double-quoted string. Increments counter on escape characters for length computation.
         '"' (('\\' any %counter) | (extend - '"'))* '"' {
-            m_tokens.emplace_back(Token(ts + 1, te - ts - 2 - counter, Type::kString));
+            m_tokens.emplace_back(Token(ts + 1, te - ts - 2, Type::kString, counter > 0));
             counter = 0;
         };
 
@@ -45,24 +45,12 @@
         ###########
         # Single-quoted symbol. Increments counter on escape characters for length computation.
         '\'' (('\\' any %counter) | (extend - '\''))* '\'' {
-            const char* symbolStart = ts + 1;
-            if (counter > 0) {
-                size_t symbolLength = te - ts - 2 - counter;
-                uint64_t symbolHash = symbolTable->addSymbolEscaped(std::string_view(symbolStart, symbolLength));
-                m_tokens.emplace_back(Token(symbolStart, symbolLength, symbolHash));
-            } else {
-                size_t symbolLength = te - ts - 2;
-                uint64_t symbolHash = symbolTable->addSymbolVerbatim(std::string_view(symbolStart, symbolLength));
-                m_tokens.emplace_back(Token(symbolStart, symbolLength, symbolHash));
-            }
+            m_tokens.emplace_back(Token(ts + 1, te - ts - 2, Type::kSymbol, counter > 0));
             counter = 0;
         };
         # Slash symbols.
         '\\' [a-zA-Z0-9_]* {
-            const char* symbolStart = ts + 1;
-            size_t symbolLength = te - ts - 1;
-            uint64_t symbolHash = symbolTable->addSymbolVerbatim(std::string_view(symbolStart, symbolLength));
-            m_tokens.emplace_back(Token(ts + 1, te - ts - 1, symbolHash));
+            m_tokens.emplace_back(Token(ts + 1, te - ts - 1, Type::kSymbol, false));
         };
 
         ##############
@@ -115,38 +103,39 @@
         # operators #
         #############
         '+' {
-            m_tokens.emplace_back(Token(Token::Name::kPlus, ts, 1, true));
+            m_tokens.emplace_back(Token(Token::Name::kPlus, ts, 1, true, kPlusHash));
         };
         '-' {
-            m_tokens.emplace_back(Token(Token::Name::kMinus, ts, 1, true));
+            m_tokens.emplace_back(Token(Token::Name::kMinus, ts, 1, true, kMinusHash));
         };
         '*' {
-            m_tokens.emplace_back(Token(Token::Name::kAsterisk, ts, 1, true));
+            m_tokens.emplace_back(Token(Token::Name::kAsterisk, ts, 1, true, kAsteriskHash));
         };
         '=' {
-            m_tokens.emplace_back(Token(Token::Name::kAssign, ts, 1, true));
+            m_tokens.emplace_back(Token(Token::Name::kAssign, ts, 1, true, kAssignHash));
         };
         '<' {
-            m_tokens.emplace_back(Token(Token::Name::kLessThan, ts, 1, true));
+            m_tokens.emplace_back(Token(Token::Name::kLessThan, ts, 1, true, kLessThanHash));
         };
         '>' {
-            m_tokens.emplace_back(Token(Token::Name::kGreaterThan, ts, 1, true));
+            m_tokens.emplace_back(Token(Token::Name::kGreaterThan, ts, 1, true, kGreaterThanHash));
         };
         '|' {
-            m_tokens.emplace_back(Token(Token::Name::kPipe, ts, 1, true));
+            m_tokens.emplace_back(Token(Token::Name::kPipe, ts, 1, true, kPipeHash));
         };
         '<>' {
-            m_tokens.emplace_back(Token(Token::Name::kReadWriteVar, ts, 2, true));
+            m_tokens.emplace_back(Token(Token::Name::kReadWriteVar, ts, 2, true, kReadWriteHash));
         };
         '<-' {
-            m_tokens.emplace_back(Token(Token::Name::kLeftArrow, ts, 2, true));
+            m_tokens.emplace_back(Token(Token::Name::kLeftArrow, ts, 2, true, kLeftArrowHash));
         };
         ('!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' | '?' | '/')+ {
-            m_tokens.emplace_back(Token(Token::Name::kBinop, ts, te - ts, true));
+            m_tokens.emplace_back(Token(Token::Name::kBinop, ts, te - ts, true, SymbolTable::hash(ts, te - ts)));
         };
         # We don't include the colon at the end of the keyword to simplify parsing.
         lower (alnum | '_')* ':' {
-            m_tokens.emplace_back(Token(Token::Name::kKeyword, ts, te - ts - 1, true));
+            m_tokens.emplace_back(Token(Token::Name::kKeyword, ts, te - ts - 1, true,
+                SymbolTable::hash(ts, te - ts - 1)));
         };
 
         ############
@@ -178,14 +167,14 @@
         # identifiers #
         ###############
         lower (alnum | '_')* {
-            m_tokens.emplace_back(Token(Token::Name::kIdentifier, ts, te - ts));
+            m_tokens.emplace_back(Token(Token::Name::kIdentifier, ts, te - ts, false, SymbolTable::hash(ts, te - ts)));
         };
 
         ###############
         # class names #
         ###############
         upper (alnum | '_')* {
-            m_tokens.emplace_back(Token(Token::Name::kClassName, ts, te - ts));
+            m_tokens.emplace_back(Token(Token::Name::kClassName, ts, te - ts, false, SymbolTable::hash(ts, te - ts)));
         };
 
         ########
@@ -209,7 +198,7 @@
         # primitives #
         ##############
         '_' (alnum | '_')+ {
-            m_tokens.emplace_back(Token(Token::Name::kPrimitive, ts, te - ts));
+            m_tokens.emplace_back(Token(Token::Name::kPrimitive, ts, te - ts, false, SymbolTable::hash(ts, te - ts)));
         };
 
         space { /* ignore whitespace */ };
@@ -225,7 +214,9 @@
 // Generated file from Ragel input file src/Lexer.rl. Please make edits to that file instead of modifying this directly.
 
 #include "Lexer.hpp"
+
 #include "ErrorReporter.hpp"
+#include "Keywords.hpp"
 #include "SymbolTable.hpp"
 
 #include "fmt/core.h"
@@ -243,13 +234,13 @@ Lexer::Lexer(std::string_view code):
     m_code(code) { }
 
 bool Lexer::lex() {
-    m_symbolTable = std::make_unique<SymbolTable>();
-    m_errorReporter = std::make_unique<ErrorReporter>();
+    // Suppress error messages in this testing version of the Lexer.
+    m_errorReporter = std::make_unique<ErrorReporter>(true);
     m_errorReporter->setCode(m_code.data());
-    return lex(m_symbolTable.get(), m_errorReporter.get());
+    return lex(m_errorReporter.get());
 }
 
-bool Lexer::lex(SymbolTable* symbolTable, ErrorReporter* errorReporter) {
+bool Lexer::lex(ErrorReporter* errorReporter) {
     // Ragel-required state variables.
     const char* p = m_code.data();
     const char* pe = p + m_code.size();
