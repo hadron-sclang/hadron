@@ -78,12 +78,12 @@ add_library(hadron STATIC
     ErrorReporter.cpp
     ErrorReporter.hpp
     FileSystem.hpp
+    Hash.cpp
+    Hash.hpp
     Lexer.hpp
     Literal.hpp
     Parser.cpp
     Parser.hpp
-    SymbolTable.cpp
-    SymbolTable.hpp
     SyntaxAnalyzer.cpp
     SyntaxAnalyzer.hpp
     Type.hpp

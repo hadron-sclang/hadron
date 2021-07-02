@@ -1,6 +1,7 @@
 #ifndef SRC_SYNTAX_ANALYZER_HPP_
 #define SRC_SYNTAX_ANALYZER_HPP_
 
+#include "Hash.hpp"
 #include "Literal.hpp"
 #include "Type.hpp"
 
@@ -43,11 +44,11 @@ namespace ast {
     };
 
     struct CalculateAST : public AST {
-        CalculateAST(uint64_t hash): AST(kCalculate), selector(hash) {}
+        CalculateAST(Hash hash): AST(kCalculate), selector(hash) {}
         CalculateAST() = delete;
         virtual ~CalculateAST() = default;
 
-        uint64_t selector;
+        Hash selector;
         std::unique_ptr<AST> left;
         std::unique_ptr<AST> right;
     };
@@ -66,17 +67,17 @@ namespace ast {
         virtual ~BlockAST() = default;
 
         BlockAST* parent;
-        std::unordered_map<uint64_t, Value> arguments;
-        std::unordered_map<uint64_t, Value> variables;
+        std::unordered_map<Hash, Value> arguments;
+        std::unordered_map<Hash, Value> variables;
         std::vector<std::unique_ptr<AST>> statements;
     };
 
     struct ValueAST : public AST {
-        ValueAST(uint64_t hash, BlockAST* block): AST(kValue), nameHash(hash), owningBlock(block) {}
+        ValueAST(Hash hash, BlockAST* block): AST(kValue), nameHash(hash), owningBlock(block) {}
         ValueAST() = delete;
         virtual ~ValueAST() = default;
 
-        uint64_t nameHash = 0;
+        Hash nameHash = 0;
         BlockAST* owningBlock = nullptr;
         size_t revision = 0;
     };
@@ -113,7 +114,7 @@ namespace ast {
         DispatchAST(): AST(kDispatch) {}
         virtual ~DispatchAST() = default;
 
-        uint64_t selectorHash;
+        Hash selectorHash;
         std::string selector;
         std::vector<std::unique_ptr<AST>> arguments;
     };
@@ -146,7 +147,7 @@ private:
         ast::BlockAST* block);
 
     // Find a value within the Block tree, or return nullptr if not found.
-    std::unique_ptr<ast::ValueAST> findValue(uint64_t nameHash, ast::BlockAST* block, bool addReference);
+    std::unique_ptr<ast::ValueAST> findValue(Hash nameHash, ast::BlockAST* block, bool addReference);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 

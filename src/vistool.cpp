@@ -3,6 +3,7 @@
 #include "FileSystem.hpp"
 
 #include "ErrorReporter.hpp"
+#include "Hash.hpp"
 #include "Keywords.hpp"
 #include "Literal.hpp"
 #include "Parser.hpp"
@@ -467,7 +468,7 @@ std::string findValueName(const hadron::ast::ValueAST* value) {
     return "variable name not found!";
 }
 
-std::string printHash(uint64_t hash) {
+std::string printHash(hadron::Hash hash) {
     switch (hash) {
     case hadron::kAddHash:
         return "+";

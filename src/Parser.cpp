@@ -2,7 +2,6 @@
 
 #include "ErrorReporter.hpp"
 #include "Lexer.hpp"
-#include "SymbolTable.hpp"
 
 #include "fmt/core.h"
 #include "spdlog/spdlog.h"

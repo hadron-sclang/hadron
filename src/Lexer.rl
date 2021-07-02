@@ -130,12 +130,11 @@
             m_tokens.emplace_back(Token(Token::Name::kLeftArrow, ts, 2, true, kLeftArrowHash));
         };
         ('!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' | '?' | '/')+ {
-            m_tokens.emplace_back(Token(Token::Name::kBinop, ts, te - ts, true, SymbolTable::hash(ts, te - ts)));
+            m_tokens.emplace_back(Token(Token::Name::kBinop, ts, te - ts, true, hash(ts, te - ts)));
         };
         # We don't include the colon at the end of the keyword to simplify parsing.
         lower (alnum | '_')* ':' {
-            m_tokens.emplace_back(Token(Token::Name::kKeyword, ts, te - ts - 1, true,
-                SymbolTable::hash(ts, te - ts - 1)));
+            m_tokens.emplace_back(Token(Token::Name::kKeyword, ts, te - ts - 1, true, hash(ts, te - ts - 1)));
         };
 
         ############
@@ -167,14 +166,14 @@
         # identifiers #
         ###############
         lower (alnum | '_')* {
-            m_tokens.emplace_back(Token(Token::Name::kIdentifier, ts, te - ts, false, SymbolTable::hash(ts, te - ts)));
+            m_tokens.emplace_back(Token(Token::Name::kIdentifier, ts, te - ts, false, hash(ts, te - ts)));
         };
 
         ###############
         # class names #
         ###############
         upper (alnum | '_')* {
-            m_tokens.emplace_back(Token(Token::Name::kClassName, ts, te - ts, false, SymbolTable::hash(ts, te - ts)));
+            m_tokens.emplace_back(Token(Token::Name::kClassName, ts, te - ts, false, hash(ts, te - ts)));
         };
 
         ########
@@ -198,7 +197,7 @@
         # primitives #
         ##############
         '_' (alnum | '_')+ {
-            m_tokens.emplace_back(Token(Token::Name::kPrimitive, ts, te - ts, false, SymbolTable::hash(ts, te - ts)));
+            m_tokens.emplace_back(Token(Token::Name::kPrimitive, ts, te - ts, false, hash(ts, te - ts)));
         };
 
         space { /* ignore whitespace */ };
@@ -217,7 +216,6 @@
 
 #include "ErrorReporter.hpp"
 #include "Keywords.hpp"
-#include "SymbolTable.hpp"
 
 #include "fmt/core.h"
 

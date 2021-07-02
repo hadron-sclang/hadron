@@ -1,6 +1,7 @@
 #ifndef SRC_LEXER_HPP_
 #define SRC_LEXER_HPP_
 
+#include "Hash.hpp"
 #include "Literal.hpp"
 #include "Type.hpp"
 
@@ -66,7 +67,7 @@ public:
         std::string_view range;
         Literal value;
         bool couldBeBinop;
-        uint64_t hash;
+        Hash hash;
 
         Token(): name(kEmpty), couldBeBinop(false) {}
 
@@ -87,7 +88,7 @@ public:
             name(kLiteral), range(start, length), value(literalType, hasEscapeCharacters), couldBeBinop(false) {}
 
         /*! Makes a token with no value storage */
-        Token(Name n, const char* start, size_t length, bool binop = false, uint64_t h = 0):
+        Token(Name n, const char* start, size_t length, bool binop = false, Hash h = 0):
             name(n), range(start, length), couldBeBinop(binop), hash(h) {}
     };
 

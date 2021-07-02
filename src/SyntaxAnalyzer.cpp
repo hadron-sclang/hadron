@@ -243,7 +243,7 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildBinop(const Parser* parser, const
     return dispatch;
 }
 
-std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(uint64_t nameHash, ast::BlockAST* block, bool addReference) {
+std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(Hash nameHash, ast::BlockAST* block, bool addReference) {
     ast::BlockAST* searchBlock = block;
     while (searchBlock) {
         auto nameEntry = searchBlock->variables.find(nameHash);
