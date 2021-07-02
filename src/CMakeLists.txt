@@ -11,11 +11,6 @@ include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}"
     "${INSTALL_EXT}/include"
-    "${INSTALL_EXT}/llvm/include"
-)
-
-link_directories(
-    "${INSTALL_EXT}/llvm/lib"
 )
 
 # colm dependency to build Ragel
@@ -80,12 +75,6 @@ add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
-    Block.hpp
-    Block.cpp
-    ClassLibrary.cpp
-    ClassLibrary.hpp
-    CodeGenerator.cpp
-    CodeGenerator.hpp
     ErrorReporter.cpp
     ErrorReporter.hpp
     FileSystem.hpp
@@ -100,22 +89,12 @@ add_library(hadron STATIC
     Type.hpp
 )
 
-#add_dependencies(hadron
-#    llvm-install
-#)
-
-set(LLVM_LIBS
-    "${INSTALL_EXT}/llvm/lib/libLLVMCore.a"
-    "${INSTALL_EXT}/llvm/lib/libLLVMSupport.a"
-)
-
 target_compile_options(hadron PUBLIC -g -Wall -Wextra -Wpedantic -Werror)
 
 target_link_libraries(hadron
     fmt
     spdlog
     xxHash::xxhash
-#    ${LLVM_LIBS}
 )
 
 if(APPLE)

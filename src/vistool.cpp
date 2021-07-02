@@ -3,7 +3,6 @@
 #include "FileSystem.hpp"
 
 #include "ErrorReporter.hpp"
-#include "HIR.hpp"
 #include "Keywords.hpp"
 #include "Literal.hpp"
 #include "Parser.hpp"

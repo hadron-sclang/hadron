@@ -32,25 +32,6 @@ if(APPLE)
     )
 endif()
 
-#### llvm
-if(APPLE)
-set(LLVM_DOWNLOAD clang+llvm-12.0.0-x86_64-apple-darwin)
-else()
-set(LLVM_DOWNLOAD clang+llvm-12.0.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz)
-endif()
-
-ExternalProject_add(llvm
-    PREFIX ext
-    STEP_TARGETS install
-    URL https://github.com/llvm/llvm-project/releases/download/llvmorg-12.0.0/${LLVM_DOWNLOAD}.tar.xz
-    DOWNLOAD_NO_EXTRACT ON
-    UPDATE_COMMAND ""
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
-    INSTALL_COMMAND tar xf <DOWNLOADED_FILE> -C ${INSTALL_EXT} && mv ${INSTALL_EXT}/${LLVM_DOWNLOAD} ${INSTALL_EXT}/llvm
-    EXCLUDE_FROM_ALL ON
-)
-
 #### spdlog
 set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "require spdlog to use our external fmt")
 add_subdirectory(spdlog)
