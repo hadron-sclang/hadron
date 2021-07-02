@@ -14,6 +14,7 @@ namespace hadron {
 class ErrorReporter;
 class Parser;
 namespace parse {
+struct BinopCallNode;
 struct BlockNode;
 struct CallNode;
 struct Node;
@@ -21,42 +22,32 @@ struct Node;
 
 namespace ast {
     enum ASTType {
-        kAssign,    // Assign a value to a variable
-        kBinop,     // An as-of-yet unlowered AST, meaning that after type analysis could be possibly resolved into
-                    // lower-level operation, or to a generic Dispatch
-        kBlock,     // Scoped block of code
-        kDispatch,  // method call
+        kCalculate,  // Arithmetic or comparisons of two numbers, either float or int
+        kAssign,     // Assign a value to a variable
+        kBlock,      // Scoped block of code
+        kDispatch,   // method call
         kValue,
         kConstant,
 
-        // AST nodes not usually built from source but after type analysis?
-        kWhile,     // while loop
-        kAdd,       // Add two numeric types (int, float)
+        // control flow
+        kWhile,      // while loop
     };
 
     struct AST {
-        AST(ASTType t): type(t) {}
+        AST(ASTType t): astType(t) {}
         AST() = delete;
         virtual ~AST() = default;
 
-        ASTType type;
+        ASTType astType;
+        Type valueType = Type::kSlot;
     };
 
-    struct AddAST : public AST {
-        AddAST(): AST(kAdd) {}
-        virtual ~AddAST() = default;
+    struct CalculateAST : public AST {
+        CalculateAST(uint64_t hash): AST(kCalculate), selector(hash) {}
+        CalculateAST() = delete;
+        virtual ~CalculateAST() = default;
 
-        std::unique_ptr<AST> left;
-        std::unique_ptr<AST> right;
-    };
-
-    struct BinopAST : public AST {
-        BinopAST(uint64_t hash, std::string name): AST(kBinop), selectorHash(hash), selector(name) {}
-        BinopAST() = delete;
-        virtual ~BinopAST() = default;
-
-        uint64_t selectorHash;
-        std::string selector;
+        uint64_t selector;
         std::unique_ptr<AST> left;
         std::unique_ptr<AST> right;
     };
@@ -99,14 +90,18 @@ namespace ast {
     };
 
     struct ConstantAST : public AST {
-        ConstantAST(const Literal& literal): AST(kConstant), value(literal) {}
+        ConstantAST(const Literal& literal): AST(kConstant), value(literal) {
+            valueType = value.type();
+        }
         ConstantAST() = delete;
         virtual ~ConstantAST() = default;
         Literal value;
     };
 
     struct WhileAST : public AST {
-        WhileAST(): AST(kWhile) {}
+        WhileAST(): AST(kWhile) {
+            valueType = Type::kNil;
+        }
         virtual ~WhileAST() = default;
 
         // while { condition } { action }
@@ -143,8 +138,12 @@ private:
         std::vector<std::unique_ptr<ast::AST>>* ast);
     // Build an expression tree without appending to the block, although variables may be appended if they are defined.
     std::unique_ptr<ast::AST> buildExprTree(const Parser* parser, const parse::Node* parseNode, ast::BlockAST* block);
+
     // Calls can be control flow or method dispatches. Differentiate, assemble, and return.
     std::unique_ptr<ast::AST> buildCall(const Parser* parser, const parse::CallNode* callNode, ast::BlockAST* block);
+    // Binops can be arithmetic functions or method dispatches. Differentiate, assemble, and return.
+    std::unique_ptr<ast::AST> buildBinop(const Parser* parser, const parse::BinopCallNode* binopNode,
+        ast::BlockAST* block);
 
     // Find a value within the Block tree, or return nullptr if not found.
     std::unique_ptr<ast::ValueAST> findValue(uint64_t nameHash, ast::BlockAST* block, bool addReference);

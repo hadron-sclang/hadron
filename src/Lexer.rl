@@ -103,13 +103,13 @@
         # operators #
         #############
         '+' {
-            m_tokens.emplace_back(Token(Token::Name::kPlus, ts, 1, true, kPlusHash));
+            m_tokens.emplace_back(Token(Token::Name::kPlus, ts, 1, true, kAddHash));
         };
         '-' {
-            m_tokens.emplace_back(Token(Token::Name::kMinus, ts, 1, true, kMinusHash));
+            m_tokens.emplace_back(Token(Token::Name::kMinus, ts, 1, true, kSubtractHash));
         };
         '*' {
-            m_tokens.emplace_back(Token(Token::Name::kAsterisk, ts, 1, true, kAsteriskHash));
+            m_tokens.emplace_back(Token(Token::Name::kAsterisk, ts, 1, true, kMultiplyHash));
         };
         '=' {
             m_tokens.emplace_back(Token(Token::Name::kAssign, ts, 1, true, kAssignHash));

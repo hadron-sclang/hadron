@@ -5,6 +5,9 @@
 
 namespace hadron {
 
+// These are deliberately independent bits to allow for quick aggregate type comparisons, such as
+// type & (kInteger | kFloat) to determine if a type is numeric or
+// type & (kString | kSymbol) for character types, etc.
 enum Type : std::uint_fast16_t {
     kNil     = 0x0001,
     kInteger = 0x0002,

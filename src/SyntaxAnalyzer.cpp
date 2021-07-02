@@ -53,13 +53,19 @@ void SyntaxAnalyzer::fillAST(const Parser* parser, const parse::Node* parseNode,
             // TODO:: error reporting for variable redefinition
         }
         block->variables.emplace(std::make_pair(name.hash,
-            ast::Value(std::string(name.range.data(), name.range.size()))));
+        ast::Value(std::string(name.range.data(), name.range.size()))));
+        auto assign = std::make_unique<ast::AssignAST>();
         if (varDefNode->initialValue) {
-            auto assign = std::make_unique<ast::AssignAST>();
-            assign->target = std::make_unique<ast::ValueAST>(name.hash, block);
             assign->value = buildExprTree(parser, varDefNode->initialValue.get(), block);
-            ast->emplace_back(std::move(assign));
+        } else {
+            // Initialize variables to nil if they don't have a specified initial value.
+            assign->value = std::make_unique<ast::ConstantAST>(Literal(Type::kNil));
         }
+        assign->target = findValue(name.hash, block, true);
+        // Propagate type from value to both target and the assignment statement.
+        assign->target->valueType = assign->value->valueType;
+        assign->valueType = assign->value->valueType;
+        ast->emplace_back(std::move(assign));
     } break;
 
     case parse::NodeType::kExprSeq: {
@@ -105,11 +111,7 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildExprTree(const Parser* parser, co
 
     case parse::NodeType::kBinopCall: {
         const auto binopNode = reinterpret_cast<const parse::BinopCallNode*>(parseNode);
-        auto token = parser->tokens()[binopNode->tokenIndex];
-        auto binop = std::make_unique<ast::BinopAST>(token.hash, std::string(token.range.data(), token.range.size()));
-        binop->left = buildExprTree(parser, binopNode->leftHand.get(), block);
-        binop->right = buildExprTree(parser, binopNode->rightHand.get(), block);
-        return binop;
+        return buildBinop(parser, binopNode, block);
     } break;
 
     case parse::NodeType::kCall: {
@@ -121,8 +123,10 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildExprTree(const Parser* parser, co
         const auto assignNode = reinterpret_cast<const parse::AssignNode*>(parseNode);
         auto assign = std::make_unique<ast::AssignAST>();
         auto nameToken = parser->tokens()[assignNode->name->tokenIndex];
-        assign->target = findValue(nameToken.hash, block, true);
         assign->value = buildExprTree(parser, assignNode->value.get(), block);
+        assign->target = findValue(nameToken.hash, block, true);
+        assign->target->valueType = assign->value->valueType;
+        assign->valueType = assign->value->valueType;
         return assign;
     } break;
 
@@ -185,6 +189,60 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const 
     return dispatch;
 }
 
+std::unique_ptr<ast::AST> SyntaxAnalyzer::buildBinop(const Parser* parser, const parse::BinopCallNode* binopNode,
+        ast::BlockAST* block) {
+    // Type of both operands really matters, so check both sides for type.
+    auto left = buildExprTree(parser, binopNode->leftHand.get(), block);
+    auto right = buildExprTree(parser, binopNode->rightHand.get(), block);
+    auto binopToken = parser->tokens()[binopNode->tokenIndex];
+
+    if ((left->valueType & (Type::kInteger | Type::kFloat)) && (right->valueType & (Type::kInteger | Type::kFloat))) {
+        switch (binopToken.hash) {
+        case kAddHash:
+        case kDivideHash:
+        case kModuloHash:
+        case kMultiplyHash:
+        case kSubtractHash: {
+            auto calc = std::make_unique<ast::CalculateAST>(binopToken.hash);
+            if (left->valueType == Type::kFloat || right->valueType == Type::kFloat) {
+                calc->valueType = Type::kFloat;
+            } else {
+                calc->valueType = Type::kInteger;
+            }
+            calc->left = std::move(left);
+            calc->right = std::move(right);
+            return calc;
+        } break;
+
+        case kLessThanHash:
+        case kEqualToHash:
+        case kExactlyEqualToHash:
+        case kGreaterThanHash:
+        case kGreaterThanOrEqualToHash:
+        case kLessThanOrEqualToHash:
+        case kNotEqualToHash:
+        case kNotExactlyEqualToHash: {
+            auto calc = std::make_unique<ast::CalculateAST>(binopToken.hash);
+            calc->left = std::move(left);
+            calc->right = std::move(right);
+            calc->valueType = Type::kBoolean;
+            return calc;
+        } break;
+
+        default:
+            break;
+        }
+    }
+
+    // Types or hash didn't match any lowering candidates, so create a generic dispatch node.
+    auto dispatch = std::make_unique<ast::DispatchAST>();
+    dispatch->selectorHash = binopToken.hash;
+    dispatch->selector = std::string(binopToken.range.data(), binopToken.range.size());
+    dispatch->arguments.emplace_back(std::move(left));
+    dispatch->arguments.emplace_back(std::move(right));
+    return dispatch;
+}
+
 std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(uint64_t nameHash, ast::BlockAST* block, bool addReference) {
     ast::BlockAST* searchBlock = block;
     while (searchBlock) {
@@ -192,9 +250,12 @@ std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(uint64_t nameHash, ast:
         if (nameEntry != searchBlock->variables.end()) {
             auto value = std::make_unique<ast::ValueAST>(nameHash, searchBlock);
             if (addReference) {
+                // Add a new revision to the revision table, type will be determined by assignment of new value.
                 nameEntry->second.revisions.emplace_back(value.get());
             }
-            value->revision = nameEntry->second.revisions.size();
+            value->revision = nameEntry->second.revisions.size() - 1;
+            // Propagate type from most recent revision, although it may be overriden by assignment.
+            value->valueType = nameEntry->second.revisions[value->revision]->valueType;
             return value;
         }
         searchBlock = searchBlock->parent;

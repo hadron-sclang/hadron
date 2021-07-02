@@ -12,17 +12,25 @@
 
 int main(int argc, char* argv[]) {
     std::vector<std::array<std::string, 2>> hashNames = {
-        { "kAssignHash     ", "="},
-        { "kAsteriskHash   ", "*"},
-        { "kGreaterThanHash", ">"},
-        { "kIfHash         ", "if"},
-        { "kLeftArrowHash  ", "<-"},
-        { "kLessThanHash   ", "<"},
-        { "kMinusHash      ", "-"},
-        { "kPipeHash       ", "|"},
-        { "kPlusHash       ", "+"},
-        { "kReadWriteHash  ", "<>"},
-        { "kWhileHash      ", "while"}
+        { "kAddHash                 ", "+"},
+        { "kAssignHash              ", "="},
+        { "kDivideHash              ", "/"},
+        { "kEqualToHash             ", "=="},
+        { "kExactlyEqualToHash      ", "==="},
+        { "kGreaterThanHash         ", ">"},
+        { "kGreaterThanOrEqualToHash", ">="},
+        { "kIfHash                  ", "if"},
+        { "kLeftArrowHash           ", "<-"},
+        { "kLessThanHash            ", "<"},
+        { "kLessThanOrEqualToHash   ", "<="},
+        { "kModuloHash              ", "%"},
+        { "kMultiplyHash            ", "*"},
+        { "kNotEqualToHash          ", "!="},
+        { "kNotExactlyEqualToHash   ", "!=="},
+        { "kPipeHash                ", "|"},
+        { "kReadWriteHash           ", "<>"},
+        { "kSubtractHash            ", "-"},
+        { "kWhileHash               ", "while"}
     };
 
     std::ofstream outFile("Keywords.hpp");
@@ -41,7 +49,7 @@ int main(int argc, char* argv[]) {
     outFile << "namespace hadron {" << std::endl << std::endl;
 
     for (const auto& pair : hashNames) {
-        outFile << fmt::format("    const uint64_t {} = 0x{:16x};  // \'{}\'\n", pair[0],
+        outFile << fmt::format("    const uint64_t {} = 0x{:016x};  // \'{}\'\n", pair[0],
             XXH3_64bits(pair[1].data(), pair[1].size()), pair[1]);
     }
 

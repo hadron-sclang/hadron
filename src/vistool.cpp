@@ -4,6 +4,7 @@
 
 #include "ErrorReporter.hpp"
 #include "HIR.hpp"
+#include "Keywords.hpp"
 #include "Literal.hpp"
 #include "Parser.hpp"
 #include "SyntaxAnalyzer.hpp"
@@ -32,19 +33,19 @@ std::string trueFalse(bool v) {
     return "false";
 }
 
-std::string printLiteral(const hadron::Literal& literal) {
-    switch (literal.type()) {
+std::string printType(const hadron::Type type) {
+    switch (type) {
         case hadron::Type::kNil:
             return "(nil)";
 
         case hadron::Type::kInteger:
-            return fmt::format("(int) {}", literal.asInteger());
+            return "(int)";
 
         case hadron::Type::kFloat:
-            return fmt::format("(float) {}", literal.asFloat());
+            return "(float)";
 
         case hadron::Type::kBoolean:
-            return fmt::format("(bool) {}", trueFalse(literal.asBoolean()));
+            return "(bool)";
 
         case hadron::Type::kString:
             return "(string)";
@@ -66,6 +67,25 @@ std::string printLiteral(const hadron::Literal& literal) {
     }
 
     return "(unknown type!)";
+}
+
+std::string printLiteral(const hadron::Literal& literal) {
+    std::string type = printType(literal.type());
+    switch (literal.type()) {
+    case hadron::Type::kInteger:
+        return fmt::format("(int) {}", literal.asInteger());
+
+    case hadron::Type::kFloat:
+        return fmt::format("(float) {}", literal.asFloat());
+
+    case hadron::Type::kBoolean:
+        return fmt::format("(bool) {}", trueFalse(literal.asBoolean()));
+
+    default:
+        break;
+    }
+
+    return type;
 }
 
 std::string htmlEscape(std::string_view view) {
@@ -448,27 +468,91 @@ std::string findValueName(const hadron::ast::ValueAST* value) {
     return "variable name not found!";
 }
 
+std::string printHash(uint64_t hash) {
+    switch (hash) {
+    case hadron::kAddHash:
+        return "+";
+
+    case hadron::kAssignHash:
+        return "=";
+
+    case hadron::kDivideHash:
+        return "/";
+
+    case hadron::kEqualToHash:
+        return "==";
+
+    case hadron::kExactlyEqualToHash:
+        return "===";
+
+    case hadron::kGreaterThanHash:
+        return ">";
+
+    case hadron::kGreaterThanOrEqualToHash:
+        return ">=";
+
+    case hadron::kIfHash:
+        return "if";
+
+    case hadron::kLeftArrowHash:
+        return "<-";
+
+    case hadron::kLessThanHash:
+        return "<";
+
+    case hadron::kLessThanOrEqualToHash:
+        return "<=";
+
+    case hadron::kModuloHash:
+        return "%";
+
+    case hadron::kMultiplyHash:
+        return "*";
+
+    case hadron::kNotEqualToHash:
+        return "!=";
+
+    case hadron::kNotExactlyEqualToHash:
+        return "!==";
+
+    case hadron::kPipeHash:
+        return "|";
+
+    case hadron::kReadWriteHash:
+        return "<>";
+
+    case hadron::kSubtractHash:
+        return "-";
+
+    case hadron::kWhileHash:
+        return "while";
+    }
+
+    return fmt::format("hash {:016x} not found!", hash);
+}
+
 void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* ast) {
     int astSerial = serial;
     ++serial;
 
-    switch (ast->type) {
-    case hadron::ast::ASTType::kAdd: {
-        const auto add = reinterpret_cast<const hadron::ast::AddAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=\"+\"]\n", astSerial);
-        if (add->left) {
+    switch (ast->astType) {
+    case hadron::ast::ASTType::kCalculate: {
+        const auto calc = reinterpret_cast<const hadron::ast::CalculateAST*>(ast);
+        outFile << fmt::format("    ast_{} [label=\"{} {}\"]\n", astSerial, printHash(calc->selector),
+            printType(ast->valueType));
+        if (calc->left) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, add->left.get());
+            visualizeAST(outFile, serial, calc->left.get());
         }
-        if (add->right) {
+        if (calc->right) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, add->right.get());
+            visualizeAST(outFile, serial, calc->right.get());
         }
     } break;
 
     case hadron::ast::ASTType::kAssign: {
         const auto assign = reinterpret_cast<const hadron::ast::AssignAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=<&#8592;>]\n", astSerial);
+        outFile << fmt::format("    ast_{} [label=<&#8592; {}>]\n", astSerial, printType(ast->valueType));
         if (assign->target) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
             visualizeAST(outFile, serial, assign->target.get());
@@ -479,32 +563,19 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
         }
     } break;
 
-    case hadron::ast::ASTType::kBinop: {
-        const auto binop = reinterpret_cast<const hadron::ast::BinopAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=\"{}\"]\n", astSerial, binop->selector);
-        if (binop->left) {
-            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, binop->left.get());
-        }
-        if (binop->right) {
-            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, binop->right.get());
-        }
-    } break;
-
     case hadron::ast::ASTType::kBlock: {
         const auto block = reinterpret_cast<const hadron::ast::BlockAST*>(ast);
         outFile << fmt::format("    ast_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
-            "<tr><td bgcolor=\"lightGray\"><b>Block</b></td></tr>", astSerial);
+            "<tr><td bgcolor=\"lightGray\"><b>Block {}</b></td></tr>", astSerial, printType(ast->valueType));
         if (block->arguments.size()) {
-            outFile << "<tr><td><b>arguments:</b>";
+            outFile << "<tr><td><b>arg:</b>";
             for (auto pair : block->arguments) {
                 outFile << " " << pair.second.name;
             }
             outFile << "</td></tr>";
         }
         if (block->variables.size()) {
-            outFile << "<tr><td><b>variables:</b>";
+            outFile << "<tr><td><b>var:</b>";
             for (auto pair : block->variables) {
                 outFile << " " << pair.second.name;
             }
@@ -520,8 +591,8 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
 
     case hadron::ast::ASTType::kValue: {
         const auto value = reinterpret_cast<const hadron::ast::ValueAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=<<i>{}<sub>{}</sub></i>>]\n", astSerial, findValueName(value),
-            value->revision);
+        outFile << fmt::format("    ast_{} [label=<{} <i>{}<sub>{}</sub></i>>]\n", astSerial,
+            printType(value->valueType), findValueName(value), value->revision);
     } break;
 
     case hadron::ast::ASTType::kConstant: {
@@ -531,7 +602,7 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
 
     case hadron::ast::ASTType::kWhile: {
         const auto whileAST = reinterpret_cast<const hadron::ast::WhileAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=\"while\"]\n", astSerial);
+        outFile << fmt::format("    ast_{} [label=\"while {}\"]\n", astSerial, printType(ast->valueType));
         if (whileAST->condition) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
             visualizeAST(outFile, serial, whileAST->condition.get());
@@ -544,7 +615,8 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
 
     case hadron::ast::ASTType::kDispatch: {
         const auto dispatch = reinterpret_cast<const hadron::ast::DispatchAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=\"{}\"]\n", astSerial, dispatch->selector);
+        outFile << fmt::format("    ast_{} [label=\"{} {}\"]\n", astSerial, dispatch->selector,
+            printType(ast->valueType));
         for (const auto& expr : dispatch->arguments) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
             visualizeAST(outFile, serial, expr.get());
