@@ -9,7 +9,7 @@ SuperCollider remains a unique creative tool in a crowded field of electronic mu
 in part because of the programming-centric approach. For many users the SuperCollider language is their first
 programming language and may be the only programming language they learn. Hadron aims to improve both the usability of
 the language as well as its utility, therefore radically expanding both the user community and the creative potential of
-SuperCollider. 
+SuperCollider.
 
 ## JiT/REPL/Live Coding and AoT Compilation Models
 
@@ -65,8 +65,8 @@ other modules that, while popular, may not meet that standard.
 
 ### Core Components
 
-Hadron's modularity encourages keeping the majority of code written in SC language and in separate modules. But some
-things are fundamental to the language and should be destributed in the core. Here is a list of those items:
+Hadron's modularity and speed encourages keeping the majority of code written in SC language and in separate modules.
+But some things are fundamental to the language and should be destributed in the core. Here is a list of those items:
 
  * Primitive data types: `int`, `char`, `string`, `symbol`, `float`, `bool`
  * Fundamental data structures: `Array`, `List`, `Dictionary`, `IdentityDictionary`

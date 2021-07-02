@@ -8,7 +8,9 @@ namespace hadron {
 
 class ErrorReporter {
 public:
-    ErrorReporter();
+    // If suppress is true, will not print reported errors to log (useful for testing failures without
+    // polluting the log)
+    ErrorReporter(bool suppress = false);
     ~ErrorReporter();
 
     // Must be called before getLineNumber() can be called.
@@ -16,11 +18,12 @@ public:
 
     void addError(const std::string& error);
 
-    size_t getLineNumber(const char* location);    
+    size_t getLineNumber(const char* location);
     size_t errorCount() const { return m_errors.size(); }
     const char* getLineStart(size_t lineNumber) const { return m_lineEndings[lineNumber - 1]; }
 
 private:
+    bool m_suppress;
     const char* m_code;
     std::vector<std::string> m_errors;
     std::vector<const char*> m_lineEndings;

@@ -3,10 +3,10 @@
 
 #include "Lexer.hpp"
 #include "Literal.hpp"
-#include "SymbolTable.hpp"
 #include "Type.hpp"
 
 #include <memory>
+#include <optional>
 #include <string_view>
 
 namespace hadron {
@@ -16,7 +16,7 @@ class ErrorReporter;
 namespace parse {
 
 enum NodeType {
-    kEmpty, // represents an empty node
+    kEmpty,
     kVarDef,
     kVarList,
     kArgList,
@@ -55,14 +55,12 @@ struct Node {
 };
 
 struct VarDefNode : public Node {
-    VarDefNode(size_t index, std::string_view name): Node(NodeType::kVarDef, index), varName(name) {}
+    VarDefNode(size_t index): Node(NodeType::kVarDef, index) {}
     virtual ~VarDefNode() = default;
-
-    std::string_view varName;
-    std::unique_ptr<Node> initialValue;
-
     bool hasReadAccessor = false;
     bool hasWriteAccessor = false;
+
+    std::unique_ptr<Node> initialValue;
 };
 
 struct VarListNode : public Node {
@@ -78,19 +76,17 @@ struct ArgListNode : public Node {
     virtual ~ArgListNode() = default;
 
     std::unique_ptr<VarListNode> varList;
-    std::string_view varArgsName;
+    std::optional<size_t> varArgsNameIndex;
 };
 
 struct MethodNode : public Node {
-    MethodNode(size_t index, std::string_view name, bool classMethod):
+    MethodNode(size_t index, bool classMethod):
             Node(NodeType::kMethod, index),
-            methodName(name),
             isClassMethod(classMethod) {}
     virtual ~MethodNode() = default;
 
-    std::string_view methodName;
     bool isClassMethod;
-    std::string_view primitive;
+    std::optional<size_t> primitiveIndex;
 
     std::unique_ptr<ArgListNode> arguments;
     std::unique_ptr<VarListNode> variables;
@@ -98,20 +94,18 @@ struct MethodNode : public Node {
 };
 
 struct ClassExtNode : public Node {
-    ClassExtNode(size_t index, std::string_view name): Node(NodeType::kClassExt, index), className(name) {}
+    ClassExtNode(size_t index): Node(NodeType::kClassExt, index) {}
     virtual ~ClassExtNode() = default;
 
-    std::string_view className;
     std::unique_ptr<MethodNode> methods;
 };
 
 struct ClassNode : public Node {
-    ClassNode(size_t index, std::string_view name): Node(NodeType::kClass, index), className(name) {}
+    ClassNode(size_t index): Node(NodeType::kClass, index) {}
     virtual ~ClassNode() = default;
 
-    std::string_view className;
-    std::string_view superClassName;
-    std::string_view optionalName;
+    std::optional<size_t> superClassNameIndex;
+    std::optional<size_t> optionalNameIndex;
 
     std::unique_ptr<VarListNode> variables;
     std::unique_ptr<MethodNode> methods;
@@ -140,7 +134,6 @@ struct DynListNode : public Node {
     DynListNode(size_t index): Node(NodeType::kDynList, index) {}
     virtual ~DynListNode() = default;
 
-    std::string_view className;
     std::unique_ptr<Node> elements;
 };
 
@@ -170,6 +163,7 @@ struct PoolVarListNode : public Node {
     virtual ~PoolVarListNode() = default;
 };
 */
+
 struct BlockNode : public Node {
     BlockNode(size_t index): Node(NodeType::kBlock, index) {}
     virtual ~BlockNode() = default;
@@ -179,45 +173,38 @@ struct BlockNode : public Node {
     std::unique_ptr<Node> body;
 };
 
-struct ValueNode : public Node {
-    ValueNode(size_t index, const Literal& v): Node(NodeType::kValue, index), value(v) {}
-    virtual ~ValueNode() = default;
-
-    Literal value;
-};
-
 struct LiteralNode : public Node {
     LiteralNode(size_t index, const Literal& v): Node(NodeType::kLiteral, index), value(v) {}
     virtual ~LiteralNode() = default;
 
     // Due to unary negation of literals, this value may differ from the token value at tokenIndex.
-    // TODO: consider merging LiteralNode and ValueNode.
     Literal value;
 };
 
 struct NameNode : public Node {
-    NameNode(size_t index, std::string_view n): Node(NodeType::kName, index), name(n) {}
+    NameNode(size_t index): Node(NodeType::kName, index) {}
     virtual ~NameNode() = default;
 
     bool isGlobal = false;
-    std::string_view name;
 };
 
 struct KeyValueNode : public Node {
-    KeyValueNode(size_t index, std::string_view key): Node(NodeType::kKeyValue, index), keyword(key) {}
+    KeyValueNode(size_t index): Node(NodeType::kKeyValue, index) {}
     virtual ~KeyValueNode() = default;
 
-    std::string_view keyword;
     std::unique_ptr<Node> value;
 };
 
 // target.selector(arguments, keyword: arguments)
+// target can also be null, in which case target is assumed to be the first argument, for example:
+// while({x < 5}, { /* code */ });
+// blocklists are appended to arguments, so this syntax will result in the same construction:
+// while { x < 5 } { /* code */ };
 struct CallNode : public Node {
     CallNode(size_t index): Node(NodeType::kCall, index) {}
     virtual ~CallNode() = default;
 
     std::unique_ptr<Node> target;
-    uint64_t selector;
     std::unique_ptr<Node> arguments;
     std::unique_ptr<KeyValueNode> keywordArguments;
 };
@@ -226,7 +213,6 @@ struct BinopCallNode : public Node {
     BinopCallNode(size_t index): Node(NodeType::kBinopCall, index) {}
     virtual ~BinopCallNode() = default;
 
-    uint64_t selector;
     std::unique_ptr<Node> leftHand;
     std::unique_ptr<Node> rightHand;
 };
@@ -274,7 +260,6 @@ struct SetterNode : public Node {
 
     // The recipient of the assigned value.
     std::unique_ptr<Node> target;
-    uint64_t selector;
     std::unique_ptr<Node> value;
 };
 
@@ -297,7 +282,6 @@ struct PerformListNode : public Node {
     virtual ~PerformListNode() = default;
 
     std::unique_ptr<Node> target;
-    uint64_t selector;
     std::unique_ptr<Node> arguments;
 };
 
@@ -316,13 +300,14 @@ struct NumericSeriesNode : public Node {
 class Parser {
 public:
     Parser(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter);
+    // Used for testing, makes a parser with suppressed error messages.
+    Parser(std::string_view code);
     ~Parser();
 
     bool parse();
 
     const parse::Node* root() const { return m_root.get(); }
     const std::vector<Lexer::Token>& tokens() const { return m_lexer.tokens(); }
-    const SymbolTable* symbolTable() const { return &m_symbolTable; }
     std::shared_ptr<ErrorReporter> errorReporter() { return m_errorReporter; }
 
 private:
@@ -369,7 +354,6 @@ private:
     Lexer m_lexer;
     size_t m_tokenIndex;
     Lexer::Token m_token;
-    SymbolTable m_symbolTable;
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     std::unique_ptr<parse::Node> m_root;

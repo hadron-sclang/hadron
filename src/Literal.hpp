@@ -11,36 +11,37 @@ namespace hadron {
 class Literal {
 public:
     Literal(): m_type(kNil) {}
-    Literal(int64_t value): m_type(kInteger), m_value(value) {}
-    Literal(double value): m_type(kFloat), m_value(value) {}
+    Literal(int32_t value): m_type(kInteger), m_value(value) {}
+    Literal(float value): m_type(kFloat), m_value(value) {}
     Literal(bool value): m_type(kBoolean), m_value(value) {}
-    Literal(uint64_t value): m_type(kSymbol), m_value(value) {}
 
     // Make an empty Literal with provided type.
     Literal(Type t): m_type(t) {}
+    // Make a string or symbol literal with a flag indicating if it needs escape processing.
+    Literal(Type t, bool hasEscapeCharacters): m_type(t), m_value(hasEscapeCharacters) {}
 
     Type type() const { return m_type; }
 
-    // The as* functions provide raw access to the underlying storage and do no validation. The to* functions do
-    // conversions and so will return a valid result.
-    int64_t asInteger() const { return m_value.integer; }
-    double asFloat() const { return m_value.floatingPoint; }
+    // The as* functions provide raw access to the underlying storage and do no validation. If needed, the to*
+    // functions can do conversions and so will return a valid result.
+    int32_t asInteger() const { return m_value.integer; }
+    float asFloat() const { return m_value.floatingPoint; }
     bool asBoolean() const { return m_value.boolean; }
-    uint64_t asSymbolHash() const { return m_value.symbolHash; }
+
+    // Assumes and does not validate that the underlying type is a String or Symbol
+    bool hasEscapeCharacters() const { return m_value.boolean; }
 
 private:
     Type m_type;
     union Value {
         Value(): integer(0) {}
-        Value(int64_t v): integer(v) {}
-        Value(double v): floatingPoint(v) {}
+        Value(int32_t v): integer(v) {}
+        Value(float v): floatingPoint(v) {}
         Value(bool v): boolean(v) {}
-        Value(uint64_t v): symbolHash(v) {}
 
-        int64_t integer;
-        double floatingPoint;
+        int32_t integer;
+        float floatingPoint;
         bool boolean;
-        uint64_t symbolHash;
     };
     Value m_value;
 };

@@ -1,9 +1,13 @@
+// vistool generates dot files, suitable for consumption with graphviz, of different outputs of the Hadron compiler
+// processess. It currently can generate parse tree and Control Flow Graph (CFG) block tree visualizations.
 #include "FileSystem.hpp"
 
 #include "ErrorReporter.hpp"
+#include "Hash.hpp"
+#include "Keywords.hpp"
 #include "Literal.hpp"
 #include "Parser.hpp"
-#include "SymbolTable.hpp"
+#include "SyntaxAnalyzer.hpp"
 #include "Type.hpp"
 
 #include "gflags/gflags.h"
@@ -12,10 +16,12 @@
 #include <fstream>
 #include <memory>
 #include <string_view>
+#include <variant>
 
 DEFINE_string(inputFile, "", "path to input file to process");
-DEFINE_bool(parseTree, false, "print the parse tree");
 DEFINE_string(outputFile, "", "path to output file to save to");
+DEFINE_bool(parseTree, false, "print the parse tree");
+DEFINE_bool(syntaxTree, false, "print the syntax tree");
 
 std::string nullOrNo(const hadron::parse::Node* node) {
     if (node) return "";
@@ -27,25 +33,25 @@ std::string trueFalse(bool v) {
     return "false";
 }
 
-std::string printLiteral(const hadron::Literal& literal) {
-    switch (literal.type()) {
+std::string printType(const hadron::Type type) {
+    switch (type) {
         case hadron::Type::kNil:
             return "(nil)";
 
         case hadron::Type::kInteger:
-            return fmt::format("(int) {}", literal.asInteger());
+            return "(int)";
 
         case hadron::Type::kFloat:
-            return fmt::format("(float) {}", literal.asFloat());
+            return "(float)";
 
         case hadron::Type::kBoolean:
-            return fmt::format("(bool) {}", trueFalse(literal.asBoolean()));
+            return "(bool)";
 
         case hadron::Type::kString:
             return "(string)";
 
         case hadron::Type::kSymbol:
-            return fmt::format("(symbol) hash: {:x}", literal.asSymbolHash());
+            return "(symbol)";
 
         case hadron::Type::kClass:
             return "(class)";
@@ -56,11 +62,30 @@ std::string printLiteral(const hadron::Literal& literal) {
         case hadron::Type::kArray:
             return "(array)";
 
-        case hadron::Type::kAny:
-            return "(any)";
+        case hadron::Type::kSlot:
+            return "(slot)";
     }
 
     return "(unknown type!)";
+}
+
+std::string printLiteral(const hadron::Literal& literal) {
+    std::string type = printType(literal.type());
+    switch (literal.type()) {
+    case hadron::Type::kInteger:
+        return fmt::format("(int) {}", literal.asInteger());
+
+    case hadron::Type::kFloat:
+        return fmt::format("(float) {}", literal.asFloat());
+
+    case hadron::Type::kBoolean:
+        return fmt::format("(bool) {}", trueFalse(literal.asBoolean()));
+
+    default:
+        break;
+    }
+
+    return type;
 }
 
 std::string htmlEscape(std::string_view view) {
@@ -111,6 +136,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
     auto token = parser.tokens()[node->tokenIndex];
     int nodeSerial = serial;
     ++serial;
+    // Make an edge in gray from this parse tree node to the token in the code subgraph that it relates to.
     outFile << fmt::format("    node_{} -> line_{}:token_{} [color=darkGray]\n", nodeSerial,
         parser.errorReporter()->getLineNumber(token.range.data()), node->tokenIndex);
 
@@ -132,14 +158,12 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>VarDef</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>varName: {}</td></tr>"
             "<tr><td>hasReadAccessor: {}</td></tr>"
             "<tr><td>hasWriteAccessor: {}</td></tr>"
             "<tr><td port=\"initialValue\">initialValue {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             std::string(token.range.data(), token.range.size()),
-            std::string(varDef->varName.data(), varDef->varName.size()),
             trueFalse(varDef->hasReadAccessor),
             trueFalse(varDef->hasWriteAccessor),
             nullOrNo(varDef->initialValue.get()));
@@ -172,12 +196,10 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>ArgList</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>varArgsName: {}</td></tr>"
             "<tr><td port=\"varList\">varList {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             std::string(token.range.data(), token.range.size()),
-            std::string(argList->varArgsName.data(), argList->varArgsName.size()),
             nullOrNo(argList->varList.get()));
         if (argList->varList) {
             outFile << fmt::format("    node_{}:varList -> node_{}\n", nodeSerial, serial);
@@ -191,18 +213,14 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>Method</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>methodName: {}</td></tr>"
             "<tr><td>isClassMethod: {}</td></tr>"
-            "<tr><td>primitive: {}</td></tr>"
             "<tr><td port=\"arguments\">arguments {}</td></tr>"
             "<tr><td port=\"variables\">variables {}</td></tr>"
             "<tr><td port=\"body\">body {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             htmlEscape(std::string(token.range.data(), token.range.size())),
-            htmlEscape(std::string(method->methodName.data(), method->methodName.size())),
             trueFalse(method->isClassMethod),
-            std::string(method->primitive.data(), method->primitive.size()),
             nullOrNo(method->arguments.get()),
             nullOrNo(method->variables.get()),
             nullOrNo(method->body.get()));
@@ -230,17 +248,11 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>Class</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>className: {}</td></tr>"
-            "<tr><td>superClassName: {}</td></tr>"
-            "<tr><td>optionalName: {}</td></tr>"
             "<tr><td port=\"variables\">variables {}</td></tr>"
             "<tr><td port=\"methods\">methods {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             std::string(token.range.data(), token.range.size()),
-            std::string(classNode->className.data(), classNode->className.size()),
-            std::string(classNode->superClassName.data(), classNode->superClassName.size()),
-            std::string(classNode->optionalName.data(), classNode->optionalName.size()),
             nullOrNo(classNode->variables.get()),
             nullOrNo(classNode->methods.get()));
         if (classNode->variables) {
@@ -303,19 +315,6 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         }
     } break;
 
-    case hadron::parse::NodeType::kValue: {
-        const auto value = reinterpret_cast<const hadron::parse::ValueNode*>(node);
-        outFile << fmt::format("    node_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
-            "<tr><td bgcolor=\"lightGray\"><b>Value</b></td></tr>"
-            "<tr><td port=\"next\">next {}</td></tr>"
-            "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>value: {}</td></tr></table>>]\n",
-            nodeSerial,
-            nullOrNo(node->next.get()),
-            std::string(token.range.data(), token.range.size()),
-            printLiteral(value->value)); 
-    } break;
-
     case hadron::parse::NodeType::kLiteral: {
         const auto literal = reinterpret_cast<const hadron::parse::LiteralNode*>(node);
         outFile << fmt::format("    node_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
@@ -335,12 +334,10 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>Name</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>name: {}</td></tr>"
             "<tr><td>isGlobal: {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             std::string(token.range.data(), token.range.size()),
-            std::string(name->name.data(), name->name.size()),
             trueFalse(name->isGlobal)); 
     } break;
 
@@ -398,14 +395,12 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>Call</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>selector '{}'</td></tr>"
             "<tr><td port=\"target\">target {}</td></tr>"
             "<tr><td port=\"arguments\">arguments {}</td></tr>"
             "<tr><td port=\"keywordArguments\">keywordArguments {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
-            std::string(token.range.data(), token.range.size()),
-            parser.symbolTable()->getSymbol(call->selector),
+            htmlEscape(std::string(token.range.data(), token.range.size())),
             nullOrNo(call->target.get()),
             nullOrNo(call->arguments.get()),
             nullOrNo(call->keywordArguments.get()));
@@ -429,13 +424,11 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td bgcolor=\"lightGray\"><b>BinopCall</b></td></tr>"
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
-            "<tr><td>selector: '{}'</td></tr>"
             "<tr><td port=\"leftHand\">leftHand {}</td></tr>"
             "<tr><td port=\"rightHand\">rightHand {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
-            std::string(token.range.data(), token.range.size()),
-            parser.symbolTable()->getSymbol(binopCall->selector),
+            htmlEscape(std::string(token.range.data(), token.range.size())),
             nullOrNo(binopCall->leftHand.get()),
             nullOrNo(binopCall->rightHand.get()));
         if (binopCall->leftHand) {
@@ -467,6 +460,171 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
     }
 }
 
+std::string findValueName(const hadron::ast::ValueAST* value) {
+    const auto var = value->owningBlock->variables.find(value->nameHash);
+    if (var != value->owningBlock->variables.end()) {
+        return var->second.name;
+    }
+    return "variable name not found!";
+}
+
+std::string printHash(hadron::Hash hash) {
+    switch (hash) {
+    case hadron::kAddHash:
+        return "+";
+
+    case hadron::kAssignHash:
+        return "=";
+
+    case hadron::kDivideHash:
+        return "/";
+
+    case hadron::kEqualToHash:
+        return "==";
+
+    case hadron::kExactlyEqualToHash:
+        return "===";
+
+    case hadron::kGreaterThanHash:
+        return ">";
+
+    case hadron::kGreaterThanOrEqualToHash:
+        return ">=";
+
+    case hadron::kIfHash:
+        return "if";
+
+    case hadron::kLeftArrowHash:
+        return "<-";
+
+    case hadron::kLessThanHash:
+        return "<";
+
+    case hadron::kLessThanOrEqualToHash:
+        return "<=";
+
+    case hadron::kModuloHash:
+        return "%";
+
+    case hadron::kMultiplyHash:
+        return "*";
+
+    case hadron::kNotEqualToHash:
+        return "!=";
+
+    case hadron::kNotExactlyEqualToHash:
+        return "!==";
+
+    case hadron::kPipeHash:
+        return "|";
+
+    case hadron::kReadWriteHash:
+        return "<>";
+
+    case hadron::kSubtractHash:
+        return "-";
+
+    case hadron::kWhileHash:
+        return "while";
+    }
+
+    return fmt::format("hash {:016x} not found!", hash);
+}
+
+void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* ast) {
+    int astSerial = serial;
+    ++serial;
+
+    switch (ast->astType) {
+    case hadron::ast::ASTType::kCalculate: {
+        const auto calc = reinterpret_cast<const hadron::ast::CalculateAST*>(ast);
+        outFile << fmt::format("    ast_{} [label=\"{} {}\"]\n", astSerial, printHash(calc->selector),
+            printType(ast->valueType));
+        if (calc->left) {
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, calc->left.get());
+        }
+        if (calc->right) {
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, calc->right.get());
+        }
+    } break;
+
+    case hadron::ast::ASTType::kAssign: {
+        const auto assign = reinterpret_cast<const hadron::ast::AssignAST*>(ast);
+        outFile << fmt::format("    ast_{} [label=<&#8592; {}>]\n", astSerial, printType(ast->valueType));
+        if (assign->target) {
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, assign->target.get());
+        }
+        if (assign->value) {
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, assign->value.get());
+        }
+    } break;
+
+    case hadron::ast::ASTType::kBlock: {
+        const auto block = reinterpret_cast<const hadron::ast::BlockAST*>(ast);
+        outFile << fmt::format("    ast_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
+            "<tr><td bgcolor=\"lightGray\"><b>Block {}</b></td></tr>", astSerial, printType(ast->valueType));
+        if (block->arguments.size()) {
+            outFile << "<tr><td><b>arg:</b>";
+            for (auto pair : block->arguments) {
+                outFile << " " << pair.second.name;
+            }
+            outFile << "</td></tr>";
+        }
+        if (block->variables.size()) {
+            outFile << "<tr><td><b>var:</b>";
+            for (auto pair : block->variables) {
+                outFile << " " << pair.second.name;
+            }
+            outFile << "</td></tr>";
+        }
+        outFile << "</table>>]\n";
+        for (const auto& expr : block->statements) {
+            if (!expr) continue;
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, expr.get());
+        }
+    } break;
+
+    case hadron::ast::ASTType::kValue: {
+        const auto value = reinterpret_cast<const hadron::ast::ValueAST*>(ast);
+        outFile << fmt::format("    ast_{} [label=<{} <i>{}<sub>{}</sub></i>>]\n", astSerial,
+            printType(value->valueType), findValueName(value), value->revision);
+    } break;
+
+    case hadron::ast::ASTType::kConstant: {
+        const auto constant = reinterpret_cast<const hadron::ast::ConstantAST*>(ast);
+        outFile << fmt::format("    ast_{} [label=<<b>{}</b>>]\n", astSerial, printLiteral(constant->value));
+    } break;
+
+    case hadron::ast::ASTType::kWhile: {
+        const auto whileAST = reinterpret_cast<const hadron::ast::WhileAST*>(ast);
+        outFile << fmt::format("    ast_{} [label=\"while {}\"]\n", astSerial, printType(ast->valueType));
+        if (whileAST->condition) {
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, whileAST->condition.get());
+        }
+        if (whileAST->action) {
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, whileAST->action.get());
+        }
+    } break;
+
+    case hadron::ast::ASTType::kDispatch: {
+        const auto dispatch = reinterpret_cast<const hadron::ast::DispatchAST*>(ast);
+        outFile << fmt::format("    ast_{} [label=\"{} {}\"]\n", astSerial, dispatch->selector,
+            printType(ast->valueType));
+        for (const auto& expr : dispatch->arguments) {
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, expr.get());
+        }
+    } break;
+    }
+}
+
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
     spdlog::set_level(spdlog::level::debug);
@@ -490,21 +648,21 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
+    hadron::Parser parser(std::string_view(fileContents.get(), fileSize), errorReporter);
+    if (!parser.parse()) {
+        spdlog::error("Failed to parse file {}", filePath.string());
+        return -1;
+    }
+
+    std::ofstream outFile(FLAGS_outputFile);
+    if (!outFile) {
+        spdlog::error("Failed to open output file {}", FLAGS_outputFile);
+    }
+
     if (FLAGS_parseTree) {
-        auto errorReporter = std::make_shared<hadron::ErrorReporter>();
-        hadron::Parser parser(std::string_view(fileContents.get(), fileSize), errorReporter);
-        if (!parser.parse()) {
-            spdlog::error("Failed to parse file {}", filePath.string());
-            return -1;
-        }
-
-        std::ofstream outFile(FLAGS_outputFile);
-        if (!outFile) {
-            spdlog::error("Failed to open output file {}", FLAGS_outputFile);
-        }
-
         outFile << fmt::format("// parse tree visualization of {}\n", FLAGS_inputFile);
-        outFile << "digraph HadronAST {" << std::endl;
+        outFile << "digraph HadronParseTree {" << std::endl;
         outFile << "    subgraph {" << std::endl;
         outFile << "        edge [style=\"invis\"]" << std::endl;
         size_t currentLine = 1;
@@ -536,6 +694,18 @@ int main(int argc, char* argv[]) {
         outFile << "    }  // end of code subgraph" << std::endl;
         int serial = 0;
         visualizeParseNode(outFile, parser, serial, parser.root());
+        outFile << "}" << std::endl;
+    } else if (FLAGS_syntaxTree) {
+        hadron::SyntaxAnalyzer syntaxAnalyzer(errorReporter);
+        if (!syntaxAnalyzer.buildAST(&parser)) {
+            spdlog::error("Failed to build AST from parse tree in file {}", filePath.string());
+            return -1;
+        }
+
+        outFile << fmt::format("// syntax tree visualization of {}\n", FLAGS_inputFile);
+        outFile << "digraph HadronSyntaxTree {" << std::endl;
+        int serial = 0;
+        visualizeAST(outFile, serial, syntaxAnalyzer.ast());
         outFile << "}" << std::endl;
     }
 
