@@ -18,6 +18,14 @@ required relationship to the input source. This AST is used to identify control-
 locate scoped variables, and perform type inference on values. The Syntax Analyzer object is found in
 SyntaxAnalyzer.cpp.
 
+It would be cool if we could drop the original source code after this, so any string_view references to the code can't
+live past the Parse Tree.
+
+## AST Optimizations and Tree Transformations
+
+Type deduction and code lowering can happen here - also dead code elimination, others.
+
+
 ## Code Generation produces a Control Flow Graph of Blocks with HIR
 
 Since the AST has variable references organized with type deductions in place, as well as control flow structures

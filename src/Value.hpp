@@ -3,12 +3,38 @@
 
 #include "Type.hpp"
 
-#include <string_view>
+#include <string>
 
 namespace hadron {
 
-struct Block;
+struct Scope;
 
+// Values live in a *Scope*, originally built in an AST (but possibly transferable to CFG/HIR structures??)
+// Values can identify:
+//   arguments
+//   block variables
+//   global variables
+//   temporary (anonymous) variables
+// essentially anything that can be *assigned to* and/or *read from*
+
+// Value should carry the canonical "hard" copy of the name (a std::string)
+
+struct Value {
+    std::string name;
+    Type type;
+};
+
+struct ValueRef {
+    Value* value;
+};
+
+// We'll assume everything with known integer, boolean, float type is in a virtual register
+// All "slot" variables live in memory
+
+// The first task is name resolution -  find the scope/context in which the name "counter" is defined, for example.
+// There's a well defined search order for name resolution, which needs research/definition and then testing.
+
+/*
 struct ValueRef {
     ValueRef(Block* b, uint64_t hash, std::string_view n): block(b), nameHash(hash), name(n),
         isBlockValue(false) {}
@@ -25,6 +51,7 @@ struct Value {
     Type type;
     std::string_view name;
 };
+*/
 
 } // namespace hadron
 

@@ -1133,7 +1133,7 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         next(); // name
         if (m_token.name == Lexer::Token::kAssign) {
             // expr: name '=' expr
-            auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex);
+            auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex - 1);
             next(); // =
             assign->name = std::make_unique<parse::NameNode>(nameIndex);
             assign->value = parseExpr();
@@ -1172,7 +1172,7 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
             name->isGlobal = true;
             next(); // name
             if (m_token.name == Lexer::Token::kAssign) {
-                auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex);
+                auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex - 1);
                 next();
                 assign->name = std::move(name);
                 assign->value = parseExpr();

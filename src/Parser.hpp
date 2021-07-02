@@ -16,7 +16,7 @@ class ErrorReporter;
 namespace parse {
 
 enum NodeType {
-    kEmpty, // represents an empty node
+    kEmpty,
     kVarDef,
     kVarList,
     kArgList,

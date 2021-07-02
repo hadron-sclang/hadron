@@ -2362,7 +2362,7 @@ TEST_CASE("Parser expr") {
         CHECK(nameToken.hash == SymbolTable::hash("Object"));
         CHECK(!name->isGlobal);
     }
-#if 0
+
     SUBCASE("expr: expr '.' '[' arglist1 ']'") {
     }
 
@@ -2383,27 +2383,39 @@ TEST_CASE("Parser expr") {
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->nodeType == parse::NodeType::kBinopCall);
         const parse::BinopCallNode* binop = reinterpret_cast<const parse::BinopCallNode*>(block->body.get());
-        CHECK(parser.symbolTable()->getSymbol(binop->selector).compare("+") == 0);
+        auto nameToken = parser.tokens()[binop->tokenIndex];
+        REQUIRE(nameToken.name == Lexer::Token::kPlus);
+        CHECK(nameToken.range.compare("+") == 0);
+        CHECK(nameToken.hash == SymbolTable::hash("+"));
         REQUIRE(binop->leftHand != nullptr);
         REQUIRE(binop->leftHand->nodeType == parse::NodeType::kName);
         const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
-        CHECK(name->name.compare("a") == 0);
-        CHECK(name->nameHash == parser.symbolTable()->hashOnly("a"));
+        nameToken = parser.tokens()[name->tokenIndex];
+        REQUIRE(nameToken.name == Lexer::Token::kIdentifier);
+        CHECK(nameToken.range.compare("a") == 0);
+        CHECK(nameToken.hash == SymbolTable::hash("a"));
 
         REQUIRE(binop->rightHand != nullptr);
         REQUIRE(binop->rightHand->nodeType == parse::NodeType::kBinopCall);
         binop = reinterpret_cast<const parse::BinopCallNode*>(binop->rightHand.get());
-        CHECK(parser.symbolTable()->getSymbol(binop->selector).compare("not") == 0);
+        nameToken = parser.tokens()[binop->tokenIndex];
+        REQUIRE(nameToken.name == Lexer::Token::kKeyword);
+        CHECK(nameToken.range.compare("not") == 0);
+        CHECK(nameToken.hash == SymbolTable::hash("not"));
         REQUIRE(binop->leftHand != nullptr);
         REQUIRE(binop->leftHand->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
-        CHECK(name->name.compare("b") == 0);
-        CHECK(name->nameHash == parser.symbolTable()->hashOnly("b"));
+        nameToken = parser.tokens()[name->tokenIndex];
+        REQUIRE(nameToken.name == Lexer::Token::kIdentifier);
+        CHECK(nameToken.range.compare("b") == 0);
+        CHECK(nameToken.hash == SymbolTable::hash("b"));
         REQUIRE(binop->rightHand != nullptr);
         REQUIRE(binop->rightHand->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(binop->rightHand.get());
-        CHECK(name->name.compare("c") == 0);
-        CHECK(name->nameHash == parser.symbolTable()->hashOnly("c"));
+        nameToken = parser.tokens()[name->tokenIndex];
+        REQUIRE(nameToken.name == Lexer::Token::kIdentifier);
+        CHECK(nameToken.range.compare("c") == 0);
+        CHECK(nameToken.hash == SymbolTable::hash("c"));
     }
 
     SUBCASE("expr: name '=' expr") {
@@ -2420,7 +2432,10 @@ TEST_CASE("Parser expr") {
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->nodeType == parse::NodeType::kAssign);
         auto assign = reinterpret_cast<const parse::AssignNode*>(block->body.get());
-        CHECK(assign->name->name.compare("four") == 0);
+        auto name = parser.tokens()[assign->tokenIndex];
+        REQUIRE(name.name == Lexer::Token::kIdentifier);
+        CHECK(name.range.compare("four") == 0);
+        CHECK(name.hash == SymbolTable::hash("four"));
         CHECK(!assign->name->isGlobal);
         CHECK(assign->name->next == nullptr);
         REQUIRE(assign->value != nullptr);
@@ -2444,7 +2459,10 @@ TEST_CASE("Parser expr") {
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->nodeType == parse::NodeType::kAssign);
         auto assign = reinterpret_cast<const parse::AssignNode*>(block->body.get());
-        CHECK(assign->name->name.compare("globez") == 0);
+        auto name = parser.tokens()[assign->tokenIndex];
+        REQUIRE(name.name == Lexer::Token::kIdentifier);
+        CHECK(name.range.compare("globez") == 0);
+        CHECK(name.hash == SymbolTable::hash("globez"));
         CHECK(assign->name->isGlobal);
         CHECK(assign->name->next == nullptr);
         REQUIRE(assign->value != nullptr);
@@ -2467,15 +2485,20 @@ TEST_CASE("Parser expr") {
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->nodeType == parse::NodeType::kSetter);
         auto setter = reinterpret_cast<const parse::SetterNode*>(block->body.get());
-        CHECK(parser.symbolTable()->getSymbol(setter->selector).compare("property") == 0);
+        auto nameToken = parser.tokens()[setter->tokenIndex];
+        REQUIRE(nameToken.name == Lexer::Token::kIdentifier);
+        CHECK(nameToken.range.compare("property") == 0);
+        CHECK(nameToken.hash == SymbolTable::hash("property"));
         CHECK(setter->next == nullptr);
 
         REQUIRE(setter->target != nullptr);
         REQUIRE(setter->target->nodeType == parse::NodeType::kName);
         auto name = reinterpret_cast<const parse::NameNode*>(setter->target.get());
+        nameToken = parser.tokens()[name->tokenIndex];
+        REQUIRE(nameToken.name == Lexer::Token::kIdentifier);
+        CHECK(nameToken.range.compare("object") == 0);
+        CHECK(nameToken.hash == SymbolTable::hash("object"));
         CHECK(name->isGlobal);
-        CHECK(name->name.compare("object") == 0);
-        CHECK(name->nameHash == parser.symbolTable()->hashOnly("object"));
 
         REQUIRE(setter->value != nullptr);
         REQUIRE(setter->value->nodeType == parse::NodeType::kLiteral);
@@ -2497,7 +2520,6 @@ TEST_CASE("Parser expr") {
 
     SUBCASE("expr: expr '.' '[' arglist1 ']' '=' expr") {
     }
-#endif
 }
 
 TEST_CASE("Parser expr1") {
