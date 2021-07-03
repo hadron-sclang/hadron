@@ -97,6 +97,10 @@ target_link_libraries(hadron
     xxHash::xxhash
 )
 
+add_dependencies(hadron
+    lightning-install
+)
+
 if(APPLE)
     add_dependencies(hadron
         ghc_filesystem-install

@@ -32,6 +32,20 @@ if(APPLE)
     )
 endif()
 
+### GNU Lightning
+ExternalProject_add(lightning
+    PREFIX ext
+    STEP_TARGETS install
+    GIT_REPOSITORY https://git.savannah.gnu.org/git/lightning.git
+    GIT_TAG master
+    GIT_PROGRESS ON
+    UPDATE_COMMAND ""
+    BUILD_IN_SOURCE ON
+    CONFIGURE_COMMAND ./bootstrap && ./configure --prefix=${INSTALL_EXT}
+    BUILD_COMMAND make
+    INSTALL_COMMAND make install
+)
+
 #### spdlog
 set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "require spdlog to use our external fmt")
 add_subdirectory(spdlog)

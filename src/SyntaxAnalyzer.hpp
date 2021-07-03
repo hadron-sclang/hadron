@@ -7,8 +7,8 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 namespace hadron {
 
@@ -23,15 +23,13 @@ struct Node;
 
 namespace ast {
     enum ASTType {
-        kCalculate,  // Arithmetic or comparisons of two numbers, either float or int
         kAssign,     // Assign a value to a variable
         kBlock,      // Scoped block of code
+        kCalculate,  // Arithmetic or comparisons of two numbers, either float or int
+        kConstant,
         kDispatch,   // method call
         kValue,
-        kConstant,
-
-        // control flow
-        kWhile,      // while loop
+        kWhile      // while loop
     };
 
     struct AST {
