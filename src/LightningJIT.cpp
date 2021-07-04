@@ -1,7 +1,11 @@
 #include "LightningJIT.hpp"
 
+#include "Hash.hpp"
+#include "Keywords.hpp"
 #include "runtime/Slot.hpp"
 #include "SyntaxAnalyzer.hpp"
+
+#include "spdlog/spdlog.h"
 
 extern "C" {
 #include "lightning.h"
@@ -34,11 +38,100 @@ private:
     blockEval m_blockEval;
 };
 
+struct RegisterAllocator {
+    // For Fibonacci only we can just use the V registers and hard-allocate them at the high block level. This will
+    // need to get much more sophisticated to survive anything beyond Fibonacci. For now this is a simple map from
+    // Value nameHash to register number.
+    std::unordered_map<Hash, int> map;
+};
+
 } // namespace hadron
 
 
 namespace {
-void jitBlockInline(const hadron::ast::BlockAST* /* block */, hadron::LightningJITBlock* /* jit */) {
+void jitAST(const hadron::ast::AST* ast, hadron::LightningJITBlock* jit, hadron::RegisterAllocator* allocator) {
+    switch (ast->astType) {
+    // no type checking, none at all
+    case hadron::ast::ASTType::kAssign: {
+        const auto assign = reinterpret_cast<const hadron::ast::AssignAST*>(ast);
+        int targetReg = allocator->map.find(assign->target->nameHash)->second;
+        if (assign->value->astType == hadron::ast::ASTType::kValue) {
+            const auto target = reinterpret_cast<const hadron::ast::ValueAST*>(assign->value.get());
+            int valueReg = allocator->map.find(target->nameHash)->second;
+            // movr %targetReg, %valueReg
+            _jit_new_node_ww(jit->jitState(), jit_code_movr, JIT_V(targetReg), JIT_V(valueReg));
+        } else if (assign->value->astType == hadron::ast::ASTType::kCalculate) {
+            const auto calc = reinterpret_cast<const hadron::ast::CalculateAST*>(assign->value.get());
+            // Assumption is it's always a Value on the left and either a Value or Constant on the right,
+            // this would happen as part of 3-address tree shaping during Syntax Analysis
+            if (calc->left->astType != hadron::ast::ASTType::kValue) {
+                spdlog::error("left-hand Calculate operand was not a value");
+                return;
+            }
+            const auto left = reinterpret_cast<const hadron::ast::ValueAST*>(calc->left.get());
+            int leftReg = allocator->map.find(left->nameHash)->second;
+            if (calc->selector == hadron::kAddHash) {
+                if (calc->right->astType == hadron::ast::ASTType::kConstant) {
+                    const auto right = reinterpret_cast<const hadron::ast::ConstantAST*>(calc->right.get());
+                    // addi %targetReg, %leftReg, right
+                    _jit_new_node_www(jit->jitState(), jit_code_addi, JIT_V(targetReg), JIT_V(leftReg),
+                        right->value.asInteger());
+                } else {
+                    const auto right = reinterpret_cast<const hadron::ast::ValueAST*>(calc->right.get());
+                    int rightReg = allocator->map.find(right->nameHash)->second;
+                    // addr %targetReg, %leftReg, %rightReg
+                    _jit_new_node_www(jit->jitState(), jit_code_addr, targetReg, JIT_V(leftReg), JIT_V(rightReg));
+                }
+            } else {
+                spdlog::error("unsupported Calculate operation on JIT");
+            }
+        } else if (assign->value->astType == hadron::ast::ASTType::kConstant) {
+            const auto constant = reinterpret_cast<const hadron::ast::ConstantAST*>(assign->value.get());
+            // movi %targetReg, constant
+            _jit_new_node_ww(jit->jitState(), jit_code_movi, JIT_V(targetReg), constant->value.asInteger());
+        } else {
+            spdlog::error("unsupported AST on JITing assign node");
+        }
+    } break;
+
+    case hadron::ast::ASTType::kWhile: {
+        const auto whileAST = reinterpret_cast<const hadron::ast::WhileAST*>(ast);
+        // Assumption is condition is a calculate node
+        if (whileAST->condition->astType != hadron::ast::ASTType::kCalculate) {
+            spdlog::error("bad AST on JITting while condition node");
+            return;
+        }
+//        jit_node_t* conditionFalseLabel = nullptr;
+        const auto calc = reinterpret_cast<const hadron::ast::CalculateAST*>(whileAST->condition.get());
+        if (calc->left->astType != hadron::ast::ASTType::kValue) {
+            spdlog::error("left-hand Calculate operand was not a value!");
+        }
+    /*
+        if (calc->selector == hadron::kLessThanHash) {
+            if (calc->right->astType == hadron::ast::ASTType::kConstant) {
+                const auto right = reinterpret_cast<const hadron::AST::ConstantAST*>(calc->right.get());
+                // bgei conditionFalseLabel,
+            } else {
+            }
+        }
+*/
+    } break;
+
+    default:
+        break;
+    }
+}
+
+void jitBlockInline(const hadron::ast::BlockAST* block, hadron::LightningJITBlock* jit,
+    hadron::RegisterAllocator* allocator) {
+    // Add the variables to the register map.
+    for (auto pair : block->variables) {
+        allocator->map.emplace(std::make_pair(pair.first, allocator->map.size()));
+    }
+
+    for (const auto& expr : block->statements) {
+        jitAST(expr.get(), jit, allocator);
+    }
 }
 } // namespace
 
@@ -61,7 +154,8 @@ void LightningJIT::finishJITGlobals() {
 std::unique_ptr<JITBlock> LightningJIT::jitBlock(const ast::BlockAST* block) {
     auto jit = std::make_unique<LightningJITBlock>();
     _jit_prolog(jit->jitState());
-    jitBlockInline(block, jit.get());
+    RegisterAllocator reg;
+    jitBlockInline(block, jit.get(), &reg);
     _jit_epilog(jit->jitState());
     return jit;
 }

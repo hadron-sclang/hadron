@@ -21,7 +21,7 @@ bool SyntaxAnalyzer::buildAST(const Parser* parser) {
 
 std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, const parse::BlockNode* blockNode,
         ast::BlockAST* parent) {
-    std::unique_ptr<ast::BlockAST> block = std::make_unique<ast::BlockAST>(parent);
+    auto block = std::make_unique<ast::BlockAST>(parent);
 
     // TODO: arguments
     if (blockNode->variables) {
@@ -33,6 +33,21 @@ std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, 
     return block;
 }
 
+std::unique_ptr<ast::InlineBlockAST> SyntaxAnalyzer::buildInlineBlock(const  Parser* parser,
+        const parse::BlockNode* blockNode, ast::BlockAST* parent) {
+    auto inlineBlock = std::make_unique<ast::InlineBlockAST>();
+
+    if (blockNode->variables) {
+        fillAST(parser, blockNode->variables.get(), parent, &(inlineBlock->statements));
+    }
+    if (blockNode->body) {
+        fillAST(parser, blockNode->body.get(), parent, &(inlineBlock->statements));
+    }
+
+    return inlineBlock;
+}
+
+// Should clarify that |block| is for finding variables only..
 void SyntaxAnalyzer::fillAST(const Parser* parser, const parse::Node* parseNode, ast::BlockAST* block,
         std::vector<std::unique_ptr<ast::AST>>* ast) {
     switch (parseNode->nodeType) {
@@ -144,12 +159,16 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const 
     // could more easily pattern match the dispatches to lower-level stuff
     switch (callToken.hash) {
     case kWhileHash: {
+        // NOTE that inlining these blocks here only works if the variables declared have unique names within the
+        // scope of the parent block - maybe there's a boolean function suitableForInlining() or something that
+        // could check that. Inlining should probably be done in a subsequent pass to allow for other inlined blocks
+        // with live and dead variables to not potentially interfere with inline this block
         auto whileAST = std::make_unique<ast::WhileAST>();
         const parse::BlockNode* actionNode = nullptr;
         // target can contain the condition argument, or it can be the first argument.
         if (callNode->target) {
             if (callNode->target->nodeType == parse::NodeType::kBlock) {
-                whileAST->condition = buildBlock(parser, reinterpret_cast<const parse::BlockNode*>(
+                whileAST->condition = buildInlineBlock(parser, reinterpret_cast<const parse::BlockNode*>(
                     callNode->target.get()), block);
                 if (callNode->arguments && callNode->arguments->nodeType == parse::NodeType::kBlock) {
                     actionNode = reinterpret_cast<const parse::BlockNode*>(callNode->arguments.get());
@@ -160,7 +179,7 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const 
             }
         } else {
             if (callNode->arguments && callNode->arguments->nodeType == parse::NodeType::kBlock) {
-                whileAST->condition = buildBlock(parser, reinterpret_cast<const parse::BlockNode*>(
+                whileAST->condition = buildInlineBlock(parser, reinterpret_cast<const parse::BlockNode*>(
                     callNode->arguments.get()), block);
                 if (callNode->arguments->next && callNode->arguments->next->nodeType == parse::NodeType::kBlock) {
                     actionNode = reinterpret_cast<const parse::BlockNode*>(callNode->arguments->next.get());
@@ -170,7 +189,7 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const 
             }
         }
         if (actionNode) {
-            whileAST->action = buildBlock(parser, actionNode, block);
+            whileAST->action = buildInlineBlock(parser, actionNode, block);
             return whileAST;
         }
     } break;
@@ -189,9 +208,11 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const 
     return dispatch;
 }
 
-// TODO: AST construction with this kind of lowering should always produce 3-address operations. Both LLVM and
-// Lightning are 3-address IRs, and so the tree should reflect that. Perhaps a subsequent pass on the tree could
-// rewrite it to 
+// TODO: AST construction with this kind of lowering should always produce 3-address operations. Both has Lightning a //
+// 3-address IR, and so the tree should reflect that. Perhaps a subsequent pass on the tree could
+// rewrite it to 3-address form. - Calculate->left should always be a Value in this form.
+
+// also a subsequent pass for block inlining.
 std::unique_ptr<ast::AST> SyntaxAnalyzer::buildBinop(const Parser* parser, const parse::BinopCallNode* binopNode,
         ast::BlockAST* block) {
     // Type of both operands really matters, so check both sides for type.
