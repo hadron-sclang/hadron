@@ -7,8 +7,8 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 namespace hadron {
 
@@ -23,15 +23,14 @@ struct Node;
 
 namespace ast {
     enum ASTType {
-        kCalculate,  // Arithmetic or comparisons of two numbers, either float or int
-        kAssign,     // Assign a value to a variable
-        kBlock,      // Scoped block of code
-        kDispatch,   // method call
-        kValue,
+        kAssign,      // Assign a value to a variable
+        kInlineBlock, // Like a block but hoists its variable defenitions to the parent Block
+        kBlock,       // Scoped block of code
+        kCalculate,   // Arithmetic or comparisons of two numbers, either float or int
         kConstant,
-
-        // control flow
-        kWhile,      // while loop
+        kDispatch,    // method call
+        kValue,
+        kWhile        // while loop
     };
 
     struct AST {
@@ -58,7 +57,8 @@ namespace ast {
     struct Value {
         Value(std::string n): name(n) {}
         std::string name;
-        std::vector<ValueAST*> revisions;
+        std::vector<ValueAST*> revisions;  // record all writes to this variable as revisions
+        std::vector<ValueAST*> references; // record all reads from this variable as references
     };
 
     struct BlockAST : public AST {
@@ -69,6 +69,13 @@ namespace ast {
         BlockAST* parent;
         std::unordered_map<Hash, Value> arguments;
         std::unordered_map<Hash, Value> variables;
+        std::vector<std::unique_ptr<AST>> statements;
+    };
+
+    struct InlineBlockAST : public AST {
+        InlineBlockAST(): AST(kInlineBlock) {}
+        virtual ~InlineBlockAST() = default;
+
         std::vector<std::unique_ptr<AST>> statements;
     };
 
@@ -106,8 +113,8 @@ namespace ast {
         virtual ~WhileAST() = default;
 
         // while { condition } { action }
-        std::unique_ptr<BlockAST> condition;
-        std::unique_ptr<BlockAST> action;
+        std::unique_ptr<AST> condition;
+        std::unique_ptr<AST> action;
     };
 
     struct DispatchAST : public AST {
@@ -134,7 +141,9 @@ private:
     // Create a new BlockAST from a parse tree BlockNode.
     std::unique_ptr<ast::BlockAST> buildBlock(const Parser* parser, const parse::BlockNode* blockNode,
         ast::BlockAST* parent);
-    // Fill an existing AST with nodes from the parse tree.
+    std::unique_ptr<ast::InlineBlockAST> buildInlineBlock(const Parser* parser, const parse::BlockNode* blockNode,
+        ast::BlockAST* parent);
+    // Fill an existing AST with nodes from the parse tree, searching within |block| for variable names
     void fillAST(const Parser* parser, const parse::Node* parseNode, ast::BlockAST* block,
         std::vector<std::unique_ptr<ast::AST>>* ast);
     // Build an expression tree without appending to the block, although variables may be appended if they are defined.
@@ -146,8 +155,9 @@ private:
     std::unique_ptr<ast::AST> buildBinop(const Parser* parser, const parse::BinopCallNode* binopNode,
         ast::BlockAST* block);
 
-    // Find a value within the Block tree, or return nullptr if not found.
-    std::unique_ptr<ast::ValueAST> findValue(Hash nameHash, ast::BlockAST* block, bool addReference);
+    // Find a value within the Block tree, or return nullptr if not found. |addRevision| should be true if this is
+    // a write to this value.
+    std::unique_ptr<ast::ValueAST> findValue(Hash nameHash, ast::BlockAST* block, bool addRevision);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 

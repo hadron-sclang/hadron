@@ -589,6 +589,18 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
         }
     } break;
 
+    case hadron::ast::ASTType::kInlineBlock: {
+        const auto inlineBlock = reinterpret_cast<const hadron::ast::InlineBlockAST*>(ast);
+        outFile << fmt::format("    ast_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
+            "<tr><td bgcolor=\"lightGray\"><b>InlineBlock {}</b></td></tr>", astSerial, printType(ast->valueType));
+        outFile << "</table>>]\n";
+        for (const auto& expr : inlineBlock->statements) {
+            if (!expr) continue;
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, expr.get());
+        }
+    } break;
+
     case hadron::ast::ASTType::kValue: {
         const auto value = reinterpret_cast<const hadron::ast::ValueAST*>(ast);
         outFile << fmt::format("    ast_{} [label=<{} <i>{}<sub>{}</sub></i>>]\n", astSerial,

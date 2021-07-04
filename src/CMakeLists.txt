@@ -81,9 +81,13 @@ add_library(hadron STATIC
     Hash.cpp
     Hash.hpp
     Lexer.hpp
+    LightningJIT.cpp
+    LightningJIT.hpp
     Literal.hpp
     Parser.cpp
     Parser.hpp
+    runtime/Slot.cpp
+    runtime/Slot.hpp
     SyntaxAnalyzer.cpp
     SyntaxAnalyzer.hpp
     Type.hpp
@@ -95,6 +99,10 @@ target_link_libraries(hadron
     fmt
     spdlog
     xxHash::xxhash
+)
+
+add_dependencies(hadron
+    lightning-install
 )
 
 if(APPLE)
