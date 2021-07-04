@@ -189,6 +189,9 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const 
     return dispatch;
 }
 
+// TODO: AST construction with this kind of lowering should always produce 3-address operations. Both LLVM and
+// Lightning are 3-address IRs, and so the tree should reflect that. Perhaps a subsequent pass on the tree could
+// rewrite it to 
 std::unique_ptr<ast::AST> SyntaxAnalyzer::buildBinop(const Parser* parser, const parse::BinopCallNode* binopNode,
         ast::BlockAST* block) {
     // Type of both operands really matters, so check both sides for type.
@@ -243,15 +246,17 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildBinop(const Parser* parser, const
     return dispatch;
 }
 
-std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(Hash nameHash, ast::BlockAST* block, bool addReference) {
+std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(Hash nameHash, ast::BlockAST* block, bool addRevision) {
     ast::BlockAST* searchBlock = block;
     while (searchBlock) {
         auto nameEntry = searchBlock->variables.find(nameHash);
         if (nameEntry != searchBlock->variables.end()) {
             auto value = std::make_unique<ast::ValueAST>(nameHash, searchBlock);
-            if (addReference) {
+            if (addRevision) {
                 // Add a new revision to the revision table, type will be determined by assignment of new value.
                 nameEntry->second.revisions.emplace_back(value.get());
+            } else {
+                nameEntry->second.references.emplace_back(value.get());
             }
             value->revision = nameEntry->second.revisions.size() - 1;
             // Propagate type from most recent revision, although it may be overriden by assignment.

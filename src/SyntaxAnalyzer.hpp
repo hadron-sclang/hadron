@@ -56,7 +56,8 @@ namespace ast {
     struct Value {
         Value(std::string n): name(n) {}
         std::string name;
-        std::vector<ValueAST*> revisions;
+        std::vector<ValueAST*> revisions;  // record all writes to this variable as revisions
+        std::vector<ValueAST*> references; // record all reads from this variable as references
     };
 
     struct BlockAST : public AST {
@@ -144,8 +145,9 @@ private:
     std::unique_ptr<ast::AST> buildBinop(const Parser* parser, const parse::BinopCallNode* binopNode,
         ast::BlockAST* block);
 
-    // Find a value within the Block tree, or return nullptr if not found.
-    std::unique_ptr<ast::ValueAST> findValue(Hash nameHash, ast::BlockAST* block, bool addReference);
+    // Find a value within the Block tree, or return nullptr if not found. |addRevision| should be true if this is
+    // a write to this value.
+    std::unique_ptr<ast::ValueAST> findValue(Hash nameHash, ast::BlockAST* block, bool addRevision);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 

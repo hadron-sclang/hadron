@@ -81,9 +81,13 @@ add_library(hadron STATIC
     Hash.cpp
     Hash.hpp
     Lexer.hpp
+    LightningJIT.cpp
+    LightningJIT.hpp
     Literal.hpp
     Parser.cpp
     Parser.hpp
+    runtime/Slot.cpp
+    runtime/Slot.hpp
     SyntaxAnalyzer.cpp
     SyntaxAnalyzer.hpp
     Type.hpp
