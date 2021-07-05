@@ -30,6 +30,7 @@ namespace ast {
         kConstant,
         kDispatch,    // method call
         kValue,
+        kResult,
         kWhile        // while loop
     };
 
@@ -87,6 +88,13 @@ namespace ast {
         Hash nameHash = 0;
         BlockAST* owningBlock = nullptr;
         size_t revision = 0;
+    };
+
+    struct ResultAST : public AST {
+        ResultAST(): AST(kResult) {}
+        virtual ~ResultAST() = default;
+
+        std::unique_ptr<AST> value;
     };
 
     struct AssignAST : public AST {

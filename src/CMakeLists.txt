@@ -99,6 +99,7 @@ target_link_libraries(hadron
     fmt
     spdlog
     xxHash::xxhash
+    "${INSTALL_EXT}/lib/liblightning.a"
 )
 
 add_dependencies(hadron
@@ -141,3 +142,13 @@ target_link_libraries(vistool
     hadron
 )
 
+######
+# hadronc
+add_executable(hadronc
+    hadronc.cpp
+)
+
+target_link_libraries(hadronc
+    gflags
+    hadron
+)
