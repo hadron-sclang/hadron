@@ -1,7 +1,7 @@
-#include "Lexer.hpp"
+#include "hadron/Lexer.hpp"
 
-#include "ErrorReporter.hpp"
-#include "Hash.hpp"
+#include "hadron/ErrorReporter.hpp"
+#include "hadron/Hash.hpp"
 
 #include "doctest/doctest.h"
 

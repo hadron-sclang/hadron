@@ -1,9 +1,9 @@
 // hadronc is a command-line sclang compiler.
-#include "ErrorReporter.hpp"
 #include "FileSystem.hpp"
-#include "LightningJIT.hpp"
-#include "Parser.hpp"
-#include "SyntaxAnalyzer.hpp"
+#include "hadron/ErrorReporter.hpp"
+#include "hadron/LightningJIT.hpp"
+#include "hadron/Parser.hpp"
+#include "hadron/SyntaxAnalyzer.hpp"
 
 #include "gflags/gflags.h"
 #include "spdlog/spdlog.h"

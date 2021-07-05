@@ -1,7 +1,7 @@
-#include "SyntaxAnalyzer.hpp"
+#include "hadron/SyntaxAnalyzer.hpp"
 
+#include "hadron/Parser.hpp"
 #include "Keywords.hpp"
-#include "Parser.hpp"
 
 #include "spdlog/spdlog.h"
 

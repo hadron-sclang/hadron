@@ -1,7 +1,7 @@
-#include "Parser.hpp"
+#include "hadron/Parser.hpp"
 
-#include "ErrorReporter.hpp"
-#include "Hash.hpp"
+#include "hadron/ErrorReporter.hpp"
+#include "hadron/Hash.hpp"
 
 #include "doctest/doctest.h"
 #include "spdlog/spdlog.h"

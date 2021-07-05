@@ -9,6 +9,7 @@ configure_file(BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp")
 
 include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_BINARY_DIR}"
     "${INSTALL_EXT}/include"
 )
@@ -76,22 +77,25 @@ add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     ErrorReporter.cpp
-    ErrorReporter.hpp
     FileSystem.hpp
     Hash.cpp
-    Hash.hpp
-    Lexer.hpp
+    include/hadron/ErrorReporter.hpp
+    include/hadron/Hash.hpp
+    include/hadron/Lexer.hpp
+    include/hadron/LightningJIT.hpp
+    include/hadron/Literal.hpp
+    include/hadron/Parser.hpp
+    include/hadron/Slot.hpp
+    include/hadron/SyntaxAnalyzer.hpp
+    include/hadron/Type.hpp
     LightningJIT.cpp
-    LightningJIT.hpp
-    Literal.hpp
     Parser.cpp
-    Parser.hpp
-    runtime/Slot.cpp
-    runtime/Slot.hpp
+    Slot.cpp
     SyntaxAnalyzer.cpp
-    SyntaxAnalyzer.hpp
-    Type.hpp
 )
+
+file(GLOB HADRON_PUBLIC_HEADERS include/hadron/*.hpp)
+set_target_properties(hadron PROPERTIES PUBLIC_HEADER "${HADRON_PUBLIC_HEADERS}")
 
 target_compile_options(hadron PUBLIC -g -Wall -Wextra -Wpedantic -Werror)
 
@@ -111,6 +115,12 @@ if(APPLE)
         ghc_filesystem-install
     )
 endif()
+
+install(TARGETS hadron
+        ARCHIVE
+        PUBLIC_HEADER
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hadron
+)
 
 ######
 # unittests

@@ -1,9 +1,9 @@
 #ifndef SRC_PARSER_HPP_
 #define SRC_PARSER_HPP_
 
-#include "Lexer.hpp"
-#include "Literal.hpp"
-#include "Type.hpp"
+#include "hadron/Lexer.hpp"
+#include "hadron/Literal.hpp"
+#include "hadron/Type.hpp"
 
 #include <memory>
 #include <optional>

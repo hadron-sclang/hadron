@@ -44,6 +44,7 @@ ExternalProject_add(lightning
     CONFIGURE_COMMAND ./bootstrap && ./configure --prefix=${INSTALL_EXT}
     BUILD_COMMAND make
     INSTALL_COMMAND make install
+    BUILD_BYPRODUCTS ${INSTALL_EXT}/lib/liblightning.a
 )
 
 #### spdlog

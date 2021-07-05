@@ -1,9 +1,8 @@
-#include "LightningJIT.hpp"
+#include "hadron/LightningJIT.hpp"
 
-#include "Hash.hpp"
+#include "hadron/Hash.hpp"
+#include "hadron/SyntaxAnalyzer.hpp"
 #include "Keywords.hpp"
-#include "runtime/Slot.hpp"
-#include "SyntaxAnalyzer.hpp"
 
 #include "spdlog/spdlog.h"
 

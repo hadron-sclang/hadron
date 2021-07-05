@@ -1,4 +1,4 @@
-#include "Slot.hpp"
+#include "hadron/Slot.hpp"
 
 namespace hadron {
 
