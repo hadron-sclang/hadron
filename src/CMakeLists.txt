@@ -99,7 +99,7 @@ set_target_properties(hadron PROPERTIES PUBLIC_HEADER "${HADRON_PUBLIC_HEADERS}"
 
 target_compile_options(hadron PUBLIC -g -Wall -Wextra -Wpedantic -Werror)
 
-target_link_libraries(hadron
+target_link_libraries(hadron PUBLIC
     fmt
     spdlog
     xxHash::xxhash
