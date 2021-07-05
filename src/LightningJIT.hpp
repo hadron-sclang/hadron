@@ -13,7 +13,11 @@ struct BlockAST;
 
 class JITBlock {
 public:
-    virtual Slot value() = 0;
+    JITBlock() = default;
+    virtual ~JITBlock() = default;
+
+    virtual int value() = 0;
+    virtual void printJIT() = 0;
 };
 
 class LightningJIT {

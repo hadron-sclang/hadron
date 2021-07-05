@@ -30,6 +30,13 @@ std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, 
     if (blockNode->body) {
         fillAST(parser, blockNode->body.get(), block.get(), &(block->statements));
     }
+    // Transform last block to a Result assignment
+    if (block->statements.size()) {
+        auto result = std::make_unique<ast::ResultAST>();
+        result->value = std::move(block->statements.back());
+        result->valueType = result->value->valueType;
+        block->statements.back() = std::move(result);
+    }
     return block;
 }
 
