@@ -1,4 +1,4 @@
-#include "ErrorReporter.hpp"
+#include "hadron/ErrorReporter.hpp"
 
 #include "spdlog/spdlog.h"
 

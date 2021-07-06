@@ -1,7 +1,7 @@
 #ifndef SRC_LITERAL_HPP_
 #define SRC_LITERAL_HPP_
 
-#include "Type.hpp"
+#include "hadron/Type.hpp"
 
 #include <stdint.h>
 

@@ -1,4 +1,4 @@
-#include "Hash.hpp"
+#include "hadron/Hash.hpp"
 
 #include "xxhash.h"
 

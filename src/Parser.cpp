@@ -1,7 +1,7 @@
-#include "Parser.hpp"
+#include "hadron/Parser.hpp"
 
-#include "ErrorReporter.hpp"
-#include "Lexer.hpp"
+#include "hadron/ErrorReporter.hpp"
+#include "hadron/Lexer.hpp"
 
 #include "fmt/core.h"
 #include "spdlog/spdlog.h"

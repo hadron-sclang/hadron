@@ -212,9 +212,9 @@
 
 // Generated file from Ragel input file src/Lexer.rl. Please make edits to that file instead of modifying this directly.
 
-#include "Lexer.hpp"
+#include "hadron/Lexer.hpp"
 
-#include "ErrorReporter.hpp"
+#include "hadron/ErrorReporter.hpp"
 #include "Keywords.hpp"
 
 #include "fmt/core.h"

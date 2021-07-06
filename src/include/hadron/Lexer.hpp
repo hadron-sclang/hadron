@@ -1,9 +1,9 @@
 #ifndef SRC_LEXER_HPP_
 #define SRC_LEXER_HPP_
 
-#include "Hash.hpp"
-#include "Literal.hpp"
-#include "Type.hpp"
+#include "hadron/Hash.hpp"
+#include "hadron/Literal.hpp"
+#include "hadron/Type.hpp"
 
 #include <cstddef>
 #include <memory>
