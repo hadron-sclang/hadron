@@ -14,7 +14,7 @@
 
 #include <fstream>
 #include <memory>
-#include <string_view>  
+#include <string_view>
 #include <variant>
 
 DEFINE_string(inputFile, "", "path to input file to process");
