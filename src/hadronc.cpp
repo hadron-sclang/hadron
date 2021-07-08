@@ -50,6 +50,7 @@ int main(int argc, char* argv[]) {
     }
 
     hadron::LightningJIT::initJITGlobals();
+/*
     hadron::LightningJIT jit;
     auto block = jit.jitBlock(reinterpret_cast<const hadron::ast::BlockAST*>(syntaxAnalyzer.ast()));
     if (!block) {
@@ -57,6 +58,7 @@ int main(int argc, char* argv[]) {
     }
     block->printJIT();
     block.reset();
+*/
     hadron::LightningJIT::finishJITGlobals();
 
     return 0;

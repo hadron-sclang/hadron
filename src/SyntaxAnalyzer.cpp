@@ -1,5 +1,6 @@
 #include "hadron/SyntaxAnalyzer.hpp"
 
+#include "hadron/Lexer.hpp"
 #include "hadron/Parser.hpp"
 #include "Keywords.hpp"
 
@@ -40,7 +41,7 @@ std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, 
     return block;
 }
 
-std::unique_ptr<ast::InlineBlockAST> SyntaxAnalyzer::buildInlineBlock(const  Parser* parser,
+std::unique_ptr<ast::InlineBlockAST> SyntaxAnalyzer::buildInlineBlock(const Parser* parser,
         const parse::BlockNode* blockNode, ast::BlockAST* parent) {
     auto inlineBlock = std::make_unique<ast::InlineBlockAST>();
 
@@ -52,6 +53,68 @@ std::unique_ptr<ast::InlineBlockAST> SyntaxAnalyzer::buildInlineBlock(const  Par
     }
 
     return inlineBlock;
+}
+
+std::unique_ptr<ast::ClassAST> SyntaxAnalyzer::buildClass(const Parser* parser, const parse::ClassNode* classNode) {
+    auto classAST = std::make_unique<ast::ClassAST>();
+    auto classToken = parser->tokens()[classNode->tokenIndex];
+    classAST->nameHash = classToken.hash;
+    classAST->name = std::string(classToken.range.data(), classToken.range.size());
+    if (classNode->superClassNameIndex) {
+        auto superClassToken = parser->tokens()[classNode->superClassNameIndex.value()];
+        classAST->superClassHash = superClassToken.hash;
+    } else {
+        classAST->superClassHash = kObjectHash;
+    }
+    const parse::VarListNode* varList = classNode->variables.get();
+    while (varList) {
+        auto varListToken = parser->tokens()[varList->tokenIndex];
+        if (varListToken.hash == kVarHash) {
+            const parse::VarDefNode* varDef = varList->definitions.get();
+            while (varDef) {
+                auto varNameToken = parser->tokens()[varDef->tokenIndex];
+                classAST->variables.emplace(std::make_pair(varNameToken.hash, ast::Value(std::string(
+                        varNameToken.range.data(), varNameToken.range.size()))));
+                if (varDef->next) {
+                    if (varDef->next->nodeType == parse::NodeType::kVarDef) {
+                        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+                    }
+                }
+            }
+        } else if (varListToken.hash == kClassVarHash) {
+            const parse::VarDefNode* varDef = varList->definitions.get();
+            while (varDef) {
+                auto varNameToken = parser->tokens()[varDef->tokenIndex];
+                classAST->classVariables.emplace(std::make_pair(varNameToken.hash, ast::Value(std::string(
+                        varNameToken.range.data(), varNameToken.range.size()))));
+                if (varDef->next) {
+                    if (varDef->next->nodeType == parse::NodeType::kVarDef) {
+                        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+                    }
+                }
+            }
+        } else if (varListToken.hash == kConstHash) {
+            const parse::VarDefNode* varDef = varList->definitions.get();
+            while (varDef) {
+                auto varNameToken = parser->tokens()[varDef->tokenIndex];
+                classAST->constants.emplace(std::make_pair(varNameToken.hash, varNameToken.value));
+                if (varDef->next) {
+                    if (varDef->next->nodeType == parse::NodeType::kVarDef) {
+                        varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+                    }
+                }
+            }
+        } else {
+            spdlog::error("Unexpected class variable token.");
+        }
+        if (varList->next) {
+            if (varList->next->nodeType == parse::NodeType::kVarList) {
+                varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
+            }
+        }
+    }
+
+    return classAST;
 }
 
 // Should clarify that |block| is for finding variables only..
@@ -75,7 +138,7 @@ void SyntaxAnalyzer::fillAST(const Parser* parser, const parse::Node* parseNode,
             // TODO:: error reporting for variable redefinition
         }
         block->variables.emplace(std::make_pair(name.hash,
-        ast::Value(std::string(name.range.data(), name.range.size()))));
+                ast::Value(std::string(name.range.data(), name.range.size()))));
         auto assign = std::make_unique<ast::AssignAST>();
         if (varDefNode->initialValue) {
             assign->value = buildExprTree(parser, varDefNode->initialValue.get(), block);
@@ -274,21 +337,15 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildBinop(const Parser* parser, const
     return dispatch;
 }
 
-std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(Hash nameHash, ast::BlockAST* block, bool addRevision) {
+std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(Hash nameHash, ast::BlockAST* block, bool isWrite) {
     ast::BlockAST* searchBlock = block;
     while (searchBlock) {
         auto nameEntry = searchBlock->variables.find(nameHash);
         if (nameEntry != searchBlock->variables.end()) {
             auto value = std::make_unique<ast::ValueAST>(nameHash, searchBlock);
-            if (addRevision) {
-                // Add a new revision to the revision table, type will be determined by assignment of new value.
-                nameEntry->second.revisions.emplace_back(value.get());
-            } else {
-                nameEntry->second.references.emplace_back(value.get());
-            }
-            value->revision = nameEntry->second.revisions.size() - 1;
-            // Propagate type from most recent revision, although it may be overriden by assignment.
-            value->valueType = nameEntry->second.revisions[value->revision]->valueType;
+            value->isWrite = isWrite;
+            nameEntry->second.references.emplace_back(value.get());
+            value->reference = --(nameEntry->second.references.end());
             return value;
         }
         searchBlock = searchBlock->parent;

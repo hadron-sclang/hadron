@@ -213,24 +213,12 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
             "<tr><td>isClassMethod: {}</td></tr>"
-            "<tr><td port=\"arguments\">arguments {}</td></tr>"
-            "<tr><td port=\"variables\">variables {}</td></tr>"
             "<tr><td port=\"body\">body {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             htmlEscape(std::string(token.range.data(), token.range.size())),
             trueFalse(method->isClassMethod),
-            nullOrNo(method->arguments.get()),
-            nullOrNo(method->variables.get()),
             nullOrNo(method->body.get()));
-        if (method->arguments) {
-            outFile << fmt::format("    node_{}:arguments -> node_{}\n", nodeSerial, serial);
-            visualizeParseNode(outFile, parser, serial, method->arguments.get());
-        }
-        if (method->variables) {
-            outFile << fmt::format("    node_{}:variables -> node_{}\n", nodeSerial, serial);
-            visualizeParseNode(outFile, parser, serial, method->variables.get());
-        }
         if (method->body) {
             outFile << fmt::format("    node_{}:body -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, method->body.get());
@@ -641,7 +629,40 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
             visualizeAST(outFile, serial, result->value.get());
         }
-    }
+    } break;
+
+    case hadron::ast::ASTType::kClass: {
+        const auto classAST = reinterpret_cast<const hadron::ast::ClassAST*>(ast);
+        outFile << fmt::format("    ast_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" "
+            "cellspacing=\"0\">\n", astSerial);
+        outFile <<  fmt::format("       <tr><td bgcolor=\"lightGray\"><b>Class {}</b></td></tr>\n",
+            printType(ast->valueType));
+        if (classAST->variables.size()) {
+            outFile << fmt::format("        <tr><td><font face=\"monospace\">{}</font></td></tr>\n", classAST->name);
+            outFile << "        <tr><td><font face=\"monospace\">var:</font>";
+            for (auto pair : classAST->variables) {
+                outFile << " " << pair.second.name;
+            }
+            outFile << "</td></tr>\n";
+        }
+        if (classAST->classVariables.size()) {
+            outFile << fmt::format("        <tr><td><font face=\"monospace\">{}</font></td></tr>\n", classAST->name);
+            outFile << "        <tr><td><font face=\"monospace\">classvar:</font>";
+            for (auto pair : classAST->classVariables) {
+                outFile << " " << pair.second.name;
+            }
+            outFile << "</td></tr>\n";
+        }
+        if (classAST->constants.size()) {
+            outFile << fmt::format("        <tr><td><font face=\"monospace\">{}</font></td></tr>\n", classAST->name);
+            outFile << "        <tr><td><font face=\"monospace\">const:</font>";
+            for (auto pair : classAST->constants) {
+                std::string constName = classAST->names.find(pair.first)->second;
+                outFile << constName << "=" << printLiteral(pair.second);
+            }
+            outFile << "</td></tr>\n";
+        }
+    } break;
     }
 }
 

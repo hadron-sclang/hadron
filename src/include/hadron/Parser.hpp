@@ -79,6 +79,15 @@ struct ArgListNode : public Node {
     std::optional<size_t> varArgsNameIndex;
 };
 
+struct BlockNode : public Node {
+    BlockNode(size_t index): Node(NodeType::kBlock, index) {}
+    virtual ~BlockNode() = default;
+
+    std::unique_ptr<ArgListNode> arguments;
+    std::unique_ptr<VarListNode> variables;
+    std::unique_ptr<Node> body;
+};
+
 struct MethodNode : public Node {
     MethodNode(size_t index, bool classMethod):
             Node(NodeType::kMethod, index),
@@ -87,10 +96,7 @@ struct MethodNode : public Node {
 
     bool isClassMethod;
     std::optional<size_t> primitiveIndex;
-
-    std::unique_ptr<ArgListNode> arguments;
-    std::unique_ptr<VarListNode> variables;
-    std::unique_ptr<Node> body;
+    std::unique_ptr<BlockNode> body;
 };
 
 struct ClassExtNode : public Node {
@@ -163,15 +169,6 @@ struct PoolVarListNode : public Node {
     virtual ~PoolVarListNode() = default;
 };
 */
-
-struct BlockNode : public Node {
-    BlockNode(size_t index): Node(NodeType::kBlock, index) {}
-    virtual ~BlockNode() = default;
-
-    std::unique_ptr<ArgListNode> arguments;
-    std::unique_ptr<VarListNode> variables;
-    std::unique_ptr<Node> body;
-};
 
 struct LiteralNode : public Node {
     LiteralNode(size_t index, const Literal& v): Node(NodeType::kLiteral, index), value(v) {}

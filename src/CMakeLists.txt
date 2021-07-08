@@ -77,10 +77,13 @@ add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     ErrorReporter.cpp
+    CodeGenerator.cpp
     FileSystem.hpp
     Hash.cpp
+    include/hadron/CodeGenerator.hpp
     include/hadron/ErrorReporter.hpp
     include/hadron/Hash.hpp
+    include/hadron/JIT.hpp
     include/hadron/Lexer.hpp
     include/hadron/LightningJIT.hpp
     include/hadron/Literal.hpp
@@ -90,6 +93,8 @@ add_library(hadron STATIC
     include/hadron/Type.hpp
     LightningJIT.cpp
     Parser.cpp
+    RegisterAllocator.cpp
+    RegisterAllocator.hpp
     Slot.cpp
     SyntaxAnalyzer.cpp
 )
@@ -128,6 +133,7 @@ add_executable(unittests
     ErrorReporter_unittests.cpp
     Lexer_unittests.cpp
     Parser_unittests.cpp
+    SyntaxAnalyzer_unittests.cpp
     unittests.cpp
 )
 

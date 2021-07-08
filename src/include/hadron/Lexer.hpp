@@ -80,12 +80,13 @@ public:
             name(kLiteral), range(start, length), value(doubleValue), couldBeBinop(false) {}
 
         /*! Makes a boolean kLiteral token */
-        Token(const char* start, size_t length, bool boolean):
-            name(kLiteral), range(start, length), value(boolean), couldBeBinop(false) {}
+        Token(const char* start, size_t length, bool boolean, Hash h = 0):
+            name(kLiteral), range(start, length), value(boolean), couldBeBinop(false), hash(h) {}
 
-        /*! Makes a symbol or string kLiteral token */
-        Token(const char* start, size_t length, Type literalType, bool hasEscapeCharacters = false):
-            name(kLiteral), range(start, length), value(literalType, hasEscapeCharacters), couldBeBinop(false) {}
+        /*! Makes an kLiteral token */
+        Token(const char* start, size_t length, Type literalType, bool hasEscapeCharacters = false, Hash h = 0):
+            name(kLiteral), range(start, length), value(literalType, hasEscapeCharacters), couldBeBinop(false),
+            hash(h) {}
 
         /*! Makes a token with no value storage */
         Token(Name n, const char* start, size_t length, bool binop = false, Hash h = 0):

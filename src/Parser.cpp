@@ -613,23 +613,27 @@ std::unique_ptr<parse::MethodNode> Parser::parseMethod() {
         return nullptr;
     }
     next(); // {
-    method->arguments = parseArgDecls();
-    method->variables = parseFuncVarDecls();
-
-    if (m_token.name == Lexer::Token::Name::kPrimitive) {
-        method->primitiveIndex = m_tokenIndex;
-        next(); // primitive
-        if (m_token.name == Lexer::Token::Name::kSemicolon) {
-            next(); // optsemi
-        }
-    }
-
-    method->body = parseMethodBody();
     if (m_token.name != Lexer::Token::Name::kCloseCurly) {
-        m_errorReporter->addError(fmt::format("Error parsing method named '{}' at line {}, expecting closing curly "
-                    "brace '}}'.", m_lexer.tokens()[method->tokenIndex].range,
-                    m_errorReporter->getLineNumber(m_token.range.data())));
-        return nullptr;
+        auto block = std::make_unique<parse::BlockNode>(m_tokenIndex - 1);
+        block->arguments = parseArgDecls();
+        block->variables = parseFuncVarDecls();
+
+        if (m_token.name == Lexer::Token::Name::kPrimitive) {
+            method->primitiveIndex = m_tokenIndex;
+            next(); // primitive
+            if (m_token.name == Lexer::Token::Name::kSemicolon) {
+                next(); // optsemi
+            }
+        }
+
+        block->body = parseMethodBody();
+        if (m_token.name != Lexer::Token::Name::kCloseCurly) {
+            m_errorReporter->addError(fmt::format("Error parsing method named '{}' at line {}, expecting closing curly "
+                        "brace '}}'.", m_lexer.tokens()[method->tokenIndex].range,
+                        m_errorReporter->getLineNumber(m_token.range.data())));
+            return nullptr;
+        }
+        method->body = std::move(block);
     }
     next(); // }
     return method;
