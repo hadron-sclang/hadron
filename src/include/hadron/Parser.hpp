@@ -336,7 +336,7 @@ private:
 
     std::unique_ptr<parse::Node> parseMethodBody();
     std::unique_ptr<parse::Node> parseExprSeq();
-    std::unique_ptr<parse::Node> parseExpr();
+    std::unique_ptr<parse::Node> parseExpr(bool captureSuffices = true);
 
     // If the current token is a literal, or a unary negation token followed by an int or float literal, consumes those
     // tokens and returns a LiteralNode with the value. Otherwise consumes no tokens and returns nullptr.

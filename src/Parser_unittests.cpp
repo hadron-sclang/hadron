@@ -2357,7 +2357,7 @@ TEST_CASE("Parser expr") {
     SUBCASE("expr: '`' expr") {
     }
 
-    SUBCASE("expr binop2 adverb expr") {
+    SUBCASE("expr binop2 adverb expr %prec binop") {
         Parser parser("( a + b not: c )");
         REQUIRE(parser.parse());
 
@@ -2372,38 +2372,39 @@ TEST_CASE("Parser expr") {
         REQUIRE(block->body->nodeType == parse::NodeType::kBinopCall);
         const parse::BinopCallNode* binop = reinterpret_cast<const parse::BinopCallNode*>(block->body.get());
         auto nameToken = parser.tokens()[binop->tokenIndex];
+        REQUIRE(nameToken.name == Lexer::Token::kKeyword);
+        CHECK(nameToken.range.compare("not") == 0);
+        CHECK(nameToken.hash == hash("not"));
+
+        REQUIRE(binop->rightHand != nullptr);
+        REQUIRE(binop->rightHand->nodeType == parse::NodeType::kName);
+        const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(binop->rightHand.get());
+        nameToken = parser.tokens()[name->tokenIndex];
+        REQUIRE(nameToken.name == Lexer::Token::kIdentifier);
+        CHECK(nameToken.range.compare("c") == 0);
+        CHECK(nameToken.hash == hash("c"));
+
+        REQUIRE(binop->leftHand != nullptr);
+        REQUIRE(binop->leftHand->nodeType == parse::NodeType::kBinopCall);
+        binop = reinterpret_cast<const parse::BinopCallNode*>(binop->leftHand.get());
+        nameToken = parser.tokens()[binop->tokenIndex];
         REQUIRE(nameToken.name == Lexer::Token::kPlus);
         CHECK(nameToken.range.compare("+") == 0);
         CHECK(nameToken.hash == hash("+"));
         REQUIRE(binop->leftHand != nullptr);
         REQUIRE(binop->leftHand->nodeType == parse::NodeType::kName);
-        const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
+        name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
         nameToken = parser.tokens()[name->tokenIndex];
         REQUIRE(nameToken.name == Lexer::Token::kIdentifier);
         CHECK(nameToken.range.compare("a") == 0);
         CHECK(nameToken.hash == hash("a"));
-
-        REQUIRE(binop->rightHand != nullptr);
-        REQUIRE(binop->rightHand->nodeType == parse::NodeType::kBinopCall);
-        binop = reinterpret_cast<const parse::BinopCallNode*>(binop->rightHand.get());
-        nameToken = parser.tokens()[binop->tokenIndex];
-        REQUIRE(nameToken.name == Lexer::Token::kKeyword);
-        CHECK(nameToken.range.compare("not") == 0);
-        CHECK(nameToken.hash == hash("not"));
-        REQUIRE(binop->leftHand != nullptr);
-        REQUIRE(binop->leftHand->nodeType == parse::NodeType::kName);
-        name = reinterpret_cast<const parse::NameNode*>(binop->leftHand.get());
-        nameToken = parser.tokens()[name->tokenIndex];
-        REQUIRE(nameToken.name == Lexer::Token::kIdentifier);
-        CHECK(nameToken.range.compare("b") == 0);
-        CHECK(nameToken.hash == hash("b"));
         REQUIRE(binop->rightHand != nullptr);
         REQUIRE(binop->rightHand->nodeType == parse::NodeType::kName);
         name = reinterpret_cast<const parse::NameNode*>(binop->rightHand.get());
         nameToken = parser.tokens()[name->tokenIndex];
         REQUIRE(nameToken.name == Lexer::Token::kIdentifier);
-        CHECK(nameToken.range.compare("c") == 0);
-        CHECK(nameToken.hash == hash("c"));
+        CHECK(nameToken.range.compare("b") == 0);
+        CHECK(nameToken.hash == hash("b"));
     }
 
     SUBCASE("expr: name '=' expr") {

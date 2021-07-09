@@ -590,8 +590,8 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
 
     case hadron::ast::ASTType::kValue: {
         const auto value = reinterpret_cast<const hadron::ast::ValueAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=<{} <i>{}<sub>{}</sub></i>>]\n", astSerial,
-            printType(value->valueType), findValueName(value), value->revision);
+        outFile << fmt::format("    ast_{} [label=<{} <i>{}</i>>]\n", astSerial, printType(value->valueType),
+            findValueName(value));
     } break;
 
     case hadron::ast::ASTType::kConstant: {

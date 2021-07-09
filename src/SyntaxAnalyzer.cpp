@@ -20,6 +20,10 @@ bool SyntaxAnalyzer::buildAST(const Parser* parser) {
     return m_ast != nullptr;
 }
 
+bool SyntaxAnalyzer::toThreeAddressForm() {
+    return false;
+}
+
 std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, const parse::BlockNode* blockNode,
         ast::BlockAST* parent) {
     auto block = std::make_unique<ast::BlockAST>(parent);
@@ -119,7 +123,7 @@ std::unique_ptr<ast::ClassAST> SyntaxAnalyzer::buildClass(const Parser* parser, 
 
 // Should clarify that |block| is for finding variables only..
 void SyntaxAnalyzer::fillAST(const Parser* parser, const parse::Node* parseNode, ast::BlockAST* block,
-        std::vector<std::unique_ptr<ast::AST>>* ast) {
+        std::list<std::unique_ptr<ast::AST>>* ast) {
     switch (parseNode->nodeType) {
     case parse::NodeType::kVarList: {
         const auto varListNode = reinterpret_cast<const parse::VarListNode*>(parseNode);
@@ -344,8 +348,12 @@ std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(Hash nameHash, ast::Blo
         if (nameEntry != searchBlock->variables.end()) {
             auto value = std::make_unique<ast::ValueAST>(nameHash, searchBlock);
             value->isWrite = isWrite;
-            nameEntry->second.references.emplace_back(value.get());
-            value->reference = --(nameEntry->second.references.end());
+            if (!isWrite) {
+                auto backRef = --(nameEntry->second.references.end());
+                // Propagate type from previous reference
+                value->valueType = (*backRef)->valueType;
+            }
+            value->reference = nameEntry->second.references.emplace(nameEntry->second.references.end(), value.get());
             return value;
         }
         searchBlock = searchBlock->parent;

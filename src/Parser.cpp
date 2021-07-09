@@ -1096,7 +1096,7 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
 //
 // blocklist: <e> | blocklist1
 //
-std::unique_ptr<parse::Node> Parser::parseExpr() {
+std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffices) {
     std::unique_ptr<parse::Node> expr;
     bool isSingleExpression = false;
 
@@ -1282,8 +1282,8 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
         return nullptr;
     }
 
-    bool hasSuffices = true;
-    do {
+    bool hasSuffices = captureSuffices;
+    while(hasSuffices) {
         if (isSingleExpression && m_token.name == Lexer::Token::Name::kOpenSquare) {
             // expr -> expr1: expr1 '[' arglist1 ']' '=' expr
             // expr: expr1 '[' arglist1 ']'
@@ -1361,7 +1361,9 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
                 auto binopCall = std::make_unique<parse::BinopCallNode>(m_tokenIndex);
                 next(); // binop2
                 // TODO: adverb
-                binopCall->rightHand = parseExpr();
+                // We enforce the left-to-right order of operations by requesting further expression parsing to not
+                // capture any suffices to the expression, prefering to capture them here in this loop.
+                binopCall->rightHand = parseExpr(false);
                 if (!binopCall->rightHand) {
                     return nullptr;
                 }
@@ -1371,7 +1373,7 @@ std::unique_ptr<parse::Node> Parser::parseExpr() {
                 hasSuffices = false;
             }
         }
-    } while (hasSuffices);
+    }
 
 
     return expr;

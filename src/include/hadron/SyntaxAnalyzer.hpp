@@ -72,14 +72,14 @@ namespace ast {
         BlockAST* parent;
         std::unordered_map<Hash, Value> arguments;
         std::unordered_map<Hash, Value> variables;
-        std::vector<std::unique_ptr<AST>> statements;
+        std::list<std::unique_ptr<AST>> statements;
     };
 
     struct InlineBlockAST : public AST {
         InlineBlockAST(): AST(kInlineBlock) {}
         virtual ~InlineBlockAST() = default;
 
-        std::vector<std::unique_ptr<AST>> statements;
+        std::list<std::unique_ptr<AST>> statements;
     };
 
     struct ValueAST : public AST {
@@ -89,7 +89,6 @@ namespace ast {
 
         Hash nameHash = 0;
         BlockAST* owningBlock = nullptr;
-        size_t revision = 0;
         std::list<ValueAST*>::iterator reference;
         bool isWrite = false;
     };
@@ -135,7 +134,7 @@ namespace ast {
 
         Hash selectorHash;
         std::string selector;
-        std::vector<std::unique_ptr<AST>> arguments;
+        std::list<std::unique_ptr<AST>> arguments;
     };
 
     struct ClassAST : public AST {
@@ -162,9 +161,18 @@ public:
     SyntaxAnalyzer(std::shared_ptr<ErrorReporter> errorReporter);
     ~SyntaxAnalyzer() = default;
 
+    // Convert from Parse Tree, bringing in Control Flow and type deduction. Also automatic conversion of Binops to
+    // lowered type-specific versions. This output tree is suitable for direct translation into C++ code, or with
+    // another pass in toThreeAddressForm() can then be used for JIT code generation.
     bool buildAST(const Parser* parser);
 
-    // lower tree to three-address form with virtual registers
+    // Anytime a ValueAST is provably a known value, replace it in the tree with a ConstantAST.
+    // bool propagateConstants();
+
+    // Remove dead code.
+    // bool removeDeadCode();
+
+    // Lower tree to three-address form and assign virtual registers. Also block inlining.
     bool toThreeAddressForm();
 
     const ast::AST* ast() const { return m_ast.get(); }
@@ -179,7 +187,7 @@ private:
 
     // Fill an existing AST with nodes from the parse tree, searching within |block| for variable names
     void fillAST(const Parser* parser, const parse::Node* parseNode, ast::BlockAST* block,
-        std::vector<std::unique_ptr<ast::AST>>* ast);
+        std::list<std::unique_ptr<ast::AST>>* ast);
     // Build an expression tree without appending to the block, although variables may be appended if they are defined.
     std::unique_ptr<ast::AST> buildExprTree(const Parser* parser, const parse::Node* parseNode, ast::BlockAST* block);
 
