@@ -35,35 +35,41 @@ TEST_CASE("Identifier Resolution") {
         const auto block = reinterpret_cast<const ast::BlockAST*>(analyzer->ast());
         CHECK(block->parent == nullptr);
         CHECK(block->arguments.size() == 0);
-        CHECK(block->variables.size() == 1);
+        CHECK(block->variables.size() == 3);
         auto value = block->variables.find(hash("a"));
         REQUIRE(value != block->variables.end());
         CHECK(value->second.name == "a");
-        // Expecting two statements, the first to initialize the variable a to 3, the second to return the value of a.
-        CHECK(block->statements.size() == 2);
+        // Expecting two statements, the first to initialize the variable a to 3, the second to store a in the return
+        // value, the last to return it.
+        CHECK(block->statements.size() == 3);
         auto statement = block->statements.begin();
         REQUIRE((*statement)->astType == ast::ASTType::kAssign);
-        const auto assign = reinterpret_cast<const ast::AssignAST*>(statement->get());
+        const ast::AssignAST* assign = reinterpret_cast<const ast::AssignAST*>(statement->get());
         REQUIRE(assign->target);
         CHECK(assign->target->nameHash == hash("a"));
         CHECK(assign->target->owningBlock == block);
-        CHECK(assign->target->reference == value->second.references.begin());
         CHECK(assign->target->isWrite);
+        CHECK(!assign->target->isLastReference);
         REQUIRE(assign->value);
         REQUIRE(assign->value->astType == ast::ASTType::kConstant);
         const auto constant = reinterpret_cast<const ast::ConstantAST*>(assign->value.get());
         REQUIRE(constant->value.type() == Type::kInteger);
         CHECK(constant->value.asInteger() == 3);
         ++statement;
-        REQUIRE((*statement)->astType == ast::ASTType::kResult);
-        const auto result = reinterpret_cast<const ast::ResultAST*>(statement->get());
-        REQUIRE(result->value);
-        REQUIRE(result->value->astType == ast::ASTType::kValue);
-        const auto retVal = reinterpret_cast<const ast::ValueAST*>(result->value.get());
+        REQUIRE((*statement)->astType == ast::ASTType::kAssign);
+        assign = reinterpret_cast<const ast::AssignAST*>(statement->get());
+        REQUIRE(assign->target);
+        CHECK(assign->target->nameHash == hash("^"));
+        CHECK(assign->target->owningBlock == block);
+        CHECK(assign->target->isWrite);
+        CHECK(!assign->target->isLastReference);
+        REQUIRE(assign->value);
+        REQUIRE(assign->value->astType == ast::ASTType::kValue);
+        const auto retVal = reinterpret_cast<const ast::ValueAST*>(assign->value.get());
         CHECK(retVal->nameHash == hash("a"));
         CHECK(retVal->owningBlock == block);
-        CHECK(retVal->reference == (++value->second.references.begin()));
         CHECK(!retVal->isWrite);
+        CHECK(retVal->isLastReference);
     }
 
     SUBCASE("local variable in outer scope") {

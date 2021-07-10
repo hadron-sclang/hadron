@@ -20,13 +20,24 @@ bool SyntaxAnalyzer::buildAST(const Parser* parser) {
     return m_ast != nullptr;
 }
 
-bool SyntaxAnalyzer::toThreeAddressForm() {
-    return false;
+void SyntaxAnalyzer::assignVirtualRegisters() {
+    std::unordered_map<Hash, int> activeRegisters;
+    std::unordered_set<int> freeRegisters;
+    if (m_ast->astType == ast::ASTType::kBlock) {
+        auto block = reinterpret_cast<ast::BlockAST*>(m_ast.get());
+        for (auto statement = block->statements.begin(); statement != block->statements.end(); ++statement) {
+            assignRegistersToBlock(statement->get(), block, activeRegisters, freeRegisters, statement);
+        }
+    }
 }
 
 std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, const parse::BlockNode* blockNode,
         ast::BlockAST* parent) {
     auto block = std::make_unique<ast::BlockAST>(parent);
+
+    // Insert special return value sentinel variable.
+    block->variables.emplace(std::make_pair(kCaretHash, ast::Value("^")));
+    block->variables.emplace(std::make_pair(kCaretAddressHash, ast::Value("_addr_^")));
 
     // TODO: arguments
     if (blockNode->variables) {
@@ -35,13 +46,30 @@ std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, 
     if (blockNode->body) {
         fillAST(parser, blockNode->body.get(), block.get(), &(block->statements));
     }
-    // Transform last block to a Result assignment
+
+    // Transform last statment in block into an assignment to the return sentinel variable, if it isn't already.
+    bool hasReturn = false;
     if (block->statements.size()) {
-        auto result = std::make_unique<ast::ResultAST>();
-        result->value = std::move(block->statements.back());
-        result->valueType = result->value->valueType;
-        block->statements.back() = std::move(result);
+        if (block->statements.back()->astType == ast::ASTType::kAssign) {
+            auto lastAssign = reinterpret_cast<ast::AssignAST*>(block->statements.back().get());
+            hasReturn = (lastAssign->target->nameHash == kCaretHash);
+        }
+        if (!hasReturn) {
+            auto assign = std::make_unique<ast::AssignAST>();
+            assign->value = std::move(block->statements.back());
+            assign->target = findValue(kCaretHash, block.get(), true);
+            assign->target->valueType = assign->value->valueType;
+            assign->valueType = assign->target->valueType;
+            block->statements.back() = std::move(assign);
+        }
     }
+
+    auto store = std::make_unique<ast::SlotStoreAST>();
+    // emplace() will not overwrite existing values.
+    store->slotAddress = findValue(kCaretAddressHash, block.get(), true);
+    store->storeValue = findValue(kCaretHash, block.get(), false);
+    // Always append a Return statement returning the sentinel return value.
+    block->statements.emplace_back(std::make_unique<ast::ReturnAST>(std::move(store)));
     return block;
 }
 
@@ -348,18 +376,130 @@ std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(Hash nameHash, ast::Blo
         if (nameEntry != searchBlock->variables.end()) {
             auto value = std::make_unique<ast::ValueAST>(nameHash, searchBlock);
             value->isWrite = isWrite;
+            // TODO: There should always be at least one write to this variable before reading.
+            // On reads we propagate type from previous reference.
+            auto lastRef = nameEntry->second.references.back();
             if (!isWrite) {
-                auto backRef = --(nameEntry->second.references.end());
-                // Propagate type from previous reference
-                value->valueType = (*backRef)->valueType;
+                value->valueType = lastRef->valueType;
             }
-            value->reference = nameEntry->second.references.emplace(nameEntry->second.references.end(), value.get());
+            if (nameEntry->second.references.size()) {
+                lastRef->isLastReference = false;
+            }
+            nameEntry->second.references.emplace(nameEntry->second.references.end(), value.get());
             return value;
         }
         searchBlock = searchBlock->parent;
     }
 
     return nullptr;
+}
+
+void SyntaxAnalyzer::assignRegistersToBlock(ast::AST* ast, ast::BlockAST* block,
+        std::unordered_map<Hash, int>& activeRegisters, std::unordered_set<int>& freeRegisters,
+        std::list<std::unique_ptr<ast::AST>>::iterator currentStatement) {
+    switch (ast->astType) {
+    case ast::ASTType::kCalculate: {
+        auto calculate = reinterpret_cast<ast::CalculateAST*>(ast);
+        assignRegistersToBlock(calculate->left.get(), block, activeRegisters, freeRegisters, currentStatement);
+        assignRegistersToBlock(calculate->right.get(), block, activeRegisters, freeRegisters, currentStatement);
+    } break;
+
+    case ast::ASTType::kBlock:
+        // TODO
+        break;
+
+    case ast::ASTType::kInlineBlock: {
+        auto inlineBlock = reinterpret_cast<ast::InlineBlockAST*>(ast);
+        for (auto& statement : inlineBlock->statements) {
+            assignRegistersToBlock(statement.get(), block, activeRegisters, freeRegisters, currentStatement);
+        }
+    } break;
+
+    case ast::ASTType::kValue: {
+        auto value = reinterpret_cast<ast::ValueAST*>(ast);
+        // Look for value in the active Registers map, if present the register is already assigned.
+        auto activeReg = activeRegisters.find(value->nameHash);
+        if (activeReg == activeRegisters.end()) {
+            int number;
+            // Use an already allocated register if available.
+            if (freeRegisters.size()) {
+                number = *(freeRegisters.begin());
+                freeRegisters.erase(freeRegisters.begin());
+            } else {
+                // Increment the number of needed virtual registers and immediately allocate to this value.
+                number = block->numberOfVirtualRegisters;
+                ++block->numberOfVirtualRegisters;
+            }
+            value->registerNumber = number;
+            activeRegisters.emplace(std::make_pair(value->nameHash, number));
+            // Prepend register mapping statement
+            block->statements.emplace(currentStatement, std::make_unique<ast::AliasRegisterAST>(number,
+                value->nameHash));
+        } else {
+            value->registerNumber = activeReg->second;
+        }
+        // If this is the last reference to this Value we can free up the register now. This means that statements may
+        // re-use virtual registers internally, so any tracking of name => register mapping will need to account for
+        // potential multiple mappings at once.
+        if (value->isLastReference) {
+            activeRegisters.erase(value->nameHash);
+            freeRegisters.emplace(value->registerNumber);
+            // Append register unmapping node.
+            auto nextStatement = currentStatement;
+            ++nextStatement;
+            block->statements.emplace(nextStatement, std::make_unique<ast::UnaliasRegisterAST>(value->registerNumber,
+                value->nameHash));
+        }
+    } break;
+
+    case ast::ASTType::kReturn: {
+        auto returnAST = reinterpret_cast<ast::ReturnAST*>(ast);
+        assignRegistersToBlock(returnAST->value.get(), block, activeRegisters, freeRegisters, currentStatement);
+    } break;
+
+    case ast::ASTType::kAssign: {
+        auto assign = reinterpret_cast<ast::AssignAST*>(ast);
+        assignRegistersToBlock(assign->value.get(), block, activeRegisters, freeRegisters, currentStatement);
+        assignRegistersToBlock(assign->target.get(), block, activeRegisters, freeRegisters, currentStatement);
+    } break;
+
+    case ast::ASTType::kConstant:
+        // Constants are no-ops. Good constant propagation through values in a pass before register assignment will
+        // likely help relieve register pressure on the allocator, as constant values can be dropped from registers
+        // without spilling out to memory.
+        break;
+
+    case ast::ASTType::kWhile: {
+        auto whileAST = reinterpret_cast<ast::WhileAST*>(ast);
+        assignRegistersToBlock(whileAST->condition.get(), block, activeRegisters, freeRegisters, currentStatement);
+        assignRegistersToBlock(whileAST->action.get(), block, activeRegisters, freeRegisters, currentStatement);
+    } break;
+
+    case ast::ASTType::kDispatch: {
+        // TODO call stack preservation
+    } break;
+
+    case ast::ASTType::kClass: {
+        // TODO: Weird internal error.
+    } break;
+
+    case ast::ASTType::kSlotLoad: {
+        // TODO
+    } break;
+
+    case ast::ASTType::kSlotStore: {
+        auto store = reinterpret_cast<ast::SlotStoreAST*>(ast);
+        assignRegistersToBlock(store->slotAddress.get(), block, activeRegisters, freeRegisters, currentStatement);
+        assignRegistersToBlock(store->storeValue.get(), block, activeRegisters, freeRegisters, currentStatement);
+    } break;
+
+    case ast::ASTType::kUnaliasRegister:
+        break;
+
+    // weird to encounter these because it's this function's job to insert them
+    case ast::ASTType::kAliasRegister:
+        break;
+    }
 }
 
 } // namespace hadron

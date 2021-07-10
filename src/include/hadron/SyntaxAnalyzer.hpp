@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace hadron {
@@ -32,9 +33,13 @@ namespace ast {
         kConstant,
         kDispatch,    // method call
         kValue,
-        kResult,
+        kReturn,      // exit the block, returning a Slot value
         kWhile,       // while loop
-        kClass        // class definition
+        kClass,       // class definition
+        kSlotLoad,    // Load or store a value in a Slot
+        kSlotStore,
+        kAliasRegister,   // Associate a virtual register with a Value (lowered only)
+        kUnaliasRegister, // Mark virtual register as free  (lowered only)
     };
 
     struct AST {
@@ -69,6 +74,9 @@ namespace ast {
         BlockAST() = delete;
         virtual ~BlockAST() = default;
 
+        int numberOfVirtualRegisters = 0;
+        int numberOfVirtualFloatRegisters = 0;
+        int numberOfTemporaryVariables = 0;
         BlockAST* parent;
         std::unordered_map<Hash, Value> arguments;
         std::unordered_map<Hash, Value> variables;
@@ -89,23 +97,42 @@ namespace ast {
 
         Hash nameHash = 0;
         BlockAST* owningBlock = nullptr;
-        std::list<ValueAST*>::iterator reference;
         bool isWrite = false;
+        bool isLastReference = true;
+        int registerNumber = -1;
     };
 
-    struct ResultAST : public AST {
-        ResultAST(): AST(kResult) {}
-        virtual ~ResultAST() = default;
+    // Load something from a slot into a virtual register, for mapping arguments into values.
+    struct SlotLoadAST : public AST {
+        SlotLoadAST(): AST(kSlotLoad) {}
+        virtual ~SlotLoadAST() = default;
 
-        std::unique_ptr<AST> value;
+    };
+
+    // Store a typed    virtual register into a slot.
+    struct SlotStoreAST : public AST {
+        SlotStoreAST(): AST(kSlotStore) {}
+        virtual ~SlotStoreAST() = default;
+
+        // Need a register to load the Type enum into, because writing to memory is from register-only.
+        std::unique_ptr<ValueAST> typeStore;
+        std::unique_ptr<ValueAST> slotAddress;
+        std::unique_ptr<ValueAST> storeValue;
+    };
+
+    struct ReturnAST : public AST {
+        ReturnAST(std::unique_ptr<SlotStoreAST> v): AST(kReturn), value(std::move(v)) {}
+        virtual ~ReturnAST() = default;
+        std::unique_ptr<SlotStoreAST> value;
     };
 
     struct AssignAST : public AST {
         AssignAST(): AST(kAssign) {}
         virtual ~AssignAST() = default;
 
-        std::unique_ptr<ValueAST> target;
+        // target <- value
         std::unique_ptr<AST> value;
+        std::unique_ptr<ValueAST> target;
     };
 
     struct ConstantAST : public AST {
@@ -153,6 +180,25 @@ namespace ast {
         // Values store their names in the struct. For the constants and methods we store the name here.
         std::unordered_map<Hash, std::string> names;
     };
+
+    struct AliasRegisterAST : public AST {
+        AliasRegisterAST(int reg, Hash hash): AST(kAliasRegister), registerNumber(reg), nameHash(hash) {}
+        AliasRegisterAST() = delete;
+        virtual ~AliasRegisterAST() = default;
+
+        int registerNumber;
+        Hash nameHash;
+    };
+
+    struct UnaliasRegisterAST : public AST {
+        UnaliasRegisterAST(int reg, Hash hash): AST(kUnaliasRegister), registerNumber(reg), nameHash(hash) {}
+        UnaliasRegisterAST() = delete;
+        virtual ~UnaliasRegisterAST() = default;
+
+        int registerNumber;
+        Hash nameHash;
+    };
+
 } // namespace ast
 
 // Produces an AST from a Parse Tree
@@ -172,34 +218,44 @@ public:
     // Remove dead code.
     // bool removeDeadCode();
 
-    // Lower tree to three-address form and assign virtual registers. Also block inlining.
+    // Drop unused variables
+    // bool pruneUnusedVariables();
+
+    // Lower tree to three-address form.
     bool toThreeAddressForm();
+
+    // Pack ValueASTs into virtual registers per Block, including maps and unmaps.
+    void assignVirtualRegisters();
 
     const ast::AST* ast() const { return m_ast.get(); }
 
 private:
+    // ==== buildAST helpers
     // Create a new BlockAST from a parse tree BlockNode.
     std::unique_ptr<ast::BlockAST> buildBlock(const Parser* parser, const parse::BlockNode* blockNode,
         ast::BlockAST* parent);
     std::unique_ptr<ast::InlineBlockAST> buildInlineBlock(const Parser* parser, const parse::BlockNode* blockNode,
         ast::BlockAST* parent);
     std::unique_ptr<ast::ClassAST> buildClass(const Parser* parser, const parse::ClassNode* classNode);
-
     // Fill an existing AST with nodes from the parse tree, searching within |block| for variable names
     void fillAST(const Parser* parser, const parse::Node* parseNode, ast::BlockAST* block,
         std::list<std::unique_ptr<ast::AST>>* ast);
     // Build an expression tree without appending to the block, although variables may be appended if they are defined.
     std::unique_ptr<ast::AST> buildExprTree(const Parser* parser, const parse::Node* parseNode, ast::BlockAST* block);
-
     // Calls can be control flow or method dispatches. Differentiate, assemble, and return.
     std::unique_ptr<ast::AST> buildCall(const Parser* parser, const parse::CallNode* callNode, ast::BlockAST* block);
     // Binops can be arithmetic functions or method dispatches. Differentiate, assemble, and return.
     std::unique_ptr<ast::AST> buildBinop(const Parser* parser, const parse::BinopCallNode* binopNode,
         ast::BlockAST* block);
-
     // Find a value within the Block tree, or return nullptr if not found. |isWrite| should be true if this is
     // a write to this value.
     std::unique_ptr<ast::ValueAST> findValue(Hash nameHash, ast::BlockAST* block, bool isWrite);
+
+    // ==== toThreeAddressForm helpers
+
+    // ==== assignVirtualRegisters helpers
+    void assignRegistersToBlock(ast::AST* ast, ast::BlockAST* block, std::unordered_map<Hash, int>& activeRegisters,
+        std::unordered_set<int>& freeRegisters, std::list<std::unique_ptr<ast::AST>>::iterator currentStatement);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 

@@ -1096,7 +1096,7 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
 //
 // blocklist: <e> | blocklist1
 //
-std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffices) {
+std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
     std::unique_ptr<parse::Node> expr;
     bool isSingleExpression = false;
 
@@ -1282,12 +1282,12 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffices) {
         return nullptr;
     }
 
-    bool hasSuffices = captureSuffices;
-    while(hasSuffices) {
+    bool hasSuffixes = captureSuffixes;
+    while(hasSuffixes) {
         if (isSingleExpression && m_token.name == Lexer::Token::Name::kOpenSquare) {
             // expr -> expr1: expr1 '[' arglist1 ']' '=' expr
             // expr: expr1 '[' arglist1 ']'
-            hasSuffices = false;
+            hasSuffixes = false;
         } else {
             if (m_token.name == Lexer::Token::Name::kDot) {
                 next(); // .
@@ -1347,13 +1347,13 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffices) {
                 } else if (m_token.name == Lexer::Token::Name::kOpenSquare) {
                     // expr: expr '.' '[' arglist1 ']'
                     // expr: expr '.' '[' arglist1 ']' '=' expr
-                    hasSuffices = false;
+                    hasSuffixes = false;
                 } else if (m_token.name == Lexer::Token::Name::kOpenParen) {
                     // expr -> expr1 -> msgsend: expr '.' '(' ')' blocklist
                     // expr -> expr1 -> msgsend: expr '.' '(' keyarglist1 optcomma ')' blocklist
                     // expr -> expr1 -> msgsend: expr '.' '(' arglist1 optkeyarglist ')' blocklist
                     // expr -> expr1 -> msgsend: expr '.' '(' arglistv1 optkeyarglist ')'
-                    hasSuffices = false;
+                    hasSuffixes = false;
                 }
             } else if (m_token.couldBeBinop || m_token.name == Lexer::Token::Name::kKeyword) {
                 // expr: expr binop2 adverb expr %prec binop
@@ -1370,7 +1370,7 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffices) {
                 binopCall->leftHand = std::move(expr);
                 expr = std::move(binopCall);
             } else {
-                hasSuffices = false;
+                hasSuffixes = false;
             }
         }
     }

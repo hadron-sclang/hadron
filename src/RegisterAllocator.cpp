@@ -4,18 +4,21 @@
 
 namespace hadron {
 
-RegisterAllocator::RegisterAllocator(ast::BlockAST* block, JIT* jit): m_block(block), m_jit(jit) {}
+RegisterAllocator::RegisterAllocator(const ast::BlockAST* block, JIT* jit): m_block(block), m_jit(jit) {}
 
-int RegisterAllocator::stackBytesRequired() {
-    // TODO: fix me to account for things that aren't either integers or pointers (such as doubles and floats)
-    int numberOfIntRegs = m_jit->getRegisterCount(JIT::kSave) + m_jit->getRegisterCount(JIT::kNoSave);
-    int overflowSize = std::max(0, static_cast<int>(m_block->variables.size() + m_block->arguments.size()) -
-        numberOfIntRegs);
-    return overflowSize * sizeof(void*);
+void RegisterAllocator::setupStack() {
+    int totalRegisters = m_jit->getRegisterCount(JIT::kNoSave) + m_jit->getRegisterCount(JIT::kSave);
+    int spillRegistersNeeded = std::max(0, m_block->numberOfVirtualRegisters - totalRegisters);
+    int floatSpillRegistersNeeded = std::max(0,
+        m_block->numberOfVirtualFloatRegisters - m_jit->getRegisterCount(JIT::kFloat));
+    int stackBytesNeeded = (spillRegistersNeeded * sizeof(void*)) + (floatSpillRegistersNeeded * sizeof(double));
+    if (stackBytesNeeded) {
+        m_jit->allocai(stackBytesNeeded);
+    }
 }
 
-JIT::Reg RegisterAllocator::allocate(JIT::Reg vReg) {
-    return vReg;
+JIT::Reg RegisterAllocator::allocate(int vReg) {
+    return JIT::Reg(JIT::kSave, vReg);
 }
 
 } // namespace hadron

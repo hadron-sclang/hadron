@@ -17,19 +17,18 @@ struct ValueAST;
 // mostly for ease of testing.
 class RegisterAllocator {
 public:
-    RegisterAllocator(ast::BlockAST* block, JIT* jit);
+    RegisterAllocator(const ast::BlockAST* block, JIT* jit);
     RegisterAllocator() = delete;
     ~RegisterAllocator() = default;
 
-    // Returns the size in bytes required on the stack for register spilling. Note that this is an upper bound
-    // on the size and so is an approximation.
-    int stackBytesRequired();
+    // Call after calling jit->prolog(), sets up the stack space required for this Block to spill registers.
+    void setupStack();
 
     // Allocate a physical register for the supplied virtual register.
-    JIT::Reg allocate(JIT::Reg vReg);
+    JIT::Reg allocate(int vReg);
 
 private:
-    ast::BlockAST* m_block;
+    const ast::BlockAST* m_block;
     JIT* m_jit;
 };
 

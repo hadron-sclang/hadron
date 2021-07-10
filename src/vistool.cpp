@@ -13,14 +13,17 @@
 #include "spdlog/spdlog.h"
 
 #include <fstream>
+#include <map>
 #include <memory>
+#include <set>
 #include <string_view>
-#include <variant>
+#include <vector>
 
 DEFINE_string(inputFile, "", "path to input file to process");
 DEFINE_string(outputFile, "", "path to output file to save to");
 DEFINE_bool(parseTree, false, "print the parse tree");
 DEFINE_bool(syntaxTree, false, "print the syntax tree");
+DEFINE_bool(optimizeTree, false, "optimize the syntax tree before printing");
 
 std::string nullOrNo(const hadron::parse::Node* node) {
     if (node) return "";
@@ -447,14 +450,6 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
     }
 }
 
-std::string findValueName(const hadron::ast::ValueAST* value) {
-    const auto var = value->owningBlock->variables.find(value->nameHash);
-    if (var != value->owningBlock->variables.end()) {
-        return var->second.name;
-    }
-    return "variable name not found!";
-}
-
 std::string printHash(hadron::Hash hash) {
     switch (hash) {
     case hadron::kAddHash:
@@ -515,10 +510,19 @@ std::string printHash(hadron::Hash hash) {
         return "while";
     }
 
-    return fmt::format("hash {:016x} not found!", hash);
+    return fmt::format("hash {:16x} not found!", hash);
 }
 
-void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* ast) {
+std::string findSymbol(hadron::Hash hash, const std::map<hadron::Hash, std::string>& symbols) {
+    const auto lookup = symbols.find(hash);
+    if (lookup != symbols.end()) {
+        return lookup->second;
+    }
+    return fmt::format("hash {:16x}", hash);
+}
+
+void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* ast,
+        std::vector<std::set<std::string>>& regs, std::map<hadron::Hash, std::string>& symbols) {
     int astSerial = serial;
     ++serial;
 
@@ -529,11 +533,11 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
             printType(ast->valueType));
         if (calc->left) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, calc->left.get());
+            visualizeAST(outFile, serial, calc->left.get(), regs, symbols);
         }
         if (calc->right) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, calc->right.get());
+            visualizeAST(outFile, serial, calc->right.get(), regs, symbols);
         }
     } break;
 
@@ -542,11 +546,11 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
         outFile << fmt::format("    ast_{} [label=<&#8592; {}>]\n", astSerial, printType(ast->valueType));
         if (assign->target) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, assign->target.get());
+            visualizeAST(outFile, serial, assign->target.get(), regs, symbols);
         }
         if (assign->value) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, assign->value.get());
+            visualizeAST(outFile, serial, assign->value.get(), regs, symbols);
         }
     } break;
 
@@ -558,21 +562,24 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
             outFile << "<tr><td><b>arg:</b>";
             for (auto pair : block->arguments) {
                 outFile << " " << pair.second.name;
+                symbols.emplace(std::make_pair(pair.first, pair.second.name));
             }
             outFile << "</td></tr>";
         }
         if (block->variables.size()) {
             outFile << "<tr><td><b>var:</b>";
             for (auto pair : block->variables) {
+                symbols.emplace(std::make_pair(pair.first, pair.second.name));
                 outFile << " " << pair.second.name;
             }
             outFile << "</td></tr>";
         }
         outFile << "</table>>]\n";
+        regs.resize(block->numberOfVirtualRegisters);
         for (const auto& expr : block->statements) {
             if (!expr) continue;
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, expr.get());
+            visualizeAST(outFile, serial, expr.get(), regs, symbols);
         }
     } break;
 
@@ -584,14 +591,19 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
         for (const auto& expr : inlineBlock->statements) {
             if (!expr) continue;
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, expr.get());
+            visualizeAST(outFile, serial, expr.get(), regs, symbols);
         }
     } break;
 
     case hadron::ast::ASTType::kValue: {
         const auto value = reinterpret_cast<const hadron::ast::ValueAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=<{} <i>{}</i>>]\n", astSerial, printType(value->valueType),
-            findValueName(value));
+        outFile << fmt::format("    ast_{} [label=<{} <i>{}</i>", astSerial, printType(value->valueType),
+            findSymbol(value->nameHash, symbols));
+        if (value->registerNumber >= 0) {
+            outFile << fmt::format(" <font face=\"monospace\">r<sub>{}</sub></font>>]\n", value->registerNumber);
+        } else {
+            outFile << ">]" << std::endl;
+        }
     } break;
 
     case hadron::ast::ASTType::kConstant: {
@@ -604,11 +616,11 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
         outFile << fmt::format("    ast_{} [label=\"while {}\"]\n", astSerial, printType(ast->valueType));
         if (whileAST->condition) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, whileAST->condition.get());
+            visualizeAST(outFile, serial, whileAST->condition.get(), regs, symbols);
         }
         if (whileAST->action) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, whileAST->action.get());
+            visualizeAST(outFile, serial, whileAST->action.get(), regs, symbols);
         }
     } break;
 
@@ -618,17 +630,64 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
             printType(ast->valueType));
         for (const auto& expr : dispatch->arguments) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, expr.get());
+            visualizeAST(outFile, serial, expr.get(), regs, symbols);
         }
     } break;
 
-    case hadron::ast::ASTType::kResult: {
-        const auto result = reinterpret_cast<const hadron::ast::ResultAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=\"result {}\"]\n", astSerial, printType(ast->valueType));
-        if (result->value) {
-            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, result->value.get());
+    case hadron::ast::ASTType::kReturn: {
+        const auto returnAST = reinterpret_cast<const hadron::ast::ReturnAST*>(ast);
+        outFile << fmt::format("    ast_{} [peripheries=\"2\" label=\"return\"]\n", astSerial);
+        outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+        visualizeAST(outFile, serial, returnAST->value.get(), regs, symbols);
+    } break;
+
+    case hadron::ast::ASTType::kSlotLoad: {
+
+    } break;
+
+    case hadron::ast::ASTType::kSlotStore: {
+        const auto store = reinterpret_cast<const hadron::ast::SlotStoreAST*>(ast);
+        outFile << fmt::format("    ast_{} [shape=invhouse label=\"slot store\"]\n", astSerial);
+        outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+        visualizeAST(outFile, serial, store->slotAddress.get(), regs, symbols);
+        outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+        visualizeAST(outFile, serial, store->storeValue.get(), regs, symbols);
+    } break;
+
+    case hadron::ast::ASTType::kAliasRegister: {
+        const auto alias = reinterpret_cast<const hadron::ast::AliasRegisterAST*>(ast);
+        outFile << fmt::format("    ast_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" "
+            "cellspacing=\"0\">\n", astSerial);
+        outFile << fmt::format("        <tr><td><b>alias</b> <i>{}</i> &#8658; "
+            "<font face=\"monospace\">r<sub>{}</sub></font></td></tr>\n", findSymbol(alias->nameHash, symbols),
+            alias->registerNumber);
+        regs[alias->registerNumber].insert(findSymbol(alias->nameHash, symbols));
+        for (size_t i = 0; i < regs.size(); ++i) {
+            outFile << fmt::format("        <tr><td align=\"left\"><font face=\"monospace\">r<sub>{}</sub></font>:", i);
+            for (auto& name : regs[i]) {
+                outFile << " <i>" << name << "</i>";
+            }
+            outFile << "</td></tr>" << std::endl;
         }
+        outFile << "        </table>>]" << std::endl;
+    } break;
+
+    case hadron::ast::ASTType::kUnaliasRegister: {
+        const auto unalias = reinterpret_cast<const hadron::ast::UnaliasRegisterAST*>(ast);
+        outFile << fmt::format("    ast_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" "
+            "cellspacing=\"0\">\n", astSerial);
+        outFile << fmt::format("        <tr><td><b>unalias</b> <i>{}</i> from "
+            "<font face=\"monospace\">r<sub>{}</sub></font></td></tr>\n", findSymbol(unalias->nameHash, symbols),
+            unalias->registerNumber);
+        regs[unalias->registerNumber].erase(findSymbol(unalias->nameHash, symbols));
+        for (size_t i = 0; i < regs.size(); ++i) {
+            outFile << fmt::format("        <tr><td align=\"left\"><font face=\"monospace\">r<sub>{}</sub></font>:", i);
+            for (auto& name : regs[i]) {
+                outFile << " <i>" << name << "</i>";
+            }
+            outFile << "</td></tr>" << std::endl;
+        }
+        outFile << "        </table>>]" << std::endl;
     } break;
 
     case hadron::ast::ASTType::kClass: {
@@ -743,10 +802,16 @@ int main(int argc, char* argv[]) {
             return -1;
         }
 
+        if (FLAGS_optimizeTree) {
+            syntaxAnalyzer.assignVirtualRegisters();
+        }
+
         outFile << fmt::format("// syntax tree visualization of {}\n", FLAGS_inputFile);
         outFile << "digraph HadronSyntaxTree {" << std::endl;
         int serial = 0;
-        visualizeAST(outFile, serial, syntaxAnalyzer.ast());
+        std::vector<std::set<std::string>> regs;
+        std::map<hadron::Hash, std::string> symbols;
+        visualizeAST(outFile, serial, syntaxAnalyzer.ast(), regs, symbols);
         outFile << "}" << std::endl;
     }
 

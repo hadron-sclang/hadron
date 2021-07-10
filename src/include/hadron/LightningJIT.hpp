@@ -20,6 +20,9 @@ public:
     LightningJIT();
     virtual ~LightningJIT();
 
+    bool emit() override;
+    Slot value() override;
+
     int getRegisterCount(RegType type) const override;
 
     void addr(Reg target, Reg a, Reg b) override;
@@ -28,7 +31,11 @@ public:
     void movi(Reg target, int value) override;
     Label bgei(Reg a, int b) override;
     Label jmpi() override;
+    void stxi(int offset, Reg address, Reg value) override;
     void prolog() override;
+    Label arg() override;
+    void getarg(Reg target, Label arg) override;
+    void allocai(int stackSizeBytes) override;
     void retr(Reg r) override;
     void epilog() override;
     Label label() override;
@@ -42,8 +49,13 @@ public:
 private:
     int reg(Reg r);
     jit_state_t* m_state;
-    // non-owning pointers
+    // Non-owning pointers to nodes within the jit_state struct, used for labels.
     std::vector<jit_node_t*> m_labels;
+    // Offset in bytes from the stack frame pointer where the stack begins.
+    int m_stackBase;
+
+    typedef void (*Value)(Slot* returnSlot);
+    Value m_jit;
 };
 
 } // namespace hadron

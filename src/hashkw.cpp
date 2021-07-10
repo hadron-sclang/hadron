@@ -15,6 +15,8 @@ int main(int argc, char* argv[]) {
         { "kAddHash                 ", "+"},
         { "kArgHash                 ", "arg"},
         { "kAssignHash              ", "="},
+        { "kCaretAddressHash        ", "_addr_^" },
+        { "kCaretHash               ", "^"},
         { "kClassVarHash            ", "classvar"},
         { "kConstHash               ", "const"},
         { "kDivideHash              ", "/"},

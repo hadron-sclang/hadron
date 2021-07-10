@@ -1,6 +1,8 @@
 #ifndef SRC_INCLUDE_HADRON_JIT_HPP_
 #define SRC_INCLUDE_HADRON_JIT_HPP_
 
+#include "hadron/Slot.hpp"
+
 #include <cstddef>
 #include <memory>
 
@@ -20,10 +22,18 @@ public:
 
     struct Reg {
         Reg(RegType t, int num): type(t), number(num) {}
+        Reg(const Reg& r) = default;
         Reg() = delete;
+        ~Reg() = default;
+        bool operator==(const Reg& r) const { return (number == r.number) && (type == r.type); }
+        bool operator!=(const Reg& r) const { return (number != r.number) || (type != r.type); }
         RegType type;
         int number;
     };
+
+    // ===== JIT compilation
+    virtual bool emit() = 0;
+    virtual Slot value() = 0;
 
     using Label = size_t;
 
@@ -50,9 +60,19 @@ public:
     // unconditionally jump to Label
     virtual Label jmpi() = 0;
 
+    // * stores
+    // *(offset + address) = value
+    virtual void stxi(int offset, Reg address, Reg value) = 0;
+
     // * functions
-    // mark the start of a new function.
+    // mark the start of a new function
     virtual void prolog() = 0;
+    // mark arguments for retrieval into registers later with getarg()
+    virtual Label arg() = 0;
+    // load argument into a register %target
+    virtual void getarg(Reg target, Label arg) = 0;
+    // allocate bytes on the stack, should be called after prolog()
+    virtual void allocai(int stackSizeBytes) = 0;
     // retr %r  (return value of reg r)
     virtual void retr(Reg r) = 0;
     // mark the end of a function (should follow after any ret call)
