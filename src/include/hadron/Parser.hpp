@@ -1,8 +1,8 @@
 #ifndef SRC_PARSER_HPP_
 #define SRC_PARSER_HPP_
 
-#include "hadron/Lexer.hpp"
 #include "hadron/Literal.hpp"
+#include "hadron/Token.hpp"
 #include "hadron/Type.hpp"
 
 #include <memory>
@@ -12,6 +12,7 @@
 namespace hadron {
 
 class ErrorReporter;
+class Lexer;
 
 namespace parse {
 
@@ -296,15 +297,17 @@ struct NumericSeriesNode : public Node {
 
 class Parser {
 public:
-    Parser(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter);
-    // Used for testing, makes a parser with suppressed error messages.
+    // Builds a parse tree from an external lexer that has already successfully lexed the source code.
+    Parser(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);
+
+    // Used for testing, lexes the code itself with an owned Lexer first.
     Parser(std::string_view code);
     ~Parser();
 
     bool parse();
 
     const parse::Node* root() const { return m_root.get(); }
-    const std::vector<Lexer::Token>& tokens() const { return m_lexer.tokens(); }
+    Lexer* lexer() const { return m_lexer; }
     std::shared_ptr<ErrorReporter> errorReporter() { return m_errorReporter; }
 
 private:
@@ -348,9 +351,10 @@ private:
     std::unique_ptr<parse::Node> parseBlockList();
     std::unique_ptr<parse::Node> parseBlockOrGenerator();
 
-    Lexer m_lexer;
+    std::unique_ptr<Lexer> m_ownLexer;
+    Lexer* m_lexer;
     size_t m_tokenIndex;
-    Lexer::Token m_token;
+    Token m_token;
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     std::unique_ptr<parse::Node> m_root;

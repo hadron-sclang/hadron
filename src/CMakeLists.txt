@@ -78,9 +78,11 @@ add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     ErrorReporter.cpp
     CodeGenerator.cpp
+    CompilerContext.cpp
     FileSystem.hpp
     Hash.cpp
     include/hadron/CodeGenerator.hpp
+    include/hadron/CompilerContext.hpp
     include/hadron/ErrorReporter.hpp
     include/hadron/Hash.hpp
     include/hadron/JIT.hpp
@@ -88,15 +90,17 @@ add_library(hadron STATIC
     include/hadron/LightningJIT.hpp
     include/hadron/Literal.hpp
     include/hadron/Parser.hpp
+    include/hadron/RegisterAllocator.hpp
     include/hadron/Slot.hpp
     include/hadron/SyntaxAnalyzer.hpp
     include/hadron/Type.hpp
+    include/hadron/VirtualJIT.hpp
     LightningJIT.cpp
     Parser.cpp
     RegisterAllocator.cpp
-    RegisterAllocator.hpp
     Slot.cpp
     SyntaxAnalyzer.cpp
+    VirtualJIT.cpp
 )
 
 file(GLOB HADRON_PUBLIC_HEADERS include/hadron/*.hpp)

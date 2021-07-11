@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+/*
     auto errorReporter = std::make_shared<hadron::ErrorReporter>();
     hadron::Parser parser(std::string_view(fileContents.get(), fileSize), errorReporter);
     if (!parser.parse()) {
@@ -50,7 +51,7 @@ int main(int argc, char* argv[]) {
     }
 
     hadron::LightningJIT::initJITGlobals();
-/*
+
     hadron::LightningJIT jit;
     auto block = jit.jitBlock(reinterpret_cast<const hadron::ast::BlockAST*>(syntaxAnalyzer.ast()));
     if (!block) {
@@ -58,8 +59,8 @@ int main(int argc, char* argv[]) {
     }
     block->printJIT();
     block.reset();
-*/
-    hadron::LightningJIT::finishJITGlobals();
 
+    hadron::LightningJIT::finishJITGlobals();
+*/
     return 0;
 }

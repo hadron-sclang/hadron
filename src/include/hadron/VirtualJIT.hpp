@@ -1,24 +1,40 @@
-#ifndef SRC_INCLUDE_HADRON_LIGHTNING_JIT_HPP_
-#define SRC_INCLUDE_HADRON_LIGHTNING_JIT_HPP_
+#ifndef SRC_INCLUDE_HADRON_VIRTUAL_JIT_HPP_
+#define SRC_INCLUDE_HADRON_VIRTUAL_JIT_HPP_
 
 #include "hadron/JIT.hpp"
 
+#include <array>
 #include <vector>
-
-// GNU Lightning external declarations.
-extern "C" {
-    struct jit_node;
-    typedef struct jit_node jit_node_t;
-    struct jit_state;
-    typedef struct jit_state jit_state_t;
-}
 
 namespace hadron {
 
-class LightningJIT : public JIT {
+// Serializes bytecode to a machine-independent three address format that uses virtual registers
+class VirtualJIT : public JIT {
 public:
-    LightningJIT();
-    virtual ~LightningJIT();
+    VirtualJIT() = default;
+    virtual ~VirtualJIT() = default;
+
+    enum Opcodes : int32_t {
+        kAddr,
+        kAddi,
+        kMovr,
+        kMovi,
+        kBgei,
+        kJmpi,
+        kStxi,
+        kProlog,
+        kArg,
+        kGetarg,
+        kAllocai,
+        kRetr,
+        kEpilog,
+        kLabel,
+        kPatchAt,
+        kPatch
+    };
+
+    using Inst = std::array<int32_t, 4>;
+    const std::vector<Inst>& instructions() const { return m_instructions; }
 
     bool emit() override;
     Slot value() override;
@@ -43,22 +59,11 @@ public:
     void patchAt(Label target, Label location) override;
     void patch(Label label) override;
 
-    // GNU Lightning requires calls to global setup and teardown functions before emitting any JIT bytecode.
-    static void initJITGlobals();
-    static void finishJITGlobals();
-
 private:
-    int reg(Reg r);
-    jit_state_t* m_state;
-    // Non-owning pointers to nodes within the jit_state struct, used for labels.
-    std::vector<jit_node_t*> m_labels;
-    // Offset in bytes from the stack frame pointer where the stack begins.
-    int m_stackBase;
-
-    typedef void (*Value)(Slot* returnSlot);
-    Value m_jit;
+    std::vector<Inst> m_instructions;
+    std::vector<size_t> m_labels;  // indices in the m_instructions table.
 };
 
 } // namespace hadron
 
-#endif
+#endif // SRC_INCLUDE_HADRON_VIRTUAL_JIT_HPP_

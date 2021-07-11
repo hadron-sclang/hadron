@@ -7,7 +7,6 @@ namespace hadron {
 
 class ErrorReporter;
 class JIT;
-class RegisterAllocator;
 namespace ast {
 struct AST;
 struct BlockAST;
@@ -22,7 +21,7 @@ public:
     bool jitBlock(const ast::BlockAST* block, JIT* jit);
 
 private:
-    void jitAST(const ast::AST* ast, JIT* jit, RegisterAllocator* allocator);
+    void jitAST(const ast::AST* ast, JIT* jit);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };

@@ -15,6 +15,7 @@
 namespace hadron {
 
 class ErrorReporter;
+class Lexer;
 class Parser;
 namespace parse {
 struct BinopCallNode;
@@ -214,13 +215,15 @@ namespace ast {
 // Produces an AST from a Parse Tree
 class SyntaxAnalyzer {
 public:
-    SyntaxAnalyzer(std::shared_ptr<ErrorReporter> errorReporter);
+    SyntaxAnalyzer(Parser* parser, std::shared_ptr<ErrorReporter> errorReporter);
+    // For testing, builds AST directly from code input string, suppresses error reporting.
+    SyntaxAnalyzer(std::string_view code);
     ~SyntaxAnalyzer() = default;
 
     // Convert from Parse Tree, bringing in Control Flow and type deduction. Also automatic conversion of Binops to
     // lowered type-specific versions. This output tree is suitable for direct translation into C++ code, or with
     // subsequent passes is suitable for use in a CodeGenerator for JIT.
-    bool buildAST(const Parser* parser);
+    bool buildAST();
 
     // Anytime a ValueAST is provably a known value, replace it in the tree with a ConstantAST.
     // bool propagateConstants();
@@ -248,37 +251,35 @@ public:
     // virtual register allocation. We add commands to the JIT for allocating and freeing registers, which allows
     // machine-indendent VirtualJIT to allocate virtual registers, and then for CodeGenerator to convert that into
     // real JIT.
-
+/*
     // Lower tree to three-address form.
     void toThreeAddressForm();
 
     // Pack ValueASTs into virtual registers per Block, including maps and unmaps. Tree manipulation after this call
     // will break code generation.
     void assignVirtualRegisters();
-
+*/
     const ast::AST* ast() const { return m_ast.get(); }
 
 private:
     // ==== buildAST helpers
     // Create a new BlockAST from a parse tree BlockNode.
-    std::unique_ptr<ast::BlockAST> buildBlock(const Parser* parser, const parse::BlockNode* blockNode,
-        ast::BlockAST* parent);
-    std::unique_ptr<ast::InlineBlockAST> buildInlineBlock(const Parser* parser, const parse::BlockNode* blockNode,
-        ast::BlockAST* parent);
-    std::unique_ptr<ast::ClassAST> buildClass(const Parser* parser, const parse::ClassNode* classNode);
+    std::unique_ptr<ast::BlockAST> buildBlock(const parse::BlockNode* blockNode, ast::BlockAST* parent);
+    std::unique_ptr<ast::InlineBlockAST> buildInlineBlock(const parse::BlockNode* blockNode, ast::BlockAST* parent);
+    std::unique_ptr<ast::ClassAST> buildClass(const parse::ClassNode* classNode);
     // Fill an existing AST with nodes from the parse tree, searching within |block| for variable names
-    void fillAST(const Parser* parser, const parse::Node* parseNode, ast::BlockAST* block,
-        std::list<std::unique_ptr<ast::AST>>* ast);
+    void fillAST(const parse::Node* parseNode, ast::BlockAST* block, std::list<std::unique_ptr<ast::AST>>* ast);
     // Build an expression tree without appending to the block, although variables may be appended if they are defined.
-    std::unique_ptr<ast::AST> buildExprTree(const Parser* parser, const parse::Node* parseNode, ast::BlockAST* block);
+    std::unique_ptr<ast::AST> buildExprTree(const parse::Node* parseNode, ast::BlockAST* block);
     // Calls can be control flow or method dispatches. Differentiate, assemble, and return.
-    std::unique_ptr<ast::AST> buildCall(const Parser* parser, const parse::CallNode* callNode, ast::BlockAST* block);
+    std::unique_ptr<ast::AST> buildCall(const parse::CallNode* callNode, ast::BlockAST* block);
     // Binops can be arithmetic functions or method dispatches. Differentiate, assemble, and return.
-    std::unique_ptr<ast::AST> buildBinop(const Parser* parser, const parse::BinopCallNode* binopNode,
-        ast::BlockAST* block);
+    std::unique_ptr<ast::AST> buildBinop(const parse::BinopCallNode* binopNode, ast::BlockAST* block);
     // Find a value within the Block tree, or return nullptr if not found. |isWrite| should be true if this is
     // a write to this value.
     std::unique_ptr<ast::ValueAST> findValue(Hash nameHash, ast::BlockAST* block, bool isWrite);
+
+/*
 
     // ==== toThreeAddressForm helpers
     void lowerTo3AF(ast::AST* ast, ast::BlockAST* block,
@@ -290,9 +291,12 @@ private:
     // ==== assignVirtualRegisters helpers
     void assignRegistersToBlock(ast::AST* ast, ast::BlockAST* block, std::unordered_map<Hash, int>& activeRegisters,
         std::unordered_set<int>& freeRegisters, std::list<std::unique_ptr<ast::AST>>::iterator currentStatement);
+*/
 
+    std::unique_ptr<Parser> m_ownParser;
+    Parser* m_parser;
+    Lexer* m_lexer;
     std::shared_ptr<ErrorReporter> m_errorReporter;
-
     std::unique_ptr<ast::AST> m_ast;
 };
 

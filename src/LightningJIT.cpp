@@ -25,49 +25,44 @@ Slot LightningJIT::value() {
     return returnSlot;
 }
 
-int LightningJIT::getRegisterCount(RegType type) const {
-    switch (type) {
-    case JIT::kSave:
-        return jit_v_num();
+int LightningJIT::getRegisterCount() const {
+    return jit_v_num() + jit_r_num();
+}
 
-    case JIT::kNoSave:
-        return jit_r_num();
-
-    case JIT::kFloat:
-        return jit_f_num();
-    }
+int LightningJIT::getFloatRegisterCount() const {
+    return jit_f_num();
 }
 
 void LightningJIT::addr(Reg target, Reg a, Reg b) {
-    _jit_new_node_www(m_state, jit_code_addr, reg(target), reg(a), reg(b));
+    _jit_new_node_www(m_state, jit_code_addr, target, a, b);
 }
 
 void LightningJIT::addi(Reg target, Reg a, int b) {
-    _jit_new_node_www(m_state, jit_code_addi, reg(target), reg(a), b);
+    _jit_new_node_www(m_state, jit_code_addi, target, a, b);
 }
 
 void LightningJIT::movr(Reg target, Reg value) {
     if (target != value) {
-        _jit_new_node_ww(m_state, jit_code_movr, reg(target), reg(value));
+        _jit_new_node_ww(m_state, jit_code_movr, target, value);
     }
 }
 
 void LightningJIT::movi(Reg target, int value) {
-    _jit_new_node_ww(m_state, jit_code_movi, reg(target), value);
+    _jit_new_node_ww(m_state, jit_code_movi, target, value);
 }
 
 JIT::Label LightningJIT::bgei(Reg a, int b) {
-    m_labels.emplace_back(_jit_new_node_pww(m_state, jit_code_bgei, nullptr, reg(a), b));
-    return m_labels.size();
+    m_labels.emplace_back(_jit_new_node_pww(m_state, jit_code_bgei, nullptr, a, b));
+    return m_labels.size() - 1;
 }
 
 JIT::Label LightningJIT::jmpi() {
     m_labels.emplace_back(_jit_new_node_p(m_state, jit_code_jmpi, nullptr));
-    return m_labels.size();
+    return m_labels.size() - 1;
 }
 
 void LightningJIT::stxi(int offset, Reg address, Reg value) {
-    _jit_new_node_www(m_state, jit_code_stxi_i, offset, reg(address), reg(value));
+    _jit_new_node_www(m_state, jit_code_stxi_i, offset, address, value);
 }
 
 void LightningJIT::prolog() {
@@ -76,11 +71,11 @@ void LightningJIT::prolog() {
 
 JIT::Label LightningJIT::arg() {
     m_labels.emplace_back(_jit_arg(m_state));
-    return m_labels.size();
+    return m_labels.size() - 1;
 }
 
 void LightningJIT::getarg(Reg target, Label arg) {
-    _jit_getarg_i(m_state, reg(target), m_labels[arg]);
+    _jit_getarg_i(m_state, target, m_labels[arg]);
 }
 
 void LightningJIT::allocai(int stackSizeBytes) {
@@ -88,7 +83,7 @@ void LightningJIT::allocai(int stackSizeBytes) {
 }
 
 void LightningJIT::retr(Reg r) {
-    _jit_retr(m_state, reg(r));
+    _jit_retr(m_state, r);
 }
 
 void LightningJIT::epilog() {
@@ -97,7 +92,7 @@ void LightningJIT::epilog() {
 
 JIT::Label LightningJIT::label() {
     m_labels.emplace_back(_jit_label(m_state));
-    return m_labels.size();
+    return m_labels.size() - 1;
 }
 
 void LightningJIT::patchAt(Label target, Label location) {
@@ -116,19 +111,6 @@ void LightningJIT::initJITGlobals() {
 // static
 void LightningJIT::finishJITGlobals() {
     finish_jit();
-}
-
-int LightningJIT::reg(Reg r) {
-    switch (r.type) {
-    case JIT::kSave:
-        return JIT_V(r.number);
-
-    case JIT::kNoSave:
-        return JIT_R(r.number);
-
-    case JIT::kFloat:
-        return JIT_F(r.number);
-    }
 }
 
 } // namespace hadron

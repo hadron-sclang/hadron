@@ -8,42 +8,28 @@
 
 namespace hadron {
 
-// Abstract base class for JIT compilation, allowing CodeGenerator to JIT to either testing or production backends.
+// Abstract base class for JIT compilation, allowing CodeGenerator to JIT to either virtual, testing or production
+// backends.
 class JIT {
 public:
     JIT() = default;
     virtual ~JIT() = default;
 
-    enum RegType {
-        kSave,          // Saved during function calls (Lightning JIT_V() registers)
-        kNoSave,        // Not saved during function calls (Lightning JIT_R() registers)
-        kFloat          // Floating point registers (Lightning JIT_F() registers)
-    };
-
-    struct Reg {
-        Reg(RegType t, int num): type(t), number(num) {}
-        Reg(const Reg& r) = default;
-        Reg() = delete;
-        ~Reg() = default;
-        bool operator==(const Reg& r) const { return (number == r.number) && (type == r.type); }
-        bool operator!=(const Reg& r) const { return (number != r.number) || (type != r.type); }
-        RegType type;
-        int number;
-    };
-
     // ===== JIT compilation
     virtual bool emit() = 0;
     virtual Slot value() = 0;
 
-    using Label = size_t;
+    using Label = int32_t;
+    using Reg = int32_t;
 
     // ===== Machine Properties
-    virtual int getRegisterCount(RegType type) const = 0;
+    virtual int getRegisterCount() const = 0;
+    virtual int getFloatRegisterCount() const = 0;
 
     // ===== Instruction Set (directly modeled from GNU Lightning instruction set, added as needed)
 
     // * arithmetic
-    // % target = %a + %b
+    // %target = %a + %b
     virtual void addr(Reg target, Reg a, Reg b) = 0;
     // %target = %a + b
     virtual void addi(Reg target, Reg a, int b) = 0;

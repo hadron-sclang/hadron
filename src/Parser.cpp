@@ -317,39 +317,38 @@ curryarg: CURRYARG
 
 namespace hadron {
 
-Parser::Parser(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter):
-    m_lexer(code),
+Parser::Parser(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter):
+    m_lexer(lexer),
     m_tokenIndex(0),
-    m_token(Lexer::Token()),
-    m_errorReporter(errorReporter) {
-    m_errorReporter->setCode(code.data());
-}
+    m_token(Token()),
+    m_errorReporter(errorReporter) { }
 
 Parser::Parser(std::string_view code):
-    m_lexer(code),
+    m_ownLexer(std::make_unique<Lexer>(code)),
+    m_lexer(m_ownLexer.get()),
     m_tokenIndex(0),
-    m_token(Lexer::Token()) {
-    m_errorReporter = std::make_shared<ErrorReporter>(true);
-    m_errorReporter->setCode(code.data());
-}
+    m_token(Token()),
+    m_errorReporter(m_ownLexer->errorReporter()) { }
 
 Parser::~Parser() {}
 
 bool Parser::parse() {
-    if (!m_lexer.lex(m_errorReporter.get())) {
-        return false;
+    if (m_ownLexer) {
+        if (!m_lexer->lex()) {
+            return false;
+        }
     }
 
-    if (m_lexer.tokens().size() > 0) {
-        m_token = m_lexer.tokens()[0];
+    if (m_lexer->tokens().size() > 0) {
+        m_token = m_lexer->tokens()[0];
     } else {
-        m_token = Lexer::Token(Lexer::Token::Name::kEmpty, nullptr, 0);
+        m_token = Token(Token::Name::kEmpty, nullptr, 0);
     }
 
     m_root = parseRoot();
     if (!m_root) return false;
 
-    while (m_errorReporter->errorCount() == 0 && m_token.name != Lexer::Token::Name::kEmpty) {
+    while (m_errorReporter->errorCount() == 0 && m_token.name != Token::Name::kEmpty) {
         m_root->append(parseRoot());
     }
 
@@ -358,11 +357,11 @@ bool Parser::parse() {
 
 bool Parser::next() {
     ++m_tokenIndex;
-    if (m_tokenIndex < m_lexer.tokens().size()) {
-        m_token = m_lexer.tokens()[m_tokenIndex];
+    if (m_tokenIndex < m_lexer->tokens().size()) {
+        m_token = m_lexer->tokens()[m_tokenIndex];
         return true;
     }
-    m_token = Lexer::Token(Lexer::Token::Name::kEmpty, nullptr, 0);
+    m_token = Token(Token::Name::kEmpty, nullptr, 0);
     return false;
 }
 
@@ -375,13 +374,13 @@ bool Parser::next() {
 // classextensions: classextension | classextensions classextension
 std::unique_ptr<parse::Node> Parser::parseRoot() {
     switch (m_token.name) {
-        case Lexer::Token::Name::kEmpty:
+        case Token::Name::kEmpty:
             return std::make_unique<parse::Node>(parse::NodeType::kEmpty, m_tokenIndex);
 
-        case Lexer::Token::Name::kClassName:
+        case Token::Name::kClassName:
             return parseClass();
 
-        case Lexer::Token::Name::kPlus:
+        case Token::Name::kPlus:
             return parseClassExtension();
 
         default:
@@ -394,14 +393,14 @@ std::unique_ptr<parse::Node> Parser::parseRoot() {
 // superclass: <e> | ':' classname
 // optname: <e> | name
 std::unique_ptr<parse::ClassNode> Parser::parseClass() {
-    assert(m_token.name == Lexer::Token::Name::kClassName);
+    assert(m_token.name == Token::Name::kClassName);
     auto classNode = std::make_unique<parse::ClassNode>(m_tokenIndex);
     auto className = m_token;
     next(); // classname
 
-    if (m_token.name == Lexer::Token::Name::kOpenSquare) {
+    if (m_token.name == Token::Name::kOpenSquare) {
         next(); // [
-        if (m_token.name != Lexer::Token::Name::kIdentifier) {
+        if (m_token.name != Token::Name::kIdentifier) {
             m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting valid optional name "
                 "inside square brackets '[' and ']'.", className.range,
                 m_errorReporter->getLineNumber(m_token.range.data())));
@@ -409,7 +408,7 @@ std::unique_ptr<parse::ClassNode> Parser::parseClass() {
         }
         classNode->optionalNameIndex = m_tokenIndex;
         next(); // optname
-        if (m_token.name != Lexer::Token::Name::kCloseSquare) {
+        if (m_token.name != Token::Name::kCloseSquare) {
             m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting closing square bracket "
                 "']' after optional class name.", className.range, m_errorReporter->getLineNumber(
                     m_token.range.data())));
@@ -418,9 +417,9 @@ std::unique_ptr<parse::ClassNode> Parser::parseClass() {
         next(); // ]
     }
 
-    if (m_token.name == Lexer::Token::Name::kColon) {
+    if (m_token.name == Token::Name::kColon) {
         next(); // :
-        if (m_token.name != Lexer::Token::Name::kClassName) {
+        if (m_token.name != Token::Name::kClassName) {
             m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting superclass name after "
                 "colon ':'.", className.range, m_errorReporter->getLineNumber(m_token.range.data())));
             return classNode;
@@ -429,7 +428,7 @@ std::unique_ptr<parse::ClassNode> Parser::parseClass() {
         next(); // superclass classname
     }
 
-    if (m_token.name != Lexer::Token::Name::kOpenCurly) {
+    if (m_token.name != Token::Name::kOpenCurly) {
         m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting opening curly brace '{{'.",
             className.range, m_errorReporter->getLineNumber(m_token.range.data())));
         return classNode;
@@ -440,7 +439,7 @@ std::unique_ptr<parse::ClassNode> Parser::parseClass() {
     classNode->variables = parseClassVarDecls();
     classNode->methods = parseMethods();
 
-    if (m_token.name != Lexer::Token::Name::kCloseCurly) {
+    if (m_token.name != Token::Name::kCloseCurly) {
         m_errorReporter->addError(fmt::format("Error parsing class {} at line {}: expecting closing curly brace '}}' "
             "to match opening brace '{{' on line {}", className.range,
             m_errorReporter->getLineNumber(m_token.range.data()), m_errorReporter->getLineNumber(
@@ -454,16 +453,16 @@ std::unique_ptr<parse::ClassNode> Parser::parseClass() {
 
 // classextension: '+' classname '{' methods '}'
 std::unique_ptr<parse::ClassExtNode> Parser::parseClassExtension() {
-    assert(m_token.name == Lexer::Token::Name::kPlus);
+    assert(m_token.name == Token::Name::kPlus);
     next(); // +
-    if (m_token.name != Lexer::Token::Name::kClassName) {
+    if (m_token.name != Token::Name::kClassName) {
         m_errorReporter->addError(fmt::format("Error parsing at line {}: expecting class name after '+' symbol.",
                 m_errorReporter->getLineNumber(m_token.range.data())));
         return std::make_unique<parse::ClassExtNode>(m_tokenIndex);
     }
     auto extension = std::make_unique<parse::ClassExtNode>(m_tokenIndex);
     next(); // classname
-    if (m_token.name != Lexer::Token::kOpenCurly) {
+    if (m_token.name != Token::kOpenCurly) {
         m_errorReporter->addError(fmt::format("Error parsing at line {}: expecting open curly brace '{{' after "
                 "class name in class extension.", m_errorReporter->getLineNumber(m_token.range.data())));
         return extension;
@@ -471,7 +470,7 @@ std::unique_ptr<parse::ClassExtNode> Parser::parseClassExtension() {
     auto openCurly = m_token;
     next(); // {
     extension->methods = parseMethods();
-    if (m_token.name != Lexer::Token::kCloseCurly) {
+    if (m_token.name != Token::kCloseCurly) {
         m_errorReporter->addError(fmt::format("Error parsing around line {}: expecting closing curly brace '}}' to "
                 "match opening brace '{{' on line {}", m_errorReporter->getLineNumber(m_token.range.data()),
                 m_errorReporter->getLineNumber(openCurly.range.data())));
@@ -485,13 +484,13 @@ std::unique_ptr<parse::ClassExtNode> Parser::parseClassExtension() {
 //            | funcbody
 std::unique_ptr<parse::Node> Parser::parseCmdLineCode() {
     switch (m_token.name) {
-    case Lexer::Token::Name::kOpenParen: {
+    case Token::Name::kOpenParen: {
         auto openParenToken = m_token;
         auto block = std::make_unique<parse::BlockNode>(m_tokenIndex);
         next(); // (
         block->variables = parseFuncVarDecls();
         block->body = parseFuncBody();
-        if (m_token.name != Lexer::Token::kCloseParen) {
+        if (m_token.name != Token::kCloseParen) {
             m_errorReporter->addError(fmt::format("Error parsing around line {}: expecting closing parenthesis to "
                     "match opening parenthesis on line {}", m_errorReporter->getLineNumber(m_token.range.data()),
                     m_errorReporter->getLineNumber(openParenToken.range.data())));
@@ -500,7 +499,7 @@ std::unique_ptr<parse::Node> Parser::parseCmdLineCode() {
         return block;
     } break;
 
-    case Lexer::Token::Name::kVar: {
+    case Token::Name::kVar: {
         auto block = std::make_unique<parse::BlockNode>(m_tokenIndex);
         block->variables = parseFuncVarDecls();
         block->body = parseFuncBody();
@@ -530,9 +529,9 @@ std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecls() {
 //             | SC_CONST constdeflist ';'
 std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecl() {
     switch (m_token.name) {
-    case Lexer::Token::Name::kClassVar: {
+    case Token::Name::kClassVar: {
         auto classVars = parseRWVarDefList();
-        if (m_token.name != Lexer::Token::kSemicolon) {
+        if (m_token.name != Token::kSemicolon) {
             m_errorReporter->addError(fmt::format("Error parsing class variable declaration at line {}, expecting "
                         "semicolon ';'.", m_errorReporter->getLineNumber(m_token.range.data())));
             return nullptr;
@@ -541,9 +540,9 @@ std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecl() {
         return classVars;
     }
 
-    case Lexer::Token::Name::kVar: {
+    case Token::Name::kVar: {
         auto vars = parseRWVarDefList();
-        if (m_token.name != Lexer::Token::kSemicolon) {
+        if (m_token.name != Token::kSemicolon) {
             m_errorReporter->addError(fmt::format("Error parsing variable declaration at line {}, expecting "
                         "semicolon ';'.", m_errorReporter->getLineNumber(m_token.range.data())));
             return nullptr;
@@ -552,9 +551,9 @@ std::unique_ptr<parse::VarListNode> Parser::parseClassVarDecl() {
         return vars;
     }
 
-    case Lexer::Token::Name::kConst: {
+    case Token::Name::kConst: {
         auto constants = parseConstDefList();
-        if (m_token.name != Lexer::Token::kSemicolon) {
+        if (m_token.name != Token::kSemicolon) {
             m_errorReporter->addError(fmt::format("Error parsing constant declaration at line {}, expecting "
                         "semicolon ';'.", m_errorReporter->getLineNumber(m_token.range.data())));
             return nullptr;
@@ -590,46 +589,46 @@ std::unique_ptr<parse::MethodNode> Parser::parseMethods() {
 std::unique_ptr<parse::MethodNode> Parser::parseMethod() {
     bool isClassMethod = false;
 
-    if (m_token.name == Lexer::Token::Name::kAsterisk) {
+    if (m_token.name == Token::Name::kAsterisk) {
         isClassMethod = true;
         next(); // *
     }
     std::unique_ptr<parse::MethodNode> method;
     // Special case for binop instance method named '*'
-    if (m_token.name == Lexer::Token::Name::kOpenCurly) {
+    if (m_token.name == Token::Name::kOpenCurly) {
         isClassMethod = false;
         method = std::make_unique<parse::MethodNode>(m_tokenIndex - 1, isClassMethod);
-    } else if (m_token.name == Lexer::Token::Name::kIdentifier || m_token.couldBeBinop) {
+    } else if (m_token.name == Token::Name::kIdentifier || m_token.couldBeBinop) {
         method = std::make_unique<parse::MethodNode>(m_tokenIndex, isClassMethod);
         next(); // name or binop (treated as name)
     } else {
         return nullptr;
     }
 
-    if (m_token.name != Lexer::Token::Name::kOpenCurly) {
+    if (m_token.name != Token::Name::kOpenCurly) {
         m_errorReporter->addError(fmt::format("Error parsing method named '{}' at line {}, expecting opening curly "
-                    "brace '{{'.", m_lexer.tokens()[method->tokenIndex].range,
+                    "brace '{{'.", m_lexer->tokens()[method->tokenIndex].range,
                         m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
     }
     next(); // {
-    if (m_token.name != Lexer::Token::Name::kCloseCurly) {
+    if (m_token.name != Token::Name::kCloseCurly) {
         auto block = std::make_unique<parse::BlockNode>(m_tokenIndex - 1);
         block->arguments = parseArgDecls();
         block->variables = parseFuncVarDecls();
 
-        if (m_token.name == Lexer::Token::Name::kPrimitive) {
+        if (m_token.name == Token::Name::kPrimitive) {
             method->primitiveIndex = m_tokenIndex;
             next(); // primitive
-            if (m_token.name == Lexer::Token::Name::kSemicolon) {
+            if (m_token.name == Token::Name::kSemicolon) {
                 next(); // optsemi
             }
         }
 
         block->body = parseMethodBody();
-        if (m_token.name != Lexer::Token::Name::kCloseCurly) {
+        if (m_token.name != Token::Name::kCloseCurly) {
             m_errorReporter->addError(fmt::format("Error parsing method named '{}' at line {}, expecting closing curly "
-                        "brace '}}'.", m_lexer.tokens()[method->tokenIndex].range,
+                        "brace '}}'.", m_lexer->tokens()[method->tokenIndex].range,
                         m_errorReporter->getLineNumber(m_token.range.data())));
             return nullptr;
         }
@@ -642,11 +641,11 @@ std::unique_ptr<parse::MethodNode> Parser::parseMethod() {
 // funcvardecls1: funcvardecl | funcvardecls1 funcvardecl
 std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecls() {
     std::unique_ptr<parse::VarListNode> varDecls;
-    if (m_token.name == Lexer::Token::Name::kVar) {
+    if (m_token.name == Token::Name::kVar) {
         varDecls = parseFuncVarDecl();
     }
     if (varDecls != nullptr) {
-        while (m_token.name == Lexer::Token::Name::kVar) {
+        while (m_token.name == Token::Name::kVar) {
             auto furtherVarDecls = parseFuncVarDecl();
             if (furtherVarDecls == nullptr) {
                 return nullptr;
@@ -659,9 +658,9 @@ std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecls() {
 
 // funcvardecl: VAR vardeflist ';'
 std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecl() {
-    assert(m_token.name == Lexer::Token::Name::kVar);
+    assert(m_token.name == Token::Name::kVar);
     auto varDefList = parseVarDefList();
-    if (m_token.name != Lexer::Token::Name::kSemicolon) {
+    if (m_token.name != Token::Name::kSemicolon) {
         m_errorReporter->addError(fmt::format("Error parsing variable declaration at line {}, expecting semicolon ';'.",
                     m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
@@ -674,11 +673,11 @@ std::unique_ptr<parse::VarListNode> Parser::parseFuncVarDecl() {
 //         | exprseq funretval
 // funretval: <e> | '^' expr optsemi
 std::unique_ptr<parse::Node> Parser::parseFuncBody() {
-    if (m_token.name == Lexer::Token::Name::kCaret) {
+    if (m_token.name == Token::Name::kCaret) {
         auto retNode = std::make_unique<parse::ReturnNode>(m_tokenIndex);
         next(); // ^
         retNode->valueExpr = parseExpr();
-        if (m_token.name == Lexer::Token::Name::kSemicolon) {
+        if (m_token.name == Token::Name::kSemicolon) {
             next(); // ;
         }
         return retNode;
@@ -687,11 +686,11 @@ std::unique_ptr<parse::Node> Parser::parseFuncBody() {
     auto prefix = parseExprSeq();
     if (!prefix) return nullptr;
 
-    if (m_token.name == Lexer::Token::Name::kCaret) {
+    if (m_token.name == Token::Name::kCaret) {
         auto retNode = std::make_unique<parse::ReturnNode>(m_tokenIndex);
         next(); // ^
         retNode->valueExpr = parseExpr();
-        if (m_token.name == Lexer::Token::Name::kSemicolon) {
+        if (m_token.name == Token::Name::kSemicolon) {
             next(); // ;
         }
         if (prefix->nodeType == parse::NodeType::kExprSeq) {
@@ -708,12 +707,12 @@ std::unique_ptr<parse::Node> Parser::parseFuncBody() {
 
 // rwslotdeflist: rwslotdef | rwslotdeflist ',' rwslotdef
 std::unique_ptr<parse::VarListNode> Parser::parseRWVarDefList() {
-    assert(m_token.name == Lexer::Token::Name::kVar || m_token.name == Lexer::Token::Name::kClassVar);
+    assert(m_token.name == Token::Name::kVar || m_token.name == Token::Name::kClassVar);
     auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
     next(); // var or classvar
     varList->definitions = parseRWVarDef();
     if (varList->definitions != nullptr) {
-        while (m_token.name == Lexer::Token::Name::kComma) {
+        while (m_token.name == Token::Name::kComma) {
             next(); // ,
             auto nextVarDef = parseRWVarDef();
             if (nextVarDef != nullptr) {
@@ -732,19 +731,19 @@ std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
     bool readAccess = false;
     bool writeAccess = false;
 
-    if (m_token.name == Lexer::Token::Name::kLessThan) {
+    if (m_token.name == Token::Name::kLessThan) {
         readAccess = true;
         next(); // <
-    } else if (m_token.name == Lexer::Token::Name::kGreaterThan) {
+    } else if (m_token.name == Token::Name::kGreaterThan) {
         writeAccess = true;
         next(); // >
-    } else if (m_token.name == Lexer::Token::Name::kReadWriteVar) {
+    } else if (m_token.name == Token::Name::kReadWriteVar) {
         readAccess = true;
         writeAccess = true;
         next(); // <>
     }
 
-    if (m_token.name != Lexer::Token::Name::kIdentifier) {
+    if (m_token.name != Token::Name::kIdentifier) {
         m_errorReporter->addError(fmt::format("Error parsing class variable declaration at line {}, expecting variable "
                     "name.", m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
@@ -756,7 +755,7 @@ std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
     varDef->hasReadAccessor = readAccess;
     varDef->hasWriteAccessor = writeAccess;
 
-    if (m_token.name == Lexer::Token::Name::kAssign) {
+    if (m_token.name == Token::Name::kAssign) {
         next(); // =
         varDef->initialValue = parseLiteral();
         if (varDef->initialValue == nullptr) {
@@ -773,7 +772,7 @@ std::unique_ptr<parse::VarDefNode> Parser::parseRWVarDef() {
 // constdeflist: constdef | constdeflist optcomma constdef
 // optcomma: <e> | ','
 std::unique_ptr<parse::VarListNode> Parser::parseConstDefList() {
-    assert(m_token.name == Lexer::Token::Name::kConst);
+    assert(m_token.name == Token::Name::kConst);
     auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
     next(); // const
     varList->definitions = parseConstDef();
@@ -782,13 +781,13 @@ std::unique_ptr<parse::VarListNode> Parser::parseConstDefList() {
                     "name or read spec character '<'.", m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
     }
-    if (m_token.name == Lexer::Token::Name::kComma) {
+    if (m_token.name == Token::Name::kComma) {
         next(); // ,
     }
     auto nextDef = parseConstDef();
     while (nextDef != nullptr) {
         varList->definitions->append(std::move(nextDef));
-        if (m_token.name == Lexer::Token::Name::kComma) {
+        if (m_token.name == Token::Name::kComma) {
             next(); // ,
         }
         nextDef = parseConstDef();
@@ -801,25 +800,25 @@ std::unique_ptr<parse::VarListNode> Parser::parseConstDefList() {
 // rspec:  <e> | '<'
 std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
     bool readAccess = false;
-    if (m_token.name == Lexer::Token::Name::kLessThan) {
+    if (m_token.name == Token::Name::kLessThan) {
         readAccess = true;
         next(); // <
-        if (m_token.name != Lexer::Token::Name::kIdentifier) {
+        if (m_token.name != Token::Name::kIdentifier) {
             m_errorReporter->addError(fmt::format("Error parsing class constant declaration at line {}, expecting "
                         "constant name after read spec character '<'.", m_errorReporter->getLineNumber(
                             m_token.range.data())));
             return nullptr;
         }
-    } else if (m_token.name != Lexer::Token::Name::kIdentifier) {
+    } else if (m_token.name != Token::Name::kIdentifier) {
         // May not be an error, in this case, may just be the end of the constant list.
         return nullptr;
     }
     auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex);
     next(); // name
     varDef->hasReadAccessor = readAccess;
-    if (m_token.name != Lexer::Token::Name::kAssign) {
+    if (m_token.name != Token::Name::kAssign) {
         m_errorReporter->addError(fmt::format("Error parsing class constant '{}' declaration at line {}, expecting "
-                    "assignment operator '='.", m_lexer.tokens()[varDef->tokenIndex].range,
+                    "assignment operator '='.", m_lexer->tokens()[varDef->tokenIndex].range,
                     m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
     }
@@ -828,7 +827,7 @@ std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
     if (varDef->initialValue == nullptr) {
         m_errorReporter->addError(fmt::format("Error parsing class constant '{}' declaration at line {}, expecting "
                     "literal (e.g. number, string, symbol) following assignment.",
-                    m_lexer.tokens()[varDef->tokenIndex].range,
+                    m_lexer->tokens()[varDef->tokenIndex].range,
                     m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
     }
@@ -838,14 +837,14 @@ std::unique_ptr<parse::VarDefNode> Parser::parseConstDef() {
 // vardeflist: vardef | vardeflist ',' vardef
 std::unique_ptr<parse::VarListNode> Parser::parseVarDefList() {
     auto varList = std::make_unique<parse::VarListNode>(m_tokenIndex);
-    if (m_token.name == Lexer::Token::Name::kVar) {
+    if (m_token.name == Token::Name::kVar) {
         next(); // var
     }
     varList->definitions = parseVarDef();
     if (varList->definitions == nullptr) {
         return nullptr;
     }
-    while (m_token.name == Lexer::Token::Name::kComma) {
+    while (m_token.name == Token::Name::kComma) {
         next(); // ,
         auto nextVarDef = parseVarDef();
         if (nextVarDef == nullptr) {
@@ -858,30 +857,30 @@ std::unique_ptr<parse::VarListNode> Parser::parseVarDefList() {
 
 // vardef: name | name '=' expr | name '(' exprseq ')'
 std::unique_ptr<parse::VarDefNode> Parser::parseVarDef() {
-    if (m_token.name != Lexer::Token::kIdentifier) {
+    if (m_token.name != Token::kIdentifier) {
         m_errorReporter->addError(fmt::format("Error parsing variable definition at line {}, expecting variable name.",
                     m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
     }
     auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex);
     next(); // name
-    if (m_token.name == Lexer::Token::kAssign) {
+    if (m_token.name == Token::kAssign) {
         next(); // =
         varDef->initialValue = parseExpr();
         if (varDef->initialValue == nullptr) {
             return nullptr;
         }
-    } else if (m_token.name == Lexer::Token::kOpenParen) {
-        Lexer::Token openParen = m_token;
+    } else if (m_token.name == Token::kOpenParen) {
+        Token openParen = m_token;
         next(); // (
         varDef->initialValue = parseExprSeq();
         if (varDef->initialValue == nullptr) {
             return nullptr;
         }
-        if (m_token.name != Lexer::Token::kCloseParen) {
+        if (m_token.name != Token::kCloseParen) {
             m_errorReporter->addError(fmt::format("Error parsing variable definition for variable '{}' on line {}, "
                         "expecting closing parenthesis ')' to match opening parenthesis '(' on line {}",
-                        m_lexer.tokens()[varDef->tokenIndex].range,
+                        m_lexer->tokens()[varDef->tokenIndex].range,
                         m_errorReporter->getLineNumber(m_token.range.data()),
                         m_errorReporter->getLineNumber(openParen.range.data())));
         }
@@ -899,7 +898,7 @@ std::unique_ptr<parse::VarListNode> Parser::parseSlotDefList() {
     if (varList->definitions == nullptr) {
         return nullptr;
     }
-    while (m_token.name == Lexer::Token::Name::kComma) {
+    while (m_token.name == Token::Name::kComma) {
         next(); // ,
         auto nextVarDef = parseSlotDef();
         if (nextVarDef == nullptr) {
@@ -915,30 +914,30 @@ std::unique_ptr<parse::VarListNode> Parser::parseSlotDefList() {
 //        | name optequal slotliteral
 //        | name optequal '(' exprseq ')'
 std::unique_ptr<parse::VarDefNode> Parser::parseSlotDef() {
-    if (m_token.name != Lexer::Token::kIdentifier) {
+    if (m_token.name != Token::kIdentifier) {
         m_errorReporter->addError(fmt::format("Error parsing argument definition at line {}, expecting argument name.",
                     m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
     }
     auto varDef = std::make_unique<parse::VarDefNode>(m_tokenIndex);
     next(); // name
-    if (m_token.name == Lexer::Token::kAssign) {
+    if (m_token.name == Token::kAssign) {
         next(); // =
         varDef->initialValue = parseLiteral();
         if (varDef->initialValue == nullptr) {
             return nullptr;
         }
-    } else if (m_token.name == Lexer::Token::kOpenParen) {
-        Lexer::Token openParen = m_token;
+    } else if (m_token.name == Token::kOpenParen) {
+        Token openParen = m_token;
         next(); // (
         varDef->initialValue = parseExprSeq();
         if (varDef->initialValue == nullptr) {
             return nullptr;
         }
-        if (m_token.name != Lexer::Token::kCloseParen) {
+        if (m_token.name != Token::kCloseParen) {
             m_errorReporter->addError(fmt::format("Error parsing variable definition for variable '{}' on line {}, "
                         "expecting closing parenthesis ')' to match opening parenthesis '(' on line {}",
-                        m_lexer.tokens()[varDef->tokenIndex].range,
+                        m_lexer->tokens()[varDef->tokenIndex].range,
                         m_errorReporter->getLineNumber(m_token.range.data()),
                         m_errorReporter->getLineNumber(openParen.range.data())));
         }
@@ -958,27 +957,27 @@ std::unique_ptr<parse::VarDefNode> Parser::parseSlotDef() {
 std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
     bool isArg;
     std::unique_ptr<parse::ArgListNode> argList;
-    if (m_token.name == Lexer::Token::Name::kArg) {
+    if (m_token.name == Token::Name::kArg) {
         isArg = true;
         argList = std::make_unique<parse::ArgListNode>(m_tokenIndex);
         next(); // arg
-        if (m_token.name != Lexer::Token::Name::kEllipses) {
+        if (m_token.name != Token::Name::kEllipses) {
             argList->varList = parseVarDefList();
         }
-    } else if (m_token.name == Lexer::Token::kPipe) {
+    } else if (m_token.name == Token::kPipe) {
         isArg = false;
         argList = std::make_unique<parse::ArgListNode>(m_tokenIndex);
         next(); // |
-        if (m_token.name != Lexer::Token::Name::kEllipses) {
+        if (m_token.name != Token::Name::kEllipses) {
             argList->varList = parseSlotDefList();
         }
     } else {
         return nullptr;
     }
 
-    if (m_token.name == Lexer::Token::Name::kEllipses) {
+    if (m_token.name == Token::Name::kEllipses) {
         next(); // ...
-        if (m_token.name != Lexer::Token::Name::kIdentifier) {
+        if (m_token.name != Token::Name::kIdentifier) {
             m_errorReporter->addError(fmt::format("Error parsing argument list on line {}, expecting name after "
                         "ellipses '...'.", m_errorReporter->getLineNumber(m_token.range.data())));
             return nullptr;
@@ -987,11 +986,11 @@ std::unique_ptr<parse::ArgListNode> Parser::parseArgDecls() {
         next(); // name
     }
 
-    if (isArg && m_token.name != Lexer::Token::Name::kSemicolon) {
+    if (isArg && m_token.name != Token::Name::kSemicolon) {
         m_errorReporter->addError(fmt::format("Error parsing argument list on line {}, expected semicolon ';' at "
                     "end of argument list.", m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
-    } else if (!isArg && m_token.name != Lexer::Token::Name::kPipe) {
+    } else if (!isArg && m_token.name != Token::Name::kPipe) {
         m_errorReporter->addError(fmt::format("Error parsing argument list on line {}, expected matching pipe '|' at "
                     "end of argument list.", m_errorReporter->getLineNumber(m_token.range.data())));
         return nullptr;
@@ -1007,14 +1006,14 @@ std::unique_ptr<parse::Node> Parser::parseMethodBody() {
     size_t bodyIndex = m_tokenIndex;
     auto prefix = parseExprSeq();
 
-    if (m_token.name == Lexer::Token::Name::kCaret) {
+    if (m_token.name == Token::Name::kCaret) {
         auto retVal = std::make_unique<parse::ReturnNode>(m_tokenIndex);
         next(); // ^
         retVal->valueExpr = parseExpr();
         if (retVal->valueExpr == nullptr) {
             return nullptr;
         }
-        if (m_token.name == Lexer::Token::Name::kSemicolon) {
+        if (m_token.name == Token::Name::kSemicolon) {
             next(); // ;
         }
 
@@ -1045,13 +1044,13 @@ std::unique_ptr<parse::Node> Parser::parseExprSeq() {
     auto expr = parseExpr();
     if (!expr) return nullptr;
 
-    if (m_token.name == Lexer::Token::Name::kSemicolon) {
+    if (m_token.name == Token::Name::kSemicolon) {
         next(); // ;
         auto secondExpr = parseExpr();
         if (secondExpr) {
             auto exprSeq = std::make_unique<parse::ExprSeqNode>(startIndex, std::move(expr));
             exprSeq->expr->append(std::move(secondExpr));
-            while (m_token.name == Lexer::Token::Name::kSemicolon) {
+            while (m_token.name == Token::Name::kSemicolon) {
                 next(); // ;
                 auto nextExpr = parseExpr();
                 if (nextExpr) {
@@ -1101,15 +1100,15 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
     bool isSingleExpression = false;
 
     switch (m_token.name) {
-    case Lexer::Token::Name::kClassName: {
+    case Token::Name::kClassName: {
         next();  // classname
-        if (m_token.name == Lexer::Token::kOpenSquare) {
+        if (m_token.name == Token::kOpenSquare) {
             // expr -> expr1 -> msgsend: classname '[' arrayelems ']'
             auto dynList = std::make_unique<parse::DynListNode>(m_tokenIndex - 1);
-            Lexer::Token openSquare = m_token;
+            Token openSquare = m_token;
             next(); // [
             dynList->elements = parseArrayElements();
-            if (m_token.name != Lexer::Token::kCloseSquare) {
+            if (m_token.name != Token::kCloseSquare) {
                 m_errorReporter->addError(fmt::format("Error parsing dynamic list on line {}, expecting closing square "
                         "bracket ']' to match opening square bracket '[' on line {}",
                         m_errorReporter->getLineNumber(m_token.range.data()),
@@ -1118,12 +1117,12 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
             next(); // ]
             expr = std::move(dynList);
             isSingleExpression = true;
-        } else if (m_token.name == Lexer::Token::kOpenParen) {
+        } else if (m_token.name == Token::kOpenParen) {
             // TODO: expr -> expr1 -> msgsend: classname '(' ')' blocklist
             // TODO: expr -> expr1 -> msgsend: classname '(' keyarglist1 optcomma ')' blocklist
             // TODO: expr -> expr1 -> msgsend: classname '(' arglist1 optkeyarglist ')' blocklist
             // TODO: expr -> expr1 -> msgsend: classname '(' arglistv1 optkeyarglist ')'
-        } else if (m_token.name == Lexer::Token::kOpenCurly) {
+        } else if (m_token.name == Token::kOpenCurly) {
             // TODO: expr -> expr1 -> msgsend: classname blocklist1
         } else {
             // expr: classname
@@ -1131,17 +1130,17 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
         }
     } break;
 
-    case Lexer::Token::Name::kIdentifier: {
+    case Token::Name::kIdentifier: {
         size_t nameIndex = m_tokenIndex;
         next(); // name
-        if (m_token.name == Lexer::Token::kAssign) {
+        if (m_token.name == Token::kAssign) {
             // expr: name '=' expr
             auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex - 1);
             next(); // =
             assign->name = std::make_unique<parse::NameNode>(nameIndex);
             assign->value = parseExpr();
             expr = std::move(assign);
-        } else if (m_token.name == Lexer::Token::kOpenParen) {
+        } else if (m_token.name == Token::kOpenParen) {
             // TODO: expr: name '(' arglist1 optkeyarglist ')' '=' expr
             // TODO: expr -> expr1 -> msgsend: name '(' ')' blocklist1
             // TODO: expr -> expr1 -> msgsend: name '(' arglist1 optkeyarglist ')' blocklist
@@ -1162,19 +1161,19 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
 
     } break;
 
-    case Lexer::Token::Name::kGrave:
+    case Token::Name::kGrave:
         // expr: '`' expr
         break;
 
-    case Lexer::Token::Name::kTilde: {
+    case Token::Name::kTilde: {
         // expr: '~' name '=' expr
         // expr -> expr1: '~' name
         next(); // ~
-        if (m_token.name == Lexer::Token::kIdentifier) {
+        if (m_token.name == Token::kIdentifier) {
             auto name = std::make_unique<parse::NameNode>(m_tokenIndex);
             name->isGlobal = true;
             next(); // name
-            if (m_token.name == Lexer::Token::kAssign) {
+            if (m_token.name == Token::kAssign) {
                 auto assign = std::make_unique<parse::AssignNode>(m_tokenIndex - 1);
                 next();
                 assign->name = std::move(name);
@@ -1191,7 +1190,7 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
         }
     } break;
 
-    case Lexer::Token::Name::kHash:
+    case Token::Name::kHash:
         // expr: '#' mavars '=' expr
         break;
 
@@ -1200,13 +1199,13 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
     //          | exprseq DOTDOT exprseq
     //          | exprseq ',' exprseq DOTDOT exprseq
     //          | exprseq ',' exprseq DOTDOT
-    case Lexer::Token::Name::kOpenParen: {
+    case Token::Name::kOpenParen: {
         isSingleExpression = true;
-        Lexer::Token openParen = m_token;
+        Token openParen = m_token;
         // expr -> expr1: '(' exprseq ')'
         next(); // (
         expr = parseExprSeq();
-        if (m_token.name != Lexer::Token::kCloseParen) {
+        if (m_token.name != Token::kCloseParen) {
             m_errorReporter->addError(fmt::format("Error parsing expression sequence on line {}, expecting closing "
                     "parenthesis ')' to match opening parenthesis '(' on line {}",
                     m_errorReporter->getLineNumber(m_token.range.data()),
@@ -1224,13 +1223,13 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
         // expr -> expr1 -> msgsend: '(' binop2 ')' '(' arglistv1 optkeyarglist ')'
     } break;
 
-    case Lexer::Token::Name::kOpenSquare: {
+    case Token::Name::kOpenSquare: {
         // expr -> expr1: '[' arrayelems ']'
         auto dynList = std::make_unique<parse::DynListNode>(m_tokenIndex);
-        Lexer::Token openSquare = m_token;
+        Token openSquare = m_token;
         next(); // [
         dynList->elements = parseArrayElements();
-        if (m_token.name != Lexer::Token::kCloseSquare) {
+        if (m_token.name != Token::kCloseSquare) {
             m_errorReporter->addError(fmt::format("Error parsing dynamic list on line {}, expecting closing square "
                     "bracket ']' to match opening square bracket '[' on line {}",
                     m_errorReporter->getLineNumber(m_token.range.data()),
@@ -1242,14 +1241,14 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
         isSingleExpression = true;
     } break;
 
-    case Lexer::Token::Name::kOpenCurly: {
+    case Token::Name::kOpenCurly: {
         // expr -> expr1 -> generator: '{' ':' exprseq ',' qual '}'
         // expr -> expr1 -> generator: '{' ';' exprseq  ',' qual '}'
         // expr -> expr1 -> blockliteral -> block -> '{' argdecls funcvardecls funcbody '}'
         // expr -> expr1 -> blockliteral -> block -> BEGINCLOSEDFUNC argdecls funcvardecls funcbody '}'
-        Lexer::Token openCurly = m_token;
+        Token openCurly = m_token;
         next(); // {
-        if (m_token.name == Lexer::Token::Name::kColon || m_token.name == Lexer::Token::Name::kSemicolon) {
+        if (m_token.name == Token::Name::kColon || m_token.name == Token::Name::kSemicolon) {
             // Generator expressions parse here.
             return nullptr;
         } else {
@@ -1257,7 +1256,7 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
             block->arguments = parseArgDecls();
             block->variables = parseFuncVarDecls();
             block->body = parseFuncBody();
-            if (m_token.name != Lexer::Token::Name::kCloseCurly) {
+            if (m_token.name != Token::Name::kCloseCurly) {
                 m_errorReporter->addError(fmt::format("Error parsing function on line {}, expecting closing curly "
                         "brace '}}' to match opening curly brace '{{' on line {}.",
                         m_errorReporter->getLineNumber(m_token.range.data()),
@@ -1269,8 +1268,8 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
         }
     }
 
-    case Lexer::Token::Name::kMinus:
-    case Lexer::Token::Name::kLiteral:
+    case Token::Name::kMinus:
+    case Token::Name::kLiteral:
         expr = parseLiteral();
         break;
 
@@ -1284,33 +1283,33 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
 
     bool hasSuffixes = captureSuffixes;
     while(hasSuffixes) {
-        if (isSingleExpression && m_token.name == Lexer::Token::Name::kOpenSquare) {
+        if (isSingleExpression && m_token.name == Token::Name::kOpenSquare) {
             // expr -> expr1: expr1 '[' arglist1 ']' '=' expr
             // expr: expr1 '[' arglist1 ']'
             hasSuffixes = false;
         } else {
-            if (m_token.name == Lexer::Token::Name::kDot) {
+            if (m_token.name == Token::Name::kDot) {
                 next(); // .
-                if (m_token.name == Lexer::Token::kIdentifier) {
+                if (m_token.name == Token::kIdentifier) {
                     next(); // name
-                    if (m_token.name == Lexer::Token::kAssign) {
+                    if (m_token.name == Token::kAssign) {
                         // expr: expr '.' name '=' expr
                         auto setter = std::make_unique<parse::SetterNode>(m_tokenIndex - 1);
                         next(); // =
                         setter->target = std::move(expr);
                         setter->value = parseExpr();
                         expr = std::move(setter);
-                    } else if (m_token.name == Lexer::Token::kOpenParen) {
+                    } else if (m_token.name == Token::kOpenParen) {
                         // expr -> expr1 -> msgsend: expr '.' name '(' keyarglist1 optcomma ')' blocklist
                         // expr -> expr1 -> msgsend: expr '.' name '(' ')' blocklist
                         // expr -> expr1 -> msgsend: expr '.' name '(' arglist1 optkeyarglist ')' blocklist
                         auto call = std::make_unique<parse::CallNode>(m_tokenIndex - 1);
-                        Lexer::Token openParen = m_token;
+                        Token openParen = m_token;
                         next(); // (
                         call->target = std::move(expr);
                         auto args = parseArgList();
                         bool blocklist = true;
-                        if (m_token.name == Lexer::Token::kAsterisk) {
+                        if (m_token.name == Token::kAsterisk) {
                             // TODO: expr -> expr1 -> msgsend: expr '.' name '(' arglistv1 optkeyarglist ')'
                             // Shorthand for performList transformation
                             // target.selector(a, b, *array) => target.performList(\selector, a, b, array)
@@ -1319,7 +1318,7 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
                             call->arguments = std::move(args);
                         }
                         call->keywordArguments = parseKeywordArgList();
-                        if (m_token.name != Lexer::Token::kCloseParen) {
+                        if (m_token.name != Token::kCloseParen) {
                             m_errorReporter->addError(fmt::format("Error parsing method call on line {}, expecting "
                                 "closing parenthesis ')' to match opening parenthesis '(' on line {}.",
                                 m_errorReporter->getLineNumber(m_token.range.data()),
@@ -1344,18 +1343,18 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
                         call->target = std::move(expr);
                         expr = std::move(call);
                     }
-                } else if (m_token.name == Lexer::Token::Name::kOpenSquare) {
+                } else if (m_token.name == Token::Name::kOpenSquare) {
                     // expr: expr '.' '[' arglist1 ']'
                     // expr: expr '.' '[' arglist1 ']' '=' expr
                     hasSuffixes = false;
-                } else if (m_token.name == Lexer::Token::Name::kOpenParen) {
+                } else if (m_token.name == Token::Name::kOpenParen) {
                     // expr -> expr1 -> msgsend: expr '.' '(' ')' blocklist
                     // expr -> expr1 -> msgsend: expr '.' '(' keyarglist1 optcomma ')' blocklist
                     // expr -> expr1 -> msgsend: expr '.' '(' arglist1 optkeyarglist ')' blocklist
                     // expr -> expr1 -> msgsend: expr '.' '(' arglistv1 optkeyarglist ')'
                     hasSuffixes = false;
                 }
-            } else if (m_token.couldBeBinop || m_token.name == Lexer::Token::Name::kKeyword) {
+            } else if (m_token.couldBeBinop || m_token.name == Token::Name::kKeyword) {
                 // expr: expr binop2 adverb expr %prec binop
                 // adverb: <e> | '.' name | '.' integer | '.' '(' exprseq ')'
                 auto binopCall = std::make_unique<parse::BinopCallNode>(m_tokenIndex);
@@ -1384,17 +1383,17 @@ std::unique_ptr<parse::Node> Parser::parseExpr(bool captureSuffixes) {
 // floatr: SC_FLOAT | '-' SC_FLOAT %prec UMINUS
 std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
     std::unique_ptr<parse::LiteralNode> literal;
-    if (m_token.name == Lexer::Token::Name::kLiteral) {
+    if (m_token.name == Token::Name::kLiteral) {
         literal = std::make_unique<parse::LiteralNode>(m_tokenIndex, m_token.value);
         next(); // literal
-    } else if (m_token.name == Lexer::Token::Name::kMinus && m_tokenIndex < m_lexer.tokens().size() - 1 &&
-               m_lexer.tokens()[m_tokenIndex + 1].name == Lexer::Token::Name::kLiteral) {
-        if (m_lexer.tokens()[m_tokenIndex + 1].value.type() == Type::kFloat) {
+    } else if (m_token.name == Token::Name::kMinus && m_tokenIndex < m_lexer->tokens().size() - 1 &&
+               m_lexer->tokens()[m_tokenIndex + 1].name == Token::Name::kLiteral) {
+        if (m_lexer->tokens()[m_tokenIndex + 1].value.type() == Type::kFloat) {
             next(); // '-'
             literal = std::make_unique<parse::LiteralNode>(m_tokenIndex - 1,
                     Literal(-1.0f * m_token.value.asFloat()));
             next(); // literal
-        } else if (m_lexer.tokens()[m_tokenIndex + 1].value.type() == Type::kInteger) {
+        } else if (m_lexer->tokens()[m_tokenIndex + 1].value.type() == Type::kInteger) {
             next(); // '-'
             literal = std::make_unique<parse::LiteralNode>(m_tokenIndex - 1,
                     Literal(-1 * m_token.value.asInteger()));
@@ -1413,7 +1412,7 @@ std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
 //            | arrayelems1 ',' exprseq ':' exprseq
 std::unique_ptr<parse::Node> Parser::parseArrayElements() {
     std::unique_ptr<parse::Node> firstElem;
-    if (m_token.name == Lexer::Token::Name::kKeyword) {
+    if (m_token.name == Token::Name::kKeyword) {
         // keybinop exprseq
         firstElem = std::make_unique<parse::LiteralNode>(m_tokenIndex, Literal(Type::kSymbol));
         next(); // keyword
@@ -1427,7 +1426,7 @@ std::unique_ptr<parse::Node> Parser::parseArrayElements() {
         if (!firstElem) {
             return nullptr;
         }
-        if (m_token.name == Lexer::Token::Name::kColon) {
+        if (m_token.name == Token::Name::kColon) {
             next(); // :
             auto exprSeq = parseExprSeq();
             if (!exprSeq) {
@@ -1437,9 +1436,9 @@ std::unique_ptr<parse::Node> Parser::parseArrayElements() {
         }
     }
 
-    while (m_token.name == Lexer::Token::Name::kComma) {
+    while (m_token.name == Token::Name::kComma) {
         next(); // ,
-        if (m_token.name == Lexer::Token::Name::kKeyword) {
+        if (m_token.name == Token::Name::kKeyword) {
             firstElem->append(std::make_unique<parse::LiteralNode>(m_tokenIndex,
                     Literal(Type::kSymbol)));
             next(); // keyword
@@ -1454,7 +1453,7 @@ std::unique_ptr<parse::Node> Parser::parseArrayElements() {
                 return firstElem;
             }
             firstElem->append(std::move(exprSeq));
-            if (m_token.name == Lexer::Token::Name::kColon) {
+            if (m_token.name == Token::Name::kColon) {
                 next(); // :
                 auto secondSeq = parseExprSeq();
                 if (!secondSeq) {
@@ -1474,7 +1473,7 @@ std::unique_ptr<parse::Node> Parser::parseArgList() {
     if (seq == nullptr) {
         return nullptr;
     }
-    while (m_token.name == Lexer::Token::Name::kComma) {
+    while (m_token.name == Token::Name::kComma) {
         next(); // ,
         auto nextSeq = parseExprSeq();
         if (!nextSeq) {
@@ -1489,7 +1488,7 @@ std::unique_ptr<parse::Node> Parser::parseArgList() {
 // keyarglist1: keyarg | keyarglist1 ',' keyarg
 // keyarg: keybinop exprseq
 std::unique_ptr<parse::KeyValueNode> Parser::parseKeywordArgList() {
-    if (m_token.name != Lexer::Token::Name::kKeyword) {
+    if (m_token.name != Token::Name::kKeyword) {
         return nullptr;
     }
 
@@ -1499,9 +1498,9 @@ std::unique_ptr<parse::KeyValueNode> Parser::parseKeywordArgList() {
     if (keyValue->value == nullptr) {
         return nullptr;
     }
-    while (m_token.name == Lexer::Token::Name::kComma) {
+    while (m_token.name == Token::Name::kComma) {
         next(); // ,
-        if (m_token.name != Lexer::Token::Name::kKeyword) {
+        if (m_token.name != Token::Name::kKeyword) {
             return keyValue;
         }
         auto nextKeyValue = std::make_unique<parse::KeyValueNode>(m_tokenIndex);
@@ -1524,14 +1523,14 @@ std::unique_ptr<parse::KeyValueNode> Parser::parseKeywordArgList() {
 // block: '{' argdecls funcvardecls funcbody '}'
 //      | BEGINCLOSEDFUNC argdecls funcvardecls funcbody '}'
 std::unique_ptr<parse::Node> Parser::parseBlockList() {
-    if (m_token.name != Lexer::Token::Name::kOpenCurly) {
+    if (m_token.name != Token::Name::kOpenCurly) {
         return nullptr;
     }
     auto block = parseBlockOrGenerator();
     if (!block) {
         return nullptr;
     }
-    while (m_token.name == Lexer::Token::Name::kOpenCurly) {
+    while (m_token.name == Token::Name::kOpenCurly) {
         auto nextBlock = parseBlockOrGenerator();
         if (!nextBlock) {
             return block;
@@ -1542,16 +1541,16 @@ std::unique_ptr<parse::Node> Parser::parseBlockList() {
 }
 
 std::unique_ptr<parse::Node> Parser::parseBlockOrGenerator() {
-    assert(m_token.name == Lexer::Token::Name::kOpenCurly);
+    assert(m_token.name == Token::Name::kOpenCurly);
 
     auto block = std::make_unique<parse::BlockNode>(m_tokenIndex);
-    Lexer::Token openBrace = m_token;
+    Token openBrace = m_token;
     next(); // {
     // TODO: generator
     block->arguments = parseArgDecls();
     block->variables = parseFuncVarDecls();
     block->body = parseFuncBody();
-    if (m_token.name != Lexer::Token::Name::kCloseCurly) {
+    if (m_token.name != Token::Name::kCloseCurly) {
         m_errorReporter->addError(fmt::format("Error parsing block at line {}, expecting closing curly brace '}}' to "
                     "match opening curly brace '}}' at line {}", m_errorReporter->getLineNumber(m_token.range.data()),
                     m_errorReporter->getLineNumber(openBrace.range.data())));

@@ -9,18 +9,33 @@
 
 namespace hadron {
 
-SyntaxAnalyzer::SyntaxAnalyzer(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporter(errorReporter) {}
+SyntaxAnalyzer::SyntaxAnalyzer(Parser* parser, std::shared_ptr<ErrorReporter> errorReporter):
+    m_parser(parser),
+    m_lexer(parser->lexer()),
+    m_errorReporter(errorReporter) {}
 
-bool SyntaxAnalyzer::buildAST(const Parser* parser) {
-    const parse::Node* root = parser->root();
+SyntaxAnalyzer::SyntaxAnalyzer(std::string_view code):
+    m_ownParser(std::make_unique<Parser>(code)),
+    m_parser(m_ownParser.get()),
+    m_lexer(m_ownParser->lexer()),
+    m_errorReporter(m_lexer->errorReporter()) {}
+
+bool SyntaxAnalyzer::buildAST() {
+    if (m_ownParser) {
+        if (!m_parser->parse()) {
+            return false;
+        }
+    }
+    const parse::Node* root = m_parser->root();
     if (root->nodeType == parse::NodeType::kBlock) {
         auto blockNode = reinterpret_cast<const parse::BlockNode*>(root);
-        m_ast = buildBlock(parser, blockNode, nullptr);
+        m_ast = buildBlock(blockNode, nullptr);
     }
 
     return m_ast != nullptr;
 }
 
+/*
 void SyntaxAnalyzer::toThreeAddressForm() {
     if (m_ast->astType == ast::ASTType::kBlock) {
         auto block = reinterpret_cast<ast::BlockAST*>(m_ast.get());
@@ -40,9 +55,9 @@ void SyntaxAnalyzer::assignVirtualRegisters() {
         }
     }
 }
+*/
 
-std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, const parse::BlockNode* blockNode,
-        ast::BlockAST* parent) {
+std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const parse::BlockNode* blockNode, ast::BlockAST* parent) {
     auto block = std::make_unique<ast::BlockAST>(parent);
 
     // Insert special return blockValue variable.
@@ -51,10 +66,10 @@ std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, 
 
     // TODO: arguments
     if (blockNode->variables) {
-        fillAST(parser, blockNode->variables.get(), block.get(), &(block->statements));
+        fillAST(blockNode->variables.get(), block.get(), &(block->statements));
     }
     if (blockNode->body) {
-        fillAST(parser, blockNode->body.get(), block.get(), &(block->statements));
+        fillAST(blockNode->body.get(), block.get(), &(block->statements));
     }
 
     // Transform last statment in block into an assignment to the return slot variable, if it isn't already.
@@ -80,38 +95,38 @@ std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, 
     return block;
 }
 
-std::unique_ptr<ast::InlineBlockAST> SyntaxAnalyzer::buildInlineBlock(const Parser* parser,
-        const parse::BlockNode* blockNode, ast::BlockAST* parent) {
+std::unique_ptr<ast::InlineBlockAST> SyntaxAnalyzer::buildInlineBlock(const parse::BlockNode* blockNode,
+    ast::BlockAST* parent) {
     auto inlineBlock = std::make_unique<ast::InlineBlockAST>();
 
     if (blockNode->variables) {
-        fillAST(parser, blockNode->variables.get(), parent, &(inlineBlock->statements));
+        fillAST(blockNode->variables.get(), parent, &(inlineBlock->statements));
     }
     if (blockNode->body) {
-        fillAST(parser, blockNode->body.get(), parent, &(inlineBlock->statements));
+        fillAST(blockNode->body.get(), parent, &(inlineBlock->statements));
     }
 
     return inlineBlock;
 }
 
-std::unique_ptr<ast::ClassAST> SyntaxAnalyzer::buildClass(const Parser* parser, const parse::ClassNode* classNode) {
+std::unique_ptr<ast::ClassAST> SyntaxAnalyzer::buildClass(const parse::ClassNode* classNode) {
     auto classAST = std::make_unique<ast::ClassAST>();
-    auto classToken = parser->tokens()[classNode->tokenIndex];
+    auto classToken = m_lexer->tokens()[classNode->tokenIndex];
     classAST->nameHash = classToken.hash;
     classAST->name = std::string(classToken.range.data(), classToken.range.size());
     if (classNode->superClassNameIndex) {
-        auto superClassToken = parser->tokens()[classNode->superClassNameIndex.value()];
+        auto superClassToken = m_lexer->tokens()[classNode->superClassNameIndex.value()];
         classAST->superClassHash = superClassToken.hash;
     } else {
         classAST->superClassHash = kObjectHash;
     }
     const parse::VarListNode* varList = classNode->variables.get();
     while (varList) {
-        auto varListToken = parser->tokens()[varList->tokenIndex];
+        auto varListToken = m_lexer->tokens()[varList->tokenIndex];
         if (varListToken.hash == kVarHash) {
             const parse::VarDefNode* varDef = varList->definitions.get();
             while (varDef) {
-                auto varNameToken = parser->tokens()[varDef->tokenIndex];
+                auto varNameToken = m_lexer->tokens()[varDef->tokenIndex];
                 classAST->variables.emplace(std::make_pair(varNameToken.hash, ast::Value(std::string(
                         varNameToken.range.data(), varNameToken.range.size()))));
                 if (varDef->next) {
@@ -123,7 +138,7 @@ std::unique_ptr<ast::ClassAST> SyntaxAnalyzer::buildClass(const Parser* parser, 
         } else if (varListToken.hash == kClassVarHash) {
             const parse::VarDefNode* varDef = varList->definitions.get();
             while (varDef) {
-                auto varNameToken = parser->tokens()[varDef->tokenIndex];
+                auto varNameToken = m_lexer->tokens()[varDef->tokenIndex];
                 classAST->classVariables.emplace(std::make_pair(varNameToken.hash, ast::Value(std::string(
                         varNameToken.range.data(), varNameToken.range.size()))));
                 if (varDef->next) {
@@ -135,7 +150,7 @@ std::unique_ptr<ast::ClassAST> SyntaxAnalyzer::buildClass(const Parser* parser, 
         } else if (varListToken.hash == kConstHash) {
             const parse::VarDefNode* varDef = varList->definitions.get();
             while (varDef) {
-                auto varNameToken = parser->tokens()[varDef->tokenIndex];
+                auto varNameToken = m_lexer->tokens()[varDef->tokenIndex];
                 classAST->constants.emplace(std::make_pair(varNameToken.hash, varNameToken.value));
                 if (varDef->next) {
                     if (varDef->next->nodeType == parse::NodeType::kVarDef) {
@@ -157,19 +172,19 @@ std::unique_ptr<ast::ClassAST> SyntaxAnalyzer::buildClass(const Parser* parser, 
 }
 
 // Should clarify that |block| is for finding variables only..
-void SyntaxAnalyzer::fillAST(const Parser* parser, const parse::Node* parseNode, ast::BlockAST* block,
+void SyntaxAnalyzer::fillAST(const parse::Node* parseNode, ast::BlockAST* block,
         std::list<std::unique_ptr<ast::AST>>* ast) {
     switch (parseNode->nodeType) {
     case parse::NodeType::kVarList: {
         const auto varListNode = reinterpret_cast<const parse::VarListNode*>(parseNode);
         if (varListNode->definitions) {
-            fillAST(parser, varListNode->definitions.get(), block, ast);
+            fillAST(varListNode->definitions.get(), block, ast);
         }
     } break;
 
     case parse::NodeType::kVarDef: {
         const auto varDefNode = reinterpret_cast<const parse::VarDefNode*>(parseNode);
-        auto name = parser->tokens()[varDefNode->tokenIndex];
+        auto name = m_lexer->tokens()[varDefNode->tokenIndex];
         // LSC allows hiding of variables outside of local scope, so we do not search up the block tree to check
         // if there is a similarly-named variable up there, though we might want to do so in the future to issue
         // a warning.
@@ -180,7 +195,7 @@ void SyntaxAnalyzer::fillAST(const Parser* parser, const parse::Node* parseNode,
                 ast::Value(std::string(name.range.data(), name.range.size()))));
         auto assign = std::make_unique<ast::AssignAST>();
         if (varDefNode->initialValue) {
-            assign->value = buildExprTree(parser, varDefNode->initialValue.get(), block);
+            assign->value = buildExprTree(varDefNode->initialValue.get(), block);
         } else {
             // Initialize variables to nil if they don't have a specified initial value.
             assign->value = std::make_unique<ast::ConstantAST>(Literal(Type::kNil));
@@ -195,7 +210,7 @@ void SyntaxAnalyzer::fillAST(const Parser* parser, const parse::Node* parseNode,
     case parse::NodeType::kExprSeq: {
         const auto exprSeqNode = reinterpret_cast<const parse::ExprSeqNode*>(parseNode);
         if (exprSeqNode->expr) {
-            fillAST(parser, exprSeqNode->expr.get(), block, ast);
+            fillAST(exprSeqNode->expr.get(), block, ast);
         }
     } break;
 
@@ -204,7 +219,7 @@ void SyntaxAnalyzer::fillAST(const Parser* parser, const parse::Node* parseNode,
     case parse::NodeType::kCall:
     case parse::NodeType::kLiteral:
     case parse::NodeType::kName:
-        ast->emplace_back(buildExprTree(parser, parseNode, block));
+        ast->emplace_back(buildExprTree(parseNode, block));
         break;
 
     default:
@@ -212,12 +227,11 @@ void SyntaxAnalyzer::fillAST(const Parser* parser, const parse::Node* parseNode,
     }
 
     if (parseNode->next) {
-        fillAST(parser, parseNode->next.get(), block, ast);
+        fillAST(parseNode->next.get(), block, ast);
     }
 }
 
-std::unique_ptr<ast::AST> SyntaxAnalyzer::buildExprTree(const Parser* parser, const parse::Node* parseNode,
-        ast::BlockAST* block) {
+std::unique_ptr<ast::AST> SyntaxAnalyzer::buildExprTree(const parse::Node* parseNode, ast::BlockAST* block) {
     switch (parseNode->nodeType) {
     case parse::NodeType::kLiteral: {
         const auto literalNode = reinterpret_cast<const parse::LiteralNode*>(parseNode);
@@ -226,7 +240,7 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildExprTree(const Parser* parser, co
 
     case parse::NodeType::kName: {
         const auto nameNode = reinterpret_cast<const parse::NameNode*>(parseNode);
-        auto name = findValue(parser->tokens()[nameNode->tokenIndex].hash, block, false);
+        auto name = findValue(m_lexer->tokens()[nameNode->tokenIndex].hash, block, false);
         if (!name) {
             // TODO: name not found error reporting
         }
@@ -235,19 +249,19 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildExprTree(const Parser* parser, co
 
     case parse::NodeType::kBinopCall: {
         const auto binopNode = reinterpret_cast<const parse::BinopCallNode*>(parseNode);
-        return buildBinop(parser, binopNode, block);
+        return buildBinop(binopNode, block);
     } break;
 
     case parse::NodeType::kCall: {
         const auto callNode = reinterpret_cast<const parse::CallNode*>(parseNode);
-        return buildCall(parser, callNode, block);
+        return buildCall(callNode, block);
     } break;
 
     case parse::NodeType::kAssign: {
         const auto assignNode = reinterpret_cast<const parse::AssignNode*>(parseNode);
         auto assign = std::make_unique<ast::AssignAST>();
-        auto nameToken = parser->tokens()[assignNode->name->tokenIndex];
-        assign->value = buildExprTree(parser, assignNode->value.get(), block);
+        auto nameToken = m_lexer->tokens()[assignNode->name->tokenIndex];
+        assign->value = buildExprTree(assignNode->value.get(), block);
         assign->target = findValue(nameToken.hash, block, true);
         assign->target->valueType = assign->value->valueType;
         assign->valueType = assign->value->valueType;
@@ -261,9 +275,8 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildExprTree(const Parser* parser, co
     return nullptr;
 }
 
-std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const parse::CallNode* callNode,
-        ast::BlockAST* block) {
-    auto callToken = parser->tokens()[callNode->tokenIndex];
+std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const parse::CallNode* callNode, ast::BlockAST* block) {
+    auto callToken = m_lexer->tokens()[callNode->tokenIndex];
     // Might make sense to build a more strict call => dispatchAST transformation first, then after type analysis pass
     // could more easily pattern match the dispatches to lower-level stuff
     switch (callToken.hash) {
@@ -277,7 +290,7 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const 
         // target can contain the condition argument, or it can be the first argument.
         if (callNode->target) {
             if (callNode->target->nodeType == parse::NodeType::kBlock) {
-                whileAST->condition = buildInlineBlock(parser, reinterpret_cast<const parse::BlockNode*>(
+                whileAST->condition = buildInlineBlock(reinterpret_cast<const parse::BlockNode*>(
                     callNode->target.get()), block);
                 if (callNode->arguments && callNode->arguments->nodeType == parse::NodeType::kBlock) {
                     actionNode = reinterpret_cast<const parse::BlockNode*>(callNode->arguments.get());
@@ -288,7 +301,7 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const 
             }
         } else {
             if (callNode->arguments && callNode->arguments->nodeType == parse::NodeType::kBlock) {
-                whileAST->condition = buildInlineBlock(parser, reinterpret_cast<const parse::BlockNode*>(
+                whileAST->condition = buildInlineBlock(reinterpret_cast<const parse::BlockNode*>(
                     callNode->arguments.get()), block);
                 if (callNode->arguments->next && callNode->arguments->next->nodeType == parse::NodeType::kBlock) {
                     actionNode = reinterpret_cast<const parse::BlockNode*>(callNode->arguments->next.get());
@@ -298,7 +311,7 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const 
             }
         }
         if (actionNode) {
-            whileAST->action = buildInlineBlock(parser, actionNode, block);
+            whileAST->action = buildInlineBlock(actionNode, block);
             return whileAST;
         }
     } break;
@@ -308,10 +321,10 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const 
     dispatch->selectorHash = callToken.hash;
     dispatch->selector = std::string(callToken.range.data(), callToken.range.size());
     if (callNode->target) {
-        fillAST(parser, callNode->target.get(), block, &(dispatch->arguments));
+        fillAST(callNode->target.get(), block, &(dispatch->arguments));
     }
     if (callNode->arguments) {
-        fillAST(parser, callNode->arguments.get(), block, &(dispatch->arguments));
+        fillAST(callNode->arguments.get(), block, &(dispatch->arguments));
     }
     // TODO: keyword arguments
     return dispatch;
@@ -322,12 +335,11 @@ std::unique_ptr<ast::AST> SyntaxAnalyzer::buildCall(const Parser* parser, const 
 // rewrite it to 3-address form. - Calculate->left should always be a Value in this form.
 
 // also a subsequent pass for block inlining.
-std::unique_ptr<ast::AST> SyntaxAnalyzer::buildBinop(const Parser* parser, const parse::BinopCallNode* binopNode,
-        ast::BlockAST* block) {
+std::unique_ptr<ast::AST> SyntaxAnalyzer::buildBinop(const parse::BinopCallNode* binopNode, ast::BlockAST* block) {
     // Type of both operands really matters, so check both sides for type.
-    auto left = buildExprTree(parser, binopNode->leftHand.get(), block);
-    auto right = buildExprTree(parser, binopNode->rightHand.get(), block);
-    auto binopToken = parser->tokens()[binopNode->tokenIndex];
+    auto left = buildExprTree(binopNode->leftHand.get(), block);
+    auto right = buildExprTree(binopNode->rightHand.get(), block);
+    auto binopToken = m_lexer->tokens()[binopNode->tokenIndex];
 
     if ((left->valueType & (Type::kInteger | Type::kFloat)) && (right->valueType & (Type::kInteger | Type::kFloat))) {
         switch (binopToken.hash) {
@@ -401,6 +413,7 @@ std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(Hash nameHash, ast::Blo
     return nullptr;
 }
 
+/*
 void SyntaxAnalyzer::lowerTo3AF(ast::AST* ast, ast::BlockAST* block,
         std::list<std::unique_ptr<ast::AST>>::iterator currentStatement) {
     switch (ast->astType) {
@@ -576,5 +589,5 @@ void SyntaxAnalyzer::assignRegistersToBlock(ast::AST* ast, ast::BlockAST* block,
         break;
     }
 }
-
+*/
 } // namespace hadron

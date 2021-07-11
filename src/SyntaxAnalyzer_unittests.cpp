@@ -1,38 +1,23 @@
 #include "hadron/SyntaxAnalyzer.hpp"
 
 #include "hadron/ErrorReporter.hpp"
-#include "hadron/Parser.hpp"
 #include "hadron/Hash.hpp"
+#include "hadron/Lexer.hpp"
+#include "hadron/Parser.hpp"
 
 #include "doctest/doctest.h"
 
 #include <memory>
 #include <string_view>
 
-namespace {
-std::unique_ptr<hadron::SyntaxAnalyzer> buildFromSource(std::string_view code) {
-    hadron::Parser parser(code);
-    if (!parser.parse()) {
-        return nullptr;
-    }
-
-    auto analyzer = std::make_unique<hadron::SyntaxAnalyzer>(parser.errorReporter());
-    if (!analyzer->buildAST(&parser)) {
-        return nullptr;
-    }
-
-    return analyzer;
-}
-} // namespace
-
 namespace hadron {
 
 TEST_CASE("Identifier Resolution") {
     SUBCASE("Local Variable") {
-        auto analyzer = buildFromSource("( var a = 3; a )");
-        REQUIRE(analyzer);
-        REQUIRE(analyzer->ast()->astType == ast::ASTType::kBlock);
-        const auto block = reinterpret_cast<const ast::BlockAST*>(analyzer->ast());
+        auto analyzer = SyntaxAnalyzer("( var a = 3; a )");
+        REQUIRE(analyzer.buildAST());
+        REQUIRE(analyzer.ast()->astType == ast::ASTType::kBlock);
+        const auto block = reinterpret_cast<const ast::BlockAST*>(analyzer.ast());
         CHECK(block->parent == nullptr);
         CHECK(block->arguments.size() == 0);
         CHECK(block->variables.size() == 2);

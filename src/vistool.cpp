@@ -3,6 +3,7 @@
 #include "FileSystem.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
+#include "hadron/Lexer.hpp"
 #include "hadron/Literal.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/SyntaxAnalyzer.hpp"
@@ -135,7 +136,7 @@ std::string htmlEscape(std::string_view view) {
 }
 
 void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& serial, const hadron::parse::Node* node) {
-    auto token = parser.tokens()[node->tokenIndex];
+    auto token = parser.lexer()->tokens()[node->tokenIndex];
     int nodeSerial = serial;
     ++serial;
     // Make an edge in gray from this parse tree node to the token in the code subgraph that it relates to.
@@ -768,7 +769,12 @@ int main(int argc, char* argv[]) {
     }
 
     auto errorReporter = std::make_shared<hadron::ErrorReporter>();
-    hadron::Parser parser(std::string_view(fileContents.get(), fileSize), errorReporter);
+    hadron::Lexer lexer(std::string_view(fileContents.get(), fileSize), errorReporter);
+    if (!lexer.lex()) {
+        spdlog::error("Failed to lex file {}", filePath.string());
+        return -1;
+    }
+    hadron::Parser parser(&lexer, errorReporter);
     if (!parser.parse()) {
         spdlog::error("Failed to parse file {}", filePath.string());
         return -1;
@@ -786,20 +792,20 @@ int main(int argc, char* argv[]) {
         outFile << "        edge [style=\"invis\"]" << std::endl;
         size_t currentLine = 1;
         size_t tokenIndex = 0;
-        while (tokenIndex < parser.tokens().size()) {
+        while (tokenIndex < parser.lexer()->tokens().size()) {
             outFile << fmt::format("        line_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" "
                 "cellspacing=\"0\"><tr><td><font point-size=\"24\">line {}:</font></td>", currentLine, currentLine);
-            size_t tokenLine = errorReporter->getLineNumber(parser.tokens()[tokenIndex].range.data());
+            size_t tokenLine = errorReporter->getLineNumber(parser.lexer()->tokens()[tokenIndex].range.data());
             int tokenLineCount = 0;
             while (tokenLine == currentLine) {
                 outFile << fmt::format("<td port=\"token_{}\"><font face=\"monospace\" "
                     "point-size=\"24\">{}</font></td>", tokenIndex,
-                    htmlEscape(std::string(parser.tokens()[tokenIndex].range.data(),
-                        parser.tokens()[tokenIndex].range.size())));
+                    htmlEscape(std::string(parser.lexer()->tokens()[tokenIndex].range.data(),
+                        parser.lexer()->tokens()[tokenIndex].range.size())));
                 ++tokenLineCount;
                 ++tokenIndex;
-                if (tokenIndex < parser.tokens().size()) {
-                    tokenLine = errorReporter->getLineNumber(parser.tokens()[tokenIndex].range.data());
+                if (tokenIndex < parser.lexer()->tokens().size()) {
+                    tokenLine = errorReporter->getLineNumber(parser.lexer()->tokens()[tokenIndex].range.data());
                 } else {
                     tokenLine = 0;
                 }
@@ -815,15 +821,15 @@ int main(int argc, char* argv[]) {
         visualizeParseNode(outFile, parser, serial, parser.root());
         outFile << "}" << std::endl;
     } else if (FLAGS_syntaxTree) {
-        hadron::SyntaxAnalyzer syntaxAnalyzer(errorReporter);
-        if (!syntaxAnalyzer.buildAST(&parser)) {
+        hadron::SyntaxAnalyzer syntaxAnalyzer(&parser, errorReporter);
+        if (!syntaxAnalyzer.buildAST()) {
             spdlog::error("Failed to build AST from parse tree in file {}", filePath.string());
             return -1;
         }
 
         if (FLAGS_optimizeTree) {
-            syntaxAnalyzer.toThreeAddressForm();
-            syntaxAnalyzer.assignVirtualRegisters();
+//            syntaxAnalyzer.toThreeAddressForm();
+//            syntaxAnalyzer.assignVirtualRegisters();
         }
 
         outFile << fmt::format("// syntax tree visualization of {}\n", FLAGS_inputFile);

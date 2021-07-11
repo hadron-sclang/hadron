@@ -5,7 +5,6 @@
 #include "hadron/Slot.hpp"
 #include "hadron/SyntaxAnalyzer.hpp"
 #include "Keywords.hpp"
-#include "RegisterAllocator.hpp"
 
 namespace hadron {
 
@@ -17,40 +16,39 @@ CodeGenerator::CodeGenerator(std::shared_ptr<ErrorReporter> errorReporter): m_er
 
 bool CodeGenerator::jitBlock(const ast::BlockAST* block, JIT* jit) {
     jit->prolog();
-    RegisterAllocator allocator(block, jit);
-    allocator.setupStack();
     for (const auto& statement : block->statements) {
-        jitAST(statement.get(), jit, &allocator);
+        jitAST(statement.get(), jit);
     }
     jit->epilog();
     return true;
 }
 
-void CodeGenerator::jitAST(const ast::AST* ast, JIT* jit, RegisterAllocator* allocator) {
+void CodeGenerator::jitAST(const ast::AST* /* ast */, JIT* /* jit */) {
+/*
     switch (ast->astType) {
     // No type checking right now, none at all
     case hadron::ast::ASTType::kAssign: {
         const auto assign = reinterpret_cast<const hadron::ast::AssignAST*>(ast);
-        JIT::Reg targetReg = allocator->allocate(assign->target->registerNumber);
+        JIT::Reg targetReg = 0;
         if (assign->value->astType == hadron::ast::ASTType::kValue) {
-            const auto target = reinterpret_cast<const hadron::ast::ValueAST*>(assign->value.get());
-            JIT::Reg valueReg = allocator->allocate(target->registerNumber);
+//            const auto target = reinterpret_cast<const hadron::ast::ValueAST*>(assign->value.get());
+//            JIT::Reg valueReg = 0;
             // movr %targetReg, %valueReg
             jit->movr(targetReg, valueReg);
         } else if (assign->value->astType == hadron::ast::ASTType::kCalculate) {
             const auto calc = reinterpret_cast<const hadron::ast::CalculateAST*>(assign->value.get());
             // Assumption is it's always a Value on the left and either a Value or Constant on the right,
             // this would happen as part of 3-address tree shaping during Syntax Analysis
-            const auto left = reinterpret_cast<const hadron::ast::ValueAST*>(calc->left.get());
-            JIT::Reg leftReg = allocator->allocate(left->registerNumber);
+//            const auto left = reinterpret_cast<const hadron::ast::ValueAST*>(calc->left.get());
+//            JIT::Reg leftReg = 0;
             if (calc->selector == hadron::kAddHash) {
                 if (calc->right->astType == hadron::ast::ASTType::kConstant) {
                     const auto right = reinterpret_cast<const hadron::ast::ConstantAST*>(calc->right.get());
                     // addi %targetReg, %leftReg, right
                     jit->addi(targetReg, leftReg, right->value.asInteger());
                 } else {
-                    const auto right = reinterpret_cast<const hadron::ast::ValueAST*>(calc->right.get());
-                    JIT::Reg rightReg = allocator->allocate(right->registerNumber);
+//                    const auto right = reinterpret_cast<const hadron::ast::ValueAST*>(calc->right.get());
+//                    JIT::Reg rightReg = 0;
                     // addr %targetReg, %leftReg, %rightReg
                     jit->addr(targetReg, leftReg, rightReg);
                 }
@@ -80,6 +78,7 @@ void CodeGenerator::jitAST(const ast::AST* ast, JIT* jit, RegisterAllocator* all
 default:
 break;
     }
+    */
 }
 
 }  // namespace hadron
