@@ -35,12 +35,12 @@ TEST_CASE("Identifier Resolution") {
         const auto block = reinterpret_cast<const ast::BlockAST*>(analyzer->ast());
         CHECK(block->parent == nullptr);
         CHECK(block->arguments.size() == 0);
-        CHECK(block->variables.size() == 3);
+        CHECK(block->variables.size() == 2);
         auto value = block->variables.find(hash("a"));
         REQUIRE(value != block->variables.end());
         CHECK(value->second.name == "a");
-        // Expecting two statements, the first to initialize the variable a to 3, the second to store a in the return
-        // value, the last to return it.
+        // Expecting three statements, the first to initialize the variable a to 3, the second to store a in the return
+        // value, the last to store the return value in a slot.
         CHECK(block->statements.size() == 3);
         auto statement = block->statements.begin();
         REQUIRE((*statement)->astType == ast::ASTType::kAssign);
@@ -59,7 +59,7 @@ TEST_CASE("Identifier Resolution") {
         REQUIRE((*statement)->astType == ast::ASTType::kAssign);
         assign = reinterpret_cast<const ast::AssignAST*>(statement->get());
         REQUIRE(assign->target);
-        CHECK(assign->target->nameHash == hash("^"));
+        CHECK(assign->target->nameHash == hash("_blockValue"));
         CHECK(assign->target->owningBlock == block);
         CHECK(assign->target->isWrite);
         CHECK(!assign->target->isLastReference);
@@ -70,6 +70,7 @@ TEST_CASE("Identifier Resolution") {
         CHECK(retVal->owningBlock == block);
         CHECK(!retVal->isWrite);
         CHECK(retVal->isLastReference);
+        // TODO: check third statement
     }
 
     SUBCASE("local variable in outer scope") {

@@ -33,13 +33,17 @@ namespace ast {
         kConstant,
         kDispatch,    // method call
         kValue,
-        kReturn,      // exit the block, returning a Slot value
         kWhile,       // while loop
         kClass,       // class definition
-        kSlotLoad,    // Load or store a value in a Slot
-        kSlotStore,
-        kAliasRegister,   // Associate a virtual register with a Value (lowered only)
-        kUnaliasRegister, // Mark virtual register as free  (lowered only)
+        kLoadFromSlot,
+        kSaveToSlot,
+
+        // == lower-level concepts here
+        kLoadAddress,     // Initialize an _addr variable with the correct address.
+        kLoad,            // Load or store a value in memory
+        kStore,
+        kAliasRegister,   // Associate a virtual register with a Value
+        kUnaliasRegister, // Mark virtual register as free
     };
 
     struct AST {
@@ -90,6 +94,7 @@ namespace ast {
         std::list<std::unique_ptr<AST>> statements;
     };
 
+    // Represents something that needs to be live in a register for manipulation.
     struct ValueAST : public AST {
         ValueAST(Hash hash, BlockAST* block): AST(kValue), nameHash(hash), owningBlock(block) {}
         ValueAST() = delete;
@@ -100,30 +105,15 @@ namespace ast {
         bool isWrite = false;
         bool isLastReference = true;
         int registerNumber = -1;
+        bool isAddress = false;
     };
 
-    // Load something from a slot into a virtual register, for mapping arguments into values.
-    struct SlotLoadAST : public AST {
-        SlotLoadAST(): AST(kSlotLoad) {}
-        virtual ~SlotLoadAST() = default;
+    // Store a typed Value (virtual register) into a slot.
+    struct SaveToSlotAST : public AST {
+        SaveToSlotAST(): AST(kSaveToSlot) {}
+        virtual ~SaveToSlotAST() = default;
 
-    };
-
-    // Store a typed    virtual register into a slot.
-    struct SlotStoreAST : public AST {
-        SlotStoreAST(): AST(kSlotStore) {}
-        virtual ~SlotStoreAST() = default;
-
-        // Need a register to load the Type enum into, because writing to memory is from register-only.
-        std::unique_ptr<ValueAST> typeStore;
-        std::unique_ptr<ValueAST> slotAddress;
-        std::unique_ptr<ValueAST> storeValue;
-    };
-
-    struct ReturnAST : public AST {
-        ReturnAST(std::unique_ptr<SlotStoreAST> v): AST(kReturn), value(std::move(v)) {}
-        virtual ~ReturnAST() = default;
-        std::unique_ptr<SlotStoreAST> value;
+        std::unique_ptr<ValueAST> value;
     };
 
     struct AssignAST : public AST {
@@ -181,6 +171,24 @@ namespace ast {
         std::unordered_map<Hash, std::string> names;
     };
 
+    struct LoadAddressAST: public AST {
+        LoadAddressAST(std::unique_ptr<ValueAST> addr): AST(kLoadAddress), address(std::move(addr)) {}
+        LoadAddressAST() = delete;
+        virtual ~LoadAddressAST() = default;
+
+        // this could just be a register number
+        std::unique_ptr<ValueAST> address;
+    };
+
+    struct StoreAST : public AST {
+        StoreAST(): AST(kStore) {}
+        virtual ~StoreAST() = default;
+
+        std::unique_ptr<ValueAST> address;
+        std::unique_ptr<AST> offset;  // can be null, another non-address value, or a constant integer
+        std::unique_ptr<ValueAST> value;  // must be a virtual register
+    };
+
     struct AliasRegisterAST : public AST {
         AliasRegisterAST(int reg, Hash hash): AST(kAliasRegister), registerNumber(reg), nameHash(hash) {}
         AliasRegisterAST() = delete;
@@ -188,6 +196,8 @@ namespace ast {
 
         int registerNumber;
         Hash nameHash;
+
+        // Could have block of assigned virtual registers and time until next use?
     };
 
     struct UnaliasRegisterAST : public AST {
@@ -209,7 +219,7 @@ public:
 
     // Convert from Parse Tree, bringing in Control Flow and type deduction. Also automatic conversion of Binops to
     // lowered type-specific versions. This output tree is suitable for direct translation into C++ code, or with
-    // another pass in toThreeAddressForm() can then be used for JIT code generation.
+    // subsequent passes is suitable for use in a CodeGenerator for JIT.
     bool buildAST(const Parser* parser);
 
     // Anytime a ValueAST is provably a known value, replace it in the tree with a ConstantAST.
@@ -221,10 +231,29 @@ public:
     // Drop unused variables
     // bool pruneUnusedVariables();
 
-    // Lower tree to three-address form.
-    bool toThreeAddressForm();
+    // OK, the big problem is that tree manipulation is like the whole point of doing the syntax tree in the first
+    // place, making things like type inference and constant propagation possible. But, every time the tree gets
+    // modified the Value reference pointers and all of the state tracking within ValueAST get broken. So the idea
+    // is to make ValueAST into something with lazy inialization, meaning it really just has a Type and a descendent
+    // tree which is the initial value (if it's an ARG then the initial value is a loadArg operation and the type is
+    // always Slot. If it's a variable than the initial value is always type of literal assigned, or a nil.
+    // Type deduction can then happen, and it can track variable usage in internal tables on tree traversal.
+    // Lazy initialization in C++ code gen means we only declare and initialize variables close to their use.
+    // in JIT it means we try to allocate registers to values only when they are likely to be read in operations,
+    // to keep the time a variable is "live" very small, and we only emit bytecode for loading values into those
+    // values right before they are needed. Type deduction could probably happen on the first pass, still, just
+    // with tables not stored in the actual tree.
 
-    // Pack ValueASTs into virtual registers per Block, including maps and unmaps.
+    // For 3AF, thinking first pass converts AST to JIT bytecode using vector<int64_t> as backing store, and doing
+    // virtual register allocation. We add commands to the JIT for allocating and freeing registers, which allows
+    // machine-indendent VirtualJIT to allocate virtual registers, and then for CodeGenerator to convert that into
+    // real JIT.
+
+    // Lower tree to three-address form.
+    void toThreeAddressForm();
+
+    // Pack ValueASTs into virtual registers per Block, including maps and unmaps. Tree manipulation after this call
+    // will break code generation.
     void assignVirtualRegisters();
 
     const ast::AST* ast() const { return m_ast.get(); }
@@ -252,6 +281,11 @@ private:
     std::unique_ptr<ast::ValueAST> findValue(Hash nameHash, ast::BlockAST* block, bool isWrite);
 
     // ==== toThreeAddressForm helpers
+    void lowerTo3AF(ast::AST* ast, ast::BlockAST* block,
+        std::list<std::unique_ptr<ast::AST>>::iterator currentStatement);
+    // Always assume these are for writing first.
+    std::unique_ptr<ast::ValueAST> makeNewTempValue(ast::BlockAST* block);
+    std::unique_ptr<ast::ValueAST> findAddress(Hash nameHash, ast::BlockAST* block, bool isWrite);
 
     // ==== assignVirtualRegisters helpers
     void assignRegistersToBlock(ast::AST* ast, ast::BlockAST* block, std::unordered_map<Hash, int>& activeRegisters,

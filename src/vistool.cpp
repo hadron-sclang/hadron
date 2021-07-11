@@ -634,24 +634,43 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
         }
     } break;
 
-    case hadron::ast::ASTType::kReturn: {
-        const auto returnAST = reinterpret_cast<const hadron::ast::ReturnAST*>(ast);
-        outFile << fmt::format("    ast_{} [peripheries=\"2\" label=\"return\"]\n", astSerial);
+    case hadron::ast::ASTType::kLoadAddress: {
+        const auto loadAddress = reinterpret_cast<const hadron::ast::LoadAddressAST*>(ast);
+        outFile << fmt::format("    ast_{} [label=\"&\"]\n", astSerial);
         outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-        visualizeAST(outFile, serial, returnAST->value.get(), regs, symbols);
+        visualizeAST(outFile, serial, loadAddress->address.get(), regs, symbols);
     } break;
 
-    case hadron::ast::ASTType::kSlotLoad: {
+    case hadron::ast::ASTType::kLoad: {
 
     } break;
 
-    case hadron::ast::ASTType::kSlotStore: {
-        const auto store = reinterpret_cast<const hadron::ast::SlotStoreAST*>(ast);
-        outFile << fmt::format("    ast_{} [shape=invhouse label=\"slot store\"]\n", astSerial);
+    case hadron::ast::ASTType::kStore: {
+        const auto store = reinterpret_cast<const hadron::ast::StoreAST*>(ast);
+        outFile << fmt::format("    ast_{} [label=\"store\"]\n", astSerial);
+        if (store->address) {
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, store->address.get(), regs, symbols);
+        }
+        if (store->offset) {
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, store->offset.get(), regs, symbols);
+        }
+        if (store->value) {
+            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+            visualizeAST(outFile, serial, store->value.get(), regs, symbols);
+        }
+    } break;
+
+    case hadron::ast::ASTType::kLoadFromSlot: {
+
+    } break;
+
+    case hadron::ast::ASTType::kSaveToSlot: {
+        const auto save = reinterpret_cast<const hadron::ast::SaveToSlotAST*>(ast);
+        outFile << fmt::format("    ast_{} [shape=house label=\"slot store\"]\n", astSerial);
         outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-        visualizeAST(outFile, serial, store->slotAddress.get(), regs, symbols);
-        outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-        visualizeAST(outFile, serial, store->storeValue.get(), regs, symbols);
+        visualizeAST(outFile, serial, save->value.get(), regs, symbols);
     } break;
 
     case hadron::ast::ASTType::kAliasRegister: {
@@ -803,6 +822,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (FLAGS_optimizeTree) {
+            syntaxAnalyzer.toThreeAddressForm();
             syntaxAnalyzer.assignVirtualRegisters();
         }
 

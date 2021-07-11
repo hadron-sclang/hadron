@@ -1,6 +1,7 @@
 #include "hadron/SyntaxAnalyzer.hpp"
 
 #include "hadron/Lexer.hpp"
+#include "hadron/Slot.hpp"
 #include "hadron/Parser.hpp"
 #include "Keywords.hpp"
 
@@ -20,6 +21,15 @@ bool SyntaxAnalyzer::buildAST(const Parser* parser) {
     return m_ast != nullptr;
 }
 
+void SyntaxAnalyzer::toThreeAddressForm() {
+    if (m_ast->astType == ast::ASTType::kBlock) {
+        auto block = reinterpret_cast<ast::BlockAST*>(m_ast.get());
+        for (auto statement = block->statements.begin(); statement != block->statements.end(); ++statement) {
+            lowerTo3AF(statement->get(), block, statement);
+        }
+    }
+}
+
 void SyntaxAnalyzer::assignVirtualRegisters() {
     std::unordered_map<Hash, int> activeRegisters;
     std::unordered_set<int> freeRegisters;
@@ -35,9 +45,9 @@ std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, 
         ast::BlockAST* parent) {
     auto block = std::make_unique<ast::BlockAST>(parent);
 
-    // Insert special return value sentinel variable.
-    block->variables.emplace(std::make_pair(kCaretHash, ast::Value("^")));
-    block->variables.emplace(std::make_pair(kCaretAddressHash, ast::Value("_addr_^")));
+    // Insert special return blockValue variable.
+    Hash blockValueHash = hash("_blockValue");
+    block->variables.emplace(std::make_pair(blockValueHash, ast::Value("_blockValue")));
 
     // TODO: arguments
     if (blockNode->variables) {
@@ -47,29 +57,26 @@ std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const Parser* parser, 
         fillAST(parser, blockNode->body.get(), block.get(), &(block->statements));
     }
 
-    // Transform last statment in block into an assignment to the return sentinel variable, if it isn't already.
+    // Transform last statment in block into an assignment to the return slot variable, if it isn't already.
     bool hasReturn = false;
     if (block->statements.size()) {
         if (block->statements.back()->astType == ast::ASTType::kAssign) {
             auto lastAssign = reinterpret_cast<ast::AssignAST*>(block->statements.back().get());
-            hasReturn = (lastAssign->target->nameHash == kCaretHash);
+            hasReturn = (lastAssign->target->nameHash == blockValueHash);
         }
         if (!hasReturn) {
             auto assign = std::make_unique<ast::AssignAST>();
             assign->value = std::move(block->statements.back());
-            assign->target = findValue(kCaretHash, block.get(), true);
+            assign->target = findValue(blockValueHash, block.get(), true);
             assign->target->valueType = assign->value->valueType;
             assign->valueType = assign->target->valueType;
             block->statements.back() = std::move(assign);
         }
     }
 
-    auto store = std::make_unique<ast::SlotStoreAST>();
-    // emplace() will not overwrite existing values.
-    store->slotAddress = findValue(kCaretAddressHash, block.get(), true);
-    store->storeValue = findValue(kCaretHash, block.get(), false);
-    // Always append a Return statement returning the sentinel return value.
-    block->statements.emplace_back(std::make_unique<ast::ReturnAST>(std::move(store)));
+    auto save = std::make_unique<ast::SaveToSlotAST>();
+    save->value = findValue(blockValueHash, block.get(), false);
+    block->statements.emplace_back(std::move(save));
     return block;
 }
 
@@ -394,6 +401,70 @@ std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findValue(Hash nameHash, ast::Blo
     return nullptr;
 }
 
+void SyntaxAnalyzer::lowerTo3AF(ast::AST* ast, ast::BlockAST* block,
+        std::list<std::unique_ptr<ast::AST>>::iterator currentStatement) {
+    switch (ast->astType) {
+    case ast::kSaveToSlot: {
+        auto saveToSlot = reinterpret_cast<ast::SaveToSlotAST*>(ast);
+        // Load the address of the slot into a register.
+        block->statements.emplace(currentStatement, std::make_unique<ast::LoadAddressAST>(
+            findAddress(saveToSlot->value->nameHash, block, true)));
+
+        // Load the slot type into a register so it can be written into memory
+        auto tempValue = makeNewTempValue(block);
+        auto tempHash = tempValue->nameHash;
+        auto initTemp = std::make_unique<ast::AssignAST>();
+        initTemp->target = std::move(tempValue);
+        initTemp->value = std::make_unique<ast::ConstantAST>(Literal(static_cast<int32_t>(Type::kInteger)));
+        block->statements.emplace(currentStatement, std::move(initTemp));
+
+        // Store the type into the Slot memory
+        auto storeType = std::make_unique<ast::StoreAST>();
+        storeType->address = findAddress(saveToSlot->value->nameHash, block, false);
+        if (offsetof(Slot, type)) {
+            storeType->offset = std::make_unique<ast::ConstantAST>(Literal(static_cast<int32_t>(offsetof(Slot, type))));
+        }
+        storeType->value = findValue(tempHash, block, false);
+        block->statements.emplace(currentStatement, std::move(storeType));
+
+        // Store the integer value into the Slot memory
+        auto storeValue = std::make_unique<ast::StoreAST>();
+        storeValue->address = findAddress(saveToSlot->value->nameHash, block, false);
+        if (offsetof(Slot, intValue)) {
+            storeValue->offset = std::make_unique<ast::ConstantAST>(
+                Literal(static_cast<int32_t>(offsetof(Slot, intValue))));
+        }
+        storeValue->value = std::move(saveToSlot->value);
+
+        // This final store replaces the current statement in the block.
+        *(currentStatement) = std::move(storeValue);
+    } break;
+
+    default:
+        break;
+    }
+}
+
+std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::makeNewTempValue(ast::BlockAST* block) {
+    std::string tempName = fmt::format("_temp_{}", block->numberOfTemporaryVariables);
+    ++block->numberOfTemporaryVariables;
+    Hash nameHash = hash(tempName);
+    block->variables.emplace(std::make_pair(nameHash, ast::Value(tempName)));
+    return findValue(nameHash, block, true);
+}
+
+std::unique_ptr<ast::ValueAST> SyntaxAnalyzer::findAddress(Hash nameHash, ast::BlockAST* block, bool isWrite) {
+    std::string addrName = fmt::format("_addr_{:016x}", nameHash);
+    Hash addrNameHash = hash(addrName);
+    auto addr = findValue(addrNameHash, block, isWrite);
+    if (!addr) {
+        block->variables.emplace(std::make_pair(addrNameHash, ast::Value(addrName)));
+        addr = findValue(addrNameHash, block, isWrite);
+        addr->isAddress = true;
+    }
+    return addr;
+}
+
 void SyntaxAnalyzer::assignRegistersToBlock(ast::AST* ast, ast::BlockAST* block,
         std::unordered_map<Hash, int>& activeRegisters, std::unordered_set<int>& freeRegisters,
         std::list<std::unique_ptr<ast::AST>>::iterator currentStatement) {
@@ -452,11 +523,6 @@ void SyntaxAnalyzer::assignRegistersToBlock(ast::AST* ast, ast::BlockAST* block,
         }
     } break;
 
-    case ast::ASTType::kReturn: {
-        auto returnAST = reinterpret_cast<ast::ReturnAST*>(ast);
-        assignRegistersToBlock(returnAST->value.get(), block, activeRegisters, freeRegisters, currentStatement);
-    } break;
-
     case ast::ASTType::kAssign: {
         auto assign = reinterpret_cast<ast::AssignAST*>(ast);
         assignRegistersToBlock(assign->value.get(), block, activeRegisters, freeRegisters, currentStatement);
@@ -483,14 +549,23 @@ void SyntaxAnalyzer::assignRegistersToBlock(ast::AST* ast, ast::BlockAST* block,
         // TODO: Weird internal error.
     } break;
 
-    case ast::ASTType::kSlotLoad: {
+    case ast::ASTType::kLoadFromSlot: {
         // TODO
     } break;
 
-    case ast::ASTType::kSlotStore: {
-        auto store = reinterpret_cast<ast::SlotStoreAST*>(ast);
-        assignRegistersToBlock(store->slotAddress.get(), block, activeRegisters, freeRegisters, currentStatement);
-        assignRegistersToBlock(store->storeValue.get(), block, activeRegisters, freeRegisters, currentStatement);
+    case ast::ASTType::kSaveToSlot: {
+        // not part of valid 3AF
+    } break;
+
+    case ast::ASTType::kLoadAddress: {
+        auto loadAddress = reinterpret_cast<ast::LoadAddressAST*>(ast);
+        assignRegistersToBlock(loadAddress->address.get(), block, activeRegisters, freeRegisters, currentStatement);
+    } break;
+
+    case ast::ASTType::kLoad: {
+    } break;
+
+    case ast::ASTType::kStore: {
     } break;
 
     case ast::ASTType::kUnaliasRegister:

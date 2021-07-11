@@ -76,21 +76,7 @@ void CodeGenerator::jitAST(const ast::AST* ast, JIT* jit, RegisterAllocator* all
         // TODO for block inlining
     } break;
 
-    case hadron::ast::ASTType::kSlotLoad: {
-        // TODO for arguments
-    } break;
 
-    case hadron::ast::ASTType::kSlotStore: {
-        const auto store = reinterpret_cast<const hadron::ast::SlotStoreAST*>(ast);
-        JIT::Reg slotAddressReg = allocator->allocate(store->slotAddress->registerNumber);
-        JIT::Reg slotValueReg = allocator->allocate(store->storeValue->registerNumber);
-        // TODO: non-integral types
-        jit->stxi(offsetof(Slot, intValue), slotAddressReg, slotValueReg);
-    } break;
-
-    case hadron::ast::ASTType::kReturn: {
-//        const auto returnAST = reinterpret_cast<const hadron::ast::ReturnAST*>(ast);
-    } break;
 default:
 break;
     }
