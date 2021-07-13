@@ -15,6 +15,18 @@ void ErrorReporter::addError(const std::string& error) {
     m_errors.emplace_back(error);
 }
 
+void ErrorReporter::addFileNotFoundError(std::string filePath) {
+    addError(fmt::format("file {} not found", filePath));
+}
+
+void ErrorReporter::addFileOpenError(std::string filePath) {
+    addError(fmt::format("file {} open error", filePath));
+}
+
+void ErrorReporter::addFileReadError(std::string filePath) {
+    addError(fmt::format("file {} read error", filePath));
+}
+
 size_t ErrorReporter::getLineNumber(const char* location) {
     // Lazily construct the line number map on first request for line number.
     if (!m_lineEndings.size()) {

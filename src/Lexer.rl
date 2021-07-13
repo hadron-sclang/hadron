@@ -141,25 +141,25 @@
         # keywords #
         ############
         'arg' {
-            m_tokens.emplace_back(Token(Token::Name::kArg, ts, 3));
+            m_tokens.emplace_back(Token(Token::Name::kArg, ts, 3, false, kArgHash));
         };
         'classvar' {
-            m_tokens.emplace_back(Token(Token::Name::kClassVar, ts, 8));
+            m_tokens.emplace_back(Token(Token::Name::kClassVar, ts, 8, false, kClassVarHash));
         };
         'const' {
-            m_tokens.emplace_back(Token(Token::Name::kConst, ts, 5));
+            m_tokens.emplace_back(Token(Token::Name::kConst, ts, 5, false, kConstHash));
         };
         'false' {
-            m_tokens.emplace_back(Token(ts, 5, false));
+            m_tokens.emplace_back(Token(ts, 5, false, kFalseHash));
         };
         'nil' {
-            m_tokens.emplace_back(Token(ts, 3, Type::kNil));
+            m_tokens.emplace_back(Token(ts, 3, Type::kNil, false, kNilHash));
         };
         'true' {
-            m_tokens.emplace_back(Token(ts, 4, true));
+            m_tokens.emplace_back(Token(ts, 4, true, kTrueHash));
         };
         'var' {
-            m_tokens.emplace_back(Token(Token::Name::kVar, ts, 3));
+            m_tokens.emplace_back(Token(Token::Name::kVar, ts, 3, false, kVarHash));
         };
 
         ###############
@@ -202,9 +202,9 @@
 
         space { /* ignore whitespace */ };
         any {
-            size_t lineNumber = errorReporter->getLineNumber(ts);
-            errorReporter->addError(fmt::format("Lexing error at line {} character {}: unrecognized token '{}'",
-                lineNumber, ts - errorReporter->getLineStart(lineNumber), std::string(ts, te - ts)));
+            size_t lineNumber = m_errorReporter->getLineNumber(ts);
+            m_errorReporter->addError(fmt::format("Lexing error at line {} character {}: unrecognized token '{}'",
+                lineNumber, ts - m_errorReporter->getLineStart(lineNumber), std::string(ts, te - ts)));
             return false;
         };
     *|;
@@ -229,16 +229,14 @@ namespace {
 namespace hadron {
 
 Lexer::Lexer(std::string_view code):
-    m_code(code) { }
-
-bool Lexer::lex() {
-    // Suppress error messages in this testing version of the Lexer.
-    m_errorReporter = std::make_unique<ErrorReporter>(true);
+    m_code(code), m_errorReporter(std::make_shared<ErrorReporter>(true)) {
     m_errorReporter->setCode(m_code.data());
-    return lex(m_errorReporter.get());
 }
 
-bool Lexer::lex(ErrorReporter* errorReporter) {
+Lexer::Lexer(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter):
+    m_code(code), m_errorReporter(errorReporter) {}
+
+bool Lexer::lex() {
     // Ragel-required state variables.
     const char* p = m_code.data();
     const char* pe = p + m_code.size();

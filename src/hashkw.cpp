@@ -13,10 +13,14 @@
 int main(int argc, char* argv[]) {
     std::vector<std::array<std::string, 2>> hashNames = {
         { "kAddHash                 ", "+"},
+        { "kArgHash                 ", "arg"},
         { "kAssignHash              ", "="},
+        { "kClassVarHash            ", "classvar"},
+        { "kConstHash               ", "const"},
         { "kDivideHash              ", "/"},
         { "kEqualToHash             ", "=="},
         { "kExactlyEqualToHash      ", "==="},
+        { "kFalseHash               ", "false"},
         { "kGreaterThanHash         ", ">"},
         { "kGreaterThanOrEqualToHash", ">="},
         { "kIfHash                  ", "if"},
@@ -25,11 +29,16 @@ int main(int argc, char* argv[]) {
         { "kLessThanOrEqualToHash   ", "<="},
         { "kModuloHash              ", "%"},
         { "kMultiplyHash            ", "*"},
+        { "kNilHash                 ", "nil"},
         { "kNotEqualToHash          ", "!="},
         { "kNotExactlyEqualToHash   ", "!=="},
+        { "kObjectHash              ", "Object"},
         { "kPipeHash                ", "|"},
         { "kReadWriteHash           ", "<>"},
         { "kSubtractHash            ", "-"},
+        { "kThisHash                ", "this"},
+        { "kTrueHash                ", "true"},
+        { "kVarHash                 ", "var"},
         { "kWhileHash               ", "while"}
     };
 

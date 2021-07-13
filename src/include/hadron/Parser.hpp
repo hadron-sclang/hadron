@@ -1,8 +1,8 @@
 #ifndef SRC_PARSER_HPP_
 #define SRC_PARSER_HPP_
 
-#include "hadron/Lexer.hpp"
 #include "hadron/Literal.hpp"
+#include "hadron/Token.hpp"
 #include "hadron/Type.hpp"
 
 #include <memory>
@@ -12,6 +12,7 @@
 namespace hadron {
 
 class ErrorReporter;
+class Lexer;
 
 namespace parse {
 
@@ -79,6 +80,15 @@ struct ArgListNode : public Node {
     std::optional<size_t> varArgsNameIndex;
 };
 
+struct BlockNode : public Node {
+    BlockNode(size_t index): Node(NodeType::kBlock, index) {}
+    virtual ~BlockNode() = default;
+
+    std::unique_ptr<ArgListNode> arguments;
+    std::unique_ptr<VarListNode> variables;
+    std::unique_ptr<Node> body;
+};
+
 struct MethodNode : public Node {
     MethodNode(size_t index, bool classMethod):
             Node(NodeType::kMethod, index),
@@ -87,10 +97,7 @@ struct MethodNode : public Node {
 
     bool isClassMethod;
     std::optional<size_t> primitiveIndex;
-
-    std::unique_ptr<ArgListNode> arguments;
-    std::unique_ptr<VarListNode> variables;
-    std::unique_ptr<Node> body;
+    std::unique_ptr<BlockNode> body;
 };
 
 struct ClassExtNode : public Node {
@@ -163,15 +170,6 @@ struct PoolVarListNode : public Node {
     virtual ~PoolVarListNode() = default;
 };
 */
-
-struct BlockNode : public Node {
-    BlockNode(size_t index): Node(NodeType::kBlock, index) {}
-    virtual ~BlockNode() = default;
-
-    std::unique_ptr<ArgListNode> arguments;
-    std::unique_ptr<VarListNode> variables;
-    std::unique_ptr<Node> body;
-};
 
 struct LiteralNode : public Node {
     LiteralNode(size_t index, const Literal& v): Node(NodeType::kLiteral, index), value(v) {}
@@ -299,15 +297,17 @@ struct NumericSeriesNode : public Node {
 
 class Parser {
 public:
-    Parser(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter);
-    // Used for testing, makes a parser with suppressed error messages.
+    // Builds a parse tree from an external lexer that has already successfully lexed the source code.
+    Parser(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);
+
+    // Used for testing, lexes the code itself with an owned Lexer first.
     Parser(std::string_view code);
     ~Parser();
 
     bool parse();
 
     const parse::Node* root() const { return m_root.get(); }
-    const std::vector<Lexer::Token>& tokens() const { return m_lexer.tokens(); }
+    Lexer* lexer() const { return m_lexer; }
     std::shared_ptr<ErrorReporter> errorReporter() { return m_errorReporter; }
 
 private:
@@ -339,7 +339,7 @@ private:
 
     std::unique_ptr<parse::Node> parseMethodBody();
     std::unique_ptr<parse::Node> parseExprSeq();
-    std::unique_ptr<parse::Node> parseExpr();
+    std::unique_ptr<parse::Node> parseExpr(bool captureSuffixes = true);
 
     // If the current token is a literal, or a unary negation token followed by an int or float literal, consumes those
     // tokens and returns a LiteralNode with the value. Otherwise consumes no tokens and returns nullptr.
@@ -351,9 +351,10 @@ private:
     std::unique_ptr<parse::Node> parseBlockList();
     std::unique_ptr<parse::Node> parseBlockOrGenerator();
 
-    Lexer m_lexer;
+    std::unique_ptr<Lexer> m_ownLexer;
+    Lexer* m_lexer;
     size_t m_tokenIndex;
-    Lexer::Token m_token;
+    Token m_token;
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     std::unique_ptr<parse::Node> m_root;
