@@ -1,84 +1,188 @@
 #include "hadron/CodeGenerator.hpp"
 
 #include "hadron/ErrorReporter.hpp"
-#include "hadron/JIT.hpp"
+#include "hadron/VirtualJIT.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/SyntaxAnalyzer.hpp"
 #include "Keywords.hpp"
 
+#include "fmt/format.h"
+
+#include <string>
+#include <unordered_set>
+#include <vector>
+
+class RegisterAllocator {
+public:
+    RegisterAllocator(hadron::VirtualJIT* virtualJIT): m_virtualJIT(virtualJIT) {}
+    RegisterAllocator() = delete;
+    ~RegisterAllocator() = default;
+
+    struct ScopedRegister {
+        ScopedRegister(hadron::JIT::Reg r, ::RegisterAllocator* alloc, bool release): reg(r), allocator(alloc),
+            shouldFree(release) {}
+        ~ScopedRegister() { free(); }
+        void free() {
+            if (shouldFree) {
+                allocator->freeRegister(reg);
+            }
+            shouldFree = false;
+        }
+        hadron::JIT::Reg reg;
+        ::RegisterAllocator* allocator;
+        bool shouldFree;
+    };
+
+    ScopedRegister regForHash(hadron::Hash hash) {
+        hadron::JIT::Reg reg = allocateRegister(hash);
+        return ScopedRegister(reg, this, true);
+    }
+
+    ScopedRegister regForValue(const hadron::ast::ValueAST* value) {
+        hadron::JIT::Reg reg = allocateRegister(value->nameHash);
+        return ScopedRegister(reg, this, value->canRelease);
+    }
+
+private:
+    hadron:: JIT::Reg allocateRegister(hadron::Hash hash) {
+        auto allocIter = m_allocatedRegisters.find(hash);
+        if (allocIter != m_allocatedRegisters.end()) {
+            return allocIter->second;
+        }
+        hadron::JIT::Reg reg;
+        if (m_freeRegisters.size()) {
+            reg = *(m_freeRegisters.begin());
+            m_freeRegisters.erase(m_freeRegisters.begin());
+            m_registerValues[reg] = hash;
+        } else {
+            reg = m_registerValues.size();
+            m_registerValues.emplace_back(hash);
+        }
+        m_allocatedRegisters.emplace(std::make_pair(hash, reg));
+        m_virtualJIT->alias(reg);
+        return reg;
+    }
+
+    void freeRegister(hadron::JIT::Reg reg) {
+        m_allocatedRegisters.erase(m_registerValues[reg]);
+        m_freeRegisters.emplace(reg);
+        m_virtualJIT->unalias(reg);
+    }
+
+    hadron::VirtualJIT* m_virtualJIT;
+    std::vector<hadron::Hash> m_registerValues;
+    std::unordered_map<hadron::Hash, hadron::JIT::Reg> m_allocatedRegisters;
+    std::unordered_set<hadron::JIT::Reg> m_freeRegisters;
+};
+
 namespace hadron {
 
-CodeGenerator::CodeGenerator() {
-    m_errorReporter = std::make_shared<ErrorReporter>(true);
-}
+CodeGenerator::CodeGenerator(const ast::BlockAST* block, std::shared_ptr<ErrorReporter> errorReporter):
+    m_block(block),
+    m_jit(std::make_unique<VirtualJIT>()),
+    m_errorReporter(errorReporter) {}
 
-CodeGenerator::CodeGenerator(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporter(errorReporter) {}
+bool CodeGenerator::generate() {
+    m_jit->prolog();
 
-bool CodeGenerator::jitBlock(const ast::BlockAST* block, JIT* jit) {
-    jit->prolog();
-    for (const auto& statement : block->statements) {
-        jitAST(statement.get(), jit);
+    // First argument is always the Slot return address. ** For now all arguments can be assumed to be addresses.
+    // Slot variables can also live on the stack, and will have addresses relative to the frame pointer.
+    m_addresses.emplace(std::make_pair(hash("_blockValue"), m_jit->arg()));
+    RegisterAllocator allocator(m_jit.get());
+
+    for (const auto& statement : m_block->statements) {
+        jitStatement(statement.get(), &allocator);
     }
-    jit->epilog();
+
+    m_jit->ret();
+    m_jit->epilog();
     return true;
 }
 
-void CodeGenerator::jitAST(const ast::AST* /* ast */, JIT* /* jit */) {
-/*
+void CodeGenerator::jitStatement(const ast::AST* ast, RegisterAllocator* allocator) {
+    using ScopedReg = RegisterAllocator::ScopedRegister;
+
     switch (ast->astType) {
-    // No type checking right now, none at all
-    case hadron::ast::ASTType::kAssign: {
-        const auto assign = reinterpret_cast<const hadron::ast::AssignAST*>(ast);
-        JIT::Reg targetReg = 0;
-        if (assign->value->astType == hadron::ast::ASTType::kValue) {
-//            const auto target = reinterpret_cast<const hadron::ast::ValueAST*>(assign->value.get());
-//            JIT::Reg valueReg = 0;
-            // movr %targetReg, %valueReg
-            jit->movr(targetReg, valueReg);
-        } else if (assign->value->astType == hadron::ast::ASTType::kCalculate) {
-            const auto calc = reinterpret_cast<const hadron::ast::CalculateAST*>(assign->value.get());
-            // Assumption is it's always a Value on the left and either a Value or Constant on the right,
-            // this would happen as part of 3-address tree shaping during Syntax Analysis
-//            const auto left = reinterpret_cast<const hadron::ast::ValueAST*>(calc->left.get());
-//            JIT::Reg leftReg = 0;
-            if (calc->selector == hadron::kAddHash) {
-                if (calc->right->astType == hadron::ast::ASTType::kConstant) {
-                    const auto right = reinterpret_cast<const hadron::ast::ConstantAST*>(calc->right.get());
-                    // addi %targetReg, %leftReg, right
-                    jit->addi(targetReg, leftReg, right->value.asInteger());
-                } else {
-//                    const auto right = reinterpret_cast<const hadron::ast::ValueAST*>(calc->right.get());
-//                    JIT::Reg rightReg = 0;
-                    // addr %targetReg, %leftReg, %rightReg
-                    jit->addr(targetReg, leftReg, rightReg);
-                }
-            }
-        } else if (assign->value->astType == hadron::ast::ASTType::kConstant) {
-            const auto constant = reinterpret_cast<const hadron::ast::ConstantAST*>(assign->value.get());
-            // movi %targetReg, constant
-            jit->movi(targetReg, constant->value.asInteger());
+    case ast::kCalculate: {
+        // wouldn't expect a calculate node right at the root as a statement.
+    } break;
+
+    case ast::kBlock: {
+        // TODO: block nesting
+    } break;
+
+    case ast::kInlineBlock: {
+        // TODO: block inlining
+    } break;
+
+    case ast::kValue: {
+        // not expected at top level
+    } break;
+
+    // TODO: can the syntax analysis part get the tree into rough 3-addr form?
+    // TODO: Possible RAII form for Register allocation?
+
+    case ast::kSaveToSlot: {
+        const auto saveToSlot = reinterpret_cast<const ast::SaveToSlotAST*>(ast);
+        // Load the address of the slot into a register.
+        ScopedReg slotAddressReg = allocator->regForHash(hash(fmt::format("_addr_{:016x}",
+            saveToSlot->value->nameHash)));
+        JIT::Label addressValue = m_addresses.find(saveToSlot->value->nameHash)->second;
+        m_jit->getarg(slotAddressReg.reg, addressValue);
+        // Load the slot type into a register so it can be written into memory.
+        ScopedReg slotTypeReg = allocator->regForHash(hash(fmt::format("_type_{:08x}", saveToSlot->value->valueType)));
+        m_jit->movi(slotTypeReg.reg, Type::kInteger);
+        // Store the type into the Slot memory.
+        if (offsetof(Slot, type)) {
+            m_jit->stxi(offsetof(Slot, type), slotAddressReg.reg, slotTypeReg.reg);
+        } else {
+            m_jit->str(slotAddressReg.reg, slotTypeReg.reg);
+        }
+        slotTypeReg.free();
+        // Store the integer value into the Slot memory. TODO: this register should already be allocated, and it not
+        // being so is an error condition.
+        ScopedReg slotValueReg = allocator->regForValue(saveToSlot->value.get());
+        if (offsetof(Slot, intValue)) {
+            m_jit->stxi(offsetof(Slot, intValue), slotAddressReg.reg, slotValueReg.reg);
+        } else {
+            m_jit->str(slotAddressReg.reg, slotValueReg.reg);
         }
     } break;
 
-    case hadron::ast::ASTType::kBlock: {
-        // TODO for sub-blocks
+    case ast::kAssign: {
+        const auto assign = reinterpret_cast<const ast::AssignAST*>(ast);
+        ScopedReg targetReg = allocator->regForValue(assign->target.get());
+        if (assign->value->astType == ast::ASTType::kValue) {
+            const auto assignValue = reinterpret_cast<const ast::ValueAST*>(assign->value.get());
+            ScopedReg valueReg = allocator->regForValue(assignValue);
+            m_jit->movr(targetReg.reg, valueReg.reg);
+        } else if (assign->value->astType == ast::ASTType::kCalculate) {
+            const auto calc = reinterpret_cast<const ast::CalculateAST*>(assign->value.get());
+            // assumption for now that left is always a value ast
+            const auto leftValue = reinterpret_cast<const ast::ValueAST*>(calc->left.get());
+            ScopedReg leftReg = allocator->regForValue(leftValue);
+            if (calc->right->astType == ast::ASTType::kConstant) {
+                const auto rightConst = reinterpret_cast<const ast::ConstantAST*>(calc->right.get());
+                if (calc->selector == kAddHash) {
+                    m_jit->addi(targetReg.reg, leftReg.reg, rightConst->value.asInteger());
+                }
+            } else {
+                // assumption that it has to be a value ast
+                const auto rightValue = reinterpret_cast<const ast::ValueAST*>(calc->right.get());
+                ScopedReg rightReg = allocator->regForValue(rightValue);
+                if (calc->selector == kAddHash) {
+                    m_jit->addr(targetReg.reg, leftReg.reg, rightReg.reg);
+                }
+            }
+        } else if (assign->value->astType == ast::ASTType::kConstant) {
+            const auto constAST = reinterpret_cast<const ast::ConstantAST*>(assign->value.get());
+            m_jit->movi(targetReg.reg, constAST->value.asInteger());
+        }
     } break;
 
-    case hadron::ast::ASTType::kConstant:
-    case hadron::ast::ASTType::kValue:
-    case hadron::ast::ASTType::kCalculate: {
-        // Unexpected at the root level, a sign that something is not right with the 3-address form
-    } break;
-
-    case hadron::ast::ASTType::kInlineBlock: {
-        // TODO for block inlining
-    } break;
-
-
-default:
-break;
+    default:
+        break;
     }
-    */
 }
 
 }  // namespace hadron

@@ -32,11 +32,14 @@ public:
     void movi(Reg target, int value) override;
     Label bgei(Reg a, int b) override;
     Label jmpi() override;
+    void str(Reg address, Reg value) override;
+    void sti(Address address, Reg value) override;
     void stxi(int offset, Reg address, Reg value) override;
     void prolog() override;
     Label arg() override;
     void getarg(Reg target, Label arg) override;
     void allocai(int stackSizeBytes) override;
+    void ret() override;
     void retr(Reg r) override;
     void epilog() override;
     Label label() override;

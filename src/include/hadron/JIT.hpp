@@ -21,6 +21,10 @@ public:
 
     using Label = int32_t;
     using Reg = int32_t;
+    using Address = void*;
+
+    // Register number for the special Frame Pointer register.
+    static constexpr Reg kFramePointerReg = -1;
 
     // ===== Machine Properties
     virtual int getRegisterCount() const = 0;
@@ -47,7 +51,11 @@ public:
     virtual Label jmpi() = 0;
 
     // * stores
-    // *(offset + address) = value
+    // *address = value
+    virtual void str(Reg address, Reg value) = 0;
+    // *address = value
+    virtual void sti(Address address, Reg value) = 0;
+    // *(offset + address) = value  // note: immediate address with register offset not supported
     virtual void stxi(int offset, Reg address, Reg value) = 0;
 
     // * functions
@@ -59,6 +67,8 @@ public:
     virtual void getarg(Reg target, Label arg) = 0;
     // allocate bytes on the stack, should be called after prolog()
     virtual void allocai(int stackSizeBytes) = 0;
+    // ret
+    virtual void ret() = 0;
     // retr %r  (return value of reg r)
     virtual void retr(Reg r) = 0;
     // mark the end of a function (should follow after any ret call)

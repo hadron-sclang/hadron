@@ -61,6 +61,14 @@ JIT::Label LightningJIT::jmpi() {
     return m_labels.size() - 1;
 }
 
+void LightningJIT::str(Reg address, Reg value) {
+    _jit_new_node_ww(m_state, jit_code_str_i, address, value);
+}
+
+void LightningJIT::sti(Address address, Reg value) {
+    _jit_new_node_pw(m_state, jit_code_sti_i, address, value);
+}
+
 void LightningJIT::stxi(int offset, Reg address, Reg value) {
     _jit_new_node_www(m_state, jit_code_stxi_i, offset, address, value);
 }
@@ -80,6 +88,10 @@ void LightningJIT::getarg(Reg target, Label arg) {
 
 void LightningJIT::allocai(int stackSizeBytes) {
     m_stackBase = _jit_allocai(m_state, stackSizeBytes);
+}
+
+void LightningJIT::ret() {
+    _jit_ret(m_state);
 }
 
 void LightningJIT::retr(Reg r) {

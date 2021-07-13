@@ -34,7 +34,6 @@ TEST_CASE("Identifier Resolution") {
         CHECK(assign->target->nameHash == hash("a"));
         CHECK(assign->target->owningBlock == block);
         CHECK(assign->target->isWrite);
-        CHECK(!assign->target->isLastReference);
         REQUIRE(assign->value);
         REQUIRE(assign->value->astType == ast::ASTType::kConstant);
         const auto constant = reinterpret_cast<const ast::ConstantAST*>(assign->value.get());
@@ -47,14 +46,12 @@ TEST_CASE("Identifier Resolution") {
         CHECK(assign->target->nameHash == hash("_blockValue"));
         CHECK(assign->target->owningBlock == block);
         CHECK(assign->target->isWrite);
-        CHECK(!assign->target->isLastReference);
         REQUIRE(assign->value);
         REQUIRE(assign->value->astType == ast::ASTType::kValue);
         const auto retVal = reinterpret_cast<const ast::ValueAST*>(assign->value.get());
         CHECK(retVal->nameHash == hash("a"));
         CHECK(retVal->owningBlock == block);
         CHECK(!retVal->isWrite);
-        CHECK(retVal->isLastReference);
         // TODO: check third statement
     }
 

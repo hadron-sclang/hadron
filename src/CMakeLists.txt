@@ -89,15 +89,15 @@ add_library(hadron STATIC
     include/hadron/Lexer.hpp
     include/hadron/LightningJIT.hpp
     include/hadron/Literal.hpp
+    include/hadron/MachineCodeRenderer.hpp
     include/hadron/Parser.hpp
-    include/hadron/RegisterAllocator.hpp
     include/hadron/Slot.hpp
     include/hadron/SyntaxAnalyzer.hpp
     include/hadron/Type.hpp
     include/hadron/VirtualJIT.hpp
     LightningJIT.cpp
+    MachineCodeRenderer.cpp
     Parser.cpp
-    RegisterAllocator.cpp
     Slot.cpp
     SyntaxAnalyzer.cpp
     VirtualJIT.cpp
