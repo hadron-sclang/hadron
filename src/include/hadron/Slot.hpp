@@ -1,23 +1,30 @@
 #ifndef SRC_RUNTIME_SLOT_HPP_
 #define SRC_RUNTIME_SLOT_HPP_
 
+#include "hadron/Type.hpp"
+
+#include <cstddef>
+
 namespace hadron {
 
-class Slot {
+struct Slot {
 public:
-    Slot() = default;
+    Slot(): type(kNil) {}
+    Slot(int intValue): type(Type::kInteger), intValue(intValue) {}
     ~Slot() = default;
 
-    int asInt() const { return m_intValue; }
+    // Placement new
+    void* operator new(size_t, Slot* address) { return address; }
 
-private:
-    int m_intValue = 0;
+    Type type;
+    int intValue = 0;
 };
 
 } // namespace hadron
 
 extern "C" {
-    int rt_Slot_asInt(const hadron::Slot* slot);
+    void* slot_Init(hadron::Slot* inSlot);
+    void* slot_fromInt(hadron::Slot* inSlot, int intValue);
 } // extern "C"
 
 #endif // SRC_RUNTIME_SLOT_HPP_

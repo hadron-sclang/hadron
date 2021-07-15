@@ -1,0 +1,3 @@
+Object {
+    value { ^this }
+}

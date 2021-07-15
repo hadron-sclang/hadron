@@ -3,6 +3,7 @@
 #include "FileSystem.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
+#include "hadron/Lexer.hpp"
 #include "hadron/Literal.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/SyntaxAnalyzer.hpp"
@@ -13,9 +14,11 @@
 #include "spdlog/spdlog.h"
 
 #include <fstream>
+#include <map>
 #include <memory>
+#include <set>
 #include <string_view>
-#include <variant>
+#include <vector>
 
 DEFINE_string(inputFile, "", "path to input file to process");
 DEFINE_string(outputFile, "", "path to output file to save to");
@@ -132,7 +135,7 @@ std::string htmlEscape(std::string_view view) {
 }
 
 void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& serial, const hadron::parse::Node* node) {
-    auto token = parser.tokens()[node->tokenIndex];
+    auto token = parser.lexer()->tokens()[node->tokenIndex];
     int nodeSerial = serial;
     ++serial;
     // Make an edge in gray from this parse tree node to the token in the code subgraph that it relates to.
@@ -213,24 +216,12 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             "<tr><td port=\"next\">next {}</td></tr>"
             "<tr><td port=\"token\"><font face=\"monospace\">{}</font></td></tr>"
             "<tr><td>isClassMethod: {}</td></tr>"
-            "<tr><td port=\"arguments\">arguments {}</td></tr>"
-            "<tr><td port=\"variables\">variables {}</td></tr>"
             "<tr><td port=\"body\">body {}</td></tr></table>>]\n",
             nodeSerial,
             nullOrNo(node->next.get()),
             htmlEscape(std::string(token.range.data(), token.range.size())),
             trueFalse(method->isClassMethod),
-            nullOrNo(method->arguments.get()),
-            nullOrNo(method->variables.get()),
             nullOrNo(method->body.get()));
-        if (method->arguments) {
-            outFile << fmt::format("    node_{}:arguments -> node_{}\n", nodeSerial, serial);
-            visualizeParseNode(outFile, parser, serial, method->arguments.get());
-        }
-        if (method->variables) {
-            outFile << fmt::format("    node_{}:variables -> node_{}\n", nodeSerial, serial);
-            visualizeParseNode(outFile, parser, serial, method->variables.get());
-        }
         if (method->body) {
             outFile << fmt::format("    node_{}:body -> node_{}\n", nodeSerial, serial);
             visualizeParseNode(outFile, parser, serial, method->body.get());
@@ -459,14 +450,6 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
     }
 }
 
-std::string findValueName(const hadron::ast::ValueAST* value) {
-    const auto var = value->owningBlock->variables.find(value->nameHash);
-    if (var != value->owningBlock->variables.end()) {
-        return var->second.name;
-    }
-    return "variable name not found!";
-}
-
 std::string printHash(hadron::Hash hash) {
     switch (hash) {
     case hadron::kAddHash:
@@ -527,10 +510,19 @@ std::string printHash(hadron::Hash hash) {
         return "while";
     }
 
-    return fmt::format("hash {:016x} not found!", hash);
+    return fmt::format("hash {:16x} not found!", hash);
 }
 
-void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* ast) {
+std::string findSymbol(hadron::Hash hash, const std::map<hadron::Hash, std::string>& symbols) {
+    const auto lookup = symbols.find(hash);
+    if (lookup != symbols.end()) {
+        return lookup->second;
+    }
+    return fmt::format("hash {:16x}", hash);
+}
+
+void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* ast,
+        std::map<hadron::Hash, std::string>& symbols) {
     int astSerial = serial;
     ++serial;
 
@@ -541,11 +533,11 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
             printType(ast->valueType));
         if (calc->left) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, calc->left.get());
+            visualizeAST(outFile, serial, calc->left.get(), symbols);
         }
         if (calc->right) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, calc->right.get());
+            visualizeAST(outFile, serial, calc->right.get(), symbols);
         }
     } break;
 
@@ -554,11 +546,11 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
         outFile << fmt::format("    ast_{} [label=<&#8592; {}>]\n", astSerial, printType(ast->valueType));
         if (assign->target) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, assign->target.get());
+            visualizeAST(outFile, serial, assign->target.get(), symbols);
         }
         if (assign->value) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, assign->value.get());
+            visualizeAST(outFile, serial, assign->value.get(), symbols);
         }
     } break;
 
@@ -570,12 +562,14 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
             outFile << "<tr><td><b>arg:</b>";
             for (auto pair : block->arguments) {
                 outFile << " " << pair.second.name;
+                symbols.emplace(std::make_pair(pair.first, pair.second.name));
             }
             outFile << "</td></tr>";
         }
         if (block->variables.size()) {
             outFile << "<tr><td><b>var:</b>";
             for (auto pair : block->variables) {
+                symbols.emplace(std::make_pair(pair.first, pair.second.name));
                 outFile << " " << pair.second.name;
             }
             outFile << "</td></tr>";
@@ -584,7 +578,7 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
         for (const auto& expr : block->statements) {
             if (!expr) continue;
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, expr.get());
+            visualizeAST(outFile, serial, expr.get(), symbols);
         }
     } break;
 
@@ -596,14 +590,16 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
         for (const auto& expr : inlineBlock->statements) {
             if (!expr) continue;
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, expr.get());
+            visualizeAST(outFile, serial, expr.get(), symbols);
         }
     } break;
 
     case hadron::ast::ASTType::kValue: {
         const auto value = reinterpret_cast<const hadron::ast::ValueAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=<{} <i>{}<sub>{}</sub></i>>]\n", astSerial,
-            printType(value->valueType), findValueName(value), value->revision);
+        outFile << fmt::format("    ast_{} [label=<{} <i>{}</i>", astSerial, printType(value->valueType),
+            findSymbol(value->nameHash, symbols));
+
+        outFile << ">]" << std::endl;
     } break;
 
     case hadron::ast::ASTType::kConstant: {
@@ -616,11 +612,11 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
         outFile << fmt::format("    ast_{} [label=\"while {}\"]\n", astSerial, printType(ast->valueType));
         if (whileAST->condition) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, whileAST->condition.get());
+            visualizeAST(outFile, serial, whileAST->condition.get(), symbols);
         }
         if (whileAST->action) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, whileAST->action.get());
+            visualizeAST(outFile, serial, whileAST->action.get(), symbols);
         }
     } break;
 
@@ -630,18 +626,53 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
             printType(ast->valueType));
         for (const auto& expr : dispatch->arguments) {
             outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, expr.get());
+            visualizeAST(outFile, serial, expr.get(), symbols);
         }
     } break;
 
-    case hadron::ast::ASTType::kResult: {
-        const auto result = reinterpret_cast<const hadron::ast::ResultAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=\"result {}\"]\n", astSerial, printType(ast->valueType));
-        if (result->value) {
-            outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
-            visualizeAST(outFile, serial, result->value.get());
+    case hadron::ast::ASTType::kLoadFromSlot: {
+
+    } break;
+
+    case hadron::ast::ASTType::kSaveToSlot: {
+        const auto save = reinterpret_cast<const hadron::ast::SaveToSlotAST*>(ast);
+        outFile << fmt::format("    ast_{} [shape=house label=\"slot store\"]\n", astSerial);
+        outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
+        visualizeAST(outFile, serial, save->value.get(), symbols);
+    } break;
+
+    case hadron::ast::ASTType::kClass: {
+        const auto classAST = reinterpret_cast<const hadron::ast::ClassAST*>(ast);
+        outFile << fmt::format("    ast_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" "
+            "cellspacing=\"0\">\n", astSerial);
+        outFile <<  fmt::format("       <tr><td bgcolor=\"lightGray\"><b>Class {}</b></td></tr>\n",
+            printType(ast->valueType));
+        if (classAST->variables.size()) {
+            outFile << fmt::format("        <tr><td><font face=\"monospace\">{}</font></td></tr>\n", classAST->name);
+            outFile << "        <tr><td><font face=\"monospace\">var:</font>";
+            for (auto pair : classAST->variables) {
+                outFile << " " << pair.second.name;
+            }
+            outFile << "</td></tr>\n";
         }
-    }
+        if (classAST->classVariables.size()) {
+            outFile << fmt::format("        <tr><td><font face=\"monospace\">{}</font></td></tr>\n", classAST->name);
+            outFile << "        <tr><td><font face=\"monospace\">classvar:</font>";
+            for (auto pair : classAST->classVariables) {
+                outFile << " " << pair.second.name;
+            }
+            outFile << "</td></tr>\n";
+        }
+        if (classAST->constants.size()) {
+            outFile << fmt::format("        <tr><td><font face=\"monospace\">{}</font></td></tr>\n", classAST->name);
+            outFile << "        <tr><td><font face=\"monospace\">const:</font>";
+            for (auto pair : classAST->constants) {
+                std::string constName = classAST->names.find(pair.first)->second;
+                outFile << constName << "=" << printLiteral(pair.second);
+            }
+            outFile << "</td></tr>\n";
+        }
+    } break;
     }
 }
 
@@ -667,9 +698,15 @@ int main(int argc, char* argv[]) {
         spdlog::error("Failed to read file {}", filePath.string());
         return -1;
     }
-
+    // TODO: refactor me to use CompileContext
     auto errorReporter = std::make_shared<hadron::ErrorReporter>();
-    hadron::Parser parser(std::string_view(fileContents.get(), fileSize), errorReporter);
+    errorReporter->setCode(fileContents.get());
+    hadron::Lexer lexer(std::string_view(fileContents.get(), fileSize), errorReporter);
+    if (!lexer.lex()) {
+        spdlog::error("Failed to lex file {}", filePath.string());
+        return -1;
+    }
+    hadron::Parser parser(&lexer, errorReporter);
     if (!parser.parse()) {
         spdlog::error("Failed to parse file {}", filePath.string());
         return -1;
@@ -687,20 +724,20 @@ int main(int argc, char* argv[]) {
         outFile << "        edge [style=\"invis\"]" << std::endl;
         size_t currentLine = 1;
         size_t tokenIndex = 0;
-        while (tokenIndex < parser.tokens().size()) {
+        while (tokenIndex < parser.lexer()->tokens().size()) {
             outFile << fmt::format("        line_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" "
                 "cellspacing=\"0\"><tr><td><font point-size=\"24\">line {}:</font></td>", currentLine, currentLine);
-            size_t tokenLine = errorReporter->getLineNumber(parser.tokens()[tokenIndex].range.data());
+            size_t tokenLine = errorReporter->getLineNumber(parser.lexer()->tokens()[tokenIndex].range.data());
             int tokenLineCount = 0;
             while (tokenLine == currentLine) {
                 outFile << fmt::format("<td port=\"token_{}\"><font face=\"monospace\" "
                     "point-size=\"24\">{}</font></td>", tokenIndex,
-                    htmlEscape(std::string(parser.tokens()[tokenIndex].range.data(),
-                        parser.tokens()[tokenIndex].range.size())));
+                    htmlEscape(std::string(parser.lexer()->tokens()[tokenIndex].range.data(),
+                        parser.lexer()->tokens()[tokenIndex].range.size())));
                 ++tokenLineCount;
                 ++tokenIndex;
-                if (tokenIndex < parser.tokens().size()) {
-                    tokenLine = errorReporter->getLineNumber(parser.tokens()[tokenIndex].range.data());
+                if (tokenIndex < parser.lexer()->tokens().size()) {
+                    tokenLine = errorReporter->getLineNumber(parser.lexer()->tokens()[tokenIndex].range.data());
                 } else {
                     tokenLine = 0;
                 }
@@ -716,8 +753,8 @@ int main(int argc, char* argv[]) {
         visualizeParseNode(outFile, parser, serial, parser.root());
         outFile << "}" << std::endl;
     } else if (FLAGS_syntaxTree) {
-        hadron::SyntaxAnalyzer syntaxAnalyzer(errorReporter);
-        if (!syntaxAnalyzer.buildAST(&parser)) {
+        hadron::SyntaxAnalyzer syntaxAnalyzer(&parser, errorReporter);
+        if (!syntaxAnalyzer.buildAST()) {
             spdlog::error("Failed to build AST from parse tree in file {}", filePath.string());
             return -1;
         }
@@ -725,7 +762,8 @@ int main(int argc, char* argv[]) {
         outFile << fmt::format("// syntax tree visualization of {}\n", FLAGS_inputFile);
         outFile << "digraph HadronSyntaxTree {" << std::endl;
         int serial = 0;
-        visualizeAST(outFile, serial, syntaxAnalyzer.ast());
+        std::map<hadron::Hash, std::string> symbols;
+        visualizeAST(outFile, serial, syntaxAnalyzer.ast(), symbols);
         outFile << "}" << std::endl;
     }
 

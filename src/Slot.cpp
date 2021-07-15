@@ -2,9 +2,13 @@
 
 namespace hadron {
 
-
 } // namespace hadron
 
-extern "C" int rt_Slot_asInt(const hadron::Slot* slot) {
-    return slot->asInt();
+extern "C" {
+void* slot_fromInt(hadron::Slot* inSlot, int intValue) {
+    return new(inSlot) hadron::Slot(intValue);
+}
+void* slot_Init(hadron::Slot* inSlot) {
+    return new(inSlot) hadron::Slot;
+}
 }
