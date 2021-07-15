@@ -18,6 +18,7 @@ include_directories(
 ExternalProject_add(colm
     PREFIX ext
     STEP_TARGETS install
+    EXCLUDE_FROM_ALL ON
     GIT_REPOSITORY https://github.com/adrian-thurston/colm
     GIT_TAG master
     GIT_PROGRESS ON
@@ -33,6 +34,7 @@ ExternalProject_add(colm
 ExternalProject_add(ragel
     PREFIX ext
     STEP_TARGETS install
+    EXCLUDE_FROM_ALL ON
     DEPENDS colm-install
     GIT_REPOSITORY https://github.com/adrian-thurston/ragel
     GIT_TAG master

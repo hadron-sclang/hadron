@@ -19,6 +19,7 @@ if(APPLE)
     ExternalProject_add(ghc_filesystem
         PREFIX ext
         STEP_TARGETS install
+        EXCLUDE_FROM_ALL ON
         GIT_REPOSITORY https://github.com/gulrak/filesystem.git
         GIT_TAG v1.5.8
         GIT_SHALLOW ON
@@ -36,6 +37,7 @@ endif()
 ExternalProject_add(lightning
     PREFIX ext
     STEP_TARGETS install
+    EXCLUDE_FROM_ALL ON
     GIT_REPOSITORY https://git.savannah.gnu.org/git/lightning.git
     GIT_TAG master
     GIT_PROGRESS ON
