@@ -12,7 +12,10 @@ namespace hadron {
 // Serializes bytecode to a machine-independent three address format that uses virtual registers
 class VirtualJIT : public JIT {
 public:
-    VirtualJIT() = default;
+    // Default constructor allows for approximately infinite registers.
+    VirtualJIT();
+    // Constructor for testing allows control over register counts to test register allocation.
+    VirtualJIT(int maxRegisters, int maxFloatRegisters);
     virtual ~VirtualJIT() = default;
 
     bool emit() override;
@@ -85,6 +88,8 @@ private:
     // Add to the register use list for the given virtual register. Returns the same register, for convenience.
     JIT::Reg use(JIT::Reg reg);
 
+    int m_maxRegisters;
+    int m_maxFloatRegisters;
     std::vector<Inst> m_instructions;
     std::vector<size_t> m_labels;  // indices in the m_instructions table.
     std::vector<Address> m_addresses;

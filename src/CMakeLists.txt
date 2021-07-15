@@ -136,8 +136,10 @@ install(TARGETS hadron
 add_executable(unittests
     ErrorReporter_unittests.cpp
     Lexer_unittests.cpp
+    MachineCodeRenderer_unittests.cpp
     Parser_unittests.cpp
     SyntaxAnalyzer_unittests.cpp
+
     unittests.cpp
 )
 

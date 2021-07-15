@@ -7,6 +7,14 @@
 
 namespace hadron {
 
+VirtualJIT::VirtualJIT():
+    m_maxRegisters(std::numeric_limits<int32_t>::max()),
+    m_maxFloatRegisters(std::numeric_limits<int32_t>::max()) {}
+
+VirtualJIT::VirtualJIT(int maxRegisters, int maxFloatRegisters):
+    m_maxRegisters(maxRegisters),
+    m_maxFloatRegisters(maxFloatRegisters) {}
+
 bool VirtualJIT::emit() {
     return true;
 }
@@ -16,11 +24,11 @@ Slot VirtualJIT::value() {
 }
 
 int VirtualJIT::getRegisterCount() const {
-    return std::numeric_limits<int32_t>::max();
+    return m_maxRegisters;
 }
 
 int VirtualJIT::getFloatRegisterCount() const {
-    return std::numeric_limits<int32_t>::max();
+    return m_maxFloatRegisters;
 }
 
 void VirtualJIT::addr(Reg target, Reg a, Reg b) {
@@ -122,7 +130,7 @@ void VirtualJIT::patch(Label label) {
 
 void VirtualJIT::alias(Reg r) {
     if (r >= static_cast<int>(m_registerUses.size())) {
-        m_registerUses.resize(r);
+        m_registerUses.resize(r + 1);
     }
     m_instructions.emplace_back(Inst{Opcodes::kAlias, r});
 }
