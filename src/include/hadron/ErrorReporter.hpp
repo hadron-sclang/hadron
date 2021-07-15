@@ -27,6 +27,10 @@ public:
     // Fatal compiler error, failed to read file at filePath.
     void addFileReadError(std::string filePath);
 
+    // Internal compiler errors for diagnostics and error reporting. These are less systematically organized as they
+    // are not intended for consumption by users normally.
+    void addInternalError(const std::string& error);
+
     size_t getLineNumber(const char* location);
     size_t errorCount() const { return m_errors.size(); }
     bool ok() const { return m_errors.size() == 0; }

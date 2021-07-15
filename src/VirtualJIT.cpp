@@ -24,25 +24,27 @@ int VirtualJIT::getFloatRegisterCount() const {
 }
 
 void VirtualJIT::addr(Reg target, Reg a, Reg b) {
-    m_instructions.emplace_back(Inst{Opcodes::kAddr, target, a, b});
+    m_instructions.emplace_back(Inst{Opcodes::kAddr, use(target), use(a), use(b)});
 }
 
 void VirtualJIT::addi(Reg target, Reg a, int b) {
-    m_instructions.emplace_back(Inst{Opcodes::kAddi, target, a, b});
+    m_instructions.emplace_back(Inst{Opcodes::kAddi, use(target), use(a), b});
 }
 
 void VirtualJIT::movr(Reg target, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kMovr, target, value});
+    if (target != value) {
+        m_instructions.emplace_back(Inst{Opcodes::kMovr, use(target), use(value)});
+    }
 }
 
 void VirtualJIT::movi(Reg target, int value) {
-    m_instructions.emplace_back(Inst{Opcodes::kMovi, target, value});
+    m_instructions.emplace_back(Inst{Opcodes::kMovi, use(target), value});
 }
 
 JIT::Label VirtualJIT::bgei(Reg a, int b) {
     JIT::Label label = m_labels.size();
     m_labels.emplace_back(m_instructions.size());
-    m_instructions.emplace_back(Inst{Opcodes::kBgei, a, b, label});
+    m_instructions.emplace_back(Inst{Opcodes::kBgei, use(a), b, label});
     return label;
 }
 
@@ -53,18 +55,22 @@ JIT::Label VirtualJIT::jmpi() {
     return label;
 }
 
+void VirtualJIT::ldxi(Reg target, Reg address, int offset) {
+    m_instructions.emplace_back(Inst{Opcodes::kLdxi, use(target), use(address), offset});
+}
+
 void VirtualJIT::str(Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStr, address, value});
+    m_instructions.emplace_back(Inst{Opcodes::kStr, use(address), use(value)});
 }
 
 void VirtualJIT::sti(Address address, Reg value) {
     int addressNumber = m_addresses.size();
     m_addresses.emplace_back(address);
-    m_instructions.emplace_back(Inst{Opcodes::kSti, addressNumber, value});
+    m_instructions.emplace_back(Inst{Opcodes::kSti, addressNumber, use(value)});
 }
 
 void VirtualJIT::stxi(int offset, Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStxi, offset, address, value});
+    m_instructions.emplace_back(Inst{Opcodes::kStxi, offset, use(address), use(value)});
 }
 
 void VirtualJIT::prolog() {
@@ -79,7 +85,7 @@ JIT::Label VirtualJIT::arg() {
 }
 
 void VirtualJIT::getarg(Reg target, Label arg) {
-    m_instructions.emplace_back(Inst{Opcodes::kGetarg, target, arg});
+    m_instructions.emplace_back(Inst{Opcodes::kGetarg, use(target), arg});
 }
 
 void VirtualJIT::allocai(int stackSizeBytes) {
@@ -91,7 +97,7 @@ void VirtualJIT::ret() {
 }
 
 void VirtualJIT::retr(Reg r) {
-    m_instructions.emplace_back(Inst{Opcodes::kRetr, r});
+    m_instructions.emplace_back(Inst{Opcodes::kRetr, use(r)});
 }
 
 void VirtualJIT::epilog() {
@@ -115,6 +121,9 @@ void VirtualJIT::patch(Label label) {
 }
 
 void VirtualJIT::alias(Reg r) {
+    if (r >= static_cast<int>(m_registerUses.size())) {
+        m_registerUses.resize(r);
+    }
     m_instructions.emplace_back(Inst{Opcodes::kAlias, r});
 }
 
@@ -145,39 +154,43 @@ bool VirtualJIT::toString(std::string& codeString) const {
         }
         switch (inst[0]) {
         case kAddr:
-            code << fmt::format("{} addr %r{}, %r{}, %r{}\n", label, inst[1], inst[2], inst[3]);
+            code << fmt::format("{} addr %vr{}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kAddi:
-            code << fmt::format("{} addi %r{}, %r{}, {}\n", label, inst[1], inst[2], inst[3]);
+            code << fmt::format("{} addi %vr{}, %vr{}, {}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kMovr:
-            code << fmt::format("{} movr %r{}, %r{}\n", label, inst[1], inst[2]);
+            code << fmt::format("{} movr %vr{}, %vr{}\n", label, inst[1], inst[2]);
             break;
 
         case kMovi:
-            code << fmt::format("{} movi %r{}, {}\n", label, inst[1], inst[2]);
+            code << fmt::format("{} movi %vr{}, {}\n", label, inst[1], inst[2]);
             break;
 
         case kBgei:
-            code << fmt::format("{} bgei %r{}, {} label_{}\n", label, inst[1], inst[2], inst[3]);
+            code << fmt::format("{} bgei %vr{}, {} label_{}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kJmpi:
             code << fmt::format("{} jmpi label_{}\n", label, inst[1]);
             break;
 
+        case kLdxi:
+            code << fmt::format("{} ldxi %vr{}, %vr{}, 0x{:08x}", label, inst[1], inst[2], inst[3]);
+            break;
+
         case kStr:
-            code << fmt::format("{} str %r{}, %r{}\n", label, inst[1], inst[2]);
+            code << fmt::format("{} str %vr{}, %vr{}\n", label, inst[1], inst[2]);
             break;
 
         case kSti:
-            code << fmt::format("{} sti 0x{:016x}, %r{}\n", label, m_addresses[inst[1]], inst[2]);
+            code << fmt::format("{} sti 0x{:016x}, %vr{}\n", label, m_addresses[inst[1]], inst[2]);
             break;
 
         case kStxi:
-            code << fmt::format("{} stxi 0x{:08x}, %r{}, %r{}\n", label, inst[1], inst[2], inst[3]);
+            code << fmt::format("{} stxi 0x{:08x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kProlog:
@@ -189,7 +202,7 @@ bool VirtualJIT::toString(std::string& codeString) const {
             break;
 
         case kGetarg:
-            code << fmt::format("{} getarg %r{}, label_{}\n", label, inst[1], inst[2]);
+            code << fmt::format("{} getarg %vr{}, label_{}\n", label, inst[1], inst[2]);
             break;
 
         case kAllocai:
@@ -201,7 +214,7 @@ bool VirtualJIT::toString(std::string& codeString) const {
             break;
 
         case kRetr:
-            code << fmt::format("{} retr %r{}\n", label, inst[1]);
+            code << fmt::format("{} retr %vr{}\n", label, inst[1]);
             break;
 
         case kEpilog:
@@ -221,11 +234,11 @@ bool VirtualJIT::toString(std::string& codeString) const {
             break;
 
         case kAlias:
-            code << fmt::format("{} alias %r{}\n", label, inst[1]);
+            code << fmt::format("{} alias %vr{}\n", label, inst[1]);
             break;
 
         case kUnalias:
-            code << fmt::format("{} unalias %r{}\n", label, inst[1]);
+            code << fmt::format("{} unalias %vr{}\n", label, inst[1]);
             break;
 
         default:
@@ -236,6 +249,11 @@ bool VirtualJIT::toString(std::string& codeString) const {
     code.flush();
     codeString = code.str();
     return true;
+}
+
+JIT::Reg VirtualJIT::use(JIT::Reg reg) {
+    m_registerUses[reg].emplace_back(m_instructions.size());
+    return reg;
 }
 
 } // namespace hadron

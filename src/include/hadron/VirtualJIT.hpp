@@ -27,6 +27,7 @@ public:
     void movi(Reg target, int value) override;
     Label bgei(Reg a, int b) override;
     Label jmpi() override;
+    void ldxi(Reg target, Reg address, int offset) override;
     void str(Reg address, Reg value) override;
     void sti(Address address, Reg value) override;
     void stxi(int offset, Reg address, Reg value) override;
@@ -48,6 +49,7 @@ public:
         kMovi,
         kBgei,
         kJmpi,
+        kLdxi,
         kStr,
         kSti,
         kStxi,
@@ -75,11 +77,18 @@ public:
 
     using Inst = std::array<int32_t, 4>;
     const std::vector<Inst>& instructions() const { return m_instructions; }
+    const std::vector<Address>& addresses() const { return m_addresses; }
+    // Returns a vector per-register of the indices in instructions() when each register is used.
+    const std::vector<std::vector<Label>>& registerUses() const { return m_registerUses; }
 
 private:
+    // Add to the register use list for the given virtual register. Returns the same register, for convenience.
+    JIT::Reg use(JIT::Reg reg);
+
     std::vector<Inst> m_instructions;
     std::vector<size_t> m_labels;  // indices in the m_instructions table.
     std::vector<Address> m_addresses;
+    std::vector<std::vector<Label>> m_registerUses;
 };
 
 } // namespace hadron

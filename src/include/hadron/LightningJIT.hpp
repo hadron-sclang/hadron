@@ -32,6 +32,7 @@ public:
     void movi(Reg target, int value) override;
     Label bgei(Reg a, int b) override;
     Label jmpi() override;
+    void ldxi(Reg target, Reg address, int offset) override;
     void str(Reg address, Reg value) override;
     void sti(Address address, Reg value) override;
     void stxi(int offset, Reg address, Reg value) override;
@@ -51,6 +52,7 @@ public:
     static void finishJITGlobals();
 
 private:
+    // Converts flat register space to JIT_V and JIT_R equivalents.
     int reg(Reg r);
     jit_state_t* m_state;
     // Non-owning pointers to nodes within the jit_state struct, used for labels.

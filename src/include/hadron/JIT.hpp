@@ -50,6 +50,10 @@ public:
     // unconditionally jump to Label
     virtual Label jmpi() = 0;
 
+    // * loads
+    // %target = *(%address + offset)
+    virtual void ldxi(Reg target, Reg address, int offset) = 0;
+
     // * stores
     // *address = value
     virtual void str(Reg address, Reg value) = 0;

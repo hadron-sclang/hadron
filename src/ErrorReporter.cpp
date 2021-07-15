@@ -27,6 +27,10 @@ void ErrorReporter::addFileReadError(std::string filePath) {
     addError(fmt::format("file {} read error", filePath));
 }
 
+void ErrorReporter::addInternalError(const std::string& error) {
+    addError(error);
+}
+
 size_t ErrorReporter::getLineNumber(const char* location) {
     // Lazily construct the line number map on first request for line number.
     if (!m_lineEndings.size()) {

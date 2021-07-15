@@ -26,33 +26,33 @@ Slot LightningJIT::value() {
 }
 
 int LightningJIT::getRegisterCount() const {
-    return jit_v_num() + jit_r_num();
+    return JIT_R_NUM + JIT_V_NUM;
 }
 
 int LightningJIT::getFloatRegisterCount() const {
-    return jit_f_num();
+    return JIT_F_NUM;
 }
 
 void LightningJIT::addr(Reg target, Reg a, Reg b) {
-    _jit_new_node_www(m_state, jit_code_addr, target, a, b);
+    _jit_new_node_www(m_state, jit_code_addr, reg(target), reg(a), reg(b));
 }
 
 void LightningJIT::addi(Reg target, Reg a, int b) {
-    _jit_new_node_www(m_state, jit_code_addi, target, a, b);
+    _jit_new_node_www(m_state, jit_code_addi, reg(target), reg(a), b);
 }
 
 void LightningJIT::movr(Reg target, Reg value) {
     if (target != value) {
-        _jit_new_node_ww(m_state, jit_code_movr, target, value);
+        _jit_new_node_ww(m_state, jit_code_movr, reg(target), reg(value));
     }
 }
 
 void LightningJIT::movi(Reg target, int value) {
-    _jit_new_node_ww(m_state, jit_code_movi, target, value);
+    _jit_new_node_ww(m_state, jit_code_movi, reg(target), value);
 }
 
 JIT::Label LightningJIT::bgei(Reg a, int b) {
-    m_labels.emplace_back(_jit_new_node_pww(m_state, jit_code_bgei, nullptr, a, b));
+    m_labels.emplace_back(_jit_new_node_pww(m_state, jit_code_bgei, nullptr, reg(a), b));
     return m_labels.size() - 1;
 }
 
@@ -61,16 +61,20 @@ JIT::Label LightningJIT::jmpi() {
     return m_labels.size() - 1;
 }
 
+void LightningJIT::ldxi(Reg target, Reg address, int offset) {
+    _jit_new_node_www(m_state, jit_code_ldxi_i, reg(target), reg(address), offset);
+}
+
 void LightningJIT::str(Reg address, Reg value) {
-    _jit_new_node_ww(m_state, jit_code_str_i, address, value);
+    _jit_new_node_ww(m_state, jit_code_str_i, reg(address), reg(value));
 }
 
 void LightningJIT::sti(Address address, Reg value) {
-    _jit_new_node_pw(m_state, jit_code_sti_i, address, value);
+    _jit_new_node_pw(m_state, jit_code_sti_i, address, reg(value));
 }
 
 void LightningJIT::stxi(int offset, Reg address, Reg value) {
-    _jit_new_node_www(m_state, jit_code_stxi_i, offset, address, value);
+    _jit_new_node_www(m_state, jit_code_stxi_i, offset, reg(address), reg(value));
 }
 
 void LightningJIT::prolog() {
@@ -83,7 +87,7 @@ JIT::Label LightningJIT::arg() {
 }
 
 void LightningJIT::getarg(Reg target, Label arg) {
-    _jit_getarg_i(m_state, target, m_labels[arg]);
+    _jit_getarg_i(m_state, reg(target), m_labels[arg]);
 }
 
 void LightningJIT::allocai(int stackSizeBytes) {
@@ -95,7 +99,7 @@ void LightningJIT::ret() {
 }
 
 void LightningJIT::retr(Reg r) {
-    _jit_retr(m_state, r);
+    _jit_retr(m_state, reg(r));
 }
 
 void LightningJIT::epilog() {
@@ -123,6 +127,17 @@ void LightningJIT::initJITGlobals() {
 // static
 void LightningJIT::finishJITGlobals() {
     finish_jit();
+}
+
+
+int LightningJIT::reg(Reg r) {
+    // For function calls from JITted code, we will assume that all allocated registers need to be saved, and so
+    // the distinction between caller-save and callee-save registers seems less important. However, more research
+    // should be done here when implementing function calls.
+    if (r < JIT_R_NUM) {
+        return JIT_R(r);
+    }
+    return JIT_V(r - JIT_R_NUM);
 }
 
 } // namespace hadron
