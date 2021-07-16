@@ -79,7 +79,7 @@ namespace hadron {
 
 CodeGenerator::CodeGenerator(const ast::BlockAST* block, std::shared_ptr<ErrorReporter> errorReporter):
     m_block(block),
-    m_jit(std::make_unique<VirtualJIT>()),
+    m_jit(std::make_unique<VirtualJIT>(errorReporter)),
     m_errorReporter(errorReporter) {}
 
 bool CodeGenerator::generate() {

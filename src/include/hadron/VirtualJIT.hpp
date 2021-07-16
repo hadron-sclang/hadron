@@ -13,9 +13,10 @@ namespace hadron {
 class VirtualJIT : public JIT {
 public:
     // Default constructor allows for approximately infinite registers.
-    VirtualJIT();
+    VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter);
     // Constructor for testing allows control over register counts to test register allocation.
-    VirtualJIT(int maxRegisters, int maxFloatRegisters);
+    VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter, int maxRegisters, int maxFloatRegisters);
+    VirtualJIT() = delete;
     virtual ~VirtualJIT() = default;
 
     bool emit() override;

@@ -17,7 +17,8 @@ namespace hadron {
 
 class LightningJIT : public JIT {
 public:
-    LightningJIT();
+    LightningJIT(std::shared_ptr<ErrorReporter> errorReporter);
+    LightningJIT() = delete;
     virtual ~LightningJIT();
 
     bool emit() override;

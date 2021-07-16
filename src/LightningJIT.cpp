@@ -1,12 +1,18 @@
 #include "hadron/LightningJIT.hpp"
 
+#include "hadron/ErrorReporter.hpp"
+
+#include "fmt/format.h"
+
 extern "C" {
 #include "lightning.h"
 }
 
 namespace hadron {
 
-LightningJIT::LightningJIT(): m_stackBase(0) {
+LightningJIT::LightningJIT(std::shared_ptr<ErrorReporter> errorReporter):
+    JIT(errorReporter),
+    m_stackBase(0) {
     m_state = jit_new_state();
 }
 
@@ -137,7 +143,12 @@ int LightningJIT::reg(Reg r) {
     if (r < JIT_R_NUM) {
         return JIT_R(r);
     }
-    return JIT_V(r - JIT_R_NUM);
+    if (r - JIT_R_NUM < JIT_V_NUM) {
+        return JIT_V(r - JIT_R_NUM);
+    }
+    m_errorReporter->addInternalError(fmt::format("LightningJIT got request for %r{}, but there are only {} machine "
+        "registers", r, JIT_R_NUM + JIT_V_NUM));
+    return r;
 }
 
 } // namespace hadron

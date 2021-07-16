@@ -187,3 +187,14 @@ target_link_libraries(hadronc
     gflags
     hadron
 )
+
+######
+# hlang
+add_executable(hlang
+    hlang.cpp
+)
+
+target_link_libraries(hlang
+    gflags
+    hadron
+)

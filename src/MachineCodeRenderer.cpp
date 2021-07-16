@@ -10,7 +10,7 @@ namespace hadron {
 
 MachineCodeRenderer::MachineCodeRenderer(const VirtualJIT* virtualJIT, std::shared_ptr<ErrorReporter> errorReporter):
     m_virtualJIT(virtualJIT),
-    m_machineJIT(std::make_unique<LightningJIT>()),
+    m_machineJIT(std::make_unique<LightningJIT>(errorReporter)),
     m_errorReporter(errorReporter),
     m_spillStackSize(0),
     m_spillStackOffsetBytes(0) {}

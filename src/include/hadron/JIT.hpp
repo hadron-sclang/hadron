@@ -8,11 +8,14 @@
 
 namespace hadron {
 
+class ErrorReporter;
+
 // Abstract base class for JIT compilation, allowing CodeGenerator to JIT to either virtual, testing or production
 // backends.
 class JIT {
 public:
-    JIT() = default;
+    JIT(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporter(errorReporter) {}
+    JIT() = delete;
     virtual ~JIT() = default;
 
     // ===== JIT compilation
@@ -85,6 +88,9 @@ public:
     virtual void patchAt(Label target, Label location) = 0;
     // Makes |label| point to current position in JIT, for forward jumps.
     virtual void patch(Label label) = 0;
+
+protected:
+    std::shared_ptr<ErrorReporter> m_errorReporter;
 };
 
 } // namespace hadron

@@ -1,5 +1,7 @@
 #include "hadron/VirtualJIT.hpp"
 
+#include "hadron/ErrorReporter.hpp"
+
 #include "fmt/format.h"
 
 #include <limits>
@@ -7,11 +9,13 @@
 
 namespace hadron {
 
-VirtualJIT::VirtualJIT():
+VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter):
+    JIT(errorReporter),
     m_maxRegisters(std::numeric_limits<int32_t>::max()),
     m_maxFloatRegisters(std::numeric_limits<int32_t>::max()) {}
 
-VirtualJIT::VirtualJIT(int maxRegisters, int maxFloatRegisters):
+VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter, int maxRegisters, int maxFloatRegisters):
+    JIT(errorReporter),
     m_maxRegisters(maxRegisters),
     m_maxFloatRegisters(maxFloatRegisters) {}
 
@@ -119,16 +123,22 @@ JIT::Label VirtualJIT::label() {
 }
 
 void VirtualJIT::patchAt(Label target, Label location) {
-    m_instructions.emplace_back(Inst{Opcodes::kPatchAt, target, location});
     if (target < static_cast<int>(m_labels.size()) && location < static_cast<int>(m_labels.size())) {
         m_labels[target] = m_labels[location];
+        m_instructions.emplace_back(Inst{Opcodes::kPatchAt, target, location});
+    } else {
+        m_errorReporter->addInternalError(fmt::format("VirtualJIT patchat label_{} label_{} contains out-of-bounds "
+            "label argument as there are only {} labels", target, location, m_labels.size()));
     }
 }
 
 void VirtualJIT::patch(Label label) {
-    m_instructions.emplace_back(Inst{Opcodes::kPatch, label});
     if (label < static_cast<int>(m_labels.size())) {
         m_labels[label] = m_instructions.size();
+        m_instructions.emplace_back(Inst{Opcodes::kPatch, label});
+    } else {
+        m_errorReporter->addInternalError(fmt::format("VirtualJIT patch label_{} contains out-of-bounds label argument "
+            "as there are only {} labels", label, m_labels.size()));
     }
 }
 
@@ -254,6 +264,7 @@ bool VirtualJIT::toString(std::string& codeString) const {
             break;
 
         default:
+            m_errorReporter->addInternalError("VirtualJIT toString() encountered unknown opcode enum.");
             return false;
         }
     }
@@ -264,10 +275,11 @@ bool VirtualJIT::toString(std::string& codeString) const {
 }
 
 JIT::Reg VirtualJIT::use(JIT::Reg reg) {
-    if (reg >= static_cast<int>(m_registerUses.size())) {
-        m_registerUses.resize(reg + 1);
+    if (reg < static_cast<int>(m_registerUses.size())) {
+        m_registerUses[reg].emplace_back(m_instructions.size());
+    } else {
+        m_errorReporter->addInternalError(fmt::format("VirtualJIT attempting to use unallocated register {}.", reg));
     }
-    m_registerUses[reg].emplace_back(m_instructions.size());
     return reg;
 }
 

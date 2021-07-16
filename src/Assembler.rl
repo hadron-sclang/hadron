@@ -123,8 +123,8 @@
         space { /* ignore whitespace */ };
         any {
             size_t lineNumber = m_errorReporter->getLineNumber(ts);
-            m_errorReporter->addError(fmt::format("Assembler error at line {} character {}: unrecognized token '{}'",
-                lineNumber, ts - m_errorReporter->getLineStart(lineNumber), std::string(ts, te - ts)));
+            m_errorReporter->addInternalError(fmt::format("Assembler error at line {} character {}: unrecognized token "
+                "'{}'", lineNumber, ts - m_errorReporter->getLineStart(lineNumber), std::string(ts, te - ts)));
             return false;
         };
     *|;
@@ -152,14 +152,14 @@ namespace hadron {
 Assembler::Assembler(std::string_view code):
     m_code(code),
     m_errorReporter(std::make_shared<ErrorReporter>(true)),
-    m_jit(std::make_unique<VirtualJIT>()) {
+    m_jit(std::make_unique<VirtualJIT>(m_errorReporter)) {
     m_errorReporter->setCode(m_code.data());
 }
 
 Assembler::Assembler(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter):
     m_code(code),
     m_errorReporter(errorReporter),
-    m_jit(std::make_unique<VirtualJIT>()) {}
+    m_jit(std::make_unique<VirtualJIT>(errorReporter)) {}
 
 bool Assembler::assemble() {
     // Ragel-required state variables.
@@ -181,7 +181,7 @@ bool Assembler::assemble() {
 
     %% write exec;
 
-    return true;
+    return m_errorReporter->ok();
 }
 
 
