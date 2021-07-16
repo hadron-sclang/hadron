@@ -55,6 +55,14 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     VERBATIM
 )
 
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
+    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Assembler.rl"
+    MAIN_DEPENDENCY Assembler.rl
+    DEPENDS ragel-install
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    VERBATIM
+)
+
 # predefined symbol hash table
 add_executable(hashkw
     hashkw.cpp
@@ -75,6 +83,7 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
 ######
 # libhadron
 add_library(hadron STATIC
+    "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
@@ -83,6 +92,7 @@ add_library(hadron STATIC
     CompilerContext.cpp
     FileSystem.hpp
     Hash.cpp
+    include/hadron/Assembler.hpp
     include/hadron/CodeGenerator.hpp
     include/hadron/CompilerContext.hpp
     include/hadron/ErrorReporter.hpp
@@ -136,6 +146,7 @@ install(TARGETS hadron
 ######
 # unittests
 add_executable(unittests
+    Assembler_unittests.cpp
     ErrorReporter_unittests.cpp
     Lexer_unittests.cpp
     MachineCodeRenderer_unittests.cpp

@@ -260,6 +260,9 @@ bool VirtualJIT::toString(std::string& codeString) const {
 }
 
 JIT::Reg VirtualJIT::use(JIT::Reg reg) {
+    if (reg >= static_cast<int>(m_registerUses.size())) {
+        m_registerUses.resize(reg + 1);
+    }
     m_registerUses[reg].emplace_back(m_instructions.size());
     return reg;
 }

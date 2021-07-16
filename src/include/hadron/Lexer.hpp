@@ -1,15 +1,9 @@
-#ifndef SRC_LEXER_HPP_
-#define SRC_LEXER_HPP_
+#ifndef SRC_INCLUDE_HADRON_LEXER_HPP_
+#define SRC_INCLUDE_HADRON_LEXER_HPP_
 
-#include "hadron/Hash.hpp"
-#include "hadron/Literal.hpp"
 #include "hadron/Token.hpp"
-#include "hadron/Type.hpp"
 
-#include <cstddef>
 #include <memory>
-#include <stdint.h>
-#include <stdlib.h>
 #include <string_view>
 #include <vector>
 
@@ -41,4 +35,4 @@ private:
 
 } // namespace hadron
 
-#endif // SRC_LEXER_HPP_
+#endif // SRC_INCLUDE_HADRON_LEXER_HPP_

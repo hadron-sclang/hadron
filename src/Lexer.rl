@@ -10,7 +10,9 @@
         # comments #
         ############
         '/*' extend* '*/' { /* ignore block comments */ };
-        '//' (extend - '\n')* ('\n' >/eof_ok) { /* ignore line comments */ };
+        '//' (extend - '\n')* ('\n' >/ eof_ok) {
+            // / ignore line comments (and fix Ragel syntax highlighting in vscode with an extra slash)
+        };
 
         ###################
         # number literals #
@@ -215,9 +217,16 @@
 #include "hadron/Lexer.hpp"
 
 #include "hadron/ErrorReporter.hpp"
+#include "hadron/Hash.hpp"
+#include "hadron/Literal.hpp"
+#include "hadron/Type.hpp"
 #include "Keywords.hpp"
 
 #include "fmt/core.h"
+
+#include <cstddef>
+#include <stdint.h>
+#include <stdlib.h>
 
 namespace {
 #   pragma GCC diagnostic push
