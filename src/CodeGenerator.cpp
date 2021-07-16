@@ -88,6 +88,8 @@ bool CodeGenerator::generate() {
     // register spilling. In the future there may be stack variables so this number can be nonzero as well, and I guess
     // the register spilling stack would exist above this stack space, to keep the addresses here valid.
     m_jit->allocai(0);
+    // As this is a top-level function we want it to be c-callable, so set up the stack frame as expected.
+    m_jit->frame(0);
 
     // First argument is always the Slot return address. ** For now all arguments can be assumed to be addresses.
     // Slot variables can also live on the stack, and will have addresses relative to the frame pointer.
@@ -98,7 +100,8 @@ bool CodeGenerator::generate() {
         jitStatement(statement.get(), &allocator);
     }
 
-    m_jit->ret();
+    // Any non-zero return integer value means function success.
+    m_jit->reti(1);
     m_jit->epilog();
     return true;
 }

@@ -20,7 +20,8 @@ public:
     virtual ~VirtualJIT() = default;
 
     bool emit() override;
-    Slot value() override;
+    bool evaluate(Slot* value) const override;
+    void print() const override;
 
     int getRegisterCount() const override;
     int getFloatRegisterCount() const override;
@@ -39,38 +40,42 @@ public:
     Label arg() override;
     void getarg(Reg target, Label arg) override;
     void allocai(int stackSizeBytes) override;
+    void frame(int stackSizeBytes) override;
     void ret() override;
     void retr(Reg r) override;
+    void reti(int value) override;
     void epilog() override;
     Label label() override;
     void patchAt(Label target, Label location) override;
     void patch(Label label) override;
 
     enum Opcodes : int32_t {
-        kAddr,
-        kAddi,
-        kMovr,
-        kMovi,
-        kBgei,
-        kJmpi,
-        kLdxi,
-        kStr,
-        kSti,
-        kStxi,
-        kProlog,
-        kArg,
-        kGetarg,
-        kAllocai,
-        kRet,
-        kRetr,
-        kEpilog,
-        kLabel,
-        kPatchAt,
-        kPatch,
+        kAddr    = 0x0100,
+        kAddi    = 0x0200,
+        kMovr    = 0x0300,
+        kMovi    = 0x0400,
+        kBgei    = 0x0500,
+        kJmpi    = 0x0600,
+        kLdxi    = 0x0700,
+        kStr     = 0x0800,
+        kSti     = 0x0900,
+        kStxi    = 0x0a00,
+        kProlog  = 0x0b00,
+        kArg     = 0x0c00,
+        kGetarg  = 0x0d00,
+        kAllocai = 0x0e00,
+        kFrame   = 0x0f00,
+        kRet     = 0x1000,
+        kRetr    = 0x1100,
+        kReti    = 0x1200,
+        kEpilog  = 0x1300,
+        kLabel   = 0x1400,
+        kPatchAt = 0x1500,
+        kPatch   = 0x1600,
 
         // not JIT opcodes but rather markers to aid rendering.
-        kAlias,
-        kUnalias
+        kAlias   = 0x1700,
+        kUnalias = 0x1800
     };
 
     // mark |r| as active and associated with a given value |name|

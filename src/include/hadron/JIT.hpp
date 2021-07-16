@@ -1,17 +1,25 @@
 #ifndef SRC_INCLUDE_HADRON_JIT_HPP_
 #define SRC_INCLUDE_HADRON_JIT_HPP_
 
-#include "hadron/Slot.hpp"
-
 #include <cstddef>
 #include <memory>
 
 namespace hadron {
 
 class ErrorReporter;
+struct Slot;
 
 // Abstract base class for JIT compilation, allowing CodeGenerator to JIT to either virtual, testing or production
 // backends.
+// Steps to add a new instruction:
+// 1) add a new abstract function here.
+// 2) implement the new method in LightningJIT
+// 3) implement the new method in VirtualJIT, including:
+//    3a) add an enum value to Opcode
+//    3b) implement the method in VirtualJIT
+//    3c) add support for printing the opcode in VirtualJIT::toString()
+// 4) add parsing for the opcode in main state machine in Assembler.rl, and a unit test in Assembler_unittests
+// 5) add support for the opcode in MachineCodeRenderer::render()
 class JIT {
 public:
     JIT(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporter(errorReporter) {}
@@ -20,7 +28,8 @@ public:
 
     // ===== JIT compilation
     virtual bool emit() = 0;
-    virtual Slot value() = 0;
+    virtual bool evaluate(Slot* value) const = 0;
+    virtual void print() const = 0;
 
     using Label = int32_t;
     using Reg = int32_t;
@@ -72,12 +81,18 @@ public:
     virtual Label arg() = 0;
     // load argument into a register %target
     virtual void getarg(Reg target, Label arg) = 0;
-    // allocate bytes on the stack, should be called after prolog()
+    // allocate bytes on the stack, should be called after prolog() and before frame(). Note this API only allows for
+    // one call to allocai per JIT instance but the underlying API is not so restrictive.
     virtual void allocai(int stackSizeBytes) = 0;
-    // ret
+    // sets up a c-callabale stack frame of at least stackSizeBytes. Save all callee-save registers. The Size argument
+    // needs to be at least as large as the sum of all calls to allocai.
+    virtual void frame(int stackSizeBytes) = 0;
+    // return with no value
     virtual void ret() = 0;
     // retr %r  (return value of reg r)
     virtual void retr(Reg r) = 0;
+    // reti value (return immediate value)
+    virtual void reti(int value) = 0;
     // mark the end of a function (should follow after any ret call)
     virtual void epilog() = 0;
 

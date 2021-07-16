@@ -132,6 +132,12 @@ TEST_CASE("Assembler Base Cases") {
         REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAllocai, 1024});
     }
+    SUBCASE("allocai") {
+        Assembler assembler("frame 0");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kFrame, 0});
+    }
     SUBCASE("ret") {
         Assembler assembler("ret");
         REQUIRE(assembler.assemble());
@@ -145,6 +151,12 @@ TEST_CASE("Assembler Base Cases") {
         REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 9});
         CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kRetr, 9});
+    }
+    SUBCASE("reti") {
+        Assembler assembler("reti 99");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kReti, 99});
     }
     SUBCASE("epilog") {
         Assembler assembler("epilog");

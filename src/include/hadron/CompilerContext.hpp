@@ -12,6 +12,7 @@ class Lexer;
 class MachineCodeRenderer;
 class Parser;
 class SyntaxAnalyzer;
+struct Slot;
 
 // Owns the source code input and keeps all of the necessary components around for compilation of a piece of code
 // from source to output C++ or JIT machine code.
@@ -21,6 +22,11 @@ public:
     CompilerContext(std::unique_ptr<char[]> code, size_t codeSize);
     explicit CompilerContext(std::string filePath);
     ~CompilerContext();
+
+    // Some compiler tools have global static data they need to set up. Call these exactly once per process, before
+    // using this class.
+    static void initJITGlobals();
+    static void finishJITGlobals();
 
     bool readFile();
 
@@ -32,8 +38,12 @@ public:
     bool generateCode();
     bool renderToMachineCode();
 
+    // JIT, then run the generated code, save the result in |value|, returns true on success.
+    bool evaluate(Slot* value);
     bool getGeneratedCodeAsString(std::string& codeString) const;
 
+    // The underlying JIT library doesn't return a string but rather prints directly to console.
+    void printRenderedCode() const;
 
 private:
     std::string m_filePath;
@@ -45,8 +55,8 @@ private:
     std::unique_ptr<Lexer> m_lexer;
     std::unique_ptr<Parser> m_parser;
     std::unique_ptr<SyntaxAnalyzer> m_syntaxAnalyzer;
-    std::unique_ptr<CodeGenerator> m_codeGenerator;
-    std::unique_ptr<MachineCodeRenderer> m_codeRenderer;
+    std::unique_ptr<CodeGenerator> m_generator;
+    std::unique_ptr<MachineCodeRenderer> m_renderer;
 };
 
 } // namespace hadron

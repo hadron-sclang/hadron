@@ -25,10 +25,13 @@ bool LightningJIT::emit() {
     return (m_jit != nullptr);
 }
 
-Slot LightningJIT::value() {
-    Slot returnSlot;
-    m_jit(&returnSlot);
-    return returnSlot;
+bool LightningJIT::evaluate(Slot* value) const {
+    return m_jit(value) != 0;
+}
+
+void LightningJIT::print() const {
+    _jit_print(m_state);
+    _jit_clear_state(m_state);
 }
 
 int LightningJIT::getRegisterCount() const {
@@ -100,12 +103,20 @@ void LightningJIT::allocai(int stackSizeBytes) {
     m_stackBase = _jit_allocai(m_state, stackSizeBytes);
 }
 
+void LightningJIT::frame(int stackSizeBytes) {
+    _jit_frame(m_state, stackSizeBytes);
+}
+
 void LightningJIT::ret() {
     _jit_ret(m_state);
 }
 
 void LightningJIT::retr(Reg r) {
     _jit_retr(m_state, reg(r));
+}
+
+void LightningJIT::reti(int value) {
+    _jit_reti(m_state, value);
 }
 
 void LightningJIT::epilog() {
@@ -134,7 +145,6 @@ void LightningJIT::initJITGlobals() {
 void LightningJIT::finishJITGlobals() {
     finish_jit();
 }
-
 
 int LightningJIT::reg(Reg r) {
     // For function calls from JITted code, we will assume that all allocated registers need to be saved, and so

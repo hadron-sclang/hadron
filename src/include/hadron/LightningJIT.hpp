@@ -22,7 +22,8 @@ public:
     virtual ~LightningJIT();
 
     bool emit() override;
-    Slot value() override;
+    bool evaluate(Slot* value) const override;
+    void print() const override;
 
     int getRegisterCount() const override;
     int getFloatRegisterCount() const override;
@@ -41,8 +42,10 @@ public:
     Label arg() override;
     void getarg(Reg target, Label arg) override;
     void allocai(int stackSizeBytes) override;
+    void frame(int stackSizeBytes) override;
     void ret() override;
     void retr(Reg r) override;
+    void reti(int value) override;
     void epilog() override;
     Label label() override;
     void patchAt(Label target, Label location) override;
@@ -61,7 +64,7 @@ private:
     // Offset in bytes from the stack frame pointer where the stack begins.
     int m_stackBase;
 
-    typedef void (*Value)(Slot* returnSlot);
+    typedef int (*Value)(Slot* returnSlot);
     Value m_jit;
 };
 

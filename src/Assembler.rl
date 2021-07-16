@@ -96,11 +96,17 @@
         optlabel 'allocai' start integer optcomment {
             m_jit->allocai(arg[0]);
         };
+        optlabel 'frame' start integer optcomment {
+            m_jit->frame(arg[0]);
+        };
         optlabel 'ret' optcomment {
             m_jit->ret();
         };
         optlabel 'retr' start reg optcomment {
             m_jit->retr(arg[0]);
+        };
+        optlabel 'reti' start integer optcomment {
+            m_jit->reti(arg[0]);
         };
         optlabel 'epilog' optcomment {
             m_jit->epilog();

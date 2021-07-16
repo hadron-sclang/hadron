@@ -4,6 +4,7 @@
 
 #include "fmt/format.h"
 
+#include <iostream>
 #include <limits>
 #include <sstream>
 
@@ -17,17 +18,28 @@ VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter):
 VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter, int maxRegisters, int maxFloatRegisters):
     JIT(errorReporter),
     m_maxRegisters(maxRegisters),
-    m_maxFloatRegisters(maxFloatRegisters) {}
+    m_maxFloatRegisters(maxFloatRegisters) { }
 
 bool VirtualJIT::emit() {
     return true;
 }
 
-Slot VirtualJIT::value() {
-    return Slot();
+bool VirtualJIT::evaluate(Slot* /* value */) const {
+    m_errorReporter->addInternalError("VirtualJIT got evaluation request.");
+    return false;
+}
+
+void VirtualJIT::print() const {
+    std::string code;
+    if (toString(code)) {
+        std::cout << code;
+    }
 }
 
 int VirtualJIT::getRegisterCount() const {
+    if (m_maxRegisters < 3) {
+        m_errorReporter->addInternalError("VirtualJIT instantiated with {} registers, requires a minimum of 3.");
+    }
     return m_maxRegisters;
 }
 
@@ -104,12 +116,20 @@ void VirtualJIT::allocai(int stackSizeBytes) {
     m_instructions.emplace_back(Inst{Opcodes::kAllocai, stackSizeBytes});
 }
 
+void VirtualJIT::frame(int stackSizeBytes) {
+    m_instructions.emplace_back(Inst{Opcodes::kFrame, stackSizeBytes});
+}
+
 void VirtualJIT::ret() {
     m_instructions.emplace_back(Inst{Opcodes::kRet});
 }
 
 void VirtualJIT::retr(Reg r) {
     m_instructions.emplace_back(Inst{Opcodes::kRetr, use(r)});
+}
+
+void VirtualJIT::reti(int value) {
+    m_instructions.emplace_back(Inst{Opcodes::kReti, value});
 }
 
 void VirtualJIT::epilog() {
@@ -185,7 +205,7 @@ bool VirtualJIT::toString(std::string& codeString) const {
 
         case kMovr:
             code << fmt::format("{} movr %vr{}, %vr{}\n", label, inst[1], inst[2]);
-            break;
+             break;
 
         case kMovi:
             code << fmt::format("{} movi %vr{}, {}\n", label, inst[1], inst[2]);
@@ -231,12 +251,20 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} allocai {}\n", label, inst[1]);
             break;
 
+        case kFrame:
+            code << fmt::format("{} frame {}\n", label, inst[1]);
+            break;
+
         case kRet:
             code << fmt::format("{} ret\n", label);
             break;
 
         case kRetr:
             code << fmt::format("{} retr %vr{}\n", label, inst[1]);
+            break;
+
+        case kReti:
+            code << fmt::format("{} reti {}\n", label, inst[1]);
             break;
 
         case kEpilog:

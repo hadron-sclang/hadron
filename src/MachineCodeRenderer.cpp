@@ -10,7 +10,7 @@ namespace hadron {
 
 MachineCodeRenderer::MachineCodeRenderer(const VirtualJIT* virtualJIT, std::shared_ptr<ErrorReporter> errorReporter):
     m_virtualJIT(virtualJIT),
-    m_machineJIT(std::make_unique<LightningJIT>(errorReporter)),
+    m_machineJIT(std::make_unique<VirtualJIT>(errorReporter)),
     m_errorReporter(errorReporter),
     m_spillStackSize(0),
     m_spillStackOffsetBytes(0) {}
@@ -99,12 +99,20 @@ bool MachineCodeRenderer::render() {
             m_machineJIT->allocai(m_spillStackOffsetBytes + (m_spillStackSize * sizeof(void*)));
         }   break;
 
+        case VirtualJIT::Opcodes::kFrame:
+            m_machineJIT->frame(m_spillStackOffsetBytes + (m_spillStackSize * sizeof(void*)));
+            break;
+
         case VirtualJIT::Opcodes::kRet:
             m_machineJIT->ret();
             break;
 
         case VirtualJIT::Opcodes::kRetr:
             m_machineJIT->retr(inst[1]);
+            break;
+
+        case VirtualJIT::Opcodes::kReti:
+            m_machineJIT->reti(inst[1]);
             break;
 
         case VirtualJIT::Opcodes::kEpilog:
@@ -132,13 +140,14 @@ bool MachineCodeRenderer::render() {
             break;
 
         default:
-            m_errorReporter->addInternalError(fmt::format("MachineCodeRenderer got unidentified VirtualJIT Opcode {}.",
-                inst[0]));
+            m_errorReporter->addInternalError(fmt::format("MachineCodeRenderer got unidentified VirtualJIT Opcode "
+                "0x{:x}.", inst[0]));
             break;
         }
     }
 
-    return true;
+    // Render final bytecode.
+    return m_machineJIT->emit();
 }
 
 void MachineCodeRenderer::allocateRegister(VReg vReg) {
