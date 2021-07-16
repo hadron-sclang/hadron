@@ -1,91 +1,124 @@
 %%{
     machine assembler;
 
-    # sA for startArgs
-    action sA {
+    action startArgs {
         argStart = p;
         argIndex = 0;
     }
-    # aE for argEntry
-    action aE {
+    action argEntry {
         argStart = p;
     }
-    # lA for labelArg
-    action lA {
-        // skip over label_ part of label name
-        args[argIndex] = strtol(argStart + 6, nullptr, 10);
+    action labelArg {
+        // Skip over 'label_' part of label name.
+        arg[argIndex] = strtol(argStart + 6, nullptr, 10);
         ++argIndex;
     }
-    # rA for regArg
-    action rA {
-        // skip over %vr part of register name
-        args[argIndex] = strtol(argStart + 3, nullptr, 10);
+    action regArg {
+        // Skip over '%vr' part of register name.
+        arg[argIndex] = strtol(argStart + 3, nullptr, 10);
         ++argIndex;
     }
-    # iA for intArg
-    action iA {
-        args[argIndex] = strtol(argStart, nullptr, 10);
+    action intArg {
+        arg[argIndex] = strtol(argStart, nullptr, 10);
         ++argIndex;
     }
-    # hA for hexArg
-    action hA {
-        // skip over the 0x part of integer
-        args[argIndex] = strtol(argStart + 2, nullptr, 16);
+    action hexArg {
+        // Skip over the '0x' part of integer.
+        arg[argIndex] = strtol(argStart + 2, nullptr, 16);
         ++argIndex;
+    }
+    action addressArg {
+        // Parse 32 or 64 bit addresses, skipping over the '0x' part of the address.
+        if (sizeof(void*) == 8) {
+            addressArg = reinterpret_cast<void*>(strtoll(argStart + 2, nullptr, 16));
+        } else {
+            addressArg = reinterpret_cast<void*>(strtol(argStart + 2, nullptr, 16));
+        }
     }
     action eof_ok { return true; }
 
     label = 'label_' digit+;
-    reg = '%vr' digit+;
-    integer = '-'? digit+;
-    addr = '0x' xdigit+;
-    optlabel = (label ':')?;
+    reg = ('%vr' digit+ %regArg);
+    integer = ('-'? digit+ %intArg);
+    hexint = ('0x' xdigit+ %hexArg);
+    address = ('0x' xdigit+ %addressArg);
+    labelnum = (label %labelArg);
+    whitespace = (' ' | '\t')+;
+    optlabel = (label ':')? whitespace?;
     comment = ';' (extend - '\n')* ('\n' >/ eof_ok); # / # slash comment to fix the syntax highlighting
-    ws = (' ' | '\t')+;
+    optcomment = whitespace* comment?;
+    start = (whitespace %startArgs);
+    ws = (whitespace %argEntry);
 
     main := |*
-        optlabel ws? 'addr' (ws %sA) (reg %rA) (ws %aE) (reg %rA) (ws %aE) (reg %rA) space* comment? {
-            m_jit->addr(args[0], args[1], args[2]);
+        optlabel 'addr' start reg ws reg ws reg optcomment {
+            m_jit->addr(arg[0], arg[1], arg[2]);
         };
-        optlabel ws? 'addi' (ws %sA) (reg %rA) (ws %aE) (reg %rA) (ws %aE) (integer %iA) space* comment? {
-            m_jit->addi(args[0], args[1], args[2]);
+        optlabel 'addi' start reg ws reg ws integer optcomment {
+            m_jit->addi(arg[0], arg[1], arg[2]);
         };
-        optlabel ws? 'movr' (ws %sA) (reg %rA) (ws %aE) (reg %rA) space* comment? {
-            m_jit->movr(args[0], args[1]);
+        optlabel 'movr' start reg ws reg optcomment {
+            m_jit->movr(arg[0], arg[1]);
         };
-        optlabel ws? 'movi' (ws %sA) (reg %rA) (ws %aE) (integer %iA) space* comment? {
-            m_jit->movi(args[0], args[1]);
-/*
-    void sti(Address address, Reg value) override;
-    void stxi(int offset, Reg address, Reg value) override;
-    void prolog() override;
-    Label arg() override;
-    void getarg(Reg target, Label arg) override;
-    void allocai(int stackSizeBytes) override;
-    void ret() override;
-    void retr(Reg r) override;
-    void epilog() override;
-    Label label() override;
-    void patchAt(Label target, Label location) override;
-    void patch(Label label) override;
-    void alias(Reg r);
-    void unalias(Reg r);
-*/
+        optlabel 'movi' start reg ws integer optcomment {
+            m_jit->movi(arg[0], arg[1]);
         };
-        optlabel ws? 'bgei' (ws %sA) (reg %rA) (ws %aE) (integer %iA) (ws %aE) (label %lA) space* comment? {
-            m_jit->bgei(args[0], args[1]);
+        optlabel 'bgei' start reg ws integer ws labelnum optcomment {
+            m_jit->bgei(arg[0], arg[1]);
         };
-        optlabel ws? 'jmpi' (ws %sA) (label %lA) space* comment? {
+        optlabel 'jmpi' start labelnum optcomment {
             m_jit->jmpi();
         };
-        optlabel ws? 'ldxi' (ws %sA) (reg %rA) (ws %aE) (reg %rA) (ws %aE) (addr %hA) space* comment? {
-            m_jit->ldxi(args[0], args[1], args[2]);
+        optlabel 'ldxi' start reg ws reg ws hexint optcomment {
+            m_jit->ldxi(arg[0], arg[1], arg[2]);
         };
-        optlabel ws? 'alias' (ws %sA) (reg %rA) space* comment? {
-            m_jit->alias(args[0]);
+        optlabel 'alias' start reg optcomment {
+            m_jit->alias(arg[0]);
         };
-        optlabel ws? 'str' (ws %sA) (reg %rA) (ws %aE) (reg %rA) space* comment? {
-            m_jit->str(args[0], args[1]);
+        optlabel 'str' start reg ws reg optcomment {
+            m_jit->str(arg[0], arg[1]);
+        };
+        optlabel 'sti' start address ws reg optcomment {
+            m_jit->sti(addressArg, arg[0]);
+        };
+        optlabel 'stxi' start hexint ws reg ws reg optcomment {
+            m_jit->stxi(arg[0], arg[1], arg[2]);
+        };
+        optlabel 'prolog' optcomment {
+            m_jit->prolog();
+        };
+        optlabel 'arg' optcomment {
+            m_jit->arg();
+        };
+        optlabel 'getarg' start reg ws labelnum optcomment {
+            m_jit->getarg(arg[0], arg[1]);
+        };
+        optlabel 'allocai' start integer optcomment {
+            m_jit->allocai(arg[0]);
+        };
+        optlabel 'ret' optcomment {
+            m_jit->ret();
+        };
+        optlabel 'retr' start reg optcomment {
+            m_jit->retr(arg[0]);
+        };
+        optlabel 'epilog' optcomment {
+            m_jit->epilog();
+        };
+        optlabel 'label' optcomment {
+            m_jit->label();
+        };
+        optlabel 'patchat' start labelnum ws labelnum optcomment {
+            m_jit->patchAt(arg[0], arg[1]);
+        };
+        optlabel 'patch' start labelnum optcomment {
+            m_jit->patch(arg[0]);
+        };
+        optlabel 'alias' start reg optcomment {
+            m_jit->alias(arg[0]);
+        };
+        optlabel 'unalias' start reg optcomment {
+            m_jit->unalias(arg[0]);
         };
         space { /* ignore whitespace */ };
         any {
@@ -118,7 +151,7 @@ namespace hadron {
 
 Assembler::Assembler(std::string_view code):
     m_code(code),
-    m_errorReporter(std::make_shared<ErrorReporter>(false)),
+    m_errorReporter(std::make_shared<ErrorReporter>(true)),
     m_jit(std::make_unique<VirtualJIT>()) {
     m_errorReporter->setCode(m_code.data());
 }
@@ -138,9 +171,11 @@ bool Assembler::assemble() {
     const char* ts;
     const char* te;
 
+    // Assembler state variables used for ease of parsing arguments to opcodes.
     const char* argStart = nullptr;
     int argIndex = 0;
-    std::array<int, 3> args;
+    std::array<int, 3> arg;
+    void* addressArg = nullptr;
 
     %% write init;
 

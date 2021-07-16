@@ -120,12 +120,16 @@ JIT::Label VirtualJIT::label() {
 
 void VirtualJIT::patchAt(Label target, Label location) {
     m_instructions.emplace_back(Inst{Opcodes::kPatchAt, target, location});
-    m_labels[target] = location;
+    if (target < static_cast<int>(m_labels.size()) && location < static_cast<int>(m_labels.size())) {
+        m_labels[target] = m_labels[location];
+    }
 }
 
 void VirtualJIT::patch(Label label) {
     m_instructions.emplace_back(Inst{Opcodes::kPatch, label});
-    m_labels[label] = m_instructions.size();
+    if (label < static_cast<int>(m_labels.size())) {
+        m_labels[label] = m_instructions.size();
+    }
 }
 
 void VirtualJIT::alias(Reg r) {
@@ -186,7 +190,7 @@ bool VirtualJIT::toString(std::string& codeString) const {
             break;
 
         case kLdxi:
-            code << fmt::format("{} ldxi %vr{}, %vr{}, 0x{:08x}", label, inst[1], inst[2], inst[3]);
+            code << fmt::format("{} ldxi %vr{}, %vr{}, 0x{:x}", label, inst[1], inst[2], inst[3]);
             break;
 
         case kStr:
@@ -194,11 +198,11 @@ bool VirtualJIT::toString(std::string& codeString) const {
             break;
 
         case kSti:
-            code << fmt::format("{} sti 0x{:016x}, %vr{}\n", label, m_addresses[inst[1]], inst[2]);
+            code << fmt::format("{} sti 0x{:x}, %vr{}\n", label, m_addresses[inst[1]], inst[2]);
             break;
 
         case kStxi:
-            code << fmt::format("{} stxi 0x{:08x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
+            code << fmt::format("{} stxi 0x{:x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kProlog:
