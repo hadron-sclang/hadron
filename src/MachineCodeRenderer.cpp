@@ -10,14 +10,17 @@ namespace hadron {
 
 MachineCodeRenderer::MachineCodeRenderer(const VirtualJIT* virtualJIT, std::shared_ptr<ErrorReporter> errorReporter):
     m_virtualJIT(virtualJIT),
-    m_machineJIT(std::make_unique<LightningJIT>()),
+    m_machineJIT(std::make_unique<LightningJIT>(errorReporter)),
     m_errorReporter(errorReporter),
     m_spillStackSize(0),
-    m_spillStackOffsetBytes(0) {}
+    m_spillStackOffsetBytes(0) {
+    m_machineRegisterCount = std::min(m_machineJIT->getRegisterCount(),
+        static_cast<int>(m_virtualJIT->registerUses().size()));
+}
 
 bool MachineCodeRenderer::render() {
     // Mark all machine registers as free.
-    for (int i = 0; i < m_machineJIT->getRegisterCount(); ++i) {
+    for (int i = 0; i < m_machineRegisterCount; ++i) {
         m_freeRegisters.emplace(i);
     }
     // Set up the use cursors to all point at the first instruction.
@@ -37,6 +40,7 @@ bool MachineCodeRenderer::render() {
         }
 
         const auto& inst = m_virtualJIT->instructions()[i];
+
         switch (inst[0]) {
         case VirtualJIT::Opcodes::kAddr:
             m_machineJIT->addr(inst[1], inst[2], inst[3]);
@@ -62,16 +66,36 @@ bool MachineCodeRenderer::render() {
             m_labels.emplace_back(m_machineJIT->jmpi());
             break;
 
-        case VirtualJIT::Opcodes::kStr:
-            m_machineJIT->str(inst[1], inst[2]);
+        case VirtualJIT::Opcodes::kLdxiW:
+            m_machineJIT->ldxi_w(inst[1], inst[2], inst[3]);
             break;
 
-        case VirtualJIT::Opcodes::kSti:
-            m_machineJIT->sti(m_virtualJIT->addresses()[inst[1]], inst[2]);
+        case VirtualJIT::Opcodes::kLdxiI:
+            m_machineJIT->ldxi_i(inst[1], inst[2], inst[3]);
             break;
 
-        case VirtualJIT::Opcodes::kStxi:
-            m_machineJIT->stxi(inst[1], inst[2], inst[3]);
+        case VirtualJIT::Opcodes::kLdxiL:
+            m_machineJIT->ldxi_l(inst[1], inst[2], inst[3]);
+            break;
+
+        case VirtualJIT::Opcodes::kStrI:
+            m_machineJIT->str_i(inst[1], inst[2]);
+            break;
+
+        case VirtualJIT::Opcodes::kStiI:
+            m_machineJIT->sti_i(m_virtualJIT->addresses()[inst[1]], inst[2]);
+            break;
+
+        case VirtualJIT::Opcodes::kStxiW:
+            m_machineJIT->stxi_w(inst[1], inst[2], inst[3]);
+            break;
+
+        case VirtualJIT::Opcodes::kStxiI:
+            m_machineJIT->stxi_i(inst[1], inst[2], inst[3]);
+            break;
+
+        case VirtualJIT::Opcodes::kStxiL:
+            m_machineJIT->stxi_l(inst[1], inst[2], inst[3]);
             break;
 
         case VirtualJIT::Opcodes::kProlog:
@@ -82,8 +106,16 @@ bool MachineCodeRenderer::render() {
             m_labels.emplace_back(m_machineJIT->arg());
             break;
 
-        case VirtualJIT::Opcodes::kGetarg:
-            m_machineJIT->getarg(inst[1], m_labels[inst[2]]);
+        case VirtualJIT::Opcodes::kGetargW:
+            m_machineJIT->getarg_w(inst[1], m_labels[inst[2]]);
+            break;
+
+        case VirtualJIT::Opcodes::kGetargI:
+            m_machineJIT->getarg_i(inst[1], m_labels[inst[2]]);
+            break;
+
+        case VirtualJIT::Opcodes::kGetargL:
+            m_machineJIT->getarg_l(inst[1], m_labels[inst[2]]);
             break;
 
         case VirtualJIT::Opcodes::kAllocai: {
@@ -91,7 +123,7 @@ bool MachineCodeRenderer::render() {
             // to accomodate swaps at max capacity, to write out the value of the spilled register before unspilling
             // the incoming, previously spilled value.
             m_spillStackSize = std::max(0,
-                1 + static_cast<int>(m_virtualJIT->registerUses().size() - m_machineJIT->getRegisterCount()));
+                1 + static_cast<int>(m_virtualJIT->registerUses().size() - m_machineRegisterCount));
             m_spillStackOffsetBytes = inst[1];
             for (int j = 0; j < m_spillStackSize; ++j) {
                 m_freeSpillIndices.emplace(j);
@@ -99,12 +131,20 @@ bool MachineCodeRenderer::render() {
             m_machineJIT->allocai(m_spillStackOffsetBytes + (m_spillStackSize * sizeof(void*)));
         }   break;
 
+        case VirtualJIT::Opcodes::kFrame:
+            m_machineJIT->frame(m_spillStackOffsetBytes + (m_spillStackSize * sizeof(void*)));
+            break;
+
         case VirtualJIT::Opcodes::kRet:
             m_machineJIT->ret();
             break;
 
         case VirtualJIT::Opcodes::kRetr:
             m_machineJIT->retr(inst[1]);
+            break;
+
+        case VirtualJIT::Opcodes::kReti:
+            m_machineJIT->reti(inst[1]);
             break;
 
         case VirtualJIT::Opcodes::kEpilog:
@@ -132,13 +172,14 @@ bool MachineCodeRenderer::render() {
             break;
 
         default:
-            m_errorReporter->addInternalError(fmt::format("MachineCodeRenderer got unidentified VirtualJIT Opcode {}.",
-                inst[0]));
+            m_errorReporter->addInternalError(fmt::format("MachineCodeRenderer got unidentified VirtualJIT Opcode "
+                "0x{:x}.", inst[0]));
             break;
         }
     }
 
-    return true;
+    // Render final bytecode.
+    return m_machineJIT->emit();
 }
 
 void MachineCodeRenderer::allocateRegister(VReg vReg) {
@@ -191,7 +232,7 @@ MachineCodeRenderer::MReg MachineCodeRenderer::mReg(VReg vReg) {
     }
 
     // Now we have a free register, unspill into it.
-    m_machineJIT->ldxi(reg, JIT::kFramePointerReg, m_spillStackOffsetBytes + (unspillIter->second * sizeof(void*)));
+    m_machineJIT->ldxi_w(reg, JIT::kFramePointerReg, m_spillStackOffsetBytes + (unspillIter->second * sizeof(void*)));
     m_freeSpillIndices.emplace(unspillIter->second);
     m_spilledRegisters.erase(unspillIter);
     m_allocatedRegisters.emplace(std::make_pair(vReg, reg));
@@ -242,7 +283,7 @@ MachineCodeRenderer::MReg MachineCodeRenderer::spill() {
 
     int spillIndex = *(m_freeSpillIndices.begin());
     m_freeSpillIndices.erase(m_freeSpillIndices.begin());
-    m_machineJIT->stxi(m_spillStackOffsetBytes + (spillIndex * sizeof(void*)), JIT::kFramePointerReg, reg);
+    m_machineJIT->stxi_w(m_spillStackOffsetBytes + (spillIndex * sizeof(void*)), JIT::kFramePointerReg, reg);
     m_spilledRegisters.emplace(std::make_pair(farthestUseRegister, spillIndex));
     return reg;
 }

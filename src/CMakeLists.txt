@@ -18,6 +18,7 @@ include_directories(
 ExternalProject_add(colm
     PREFIX ext
     STEP_TARGETS install
+    EXCLUDE_FROM_ALL ON
     GIT_REPOSITORY https://github.com/adrian-thurston/colm
     GIT_TAG master
     GIT_PROGRESS ON
@@ -33,6 +34,7 @@ ExternalProject_add(colm
 ExternalProject_add(ragel
     PREFIX ext
     STEP_TARGETS install
+    EXCLUDE_FROM_ALL ON
     DEPENDS colm-install
     GIT_REPOSITORY https://github.com/adrian-thurston/ragel
     GIT_TAG master
@@ -48,6 +50,14 @@ ExternalProject_add(ragel
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Lexer.rl"
     MAIN_DEPENDENCY Lexer.rl
+    DEPENDS ragel-install
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    VERBATIM
+)
+
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
+    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Assembler.rl"
+    MAIN_DEPENDENCY Assembler.rl
     DEPENDS ragel-install
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     VERBATIM
@@ -73,6 +83,7 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
 ######
 # libhadron
 add_library(hadron STATIC
+    "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
@@ -81,6 +92,7 @@ add_library(hadron STATIC
     CompilerContext.cpp
     FileSystem.hpp
     Hash.cpp
+    include/hadron/Assembler.hpp
     include/hadron/CodeGenerator.hpp
     include/hadron/CompilerContext.hpp
     include/hadron/ErrorReporter.hpp
@@ -134,10 +146,13 @@ install(TARGETS hadron
 ######
 # unittests
 add_executable(unittests
+    Assembler_unittests.cpp
     ErrorReporter_unittests.cpp
     Lexer_unittests.cpp
+    MachineCodeRenderer_unittests.cpp
     Parser_unittests.cpp
     SyntaxAnalyzer_unittests.cpp
+
     unittests.cpp
 )
 
@@ -169,6 +184,17 @@ add_executable(hadronc
 )
 
 target_link_libraries(hadronc
+    gflags
+    hadron
+)
+
+######
+# hlang
+add_executable(hlang
+    hlang.cpp
+)
+
+target_link_libraries(hlang
     gflags
     hadron
 )

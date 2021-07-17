@@ -4,6 +4,7 @@
 #include "hadron/Type.hpp"
 
 #include <cstddef>
+#include <string>
 
 namespace hadron {
 
@@ -15,6 +16,8 @@ public:
 
     // Placement new
     void* operator new(size_t, Slot* address) { return address; }
+
+    std::string asString();
 
     Type type;
     int intValue = 0;

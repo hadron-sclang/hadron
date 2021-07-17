@@ -4,6 +4,7 @@
 #include "hadron/CodeGenerator.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Lexer.hpp"
+#include "hadron/LightningJIT.hpp"
 #include "hadron/MachineCodeRenderer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/SyntaxAnalyzer.hpp"
@@ -26,6 +27,16 @@ CompilerContext::CompilerContext(std::string filePath):
     m_errorReporter(std::make_unique<ErrorReporter>()) { }
 
 CompilerContext::~CompilerContext() { }
+
+// static
+void CompilerContext::initJITGlobals() {
+    LightningJIT::initJITGlobals();
+}
+
+// static
+void CompilerContext::finishJITGlobals() {
+    LightningJIT::finishJITGlobals();
+}
 
 bool CompilerContext::readFile() {
     fs::path filePath(m_filePath);
@@ -96,21 +107,54 @@ bool CompilerContext::generateCode() {
     }
 
     // Assumption right now is top of syntax tree is a block.
-    m_codeGenerator = std::make_unique<CodeGenerator>(reinterpret_cast<const ast::BlockAST*>(m_syntaxAnalyzer->ast()),
+    m_generator = std::make_unique<CodeGenerator>(reinterpret_cast<const ast::BlockAST*>(m_syntaxAnalyzer->ast()),
         m_errorReporter);
-    return m_codeGenerator->generate();
+    return m_generator->generate();
 }
 
 bool CompilerContext::renderToMachineCode() {
-    return false;
-}
-
-bool CompilerContext::getGeneratedCodeAsString(std::string& codeString) const {
-    if (!m_errorReporter->ok() || !m_codeGenerator) {
+    if (!m_errorReporter->ok()) {
         return false;
     }
 
-    return m_codeGenerator->virtualJIT()->toString(codeString);
+    if (!m_generator) {
+        if (!generateCode()) {
+            return false;
+        }
+    }
+
+    m_renderer = std::make_unique<MachineCodeRenderer>(m_generator->virtualJIT(), m_errorReporter);
+    return m_renderer->render();
+}
+
+bool CompilerContext::evaluate(Slot* value) {
+    if (!m_errorReporter->ok()) {
+        return false;
+    }
+
+    if (!m_renderer) {
+        if (!renderToMachineCode()) {
+            return false;
+        }
+    }
+
+    return m_renderer->machineJIT()->evaluate(value);
+}
+
+bool CompilerContext::getGeneratedCodeAsString(std::string& codeString) const {
+    if (!m_errorReporter->ok() || !m_generator) {
+        return false;
+    }
+
+    return m_generator->virtualJIT()->toString(codeString);
+}
+
+void CompilerContext::printRenderedCode() const {
+    if (!m_errorReporter->ok() || !m_renderer) {
+        return;
+    }
+
+    m_renderer->machineJIT()->print();
 }
 
 } // namespace hadron

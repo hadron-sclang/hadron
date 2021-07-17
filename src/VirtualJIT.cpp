@@ -1,26 +1,50 @@
 #include "hadron/VirtualJIT.hpp"
 
+#include "hadron/ErrorReporter.hpp"
+
 #include "fmt/format.h"
 
+#include <iostream>
 #include <limits>
 #include <sstream>
 
 namespace hadron {
 
+VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter):
+    JIT(errorReporter),
+    m_maxRegisters(std::numeric_limits<int32_t>::max()),
+    m_maxFloatRegisters(std::numeric_limits<int32_t>::max()) {}
+
+VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter, int maxRegisters, int maxFloatRegisters):
+    JIT(errorReporter),
+    m_maxRegisters(maxRegisters),
+    m_maxFloatRegisters(maxFloatRegisters) { }
+
 bool VirtualJIT::emit() {
     return true;
 }
 
-Slot VirtualJIT::value() {
-    return Slot();
+bool VirtualJIT::evaluate(Slot* /* value */) const {
+    m_errorReporter->addInternalError("VirtualJIT got evaluation request.");
+    return false;
+}
+
+void VirtualJIT::print() const {
+    std::string code;
+    if (toString(code)) {
+        std::cout << code;
+    }
 }
 
 int VirtualJIT::getRegisterCount() const {
-    return std::numeric_limits<int32_t>::max();
+    if (m_maxRegisters < 3) {
+        m_errorReporter->addInternalError("VirtualJIT instantiated with {} registers, requires a minimum of 3.");
+    }
+    return m_maxRegisters;
 }
 
 int VirtualJIT::getFloatRegisterCount() const {
-    return std::numeric_limits<int32_t>::max();
+    return m_maxFloatRegisters;
 }
 
 void VirtualJIT::addr(Reg target, Reg a, Reg b) {
@@ -55,22 +79,38 @@ JIT::Label VirtualJIT::jmpi() {
     return label;
 }
 
-void VirtualJIT::ldxi(Reg target, Reg address, int offset) {
-    m_instructions.emplace_back(Inst{Opcodes::kLdxi, use(target), use(address), offset});
+void VirtualJIT::ldxi_w(Reg target, Reg address, int offset) {
+    m_instructions.emplace_back(Inst{Opcodes::kLdxiW, use(target), use(address), offset});
 }
 
-void VirtualJIT::str(Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStr, use(address), use(value)});
+void VirtualJIT::ldxi_i(Reg target, Reg address, int offset) {
+    m_instructions.emplace_back(Inst{Opcodes::kLdxiI, use(target), use(address), offset});
 }
 
-void VirtualJIT::sti(Address address, Reg value) {
+void VirtualJIT::ldxi_l(Reg target, Reg address, int offset) {
+    m_instructions.emplace_back(Inst{Opcodes::kLdxiL, use(target), use(address), offset});
+}
+
+void VirtualJIT::str_i(Reg address, Reg value) {
+    m_instructions.emplace_back(Inst{Opcodes::kStrI, use(address), use(value)});
+}
+
+void VirtualJIT::sti_i(Address address, Reg value) {
     int addressNumber = m_addresses.size();
     m_addresses.emplace_back(address);
-    m_instructions.emplace_back(Inst{Opcodes::kSti, addressNumber, use(value)});
+    m_instructions.emplace_back(Inst{Opcodes::kStiI, addressNumber, use(value)});
 }
 
-void VirtualJIT::stxi(int offset, Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStxi, offset, use(address), use(value)});
+void VirtualJIT::stxi_w(int offset, Reg address, Reg value) {
+    m_instructions.emplace_back(Inst{Opcodes::kStxiW, offset, use(address), use(value)});
+}
+
+void VirtualJIT::stxi_i(int offset, Reg address, Reg value) {
+    m_instructions.emplace_back(Inst{Opcodes::kStxiI, offset, use(address), use(value)});
+}
+
+void VirtualJIT::stxi_l(int offset, Reg address, Reg value) {
+    m_instructions.emplace_back(Inst{Opcodes::kStxiL, offset, use(address), use(value)});
 }
 
 void VirtualJIT::prolog() {
@@ -84,12 +124,24 @@ JIT::Label VirtualJIT::arg() {
     return label;
 }
 
-void VirtualJIT::getarg(Reg target, Label arg) {
-    m_instructions.emplace_back(Inst{Opcodes::kGetarg, use(target), arg});
+void VirtualJIT::getarg_w(Reg target, Label arg) {
+    m_instructions.emplace_back(Inst{Opcodes::kGetargW, use(target), arg});
+}
+
+void VirtualJIT::getarg_i(Reg target, Label arg) {
+    m_instructions.emplace_back(Inst{Opcodes::kGetargI, use(target), arg});
+}
+
+void VirtualJIT::getarg_l(Reg target, Label arg) {
+    m_instructions.emplace_back(Inst{Opcodes::kGetargL, use(target), arg});
 }
 
 void VirtualJIT::allocai(int stackSizeBytes) {
     m_instructions.emplace_back(Inst{Opcodes::kAllocai, stackSizeBytes});
+}
+
+void VirtualJIT::frame(int stackSizeBytes) {
+    m_instructions.emplace_back(Inst{Opcodes::kFrame, stackSizeBytes});
 }
 
 void VirtualJIT::ret() {
@@ -98,6 +150,10 @@ void VirtualJIT::ret() {
 
 void VirtualJIT::retr(Reg r) {
     m_instructions.emplace_back(Inst{Opcodes::kRetr, use(r)});
+}
+
+void VirtualJIT::reti(int value) {
+    m_instructions.emplace_back(Inst{Opcodes::kReti, value});
 }
 
 void VirtualJIT::epilog() {
@@ -111,18 +167,28 @@ JIT::Label VirtualJIT::label() {
 }
 
 void VirtualJIT::patchAt(Label target, Label location) {
-    m_instructions.emplace_back(Inst{Opcodes::kPatchAt, target, location});
-    m_labels[target] = location;
+    if (target < static_cast<int>(m_labels.size()) && location < static_cast<int>(m_labels.size())) {
+        m_labels[target] = m_labels[location];
+        m_instructions.emplace_back(Inst{Opcodes::kPatchAt, target, location});
+    } else {
+        m_errorReporter->addInternalError(fmt::format("VirtualJIT patchat label_{} label_{} contains out-of-bounds "
+            "label argument as there are only {} labels", target, location, m_labels.size()));
+    }
 }
 
 void VirtualJIT::patch(Label label) {
-    m_instructions.emplace_back(Inst{Opcodes::kPatch, label});
-    m_labels[label] = m_instructions.size();
+    if (label < static_cast<int>(m_labels.size())) {
+        m_labels[label] = m_instructions.size();
+        m_instructions.emplace_back(Inst{Opcodes::kPatch, label});
+    } else {
+        m_errorReporter->addInternalError(fmt::format("VirtualJIT patch label_{} contains out-of-bounds label argument "
+            "as there are only {} labels", label, m_labels.size()));
+    }
 }
 
 void VirtualJIT::alias(Reg r) {
     if (r >= static_cast<int>(m_registerUses.size())) {
-        m_registerUses.resize(r);
+        m_registerUses.resize(r + 1);
     }
     m_instructions.emplace_back(Inst{Opcodes::kAlias, r});
 }
@@ -163,7 +229,7 @@ bool VirtualJIT::toString(std::string& codeString) const {
 
         case kMovr:
             code << fmt::format("{} movr %vr{}, %vr{}\n", label, inst[1], inst[2]);
-            break;
+             break;
 
         case kMovi:
             code << fmt::format("{} movi %vr{}, {}\n", label, inst[1], inst[2]);
@@ -177,20 +243,20 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} jmpi label_{}\n", label, inst[1]);
             break;
 
-        case kLdxi:
-            code << fmt::format("{} ldxi %vr{}, %vr{}, 0x{:08x}", label, inst[1], inst[2], inst[3]);
+        case kLdxiI:
+            code << fmt::format("{} ldxi_i %vr{}, %vr{}, 0x{:x}", label, inst[1], inst[2], inst[3]);
             break;
 
-        case kStr:
-            code << fmt::format("{} str %vr{}, %vr{}\n", label, inst[1], inst[2]);
+        case kStrI:
+            code << fmt::format("{} str_i %vr{}, %vr{}\n", label, inst[1], inst[2]);
             break;
 
-        case kSti:
-            code << fmt::format("{} sti 0x{:016x}, %vr{}\n", label, m_addresses[inst[1]], inst[2]);
+        case kStiI:
+            code << fmt::format("{} sti_i 0x{:x}, %vr{}\n", label, m_addresses[inst[1]], inst[2]);
             break;
 
-        case kStxi:
-            code << fmt::format("{} stxi 0x{:08x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
+        case kStxiI:
+            code << fmt::format("{} stxi_i 0x{:x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kProlog:
@@ -201,12 +267,24 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} arg label_{}\n", label, inst[1]);
             break;
 
-        case kGetarg:
-            code << fmt::format("{} getarg %vr{}, label_{}\n", label, inst[1], inst[2]);
+        case kGetargW:
+            code << fmt::format("{} getarg_w %vr{}, label_{}\n", label, inst[1], inst[2]);
+            break;
+
+        case kGetargI:
+            code << fmt::format("{} getarg_i %vr{}, label_{}\n", label, inst[1], inst[2]);
+            break;
+
+        case kGetargL:
+            code << fmt::format("{} getarg_l %vr{}, label_{}\n", label, inst[1], inst[2]);
             break;
 
         case kAllocai:
             code << fmt::format("{} allocai {}\n", label, inst[1]);
+            break;
+
+        case kFrame:
+            code << fmt::format("{} frame {}\n", label, inst[1]);
             break;
 
         case kRet:
@@ -215,6 +293,10 @@ bool VirtualJIT::toString(std::string& codeString) const {
 
         case kRetr:
             code << fmt::format("{} retr %vr{}\n", label, inst[1]);
+            break;
+
+        case kReti:
+            code << fmt::format("{} reti {}\n", label, inst[1]);
             break;
 
         case kEpilog:
@@ -242,6 +324,8 @@ bool VirtualJIT::toString(std::string& codeString) const {
             break;
 
         default:
+            m_errorReporter->addInternalError(fmt::format("VirtualJIT toString() encountered unknown opcode enum "
+                "0x{:x}.", inst[0]));
             return false;
         }
     }
@@ -252,7 +336,11 @@ bool VirtualJIT::toString(std::string& codeString) const {
 }
 
 JIT::Reg VirtualJIT::use(JIT::Reg reg) {
-    m_registerUses[reg].emplace_back(m_instructions.size());
+    if (reg < static_cast<int>(m_registerUses.size())) {
+        m_registerUses[reg].emplace_back(m_instructions.size());
+    } else {
+        m_errorReporter->addInternalError(fmt::format("VirtualJIT attempting to use unallocated register {}.", reg));
+    }
     return reg;
 }
 
