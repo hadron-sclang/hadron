@@ -179,8 +179,7 @@ bool MachineCodeRenderer::render() {
     }
 
     // Render final bytecode.
-    return true;
- //   return m_machineJIT->emit();
+    return m_machineJIT->emit();
 }
 
 void MachineCodeRenderer::allocateRegister(VReg vReg) {
