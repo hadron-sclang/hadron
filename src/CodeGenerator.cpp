@@ -89,7 +89,7 @@ bool CodeGenerator::generate() {
     // the register spilling stack would exist above this stack space, to keep the addresses here valid.
     m_jit->allocai(0);
     // As this is a top-level function we want it to be c-callable, so set up the stack frame as expected.
-    m_jit->frame(0);
+//    m_jit->frame(0);
 
     // First argument is always the Slot return address. ** For now all arguments can be assumed to be addresses.
     // Slot variables can also live on the stack, and will have addresses relative to the frame pointer.
@@ -135,24 +135,24 @@ void CodeGenerator::jitStatement(const ast::AST* ast, RegisterAllocator* allocat
         ScopedReg slotAddressReg = allocator->regForHash(hash(fmt::format("_addr_{:016x}",
             saveToSlot->value->nameHash)));
         JIT::Label addressValue = m_addresses.find(saveToSlot->value->nameHash)->second;
-        m_jit->getarg(slotAddressReg.reg, addressValue);
+        m_jit->getarg_w(slotAddressReg.reg, addressValue);
+        // Store the integer value into the Slot memory. TODO: this register should already be allocated, and it not
+        // being so is an error condition.
+        ScopedReg slotValueReg = allocator->regForValue(saveToSlot->value.get());
+        if (offsetof(Slot, intValue)) {
+            m_jit->stxi_i(offsetof(Slot, intValue), slotAddressReg.reg, slotValueReg.reg);
+        } else {
+            m_jit->str_i(slotAddressReg.reg, slotValueReg.reg);
+        }
+        slotValueReg.free();
         // Load the slot type into a register so it can be written into memory.
         ScopedReg slotTypeReg = allocator->regForHash(hash(fmt::format("_type_{:08x}", saveToSlot->value->valueType)));
         m_jit->movi(slotTypeReg.reg, Type::kInteger);
         // Store the type into the Slot memory.
         if (offsetof(Slot, type)) {
-            m_jit->stxi(offsetof(Slot, type), slotAddressReg.reg, slotTypeReg.reg);
+            m_jit->stxi_i(offsetof(Slot, type), slotAddressReg.reg, slotTypeReg.reg);
         } else {
-            m_jit->str(slotAddressReg.reg, slotTypeReg.reg);
-        }
-        slotTypeReg.free();
-        // Store the integer value into the Slot memory. TODO: this register should already be allocated, and it not
-        // being so is an error condition.
-        ScopedReg slotValueReg = allocator->regForValue(saveToSlot->value.get());
-        if (offsetof(Slot, intValue)) {
-            m_jit->stxi(offsetof(Slot, intValue), slotAddressReg.reg, slotValueReg.reg);
-        } else {
-            m_jit->str(slotAddressReg.reg, slotValueReg.reg);
+            m_jit->str_i(slotAddressReg.reg, slotTypeReg.reg);
         }
     } break;
 

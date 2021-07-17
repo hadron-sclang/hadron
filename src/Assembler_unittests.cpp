@@ -66,45 +66,85 @@ TEST_CASE("Assembler Base Cases") {
         REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kJmpi, 0});
     }
-    SUBCASE("ldxi") {
+    SUBCASE("ldxi_w") {
         Assembler assembler("alias %vr2\n"
                             "alias %vr1\n"
-                            "ldxi %vr2 %vr1 0xaf");
+                            "ldxi_w %vr2 %vr1 0xaf");
         REQUIRE(assembler.assemble());
         REQUIRE(assembler.virtualJIT()->instructions().size() == 3);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 2});
         CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 1});
-        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kLdxi, 2, 1, 0xaf});
+        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kLdxiW, 2, 1, 0xaf});
     }
-    SUBCASE("str") {
+    SUBCASE("ldxi_i") {
+        Assembler assembler("alias %vr2\n"
+                            "alias %vr1\n"
+                            "ldxi_i %vr2 %vr1 0xaf");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 3);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 2});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 1});
+        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kLdxiI, 2, 1, 0xaf});
+    }
+    SUBCASE("ldxi_l") {
+        Assembler assembler("alias %vr2\n"
+                            "alias %vr1\n"
+                            "ldxi_l %vr2 %vr1 0xaf");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 3);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 2});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 1});
+        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kLdxiL, 2, 1, 0xaf});
+    }
+    SUBCASE("str_i") {
         Assembler assembler("alias %vr4\n"
                             "alias %vr0\n"
-                            "str %vr4 %vr0");
+                            "str_i %vr4 %vr0");
         REQUIRE(assembler.assemble());
         REQUIRE(assembler.virtualJIT()->instructions().size() == 3);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 4});
         CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
-        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kStr, 4, 0});
+        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kStrI, 4, 0});
     }
-    SUBCASE("sti") {
+    SUBCASE("sti_i") {
         Assembler assembler("alias %vr0\n"
-                            "sti 0x25 %vr0");
+                            "sti_i 0x25 %vr0");
         REQUIRE(assembler.assemble());
         REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
-        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kSti, 0, 0});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kStiI, 0, 0});
         REQUIRE(assembler.virtualJIT()->addresses().size() == 1);
         CHECK(assembler.virtualJIT()->addresses()[0] == reinterpret_cast<void*>(0x25));
     }
-    SUBCASE("stxi") {
+    SUBCASE("stxi_w") {
         Assembler assembler("alias %vr1\n"
                             "alias %vr10\n"
-                            "stxi 0x4 %vr1 %vr10");
+                            "stxi_w 0x4 %vr1 %vr10");
         REQUIRE(assembler.assemble());
         REQUIRE(assembler.virtualJIT()->instructions().size() == 3);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 1});
         CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 10});
-        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kStxi, 4, 1, 10});
+        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kStxiW, 4, 1, 10});
+    }
+    SUBCASE("stxi_i") {
+        Assembler assembler("alias %vr1\n"
+                            "alias %vr10\n"
+                            "stxi_i 0x4 %vr1 %vr10");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 3);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 1});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 10});
+        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kStxiI, 4, 1, 10});
+    }
+    SUBCASE("stxi_l") {
+        Assembler assembler("alias %vr1\n"
+                            "alias %vr10\n"
+                            "stxi_l 0x4 %vr1 %vr10");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 3);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 1});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 10});
+        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kStxiL, 4, 1, 10});
     }
     SUBCASE("prolog") {
         Assembler assembler("prolog");
@@ -118,13 +158,29 @@ TEST_CASE("Assembler Base Cases") {
         REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kArg, 0});
     }
-    SUBCASE("getarg") {
+    SUBCASE("getarg_w") {
         Assembler assembler("alias %vr0\n"
-                            "getarg %vr0 label_0");
+                            "getarg_w %vr0 label_0");
         REQUIRE(assembler.assemble());
         REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
-        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kGetarg, 0, 0});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kGetargW, 0, 0});
+    }
+    SUBCASE("getarg_i") {
+        Assembler assembler("alias %vr0\n"
+                            "getarg_i %vr0 label_0");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kGetargI, 0, 0});
+    }
+    SUBCASE("getarg_l") {
+        Assembler assembler("alias %vr0\n"
+                            "getarg_l %vr0 label_0");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kGetargL, 0, 0});
     }
     SUBCASE("allocai") {
         Assembler assembler("allocai 1024");

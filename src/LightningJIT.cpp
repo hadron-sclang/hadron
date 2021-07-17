@@ -70,20 +70,44 @@ JIT::Label LightningJIT::jmpi() {
     return m_labels.size() - 1;
 }
 
-void LightningJIT::ldxi(Reg target, Reg address, int offset) {
+void LightningJIT::ldxi_w(Reg target, Reg address, int offset) {
+    if (sizeof(void*) == 8) {
+        ldxi_l(target, address, offset);
+    } else {
+        ldxi_i(target, address, offset);
+    }
+}
+
+void LightningJIT::ldxi_i(Reg target, Reg address, int offset) {
     _jit_new_node_www(m_state, jit_code_ldxi_i, reg(target), reg(address), offset);
 }
 
-void LightningJIT::str(Reg address, Reg value) {
+void LightningJIT::ldxi_l(Reg target, Reg address, int offset) {
+    _jit_new_node_www(m_state, jit_code_ldxi_l, reg(target), reg(address), offset);
+}
+
+void LightningJIT::str_i(Reg address, Reg value) {
     _jit_new_node_ww(m_state, jit_code_str_i, reg(address), reg(value));
 }
 
-void LightningJIT::sti(Address address, Reg value) {
+void LightningJIT::sti_i(Address address, Reg value) {
     _jit_new_node_pw(m_state, jit_code_sti_i, address, reg(value));
 }
 
-void LightningJIT::stxi(int offset, Reg address, Reg value) {
+void LightningJIT::stxi_w(int offset, Reg address, Reg value) {
+    if (sizeof(void*) == 8) {
+        stxi_l(offset, address, value);
+    } else {
+        stxi_i(offset, address, value);
+    }
+}
+
+void LightningJIT::stxi_i(int offset, Reg address, Reg value) {
     _jit_new_node_www(m_state, jit_code_stxi_i, offset, reg(address), reg(value));
+}
+
+void LightningJIT::stxi_l(int offset, Reg address, Reg value) {
+    _jit_new_node_www(m_state, jit_code_stxi_l, offset, reg(address), reg(value));
 }
 
 void LightningJIT::prolog() {
@@ -95,16 +119,32 @@ JIT::Label LightningJIT::arg() {
     return m_labels.size() - 1;
 }
 
-void LightningJIT::getarg(Reg target, Label arg) {
+void LightningJIT::getarg_w(Reg target, Label arg) {
+    if (sizeof(void*) == 8) {
+        getarg_l(target, arg);
+    } else {
+        getarg_i(target, arg);
+    }
+}
+
+void LightningJIT::getarg_i(Reg target, Label arg) {
     _jit_getarg_i(m_state, reg(target), m_labels[arg]);
 }
 
+void LightningJIT::getarg_l(Reg target, Label arg) {
+    _jit_getarg_l(m_state, reg(target), m_labels[arg]);
+}
+
 void LightningJIT::allocai(int stackSizeBytes) {
-    m_stackBase = _jit_allocai(m_state, stackSizeBytes);
+    // Lightning JIT hangs on emit() if given a zero value for allocai or frame, so keep to some small nonzero min
+    // value.
+    auto stackSize = std::max(16, stackSizeBytes);
+    m_stackBase = _jit_allocai(m_state, stackSize);
 }
 
 void LightningJIT::frame(int stackSizeBytes) {
-    _jit_frame(m_state, stackSizeBytes);
+    auto stackSize = std::max(16, stackSizeBytes);
+    _jit_frame(m_state, stackSize);
 }
 
 void LightningJIT::ret() {
@@ -147,6 +187,9 @@ void LightningJIT::finishJITGlobals() {
 }
 
 int LightningJIT::reg(Reg r) {
+    if (r == kFramePointerReg) {
+        return JIT_FP;
+    }
     // For function calls from JITted code, we will assume that all allocated registers need to be saved, and so
     // the distinction between caller-save and callee-save registers seems less important. However, more research
     // should be done here when implementing function calls.

@@ -43,6 +43,8 @@ public:
     virtual int getFloatRegisterCount() const = 0;
 
     // ===== Instruction Set (directly modeled from GNU Lightning instruction set, added as needed)
+    // suffixes _i means 32-bit integer, _l means 64-bit integer, _w will call one of _i or _l depending on
+    // word size of host machine.
 
     // * arithmetic
     // %target = %a + %b
@@ -64,15 +66,19 @@ public:
 
     // * loads
     // %target = *(%address + offset)
-    virtual void ldxi(Reg target, Reg address, int offset) = 0;
+    virtual void ldxi_w(Reg target, Reg address, int offset) = 0;
+    virtual void ldxi_i(Reg target, Reg address, int offset) = 0;
+    virtual void ldxi_l(Reg target, Reg address, int offset) = 0;
 
     // * stores
     // *address = value
-    virtual void str(Reg address, Reg value) = 0;
+    virtual void str_i(Reg address, Reg value) = 0;
     // *address = value
-    virtual void sti(Address address, Reg value) = 0;
+    virtual void sti_i(Address address, Reg value) = 0;
     // *(offset + address) = value  // note: immediate address with register offset not supported
-    virtual void stxi(int offset, Reg address, Reg value) = 0;
+    virtual void stxi_w(int offset, Reg address, Reg value) = 0;
+    virtual void stxi_i(int offset, Reg address, Reg value) = 0;
+    virtual void stxi_l(int offset, Reg address, Reg value) = 0;
 
     // * functions
     // mark the start of a new function
@@ -80,7 +86,9 @@ public:
     // mark arguments for retrieval into registers later with getarg()
     virtual Label arg() = 0;
     // load argument into a register %target
-    virtual void getarg(Reg target, Label arg) = 0;
+    virtual void getarg_w(Reg target, Label arg) = 0;
+    virtual void getarg_i(Reg target, Label arg) = 0;
+    virtual void getarg_l(Reg target, Label arg) = 0;
     // allocate bytes on the stack, should be called after prolog() and before frame(). Note this API only allows for
     // one call to allocai per JIT instance but the underlying API is not so restrictive.
     virtual void allocai(int stackSizeBytes) = 0;

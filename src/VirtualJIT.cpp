@@ -79,22 +79,38 @@ JIT::Label VirtualJIT::jmpi() {
     return label;
 }
 
-void VirtualJIT::ldxi(Reg target, Reg address, int offset) {
-    m_instructions.emplace_back(Inst{Opcodes::kLdxi, use(target), use(address), offset});
+void VirtualJIT::ldxi_w(Reg target, Reg address, int offset) {
+    m_instructions.emplace_back(Inst{Opcodes::kLdxiW, use(target), use(address), offset});
 }
 
-void VirtualJIT::str(Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStr, use(address), use(value)});
+void VirtualJIT::ldxi_i(Reg target, Reg address, int offset) {
+    m_instructions.emplace_back(Inst{Opcodes::kLdxiI, use(target), use(address), offset});
 }
 
-void VirtualJIT::sti(Address address, Reg value) {
+void VirtualJIT::ldxi_l(Reg target, Reg address, int offset) {
+    m_instructions.emplace_back(Inst{Opcodes::kLdxiL, use(target), use(address), offset});
+}
+
+void VirtualJIT::str_i(Reg address, Reg value) {
+    m_instructions.emplace_back(Inst{Opcodes::kStrI, use(address), use(value)});
+}
+
+void VirtualJIT::sti_i(Address address, Reg value) {
     int addressNumber = m_addresses.size();
     m_addresses.emplace_back(address);
-    m_instructions.emplace_back(Inst{Opcodes::kSti, addressNumber, use(value)});
+    m_instructions.emplace_back(Inst{Opcodes::kStiI, addressNumber, use(value)});
 }
 
-void VirtualJIT::stxi(int offset, Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStxi, offset, use(address), use(value)});
+void VirtualJIT::stxi_w(int offset, Reg address, Reg value) {
+    m_instructions.emplace_back(Inst{Opcodes::kStxiW, offset, use(address), use(value)});
+}
+
+void VirtualJIT::stxi_i(int offset, Reg address, Reg value) {
+    m_instructions.emplace_back(Inst{Opcodes::kStxiI, offset, use(address), use(value)});
+}
+
+void VirtualJIT::stxi_l(int offset, Reg address, Reg value) {
+    m_instructions.emplace_back(Inst{Opcodes::kStxiL, offset, use(address), use(value)});
 }
 
 void VirtualJIT::prolog() {
@@ -108,8 +124,16 @@ JIT::Label VirtualJIT::arg() {
     return label;
 }
 
-void VirtualJIT::getarg(Reg target, Label arg) {
-    m_instructions.emplace_back(Inst{Opcodes::kGetarg, use(target), arg});
+void VirtualJIT::getarg_w(Reg target, Label arg) {
+    m_instructions.emplace_back(Inst{Opcodes::kGetargW, use(target), arg});
+}
+
+void VirtualJIT::getarg_i(Reg target, Label arg) {
+    m_instructions.emplace_back(Inst{Opcodes::kGetargI, use(target), arg});
+}
+
+void VirtualJIT::getarg_l(Reg target, Label arg) {
+    m_instructions.emplace_back(Inst{Opcodes::kGetargL, use(target), arg});
 }
 
 void VirtualJIT::allocai(int stackSizeBytes) {
@@ -219,20 +243,20 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} jmpi label_{}\n", label, inst[1]);
             break;
 
-        case kLdxi:
-            code << fmt::format("{} ldxi %vr{}, %vr{}, 0x{:x}", label, inst[1], inst[2], inst[3]);
+        case kLdxiI:
+            code << fmt::format("{} ldxi_i %vr{}, %vr{}, 0x{:x}", label, inst[1], inst[2], inst[3]);
             break;
 
-        case kStr:
-            code << fmt::format("{} str %vr{}, %vr{}\n", label, inst[1], inst[2]);
+        case kStrI:
+            code << fmt::format("{} str_i %vr{}, %vr{}\n", label, inst[1], inst[2]);
             break;
 
-        case kSti:
-            code << fmt::format("{} sti 0x{:x}, %vr{}\n", label, m_addresses[inst[1]], inst[2]);
+        case kStiI:
+            code << fmt::format("{} sti_i 0x{:x}, %vr{}\n", label, m_addresses[inst[1]], inst[2]);
             break;
 
-        case kStxi:
-            code << fmt::format("{} stxi 0x{:x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
+        case kStxiI:
+            code << fmt::format("{} stxi_i 0x{:x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kProlog:
@@ -243,8 +267,12 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} arg label_{}\n", label, inst[1]);
             break;
 
-        case kGetarg:
-            code << fmt::format("{} getarg %vr{}, label_{}\n", label, inst[1], inst[2]);
+        case kGetargI:
+            code << fmt::format("{} getarg_i %vr{}, label_{}\n", label, inst[1], inst[2]);
+            break;
+
+        case kGetargL:
+            code << fmt::format("{} getarg_l %vr{}, label_{}\n", label, inst[1], inst[2]);
             break;
 
         case kAllocai:

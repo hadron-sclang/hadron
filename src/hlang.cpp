@@ -19,6 +19,7 @@ int main(int argc, char* argv[]) {
 
     // Read the input file into a compiler context.
     hadron::CompilerContext cc(FLAGS_inputFile);
+
     if (!cc.readFile()) {
         return -1;
     }
@@ -29,7 +30,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    std::cout << result.asString();
+    std::cout << result.asString() << std::endl;
 
     hadron::CompilerContext::finishJITGlobals();
 

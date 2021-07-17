@@ -32,13 +32,19 @@ public:
     void movi(Reg target, int value) override;
     Label bgei(Reg a, int b) override;
     Label jmpi() override;
-    void ldxi(Reg target, Reg address, int offset) override;
-    void str(Reg address, Reg value) override;
-    void sti(Address address, Reg value) override;
-    void stxi(int offset, Reg address, Reg value) override;
+    void ldxi_w(Reg target, Reg address, int offset) override;
+    void ldxi_i(Reg target, Reg address, int offset) override;
+    void ldxi_l(Reg target, Reg address, int offset) override;
+    void str_i(Reg address, Reg value) override;
+    void sti_i(Address address, Reg value) override;
+    void stxi_w(int offset, Reg address, Reg value) override;
+    void stxi_i(int offset, Reg address, Reg value) override;
+    void stxi_l(int offset, Reg address, Reg value) override;
     void prolog() override;
     Label arg() override;
-    void getarg(Reg target, Label arg) override;
+    void getarg_w(Reg target, Label arg) override;
+    void getarg_i(Reg target, Label arg) override;
+    void getarg_l(Reg target, Label arg) override;
     void allocai(int stackSizeBytes) override;
     void frame(int stackSizeBytes) override;
     void ret() override;
@@ -56,26 +62,32 @@ public:
         kMovi    = 0x0400,
         kBgei    = 0x0500,
         kJmpi    = 0x0600,
-        kLdxi    = 0x0700,
-        kStr     = 0x0800,
-        kSti     = 0x0900,
-        kStxi    = 0x0a00,
-        kProlog  = 0x0b00,
-        kArg     = 0x0c00,
-        kGetarg  = 0x0d00,
-        kAllocai = 0x0e00,
-        kFrame   = 0x0f00,
-        kRet     = 0x1000,
-        kRetr    = 0x1100,
-        kReti    = 0x1200,
-        kEpilog  = 0x1300,
-        kLabel   = 0x1400,
-        kPatchAt = 0x1500,
-        kPatch   = 0x1600,
+        kLdxiW   = 0x0700,
+        kLdxiI   = 0x0800,
+        kLdxiL   = 0x0900,
+        kStrI    = 0x0a00,
+        kStiI    = 0x0b00,
+        kStxiW   = 0x0c00,
+        kStxiI   = 0x0d00,
+        kStxiL   = 0x0e00,
+        kProlog  = 0x0f00,
+        kArg     = 0x1000,
+        kGetargW = 0x1100,
+        kGetargI = 0x1200,
+        kGetargL = 0x1300,
+        kAllocai = 0x1400,
+        kFrame   = 0x1500,
+        kRet     = 0x1600,
+        kRetr    = 0x1700,
+        kReti    = 0x1800,
+        kEpilog  = 0x1900,
+        kLabel   = 0x1a00,
+        kPatchAt = 0x1b00,
+        kPatch   = 0x1c00,
 
         // not JIT opcodes but rather markers to aid rendering.
-        kAlias   = 0x1700,
-        kUnalias = 0x1800
+        kAlias   = 0x1d00,
+        kUnalias = 0x1e00
     };
 
     // mark |r| as active and associated with a given value |name|

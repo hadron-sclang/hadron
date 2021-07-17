@@ -77,6 +77,9 @@ private:
     MReg spill();
 
     std::vector<JIT::Label> m_labels;
+    // Either the actual machine register count or the maximum number of virtual registers, depending on which is
+    // fewer. This is stored to prevent problems when rendering to another VirtualJIT that reports many registers.
+    int m_machineRegisterCount;
     // How many register-size spaces to reserve on the stack for register spilling.
     int m_spillStackSize;
     // We start the spill stack after whatever the virtual JIT stack has reserved, so we store the size of the

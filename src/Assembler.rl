@@ -69,20 +69,29 @@
         optlabel 'jmpi' start labelnum optcomment {
             m_jit->jmpi();
         };
-        optlabel 'ldxi' start reg ws reg ws hexint optcomment {
-            m_jit->ldxi(arg[0], arg[1], arg[2]);
+        optlabel 'ldxi_w' start reg ws reg ws hexint optcomment {
+            m_jit->ldxi_w(arg[0], arg[1], arg[2]);
         };
-        optlabel 'alias' start reg optcomment {
-            m_jit->alias(arg[0]);
+        optlabel 'ldxi_i' start reg ws reg ws hexint optcomment {
+            m_jit->ldxi_i(arg[0], arg[1], arg[2]);
         };
-        optlabel 'str' start reg ws reg optcomment {
-            m_jit->str(arg[0], arg[1]);
+        optlabel 'ldxi_l' start reg ws reg ws hexint optcomment {
+            m_jit->ldxi_l(arg[0], arg[1], arg[2]);
         };
-        optlabel 'sti' start address ws reg optcomment {
-            m_jit->sti(addressArg, arg[0]);
+        optlabel 'str_i' start reg ws reg optcomment {
+            m_jit->str_i(arg[0], arg[1]);
         };
-        optlabel 'stxi' start hexint ws reg ws reg optcomment {
-            m_jit->stxi(arg[0], arg[1], arg[2]);
+        optlabel 'sti_i' start address ws reg optcomment {
+            m_jit->sti_i(addressArg, arg[0]);
+        };
+        optlabel 'stxi_w' start hexint ws reg ws reg optcomment {
+            m_jit->stxi_w(arg[0], arg[1], arg[2]);
+        };
+        optlabel 'stxi_i' start hexint ws reg ws reg optcomment {
+            m_jit->stxi_i(arg[0], arg[1], arg[2]);
+        };
+        optlabel 'stxi_l' start hexint ws reg ws reg optcomment {
+            m_jit->stxi_l(arg[0], arg[1], arg[2]);
         };
         optlabel 'prolog' optcomment {
             m_jit->prolog();
@@ -90,8 +99,14 @@
         optlabel 'arg' optcomment {
             m_jit->arg();
         };
-        optlabel 'getarg' start reg ws labelnum optcomment {
-            m_jit->getarg(arg[0], arg[1]);
+        optlabel 'getarg_w' start reg ws labelnum optcomment {
+            m_jit->getarg_w(arg[0], arg[1]);
+        };
+        optlabel 'getarg_i' start reg ws labelnum optcomment {
+            m_jit->getarg_i(arg[0], arg[1]);
+        };
+        optlabel 'getarg_l' start reg ws labelnum optcomment {
+            m_jit->getarg_l(arg[0], arg[1]);
         };
         optlabel 'allocai' start integer optcomment {
             m_jit->allocai(arg[0]);
