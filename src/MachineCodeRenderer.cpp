@@ -40,6 +40,7 @@ bool MachineCodeRenderer::render() {
         }
 
         const auto& inst = m_virtualJIT->instructions()[i];
+
         switch (inst[0]) {
         case VirtualJIT::Opcodes::kAddr:
             m_machineJIT->addr(inst[1], inst[2], inst[3]);
@@ -178,7 +179,8 @@ bool MachineCodeRenderer::render() {
     }
 
     // Render final bytecode.
-    return m_machineJIT->emit();
+    return true;
+ //   return m_machineJIT->emit();
 }
 
 void MachineCodeRenderer::allocateRegister(VReg vReg) {

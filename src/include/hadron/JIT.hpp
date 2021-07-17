@@ -75,7 +75,7 @@ public:
     virtual void str_i(Reg address, Reg value) = 0;
     // *address = value
     virtual void sti_i(Address address, Reg value) = 0;
-    // *(offset + address) = value  // note: immediate address with register offset not supported
+    // *(offset + address) = value  // note: immediate address with register offset not currently supported
     virtual void stxi_w(int offset, Reg address, Reg value) = 0;
     virtual void stxi_i(int offset, Reg address, Reg value) = 0;
     virtual void stxi_l(int offset, Reg address, Reg value) = 0;

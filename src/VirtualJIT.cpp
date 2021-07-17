@@ -267,6 +267,10 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} arg label_{}\n", label, inst[1]);
             break;
 
+        case kGetargW:
+            code << fmt::format("{} getarg_w %vr{}, label_{}\n", label, inst[1], inst[2]);
+            break;
+
         case kGetargI:
             code << fmt::format("{} getarg_i %vr{}, label_{}\n", label, inst[1], inst[2]);
             break;
@@ -320,7 +324,8 @@ bool VirtualJIT::toString(std::string& codeString) const {
             break;
 
         default:
-            m_errorReporter->addInternalError("VirtualJIT toString() encountered unknown opcode enum.");
+            m_errorReporter->addInternalError(fmt::format("VirtualJIT toString() encountered unknown opcode enum "
+                "0x{:x}.", inst[0]));
             return false;
         }
     }
