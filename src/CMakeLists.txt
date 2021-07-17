@@ -56,7 +56,8 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
 )
 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
-    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Assembler.rl"
+    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Assembler.rl"
     MAIN_DEPENDENCY Assembler.rl
     DEPENDS ragel-install
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
@@ -100,6 +101,7 @@ add_library(hadron STATIC
     include/hadron/JIT.hpp
     include/hadron/Lexer.hpp
     include/hadron/LightningJIT.hpp
+    include/hadron/LighteningJIT.hpp
     include/hadron/Literal.hpp
     include/hadron/MachineCodeRenderer.hpp
     include/hadron/Parser.hpp
@@ -108,6 +110,7 @@ add_library(hadron STATIC
     include/hadron/Type.hpp
     include/hadron/VirtualJIT.hpp
     LightningJIT.cpp
+    LighteningJIT.cpp
     MachineCodeRenderer.cpp
     Parser.cpp
     Slot.cpp
@@ -124,6 +127,7 @@ target_link_libraries(hadron PUBLIC
     fmt
     spdlog
     xxHash::xxhash
+    lightening
     "${INSTALL_EXT}/lib/liblightning.a"
 )
 

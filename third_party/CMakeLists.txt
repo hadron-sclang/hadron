@@ -49,6 +49,14 @@ ExternalProject_add(lightning
     BUILD_BYPRODUCTS ${INSTALL_EXT}/lib/liblightning.a
 )
 
+### lightening
+add_library(lightening
+    lightening/lightening/lightening.c
+    lightening/lightening/endian.h
+    lightening/lightening.h
+)
+target_include_directories(lightening PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
 #### spdlog
 set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "require spdlog to use our external fmt")
 add_subdirectory(spdlog)
