@@ -10,7 +10,6 @@
 
 DEFINE_string(inputFile, "", "path to input file to process");
 DEFINE_bool(printGeneratedCode, false, "print the virtual machine assembler to the console");
-DEFINE_bool(printRenderedCode, false, "print the machine rendered assembler to the console");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
@@ -33,13 +32,6 @@ int main(int argc, char* argv[]) {
             return -1;
         }
         std::cout << codeString << std::endl;
-    }
-
-    if (FLAGS_printRenderedCode) {
-        if (!cc.renderToMachineCode()) {
-            return -1;
-        }
-        cc.printRenderedCode();
     }
 
     hadron::CompilerContext::finishJITGlobals();

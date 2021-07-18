@@ -29,13 +29,6 @@ bool VirtualJIT::evaluate(Slot* /* value */) const {
     return false;
 }
 
-void VirtualJIT::print() const {
-    std::string code;
-    if (toString(code)) {
-        std::cout << code;
-    }
-}
-
 int VirtualJIT::getRegisterCount() const {
     if (m_maxRegisters < 3) {
         m_errorReporter->addInternalError("VirtualJIT instantiated with {} registers, requires a minimum of 3.");

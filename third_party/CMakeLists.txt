@@ -50,12 +50,12 @@ ExternalProject_add(lightning
 )
 
 ### lightening
-add_library(lightening
+add_library(lightening STATIC
     lightening/lightening/lightening.c
     lightening/lightening/endian.h
     lightening/lightening.h
 )
-target_include_directories(lightening PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(lightening PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/lightening)
 
 #### spdlog
 set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "require spdlog to use our external fmt")

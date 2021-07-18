@@ -42,9 +42,6 @@ public:
     bool evaluate(Slot* value);
     bool getGeneratedCodeAsString(std::string& codeString) const;
 
-    // The underlying JIT library doesn't return a string but rather prints directly to console.
-    void printRenderedCode() const;
-
 private:
     std::string m_filePath;
 

@@ -29,7 +29,6 @@ public:
     // ===== JIT compilation
     virtual bool emit() = 0;
     virtual bool evaluate(Slot* value) const = 0;
-    virtual void print() const = 0;
 
     using Label = int32_t;
     using Reg = int32_t;

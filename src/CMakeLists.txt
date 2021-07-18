@@ -101,7 +101,7 @@ add_library(hadron STATIC
     include/hadron/JIT.hpp
     include/hadron/Lexer.hpp
     include/hadron/LightningJIT.hpp
-    include/hadron/LighteningJIT.hpp
+#    include/hadron/LighteningJIT.hpp
     include/hadron/Literal.hpp
     include/hadron/MachineCodeRenderer.hpp
     include/hadron/Parser.hpp
@@ -110,7 +110,7 @@ add_library(hadron STATIC
     include/hadron/Type.hpp
     include/hadron/VirtualJIT.hpp
     LightningJIT.cpp
-    LighteningJIT.cpp
+#    LighteningJIT.cpp
     MachineCodeRenderer.cpp
     Parser.cpp
     Slot.cpp
@@ -127,7 +127,7 @@ target_link_libraries(hadron PUBLIC
     fmt
     spdlog
     xxHash::xxhash
-    lightening
+#    lightening
     "${INSTALL_EXT}/lib/liblightning.a"
 )
 
@@ -201,4 +201,16 @@ add_executable(hlang
 target_link_libraries(hlang
     gflags
     hadron
+)
+
+
+####
+# delete me
+add_executable(ljit
+    ljit.cpp
+)
+
+target_link_libraries(ljit
+#    hadron
+    lightening
 )

@@ -5,6 +5,7 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LightningJIT.hpp"
+//#include "hadron/LighteningJIT.hpp"
 #include "hadron/MachineCodeRenderer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/SyntaxAnalyzer.hpp"
@@ -31,6 +32,7 @@ CompilerContext::~CompilerContext() { }
 // static
 void CompilerContext::initJITGlobals() {
     LightningJIT::initJITGlobals();
+//    LighteningJIT::initJITGlobals();
 }
 
 // static
@@ -147,14 +149,6 @@ bool CompilerContext::getGeneratedCodeAsString(std::string& codeString) const {
     }
 
     return m_generator->virtualJIT()->toString(codeString);
-}
-
-void CompilerContext::printRenderedCode() const {
-    if (!m_errorReporter->ok() || !m_renderer) {
-        return;
-    }
-
-    m_renderer->machineJIT()->print();
 }
 
 } // namespace hadron

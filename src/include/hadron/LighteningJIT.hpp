@@ -23,7 +23,6 @@ public:
 
     bool emit() override;
     bool evaluate(Slot* value) const override;
-    void print() const override;
 
     int getRegisterCount() const override;
     int getFloatRegisterCount() const override;
@@ -42,7 +41,7 @@ public:
     void stxi_w(int offset, Reg address, Reg value) override;
     void stxi_i(int offset, Reg address, Reg value) override;
     void stxi_l(int offset, Reg address, Reg value) override;
-    void prolog() override;
+    void prolog() override;  // rename to begin
     Label arg() override;
     void getarg_w(Reg target, Label arg) override;
     void getarg_i(Reg target, Label arg) override;
@@ -56,6 +55,9 @@ public:
     Label label() override;
     void patchAt(Label target, Label location) override;
     void patch(Label label) override;
+
+    // Lightening requires a call to a global setup function before emitting any JIT bytecode.
+    static void initJITGlobals();
 
 private:
     // Converts flat register space to JIT_V and JIT_R equivalents.

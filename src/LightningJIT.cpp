@@ -29,11 +29,6 @@ bool LightningJIT::evaluate(Slot* value) const {
     return m_jit(value) != 0;
 }
 
-void LightningJIT::print() const {
-    _jit_print(m_state);
-    _jit_clear_state(m_state);
-}
-
 int LightningJIT::getRegisterCount() const {
     return JIT_R_NUM + JIT_V_NUM;
 }

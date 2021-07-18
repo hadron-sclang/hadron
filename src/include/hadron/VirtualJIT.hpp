@@ -21,7 +21,6 @@ public:
 
     bool emit() override;
     bool evaluate(Slot* value) const override;
-    void print() const override;
 
     int getRegisterCount() const override;
     int getFloatRegisterCount() const override;

@@ -33,9 +33,6 @@ bool LighteningJIT::evaluate(Slot* value) const {
     return m_jit(value) != 0;
 }
 
-void LighteningJIT::print() const {
-}
-
 int LighteningJIT::getRegisterCount() const {
     return JIT_R_NUM + JIT_V_NUM;
 }
@@ -181,11 +178,6 @@ void LighteningJIT::patch(Label label) {
 // static
 void LighteningJIT::initJITGlobals() {
     init_jit(nullptr);
-}
-
-// static
-void LighteningJIT::finishJITGlobals() {
-    finish_jit();
 }
 
 int LighteningJIT::reg(Reg r) {
