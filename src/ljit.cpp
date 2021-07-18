@@ -11,6 +11,42 @@ extern "C" {
 }
 #pragma GCC diagnostic pop
 
+/*
+There are entry and exit trampolines do go from Scheme VM (written in C) code to JITted code.
+
+JITted code can have its own mmap'ed stack, or some fancy bullshit like that. Might be good to keep track of things
+like stack overruns. Dispatch from JIT-to-JIT - runtime context. Garbage Collector lives there, dispatch table, saved
+stack pointer and frame pointer (for trampoline).
+
+So.. how could dispatch work? Thunk out to C to find the right function, then back?
+
+For JITted code we know what methods to dispatch, could we JIT a web of checks on Target? Requires knowing about the
+targets in advance. Maybe like a fast check on type, for known things, for a straight shot across from JIT to JIT code.
+compiled C would need a trampoline out anyway, too.
+
+Stack setup for JIT function calls (borrowing liberally from Guile stack setup)
+
+Stack grows down, so sp < fp always.
+
+   +------------------------------+
+   | Machine return address (mRA) |
+   +==============================+ <- fp
+   | Local 0                      |
+   +------------------------------+
+   | Local 1                      |
+   +------------------------------+
+   | ...                          |
+   +------------------------------+
+   | Local N-1                    |
+   \------------------------------/ <- sp
+
+Arguments are always pushed in order and are all Slots. Callee can determine the number of arguments from the
+fp - sp calculation. Register spill storage comes next, as that is known size.
+
+Guile reserves a register to use as the stack pointer, leaving the *real* stack pointer as the frame pointer.
+
+ */
+
 int main(int /* argc */, char** /* argv */) {
     if (!init_jit()) {
         std::cerr << "Lightening JIT failed to init." << std::endl;
@@ -46,25 +82,6 @@ int main(int /* argc */, char** /* argv */) {
 
     // args are state, number of registers used, number of float registers used, stack space to reserve
     size_t stackAlign = jit_enter_jit_abi(jitState, 3, 0, 0);
-
-/*
-         prolog
-         allocai 0
-label_0: arg label_0
-         alias %vr0
-         movi %vr0, 23
-         alias %vr1
-         getarg_w %vr1, label_0
-         stxi_i 0x4, %vr1, %vr0
-         unalias %vr0
-         alias %vr0
-         movi %vr0, 2
-         str_i %vr1, %vr0
-         unalias %vr0
-         unalias %vr1
-         reti 1
-         epilog
-*/
 
     int value;
 
