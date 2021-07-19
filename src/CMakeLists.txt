@@ -100,6 +100,7 @@ add_library(hadron STATIC
     include/hadron/Hash.hpp
     include/hadron/JIT.hpp
     include/hadron/Lexer.hpp
+    include/hadron/LSBHashTable.hpp
     include/hadron/LightningJIT.hpp
 #    include/hadron/LighteningJIT.hpp
     include/hadron/Literal.hpp
@@ -153,6 +154,7 @@ add_executable(unittests
     Assembler_unittests.cpp
     ErrorReporter_unittests.cpp
     Lexer_unittests.cpp
+    LSBHashTable_unittests.cpp
     MachineCodeRenderer_unittests.cpp
     Parser_unittests.cpp
     SyntaxAnalyzer_unittests.cpp
