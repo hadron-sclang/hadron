@@ -25,7 +25,7 @@ ExternalProject_add(colm
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${INSTALL_EXT} --disable-manual
     BUILD_IN_SOURCE ON
-    BUILD_COMMAND make
+    BUILD_COMMAND make -j
     INSTALL_COMMAND make install
     EXCLUDE_FROM_ALL ON
 )
@@ -42,7 +42,7 @@ ExternalProject_add(ragel
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${INSTALL_EXT} --with-colm=${INSTALL_EXT} --disable-manual
     BUILD_IN_SOURCE ON
-    BUILD_COMMAND make
+    BUILD_COMMAND make -j
     INSTALL_COMMAND make install
     EXCLUDE_FROM_ALL ON
 )
@@ -99,6 +99,7 @@ add_library(hadron STATIC
     include/hadron/ErrorReporter.hpp
     include/hadron/Hash.hpp
     include/hadron/JIT.hpp
+    include/hadron/JITMemoryArena.hpp
     include/hadron/Lexer.hpp
     include/hadron/LSBHashTable.hpp
     include/hadron/LightningJIT.hpp
@@ -110,6 +111,7 @@ add_library(hadron STATIC
     include/hadron/SyntaxAnalyzer.hpp
     include/hadron/Type.hpp
     include/hadron/VirtualJIT.hpp
+    JITMemoryArena.cpp
     LightningJIT.cpp
 #    LighteningJIT.cpp
     MachineCodeRenderer.cpp
@@ -130,10 +132,12 @@ target_link_libraries(hadron PUBLIC
     xxHash::xxhash
 #    lightening
     "${INSTALL_EXT}/lib/liblightning.a"
+    "${INSTALL_EXT}/lib/libjemalloc.a"
 )
 
 add_dependencies(hadron
     lightning-install
+    jemalloc-install
 )
 
 if(APPLE)

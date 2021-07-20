@@ -3,6 +3,7 @@
 #include "FileSystem.hpp"
 #include "hadron/CodeGenerator.hpp"
 #include "hadron/ErrorReporter.hpp"
+#include "hadron/JITMemoryArena.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LightningJIT.hpp"
 //#include "hadron/LighteningJIT.hpp"
@@ -125,6 +126,10 @@ bool CompilerContext::renderToMachineCode() {
         }
     }
 
+    m_jitArena = std::make_unique<JITMemoryArena>();
+    if (!m_jitArena->createArena()) {
+        return false;
+    }
     m_renderer = std::make_unique<MachineCodeRenderer>(m_generator->virtualJIT(), m_errorReporter);
     return m_renderer->render();
 }
@@ -134,7 +139,7 @@ bool CompilerContext::evaluate(Slot* value) {
         return false;
     }
 
-    if (!m_renderer) {
+    if (!m_jitArena || !m_renderer) {
         if (!renderToMachineCode()) {
             return false;
         }

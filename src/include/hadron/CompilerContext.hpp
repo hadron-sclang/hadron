@@ -8,6 +8,7 @@ namespace hadron {
 
 class CodeGenerator;
 class ErrorReporter;
+class JITMemoryArena;
 class Lexer;
 class MachineCodeRenderer;
 class Parser;
@@ -53,6 +54,7 @@ private:
     std::unique_ptr<Parser> m_parser;
     std::unique_ptr<SyntaxAnalyzer> m_syntaxAnalyzer;
     std::unique_ptr<CodeGenerator> m_generator;
+    std::unique_ptr<JITMemoryArena> m_jitArena;
     std::unique_ptr<MachineCodeRenderer> m_renderer;
 };
 
