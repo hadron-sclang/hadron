@@ -30,20 +30,53 @@ Stack grows down, so sp < fp always.
 
    +------------------------------+
    | Machine return address (mRA) |
-   +==============================+ <- fp
-   | Local 0                      |
+   +==============================+ <- fp (real stack pointer)
+   | Argument 0                   |
    +------------------------------+
-   | Local 1                      |
+   | Argument 1                   |
    +------------------------------+
    | ...                          |
    +------------------------------+
-   | Local N-1                    |
-   \------------------------------/ <- sp
+   | Argument N-1                 |
+   \------------------------------/ <- sp (reserved register)
+
+Guile reserves a register to use as the stack pointer, leaving the *real* stack pointer as the frame pointer, we do the
+same.
 
 Arguments are always pushed in order and are all Slots. Callee can determine the number of arguments from the
 fp - sp calculation. Register spill storage comes next, as that is known size.
 
-Guile reserves a register to use as the stack pointer, leaving the *real* stack pointer as the frame pointer.
+Question - do we actually need to reserve a register for a stack pointer? We do support va_args functions but the number
+of arguments is always included, meaning that arguments can be located on the stack without an sp. There's a single
+return value that is also a Slot, so can add that on top of the other arguments. Then there's register spill space,
+which if there's one slot for every virtual register all those locations are known at JIT time too:
+
+   +------------------------------+
+   | Machine return address (mRA) |
+   +==============================+ <- frame pointer
+   | Argument 0                   |
+   +------------------------------+
+   | Argument 1                   |
+   +------------------------------+
+   | ...                          |
+   +------------------------------+
+   | Argument N-1                 |
+   +------------------------------+
+   | Return Value                 |
+   +------------------------------+
+   | Virtual Register Spill 0     |
+   +------------------------------+
+   | Virtual Register Spill 1     |
+   +------------------------------+
+   | ...                          |
+   +------------------------------+
+   | Virtual Register Spill N-1   |
+   +------------------------------+
+
+There are two functions to dispatch a message, one for an ordered list of arguments and one for key/value pairs. They
+both trampoline out of JIT code and back to C (I think) so that's an important consideration.
+
+When type is known it could be possible to "inline" right to the correct function.
 
  */
 
@@ -72,7 +105,8 @@ int main(int /* argc */, char** /* argv */) {
         return -1;
     }
 
-    // disable blocking writes for jit memory regions
+    // disable blocking writes for jit memory regions - this is per-thread, so worth verifying if we can lock in
+    // one thread and write, while executing in another.
     pthread_jit_write_protect_np(false);
 
     // Mark the beginning of a new JIT
