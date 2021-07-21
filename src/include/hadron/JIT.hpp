@@ -9,6 +9,11 @@ namespace hadron {
 class ErrorReporter;
 struct Slot;
 
+// TODO: refactor to represent a re-useable tool that produces some kind of build product, a callable block of code
+// that is either "virtual" and so has no usable function pointers, or is rendered/realized and therefore has both a
+// C entry pointer and a Hadron entry pointer. Then compiler context can produce build artifacts for consumption by
+// the caller.
+
 // Abstract base class for JIT compilation, allowing CodeGenerator to JIT to either virtual, testing or production
 // backends.
 // Steps to add a new instruction:
