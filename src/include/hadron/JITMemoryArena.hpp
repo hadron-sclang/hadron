@@ -1,6 +1,8 @@
 #ifndef SRC_INCLUDE_HADRON_JIT_MEMORY_ARENA_HPP_
 #define SRC_INCLUDE_HADRON_JIT_MEMORY_ARENA_HPP_
 
+#include <cstddef>
+
 extern "C" {
 typedef struct extent_hooks_s extent_hooks_t;
 }
@@ -16,9 +18,12 @@ namespace hadron {
 class JITMemoryArena {
 public:
     JITMemoryArena();
-    ~JITMemoryArena();
+    ~JITMemoryArena();  // also calls destroyArena()
 
     bool createArena();
+    void* alloc(size_t bytes);
+
+    void destroyArena();
 
 private:
     unsigned m_arenaID;
