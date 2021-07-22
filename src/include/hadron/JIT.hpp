@@ -31,9 +31,6 @@ public:
     JIT() = delete;
     virtual ~JIT() = default;
 
-    // ===== JIT compilation
-    virtual std::unique_ptr<Function> emit() = 0; // <-- does this need to be a virtual function? No, huh?
-
     using Label = int32_t;
     using Reg = int32_t;
     using Address = void*;

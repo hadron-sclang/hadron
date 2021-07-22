@@ -11,6 +11,7 @@
 namespace hadron {
 
 class ErrorReporter;
+class LighteningJIT;
 class VirtualJIT;
 
 // A machine code renderer will take code from a VirtualJIT object, assign registers, and JIT the output code.
@@ -20,9 +21,9 @@ public:
     MachineCodeRenderer() = delete;
     ~MachineCodeRenderer() = default;
 
-    bool render();
-
-    const JIT* machineJIT() const { return m_machineJIT.get(); }
+    // Interate over the instructions in virtualJIT, perform register fitting, and issue the modified instructions
+    // into the provided jit object.
+    bool render(JIT* jit);
 
 private:
     // We create distinct types between virtual and machine registers, to help with clarity in the code. But they are
@@ -31,7 +32,6 @@ private:
     using VReg = JIT::Reg;
 
     const VirtualJIT* m_virtualJIT;
-    std::unique_ptr<JIT> m_machineJIT;
     std::shared_ptr<ErrorReporter> m_errorReporter;
 
     /*
@@ -67,14 +67,14 @@ private:
      */
 
     // Immediately allocate a machine register for the supplied virtual register, issuing spill code if needed.
-    void allocateRegister(VReg vReg);
+    void allocateRegister(VReg vReg, JIT* jit);
     // Returns the allocated machine register for the supplied virtual register. May result in spill and/or unspill
     // code to make room.
-    MReg mReg(VReg vReg);
+    MReg mReg(VReg vReg, JIT* jit);
     // Free the underlying machine register associated with this virtual register.
-    void freeRegister(VReg vReg);
+    void freeRegister(VReg vReg, JIT* jit);
     // Select the most appropriate allocated virutal register and spill it, returning the freed machine register.
-    MReg spill();
+    MReg spill(JIT* jit);
 
     std::vector<JIT::Label> m_labels;
     // Either the actual machine register count or the maximum number of virtual registers, depending on which is

@@ -3,6 +3,7 @@
 #include "hadron/ErrorReporter.hpp"
 
 #include "fmt/format.h"
+#include "spdlog/spdlog.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wc99-extensions"
@@ -22,6 +23,22 @@ LighteningJIT::LighteningJIT(std::shared_ptr<ErrorReporter> errorReporter):
 
 LighteningJIT::~LighteningJIT() {
     jit_destroy_state(m_state);
+}
+
+
+// static
+bool LighteningJIT::markThreadForJITCompilation() {
+    pthread_jit_write_protect_np(false);
+    if (!init_jit()) {
+        SPDLOG_ERROR("Failed to initialize thread-specific Lightening JIT data.");
+        return false;
+    }
+    return true;
+}
+
+// static
+void LighteningJIT::markThreadForJITExecution() {
+    pthread_jit_write_protect_np(true);
 }
 
 bool LighteningJIT::emit() {

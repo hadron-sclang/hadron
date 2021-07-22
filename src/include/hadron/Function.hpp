@@ -9,6 +9,7 @@
 
 namespace hadron {
 
+
 // Represents a unit of executable SuperCollider code.
 struct Function {
     Function() = default;
@@ -18,14 +19,24 @@ struct Function {
     // Argument names in order.
     std::unique_ptr<Hash[]> argumentNames;
     std::unique_ptr<Slot[]> defaultValues;
-    LSBHashTable nameIndices;
+
+    struct NameIndex {
+        Hash hash;
+        std::unique_ptr<NameIndex> next;
+        int index;
+    }
+    struct NameTable : public LSBHashTable<NameIndex> {
+        NameTable() : LSBHashTable() {}
+        virtual ~NameTable() = default;
+    }
+    NameTable nameIndices;
 
     typedef void (*ExecJIT)();
     ExecJIT hadronEntry;
 
     // C++ wrapper to pack arguments into Hadron ABI, call into hadronEntry, catch the return, unpack the return
     // value, and return it.
-    Slot valueOrderedArgs(int numOrderedArgs, Slot* orderedArgs, int numKeywordArgs, Slot* keywordArgs);
+    Slot value(int numOrderedArgs, Slot* orderedArgs, int numKeywordArgs, Slot* keywordArgs);
 
 private:
     ExecJIT cWrapper;

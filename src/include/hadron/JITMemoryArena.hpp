@@ -22,6 +22,7 @@ public:
 
     bool createArena();
     void* alloc(size_t bytes);
+    void* realloc(void*, size_t) // todo
 
     void destroyArena();
 

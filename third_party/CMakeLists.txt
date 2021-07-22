@@ -33,22 +33,6 @@ if(APPLE)
     )
 endif()
 
-### GNU Lightning
-ExternalProject_add(lightning
-    PREFIX ext
-    STEP_TARGETS install
-    EXCLUDE_FROM_ALL ON
-    GIT_REPOSITORY https://git.savannah.gnu.org/git/lightning.git
-    GIT_TAG master
-    GIT_PROGRESS ON
-    UPDATE_COMMAND ""
-    BUILD_IN_SOURCE ON
-    CONFIGURE_COMMAND ./bootstrap && ./configure --prefix=${INSTALL_EXT}
-    BUILD_COMMAND make -j
-    INSTALL_COMMAND make install
-    BUILD_BYPRODUCTS ${INSTALL_EXT}/lib/liblightning.a
-)
-
 ### jemalloc
 ExternalProject_add(jemalloc
     PREFIX ext

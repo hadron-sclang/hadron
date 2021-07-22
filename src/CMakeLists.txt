@@ -88,33 +88,33 @@ add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
-    ErrorReporter.cpp
-    CodeGenerator.cpp
-    CompilerContext.cpp
-    FileSystem.hpp
-    Hash.cpp
+
     include/hadron/Assembler.hpp
     include/hadron/CodeGenerator.hpp
-    include/hadron/CompilerContext.hpp
+    include/hadron/Compiler.hpp
     include/hadron/ErrorReporter.hpp
     include/hadron/Function.hpp
     include/hadron/Hash.hpp
     include/hadron/JIT.hpp
     include/hadron/JITMemoryArena.hpp
     include/hadron/Lexer.hpp
-    include/hadron/LSBHashTable.hpp
-    include/hadron/LightningJIT.hpp
-#    include/hadron/LighteningJIT.hpp
+    include/hadron/LighteningJIT.hpp
     include/hadron/Literal.hpp
+    include/hadron/LSBHashTable.hpp
     include/hadron/MachineCodeRenderer.hpp
     include/hadron/Parser.hpp
     include/hadron/Slot.hpp
     include/hadron/SyntaxAnalyzer.hpp
     include/hadron/Type.hpp
     include/hadron/VirtualJIT.hpp
+
+    CodeGenerator.cpp
+    Compiler.cpp
+    ErrorReporter.cpp
+    FileSystem.hpp
+    Hash.cpp
     JITMemoryArena.cpp
-    LightningJIT.cpp
-#    LighteningJIT.cpp
+    LighteningJIT.cpp
     MachineCodeRenderer.cpp
     Parser.cpp
     Slot.cpp
@@ -125,19 +125,27 @@ add_library(hadron STATIC
 file(GLOB HADRON_PUBLIC_HEADERS include/hadron/*.hpp)
 set_target_properties(hadron PROPERTIES PUBLIC_HEADER "${HADRON_PUBLIC_HEADERS}")
 
-target_compile_options(hadron PUBLIC -g -Wall -Wextra -Wpedantic -Werror)
+target_compile_options(hadron PUBLIC
+    -g
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Werror
+)
+
+target_compile_definitions(hadron PUBLIC
+    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG
+)
 
 target_link_libraries(hadron PUBLIC
     fmt
     spdlog
     xxHash::xxhash
-#    lightening
-    "${INSTALL_EXT}/lib/liblightning.a"
+    lightening
     "${INSTALL_EXT}/lib/libjemalloc.a"
 )
 
 add_dependencies(hadron
-    lightning-install
     jemalloc-install
 )
 

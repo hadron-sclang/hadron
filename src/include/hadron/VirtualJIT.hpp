@@ -19,9 +19,6 @@ public:
     VirtualJIT() = delete;
     virtual ~VirtualJIT() = default;
 
-    bool emit() override;
-    bool evaluate(Slot* value) const override;
-
     int getRegisterCount() const override;
     int getFloatRegisterCount() const override;
 
