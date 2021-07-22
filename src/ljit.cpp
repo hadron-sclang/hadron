@@ -114,7 +114,8 @@ int main(int /* argc */, char** /* argv */) {
     // Capture the address at the start of the jit.
     jit_pointer_t jitStartAddress = jit_address(jitState);
 
-    // args are state, number of registers used, number of float registers used, stack space to reserve
+    // Args are state, number of registers used, number of float registers used, stack space to reserve. Emits JIT
+    // code to align stack frame and save the supplied number of registers.
     size_t stackAlign = jit_enter_jit_abi(jitState, 3, 0, 0);
 
     int value;

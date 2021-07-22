@@ -7,7 +7,7 @@
 namespace hadron {
 
 class ErrorReporter;
-struct Slot;
+struct Function;
 
 // TODO: refactor to represent a re-useable tool that produces some kind of build product, a callable block of code
 // that is either "virtual" and so has no usable function pointers, or is rendered/realized and therefore has both a
@@ -32,8 +32,7 @@ public:
     virtual ~JIT() = default;
 
     // ===== JIT compilation
-    virtual bool emit() = 0;
-    virtual bool evaluate(Slot* value) const = 0;
+    virtual std::unique_ptr<Function> emit() = 0; // <-- does this need to be a virtual function? No, huh?
 
     using Label = int32_t;
     using Reg = int32_t;

@@ -97,6 +97,7 @@ add_library(hadron STATIC
     include/hadron/CodeGenerator.hpp
     include/hadron/CompilerContext.hpp
     include/hadron/ErrorReporter.hpp
+    include/hadron/Function.hpp
     include/hadron/Hash.hpp
     include/hadron/JIT.hpp
     include/hadron/JITMemoryArena.hpp
