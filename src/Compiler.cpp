@@ -145,7 +145,8 @@ void Compiler::asyncCompile(std::string_view code, std::function<void(std::uniqu
     }
 
     MachineCodeRenderer renderer(generator.virtualJIT(), errorReporter);
-
+    LighteningJIT jit;
+    
 }
 
 } // namespace hadron

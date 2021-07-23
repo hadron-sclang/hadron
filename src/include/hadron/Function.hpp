@@ -9,7 +9,6 @@
 
 namespace hadron {
 
-
 // Represents a unit of executable SuperCollider code.
 struct Function {
     Function() = default;

@@ -7,10 +7,6 @@
 
 // Lightening external declarations.
 extern "C" {
-    struct jit_node;
-    typedef struct jit_node jit_node_t;
-    struct jit_state;
-    typedef struct jit_state jit_state_t;
 }
 
 namespace hadron {
@@ -21,9 +17,26 @@ public:
     LighteningJIT() = delete;
     virtual ~LighteningJIT();
 
-    bool emit() override;
-    bool evaluate(Slot* value) const override;
+    static bool markThreadForJITCompilation();
+    static void markThreadForJITExecution();
 
+    // Call this stuff from Compiler, which knows it has a LighteningJIT.
+    // Begin recording jit bytecode into the provideed buffer, of maximum size.
+    void begin(uint8_t* buffer, size_t size);
+    // returns true if the bytecode didn't fit into the provided buffer size.
+    bool hasJITBufferOverflow();
+    // Set pointer back to beginning of buffer.
+    void reset();
+    // End recording jit bytecode into the buffer, writes the final size to sizeOut. Returns the jit address to begin().
+    void* end(size_t* sizeOut);
+    // Get the current address of the JIT.
+    void* address();
+
+    // what does this return?
+    size_t enterABI(size_t v, size_t vf);
+    void leaveABI(size_t v, size_t vf);
+
+    // ==== JIT overrides
     int getRegisterCount() const override;
     int getFloatRegisterCount() const override;
 
@@ -53,8 +66,8 @@ public:
     void reti(int value) override;
     void epilog() override;
     Label label() override;
-    void patchAt(Label target, Label location) override;
-    void patch(Label label) override;
+    void patchThere(Label target, Label location) override;
+    void patchHere(Label label) override;
 
     // Lightening requires a call to a global setup function before emitting any JIT bytecode.
     static void initJITGlobals();
@@ -67,9 +80,6 @@ private:
     std::vector<jit_node_t*> m_labels;
     // Offset in bytes from the stack frame pointer where the stack begins.
     int m_stackBase;
-
-    typedef int (*Value)(Slot* returnSlot);
-    Value m_jit;
 };
 
 }
