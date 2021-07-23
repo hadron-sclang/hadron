@@ -9,10 +9,20 @@
 
 namespace hadron {
 
+class LighteningJIT;
+struct ThreadContext;
+
+namespace ast {
+struct BlockAST;
+}
+
 // Represents a unit of executable SuperCollider code.
 struct Function {
-    Function() = default;
+    Function() = delete;
+    Function(const ast::BlockAST* block);
     ~Function() = default;
+
+    bool buildEntryTrampoline(LighteningJIT* jit);
 
     int numberOfArgs;
     // Argument names in order.
@@ -35,7 +45,7 @@ struct Function {
 
     // C++ wrapper to pack arguments into Hadron ABI, call into hadronEntry, catch the return, unpack the return
     // value, and return it.
-    Slot value(int numOrderedArgs, Slot* orderedArgs, int numKeywordArgs, Slot* keywordArgs);
+    Slot value(ThreadContext* context, int numOrderedArgs, Slot* orderedArgs, int numKeywordArgs, Slot* keywordArgs);
 
 private:
     ExecJIT cWrapper;

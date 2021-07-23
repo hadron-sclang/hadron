@@ -25,7 +25,6 @@ LighteningJIT::~LighteningJIT() {
     jit_destroy_state(m_state);
 }
 
-
 // static
 bool LighteningJIT::markThreadForJITCompilation() {
     pthread_jit_write_protect_np(false);
@@ -41,21 +40,41 @@ void LighteningJIT::markThreadForJITExecution() {
     pthread_jit_write_protect_np(true);
 }
 
-bool LighteningJIT::emit() {
-    m_jit = reinterpret_cast<Value>(jit_emit(m_state));
-    return (m_jit != nullptr);
-}
-
-bool LighteningJIT::evaluate(Slot* value) const {
-    return m_jit(value) != 0;
-}
 
 int LighteningJIT::getRegisterCount() const {
-    return JIT_R_NUM + JIT_V_NUM;
+#if defined(__i386___)
+    return 8;
+#elif defined(__x86_64__)
+    return 16;
+#elif defined(__arm__)
+    return 16;
+#elif defined(__aarch64__)
+    return 32;
+#else
+#error "Undefined chipset"
+#endif
 }
 
 int LighteningJIT::getFloatRegisterCount() const {
-    return JIT_F_NUM;
+#if defined(__i386___)
+    return 8;
+#elif defined(__x86_64__)
+    return 16;
+#elif defined(__arm__)
+    return 32;
+#elif defined(__aarch64__)
+    return 32;
+#else
+#error "Undefined chipset"
+#endif
+}
+
+size_t LighteningJIT::enterABI() {
+    return jit_enter_jit_abi(m_state, kCalleeSaveRegisters, 0, 0);
+}
+
+void LighteningJIT::leaveABI(size_t stackSize) {
+    return jit_leave_jit_abi(m_state, kCalleeSaveRegisters, 0, stackSize);
 }
 
 void LighteningJIT::addr(Reg target, Reg a, Reg b) {

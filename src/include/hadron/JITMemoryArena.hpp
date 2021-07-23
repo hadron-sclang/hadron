@@ -2,6 +2,8 @@
 #define SRC_INCLUDE_HADRON_JIT_MEMORY_ARENA_HPP_
 
 #include <cstddef>
+#include <functional>
+#include <memory>
 
 extern "C" {
 typedef struct extent_hooks_s extent_hooks_t;
@@ -21,12 +23,16 @@ public:
     ~JITMemoryArena();  // also calls destroyArena()
 
     bool createArena();
-    void* alloc(size_t bytes);
-    void* realloc(void*, size_t) // todo
+    // MCodePtr uses a custom deleter to call free() on this arena when deleting the memory allocated by alloc().
+    using MCodePtr = std::unique_ptr<void*, std::function<void(void*)>>;
+    MCodePtr alloc(size_t size);
+    void resize(void*, size_t); // todo
 
     void destroyArena();
 
 private:
+    void free(void* mcode);
+
     unsigned m_arenaID;
     extent_hooks_t* m_hooks;
 };

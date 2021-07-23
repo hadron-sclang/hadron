@@ -52,8 +52,12 @@ bool JITMemoryArena::createArena() {
     return true;
 }
 
-void* JITMemoryArena::alloc(size_t bytes) {
-    // Preserve current thread arena.
+JITMemoryArena::MCodePtr JITMemoryArena::alloc(size_t size) {
+    constexpr size_t kJITMemAlign = 16;
+    constexpr size_t kJITMemAlignMask = ~(0xf);
+    size = (size + kJITMemAlign - 1) & kJITMemAlignMask;
+
+    // Preserve current thread arena. TODO: mallctlnametomib for thread.arena
     unsigned arena;
     size_t arenaSize = sizeof(arena);
     int result = je_mallctl("thread.arena", reinterpret_cast<void*>(&arena), &arenaSize, nullptr, 0);
@@ -68,11 +72,16 @@ void* JITMemoryArena::alloc(size_t bytes) {
     }
 
     // Allocate the memory.
-    void* mem = je_malloc(bytes);
+    void* memory = je_aligned_alloc(kJITMemAlign, size);
+    auto mcode = MCodePtr(memory, [this](void* ptr) { free(ptr); });
 
     // Restore old thread arena.
     result = je_mallctl("thread.arena", nullptr, nullptr, reinterpret_cast<void*>(&arena), sizeof(unsigned));
-    return mem;
+    if (result != 0) {
+        return nullptr;
+    }
+
+    return mcode;
 }
 
 void JITMemoryArena::destroyArena() {

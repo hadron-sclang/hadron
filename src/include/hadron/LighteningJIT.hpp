@@ -32,9 +32,11 @@ public:
     // Get the current address of the JIT.
     void* address();
 
-    // what does this return?
-    size_t enterABI(size_t v, size_t vf);
-    void leaveABI(size_t v, size_t vf);
+    // Save current state from the calling C-style stack frame, including all callee-save registers, and update the
+    // stack pointer (modulo alignment) to point just below this. Returns the number of bytes pushed on to the stack,
+    // which should be passed back to leaveABI() as the stackSize argument to restore the stack to original state.
+    size_t enterABI();
+    void leaveABI(size_t stackSize);
 
     // ==== JIT overrides
     int getRegisterCount() const override;
@@ -73,6 +75,20 @@ public:
     static void initJITGlobals();
 
 private:
+    // We need to save all of the callee-save registers, which is a per-architecture value not exposed by lightening.h
+    // so supplied here.
+    #if defined(__i386___)
+        constexpr size_t kCalleeSaveRegisters = 3;
+    #elif defined(__x86_64__)
+        constexpr size_t kCalleeSaveRegisters = 7;
+    #elif defined(__arm__)
+        constexpr size_t kCalleeSaveRegisters = 7;
+    #elif defined(__aarch64__)
+        constexpr size_t kCalleeSaveRegisters = 10;
+    #else
+    #error "Undefined chipset"
+    #endif
+
     // Converts flat register space to JIT_V and JIT_R equivalents.
     int reg(Reg r);
     jit_state_t* m_state;

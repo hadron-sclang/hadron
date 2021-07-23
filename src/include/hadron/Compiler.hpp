@@ -33,11 +33,11 @@ public:
     // Enqueues a request for compilation of the provided string_view to the worker threads. The string_view must
     // remain pointing to valid memory until the closure is called. The result callback will be called with a valid
     // pointer to a Function or nullptr if compilation failed.
-    void compile(std::string_view code, std::function<void(std::unique_ptr<Function>)> result);
+    void compile(std::string_view code, std::function<void(std::unique_ptr<Function>)> func);
 
 private:
     void compilerThreadMain(size_t threadNumber);
-    void asyncCompile(std::string_view code, std::function<void(std::unique_ptr<Function>)> result);
+    void asyncCompile(std::string_view code, std::function<void(std::unique_ptr<Function>)> func);
 
     std::unique_ptr<JITMemoryArena> m_jitMemoryArena;
     std::shared_ptr<ErrorReporter> m_errorReporter;
