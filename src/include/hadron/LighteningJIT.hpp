@@ -35,7 +35,10 @@ public:
     // Save current state from the calling C-style stack frame, including all callee-save registers, and update the
     // stack pointer (modulo alignment) to point just below this. Returns the number of bytes pushed on to the stack,
     // which should be passed back to leaveABI() as the stackSize argument to restore the stack to original state.
+    // Also sets up the stack to reflect entry conditions to Hadron ABI, with the thread context pointer in GPR(0) and
+    // the keyword and in-order args on the stack.
     size_t enterABI();
+    void buildCArgs();
     void leaveABI(size_t stackSize);
 
     // ==== JIT overrides
@@ -56,20 +59,12 @@ public:
     void stxi_w(int offset, Reg address, Reg value) override;
     void stxi_i(int offset, Reg address, Reg value) override;
     void stxi_l(int offset, Reg address, Reg value) override;
-    void prolog() override;  // rename to begin
-    Label arg() override;
-    void getarg_w(Reg target, Label arg) override;
-    void getarg_i(Reg target, Label arg) override;
-    void getarg_l(Reg target, Label arg) override;
-    void allocai(int stackSizeBytes) override;
-    void frame(int stackSizeBytes) override;
     void ret() override;
     void retr(Reg r) override;
     void reti(int value) override;
-    void epilog() override;
     Label label() override;
-    void patchThere(Label target, Label location) override;
     void patchHere(Label label) override;
+    void patchThere(Label target, Label location) override;
 
     // Lightening requires a call to a global setup function before emitting any JIT bytecode.
     static void initJITGlobals();
@@ -77,7 +72,7 @@ public:
 private:
     // We need to save all of the callee-save registers, which is a per-architecture value not exposed by lightening.h
     // so supplied here.
-    #if defined(__i386___)
+    #if defined(__i386__)
         constexpr size_t kCalleeSaveRegisters = 3;
     #elif defined(__x86_64__)
         constexpr size_t kCalleeSaveRegisters = 7;

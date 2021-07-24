@@ -43,6 +43,12 @@ struct Function {
     typedef void (*ExecJIT)();
     ExecJIT hadronEntry;
 
+    // Set up the stack the way this function would expect if it were being called from other hadron
+    // mcode.
+    void prepareArgs(ThreadContext* context, int numOrderedArgs, Slot* orderedArgs, int numKeywordArgs,
+        Slot* keywordArgs);
+
+
     // C++ wrapper to pack arguments into Hadron ABI, call into hadronEntry, catch the return, unpack the return
     // value, and return it.
     Slot value(ThreadContext* context, int numOrderedArgs, Slot* orderedArgs, int numKeywordArgs, Slot* keywordArgs);

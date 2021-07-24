@@ -171,6 +171,7 @@ void Compiler::asyncCompile(std::string_view code, std::function<void(std::uniqu
 
     // Build function object JIT C entry trampoline.
     auto function = std::make_unique<Function>(blockAST);
+
     if (!function->buildEntryTrampoline(&jit)) {
         SPDLOG_ERROR("Failed to build entry trampoline");
         func(nullptr);

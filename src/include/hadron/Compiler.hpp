@@ -16,6 +16,7 @@ namespace hadron {
 class ErrorReporter;
 class Function;
 class JITMemoryArena;
+struct ThreadContext;
 
 // Owns the threads responsible for compilation of sclang code. On MacOS, configures these compilation threads to write
 // to executable memory, which because of mutual exclusion reasons mean that they may not execute that memory until

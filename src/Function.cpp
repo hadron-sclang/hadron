@@ -17,39 +17,6 @@ Function::Function(const ast::BlockAST* block): hadronEntry(nullptr), cWrapper(n
     }
 }
 
-bool Function::buildEntryTrampoline(LighteningJIT* jit) {
-    auto stackSize = jit->enterABI();
-    // On function entry, JITted code expects a pointer to ThreadContext in GPR0, and the arguments to the function
-    // in order on the stack starting with argument 0 at SP + sizeof(void*) for the calling address. Each Slot is
-    // 16 bytes, so stack looks like: (higher values of stack address at top)
-
-    // Keyword/Arg Slot pairs
-    // Number of Keyword/Arg pairs: word size
-    // Number of Ordered Args: word size
-    // Hash of Target type: 8 bytes (ignored after dispatch)
-    // Hash of Selector name: 8 bytes (ignored after dispatch)
-    // Return Value Slot             SP + AddressSize - will be at the top of the stack after return
-    // Caller Return Address ======= SP
-    // ARG 0                         SP - AddressSize
-    // ARG 1                         SP - AddressSize - 16
-    // ....
-    // ARG N-1                       SP - AddressSize - (16 * (N -1))
-
-    // <--- start of scratch space for callees
-    // Virtual Reg Spill 0
-    // Virtual Reg Spill 1
-    // ...
-
-    // On the caller side, there will be a count and list of ordered args, then a count and list of keyword/arg pairs.
-    // Calling from within Hadron ABI, there's a part where we do dispatch using target and selector hashes to find
-    // this function object, then we have the same entry conditions as here, which is that there are the two lists
-    // of arguments and their counts available somewhere.
-
-
-
-    jit->leaveABI(stackSize);
-}
-
 Slot Function::value(int numOrderedArgs, Slot* orderedArgs, int numKeywordArgs, Slot* keywordArgs) {
     return Slot();
 }

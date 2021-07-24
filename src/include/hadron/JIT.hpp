@@ -81,36 +81,20 @@ public:
     virtual void stxi_l(int offset, Reg address, Reg value) = 0;
 
     // * functions
-    // mark the start of a new function
-    virtual void prolog() = 0;
-    // mark arguments for retrieval into registers later with getarg()
-    virtual Label arg() = 0;
-    // load argument into a register %target
-    virtual void getarg_w(Reg target, Label arg) = 0;
-    virtual void getarg_i(Reg target, Label arg) = 0;
-    virtual void getarg_l(Reg target, Label arg) = 0;
-    // allocate bytes on the stack, should be called after prolog() and before frame(). Note this API only allows for
-    // one call to allocai per JIT instance but the underlying API is not so restrictive.
-    virtual void allocai(int stackSizeBytes) = 0;
-    // sets up a c-callabale stack frame of at least stackSizeBytes. Save all callee-save registers. The Size argument
-    // needs to be at least as large as the sum of all calls to allocai.
-    virtual void frame(int stackSizeBytes) = 0;
     // return with no value
     virtual void ret() = 0;
     // retr %r  (return value of reg r)
     virtual void retr(Reg r) = 0;
     // reti value (return immediate value)
     virtual void reti(int value) = 0;
-    // mark the end of a function (should follow after any ret call)
-    virtual void epilog() = 0;
 
     // * labels
     // Makes a new label for backward branches.
     virtual Label label() = 0;
-    // Makes |target| point to |location|, for backward jumps.
-    virtual void patchAt(Label target, Label location) = 0;
     // Makes |label| point to current position in JIT, for forward jumps.
-    virtual void patch(Label label) = 0;
+    virtual void patchHere(Label label) = 0;
+    // Makes |target| point to |location|, for backward jumps.
+    virtual void patchThere(Label target, Label location) = 0;
 
 protected:
     std::shared_ptr<ErrorReporter> m_errorReporter;
