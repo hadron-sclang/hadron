@@ -24,14 +24,14 @@ public:
 
     bool createArena();
     // MCodePtr uses a custom deleter to call free() on this arena when deleting the memory allocated by alloc().
-    using MCodePtr = std::unique_ptr<void*, std::function<void(void*)>>;
+    using MCodePtr = std::unique_ptr<uint8_t, std::function<void(uint8_t*)>>;
     MCodePtr alloc(size_t size);
     void resize(void*, size_t); // todo
 
     void destroyArena();
 
 private:
-    void free(void* mcode);
+    void free(uint8_t* mcode);
 
     unsigned m_arenaID;
     extent_hooks_t* m_hooks;

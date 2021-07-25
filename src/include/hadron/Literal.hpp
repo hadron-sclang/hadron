@@ -8,6 +8,7 @@
 namespace hadron {
 
 // Represents a literal value in the input source code.
+// TODO: this is very very similar to the Slot data structure.
 class Literal {
 public:
     Literal(): m_type(kNil) {}

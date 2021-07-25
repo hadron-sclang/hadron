@@ -125,7 +125,6 @@ void CodeGenerator::jitStatement(const ast::AST* ast, RegisterAllocator* allocat
     } break;
 
     // TODO: can the syntax analysis part get the tree into rough 3-addr form?
-    // TODO: Possible RAII form for Register allocation?
 
     case ast::kSaveToSlot: {
         const auto saveToSlot = reinterpret_cast<const ast::SaveToSlotAST*>(ast);
@@ -137,8 +136,8 @@ void CodeGenerator::jitStatement(const ast::AST* ast, RegisterAllocator* allocat
         // Store the integer value into the Slot memory. TODO: this register should already be allocated, and it not
         // being so is an error condition.
         ScopedReg slotValueReg = allocator->regForValue(saveToSlot->value.get());
-        if (offsetof(Slot, intValue)) {
-            m_jit->stxi_i(offsetof(Slot, intValue), slotAddressReg.reg, slotValueReg.reg);
+        if (offsetof(Slot, value.intValue)) {
+            m_jit->stxi_i(offsetof(Slot, value.intValue), slotAddressReg.reg, slotValueReg.reg);
         } else {
             m_jit->str_i(slotAddressReg.reg, slotValueReg.reg);
         }

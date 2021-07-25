@@ -12,8 +12,8 @@ entry point the stack is laid out as follows:
 
 | frame pointer | contents               | stack pointer |
 |---------------|------------------------|---------------|
-| `fp` + 3      | Caller Stack Pointer   |               |
-| `fp` + 2      | Caller Frame Pointer   |               |
+| `fp` + 3      | Caller Frame Pointer   |               |
+| `fp` + 2      | Caller Stack Pointer   |               |
 | `fp` + 1      | Caller Return Address  |               |
 | `fp`          | Return Value Slot      |               |
 |               | < dispatch work area > |               |

@@ -14,7 +14,7 @@
 namespace hadron {
 
 class ErrorReporter;
-class Function;
+struct Function;
 class JITMemoryArena;
 struct ThreadContext;
 

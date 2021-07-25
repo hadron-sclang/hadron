@@ -7,8 +7,12 @@
 
 // Lightening external declarations.
 extern "C" {
-typedef struct jit_gpr_t;
-typedef struct jit_pointer_t;
+struct jit_gpr;
+typedef struct jit_gpr jit_gpr_t;
+struct jit_pointer;
+typedef struct jit_pointer jit_pointer_t;
+struct jit_state;
+typedef struct jit_state jit_state_t;
 }
 
 namespace hadron {
@@ -22,10 +26,6 @@ public:
     static bool markThreadForJITCompilation();
     static void markThreadForJITExecution();
 
-    // We reserve GPR(0) and GPR(1) for the context and stack pointers, respectively.
-    static constexpr JIT::Reg kContextPointerReg = -2;
-    static constexpr JIT::Reg kStackPointerReg = -1;
-
     // Call this stuff from Compiler, which knows it has a LighteningJIT.
     // Begin recording jit bytecode into the provideed buffer, of maximum size.
     void begin(uint8_t* buffer, size_t size);
@@ -36,15 +36,16 @@ public:
     // End recording jit bytecode into the buffer, writes the final size to sizeOut. Returns the jit address to begin().
     void* end(size_t* sizeOut);
     // Get the current address of the JIT.
-    void* address();
+    uint8_t* address();
 
     // Save current state from the calling C-style stack frame, including all callee-save registers, and update the
-    // stack pointer (modulo alignment) to point just below this. Returns the number of bytes pushed on to the stack,
+    // C stack pointer (modulo alignment) to point just below this. Returns the number of bytes pushed on to the stack,
     // which should be passed back to leaveABI() as the stackSize argument to restore the stack to original state.
-    // Also sets up the stack to reflect entry conditions to Hadron ABI, with the thread context pointer in GPR(0) and
-    // the keyword and in-order args on the stack.
     size_t enterABI();
-    void buildCArgs();
+    // Load 2 arguments from C calling code stack frame or registers, and move them into the supplied reg arguments.
+    void loadCArgs2(Reg arg1, Reg arg2);
+    // Computes JIT_SP-2 and returns.
+    Reg getCStackPointerRegister() const;
     void leaveABI(size_t stackSize);
 
     // ==== JIT overrides

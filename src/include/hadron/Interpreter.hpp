@@ -1,6 +1,7 @@
 #ifndef SRC_HADRON_INCLUDE_INTERPRETER_HPP_
 #define SRC_HADRON_INCLUDE_INTERPRETER_HPP_
 
+#include "hadron/JITMemoryArena.hpp"
 #include "hadron/Slot.hpp"
 
 #include <memory>
@@ -58,10 +59,17 @@ public:
     Slot run(Function* func);
 
 private:
+    // Sets up the return address pointer in the stack and jumps into machine code.
     void enterMachineCode(ThreadContext* context, const uint8_t* machineCode);
 
     std::unique_ptr<Compiler> m_compiler;
-    void (*m_entryTrampoline)(ThreadContext*, const uint8_t*);
+
+    // Saves registers, initializes thread context and stack pointer registers, and jumps into the machine code pointer.
+    void (*m_entryTrampoline)(ThreadContext* context, const uint8_t* machineCode);
+    // Restores registers and returns control to C++ code.
+    void (*m_exitTrampoline)();
+
+    JITMemoryArena::MCodePtr m_trampolines;
 };
 
 } // namespace hadron
