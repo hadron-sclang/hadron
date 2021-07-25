@@ -36,6 +36,8 @@ public:
     // pointer to a Function or nullptr if compilation failed.
     void compile(std::string_view code, std::function<void(std::unique_ptr<Function>)> func);
 
+    JITMemoryArena* jitMemoryArena() { return m_jitMemoryArena.get(); }
+
 private:
     void compilerThreadMain(size_t threadNumber);
     void asyncCompile(std::string_view code, std::function<void(std::unique_ptr<Function>)> func);

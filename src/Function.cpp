@@ -17,8 +17,4 @@ Function::Function(const ast::BlockAST* block): hadronEntry(nullptr), cWrapper(n
     }
 }
 
-Slot Function::value(int numOrderedArgs, Slot* orderedArgs, int numKeywordArgs, Slot* keywordArgs) {
-    return Slot();
-}
-
 } // namespace hadron

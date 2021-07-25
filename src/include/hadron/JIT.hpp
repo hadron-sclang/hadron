@@ -35,9 +35,6 @@ public:
     using Reg = int32_t;
     using Address = void*;
 
-    // Register number for the special Frame Pointer register.
-    static constexpr Reg kFramePointerReg = -1;
-
     // ===== Machine Properties
     virtual int getRegisterCount() const = 0;
     virtual int getFloatRegisterCount() const = 0;

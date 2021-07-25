@@ -7,6 +7,9 @@ struct ThreadContext {
     ThreadContext();
     ~ThreadContext();
 
+    constexpr size_t kDefaultStackSize = 1024 * 1024;
+    bool allocateStack(size_t size = kDefaultStackSize);
+
     // We keep a separate stack for Hadron JIT from the main C/C++ application stack.
     void* hadronStack;
     size_t stackSize;

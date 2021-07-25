@@ -1,6 +1,9 @@
 #ifndef SRC_HADRON_INCLUDE_INTERPRETER_HPP_
 #define SRC_HADRON_INCLUDE_INTERPRETER_HPP_
 
+#include "hadron/Slot.hpp"
+
+#include <memory>
 #include <string_view>
 
 // Sigh. The goal of this PR is to switch over to lightening. So adding functionality is a bit beside the point. Method
@@ -26,22 +29,39 @@
 
 namespace hadron {
 
+class Compiler;
 struct Function;
+struct ThreadContext;
 
 // Trying to loosely follow the Interpreter API in SC
 class Interpreter {
 public:
+    Interpreter();
+    ~Interpreter();
+
+    // Starts the Compiler threads, setup entry and exit trampolines, other infrastructure needed to compile and
+    // run sclang code.
+    bool start();
+    // Tear down resources and prepare for exit.
+    void stop();
+
     // Compile the provided code string and return a function. TODO: We want to allow mixing of interpreted code,
     // class definitions, and class extensions. Is there a std::variant<> return pattern, or would it make more sense
     // to add new methods compileMixed or something that support this? Also, given that in Hadron compilation happens on
     // a separate thread, would it make sense to also have some sort of closure call option too, like took a function or
     // something to call back when compilation was complete?
     std::unique_ptr<Function> compile(std::string_view code);
-
-
     std::unique_ptr<Function> compileFile();
-    Slot executeFile();
 
+    // Runs the provided block on the calling thread. Constructs a new ThreadContext, including a stack. On normal exit,
+    // pulls the result from the stack and returns it.
+    Slot run(Function* func);
+
+private:
+    void enterMachineCode(ThreadContext* context, const uint8_t* machineCode);
+
+    std::unique_ptr<Compiler> m_compiler;
+    void (*m_entryTrampoline)(ThreadContext*, const uint8_t*);
 };
 
 } // namespace hadron

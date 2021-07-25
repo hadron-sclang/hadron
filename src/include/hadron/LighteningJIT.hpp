@@ -7,6 +7,8 @@
 
 // Lightening external declarations.
 extern "C" {
+typedef struct jit_gpr_t;
+typedef struct jit_pointer_t;
 }
 
 namespace hadron {
@@ -19,6 +21,10 @@ public:
 
     static bool markThreadForJITCompilation();
     static void markThreadForJITExecution();
+
+    // We reserve GPR(0) and GPR(1) for the context and stack pointers, respectively.
+    static constexpr JIT::Reg kContextPointerReg = -2;
+    static constexpr JIT::Reg kStackPointerReg = -1;
 
     // Call this stuff from Compiler, which knows it has a LighteningJIT.
     // Begin recording jit bytecode into the provideed buffer, of maximum size.
@@ -72,23 +78,23 @@ public:
 private:
     // We need to save all of the callee-save registers, which is a per-architecture value not exposed by lightening.h
     // so supplied here.
-    #if defined(__i386__)
-        constexpr size_t kCalleeSaveRegisters = 3;
-    #elif defined(__x86_64__)
-        constexpr size_t kCalleeSaveRegisters = 7;
-    #elif defined(__arm__)
-        constexpr size_t kCalleeSaveRegisters = 7;
-    #elif defined(__aarch64__)
-        constexpr size_t kCalleeSaveRegisters = 10;
-    #else
-    #error "Undefined chipset"
-    #endif
+#   if defined(__i386__)
+        static constexpr size_t kCalleeSaveRegisters = 3;
+#   elif defined(__x86_64__)
+        static constexpr size_t kCalleeSaveRegisters = 7;
+#   elif defined(__arm__)
+        static constexpr size_t kCalleeSaveRegisters = 7;
+#   elif defined(__aarch64__)
+        static constexpr size_t kCalleeSaveRegisters = 10;
+#   else
+#   error "Undefined chipset"
+#   endif
 
-    // Converts flat register space to JIT_V and JIT_R equivalents.
-    int reg(Reg r);
+    // Converts register number to the Lightening register type.
+    jit_gpr_t reg(Reg r);
     jit_state_t* m_state;
     // Non-owning pointers to nodes within the jit_state struct, used for labels.
-    std::vector<jit_node_t*> m_labels;
+    std::vector<jit_pointer_t> m_labels;
     // Offset in bytes from the stack frame pointer where the stack begins.
     int m_stackBase;
 };
