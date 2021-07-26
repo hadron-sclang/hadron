@@ -16,9 +16,9 @@
 
 namespace hadron {
 
-Compiler::Compiler():
+Compiler::Compiler(std::shared_ptr<ErrorReporter> errorReporter):
     m_jitMemoryArena(std::make_unique<JITMemoryArena>()),
-    m_errorReporter(std::make_shared<ErrorReporter>()),
+    m_errorReporter(errorReporter),
     m_quit(false) {}
 
 Compiler::~Compiler() { stop(); }

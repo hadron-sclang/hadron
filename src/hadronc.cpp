@@ -1,5 +1,5 @@
 // hadronc is a command-line sclang compiler.
-#include "hadron/CompilerContext.hpp"
+#include "hadron/Compiler.hpp"
 #include "hadron/ErrorReporter.hpp"
 
 #include "gflags/gflags.h"

@@ -1,6 +1,7 @@
 #include "hadron/Interpreter.hpp"
 
 #include "hadron/Compiler.hpp"
+#include "hadron/ErrorReporter.hpp"
 #include "hadron/JITMemoryArena.hpp"
 #include "hadron/LighteningJIT.hpp"
 
@@ -8,7 +9,9 @@
 
 namespace hadron {
 
-Interpreter::Interpreter(): m_compiler(std::make_unique<Compiler>()) { }
+Interpreter::Interpreter():
+    m_errorReporter(std::make_shared<ErrorReporter>()),
+    m_compiler(std::make_unique<Compiler>(m_errorReporter)) { }
 
 Interpreter::~Interpreter() {
     stop();
@@ -22,12 +25,12 @@ bool Interpreter::start() {
     // Compile the entry and exit trampolines. This matches the Guile entry/exit trampolines pretty closely.
     LighteningJIT::markThreadForJITCompilation();
     // Complete guess as to a reasonable size.
-    JITMemoryArena::MCodePtr m_trampolines = compiler->jitMemoryArena()->alloc(4096);
-    LighteningJIT jit(/* need an error reporter */);
-    jit.begin(trampolines.get(), 4096);
+    JITMemoryArena::MCodePtr m_trampolines = m_compiler->jitMemoryArena()->alloc(4096);
+    LighteningJIT jit(m_errorReporter);
+    jit.begin(m_trampolines.get(), 4096);
     m_entryTrampoline = jit_address_to_function_pointer(jit.address());
     auto align = jit.enterABI();
-    Also loads the (assumed) two arguments to the entry trampoline, ThreadContext* context and a uint8_t*
+    // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* context and a uint8_t*
     // machineCode pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded
     // into Reg 0. As Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register,
     // I have taken some care to ensure that GPR(2)/Reg 0 is not the stack pointer on any of the supported

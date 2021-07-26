@@ -1,5 +1,5 @@
 // hlang is a command-line sclang interpreter.
-#include "hadron/CompilerContext.hpp"
+#include "hadron/Compiler.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Slot.hpp"
 

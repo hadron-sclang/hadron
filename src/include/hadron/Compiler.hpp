@@ -23,7 +23,7 @@ struct ThreadContext;
 // reclassified.
 class Compiler {
 public:
-    Compiler();
+    Compiler(std::shared_ptr<ErrorReporter> errorReporter);
     ~Compiler();
 
     // Start the compiler threads, they will block until input is provided. The Compiler needs at least one thread. If

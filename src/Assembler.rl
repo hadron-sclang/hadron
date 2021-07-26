@@ -93,27 +93,6 @@
         optlabel 'stxi_l' start hexint ws reg ws reg optcomment {
             m_jit->stxi_l(arg[0], arg[1], arg[2]);
         };
-        optlabel 'prolog' optcomment {
-            m_jit->prolog();
-        };
-        optlabel 'arg' optcomment {
-            m_jit->arg();
-        };
-        optlabel 'getarg_w' start reg ws labelnum optcomment {
-            m_jit->getarg_w(arg[0], arg[1]);
-        };
-        optlabel 'getarg_i' start reg ws labelnum optcomment {
-            m_jit->getarg_i(arg[0], arg[1]);
-        };
-        optlabel 'getarg_l' start reg ws labelnum optcomment {
-            m_jit->getarg_l(arg[0], arg[1]);
-        };
-        optlabel 'allocai' start integer optcomment {
-            m_jit->allocai(arg[0]);
-        };
-        optlabel 'frame' start integer optcomment {
-            m_jit->frame(arg[0]);
-        };
         optlabel 'ret' optcomment {
             m_jit->ret();
         };
@@ -123,17 +102,14 @@
         optlabel 'reti' start integer optcomment {
             m_jit->reti(arg[0]);
         };
-        optlabel 'epilog' optcomment {
-            m_jit->epilog();
-        };
         optlabel 'label' optcomment {
             m_jit->label();
         };
-        optlabel 'patchat' start labelnum ws labelnum optcomment {
-            m_jit->patchAt(arg[0], arg[1]);
+        optlabel 'patch_here' start labelnum optcomment {
+            m_jit->patchHere(arg[0]);
         };
-        optlabel 'patch' start labelnum optcomment {
-            m_jit->patch(arg[0]);
+        optlabel 'patch_there' start labelnum ws labelnum optcomment {
+            m_jit->patchThere(arg[0], arg[1]);
         };
         optlabel 'alias' start reg optcomment {
             m_jit->alias(arg[0]);

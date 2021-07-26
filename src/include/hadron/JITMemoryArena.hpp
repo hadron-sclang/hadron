@@ -31,7 +31,7 @@ public:
     void destroyArena();
 
 private:
-    void free(uint8_t* mcode);
+    void freeMCode(uint8_t* mcode);
 
     unsigned m_arenaID;
     extent_hooks_t* m_hooks;

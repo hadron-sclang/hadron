@@ -31,6 +31,7 @@
 namespace hadron {
 
 class Compiler;
+class ErrorReporter;
 struct Function;
 struct ThreadContext;
 
@@ -62,6 +63,7 @@ private:
     // Sets up the return address pointer in the stack and jumps into machine code.
     void enterMachineCode(ThreadContext* context, const uint8_t* machineCode);
 
+    std::shared_ptr<ErrorReporter> m_errorReporter;
     std::unique_ptr<Compiler> m_compiler;
 
     // Saves registers, initializes thread context and stack pointer registers, and jumps into the machine code pointer.

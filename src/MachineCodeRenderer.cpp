@@ -12,12 +12,12 @@ MachineCodeRenderer::MachineCodeRenderer(const VirtualJIT* virtualJIT, std::shar
     m_virtualJIT(virtualJIT),
     m_errorReporter(errorReporter),
     m_spillStackSize(0),
-    m_spillStackOffsetBytes(0) {
-    m_machineRegisterCount = std::min(jit->getRegisterCount(),
-        static_cast<int>(m_virtualJIT->registerUses().size()));
-}
+    m_spillStackOffsetBytes(0) { }
 
 bool MachineCodeRenderer::render(JIT* jit) {
+    m_machineRegisterCount = std::min(jit->getRegisterCount(),
+        static_cast<int>(m_virtualJIT->registerUses().size()));
+
     // Mark all machine registers as free.
     for (int i = 0; i < m_machineRegisterCount; ++i) {
         m_freeRegisters.emplace(i);
@@ -50,7 +50,7 @@ bool MachineCodeRenderer::render(JIT* jit) {
             break;
 
         case VirtualJIT::Opcodes::kMovr:
-            jit->movr(mReg(inst[1], jit), mReg(inst[2], juit));
+            jit->movr(mReg(inst[1], jit), mReg(inst[2], jit));
             break;
 
         case VirtualJIT::Opcodes::kMovi:
@@ -97,43 +97,6 @@ bool MachineCodeRenderer::render(JIT* jit) {
             jit->stxi_l(inst[1], inst[2], inst[3]);
             break;
 
-        case VirtualJIT::Opcodes::kProlog:
-            jit->prolog();
-            break;
-
-        case VirtualJIT::Opcodes::kArg:
-            m_labels.emplace_back(jit->arg());
-            break;
-
-        case VirtualJIT::Opcodes::kGetargW:
-            jit->getarg_w(inst[1], m_labels[inst[2]]);
-            break;
-
-        case VirtualJIT::Opcodes::kGetargI:
-            jit->getarg_i(inst[1], m_labels[inst[2]]);
-            break;
-
-        case VirtualJIT::Opcodes::kGetargL:
-            jit->getarg_l(inst[1], m_labels[inst[2]]);
-            break;
-
-        case VirtualJIT::Opcodes::kAllocai: {
-            // Add room for register spilling on the stack here. Request room for one additional spot in the spill stack
-            // to accomodate swaps at max capacity, to write out the value of the spilled register before unspilling
-            // the incoming, previously spilled value.
-            m_spillStackSize = std::max(0,
-                1 + static_cast<int>(m_virtualJIT->registerUses().size() - m_machineRegisterCount));
-            m_spillStackOffsetBytes = inst[1];
-            for (int j = 0; j < m_spillStackSize; ++j) {
-                m_freeSpillIndices.emplace(j);
-            }
-            jit->allocai(m_spillStackOffsetBytes + (m_spillStackSize * sizeof(void*)));
-        }   break;
-
-        case VirtualJIT::Opcodes::kFrame:
-            jit->frame(m_spillStackOffsetBytes + (m_spillStackSize * sizeof(void*)));
-            break;
-
         case VirtualJIT::Opcodes::kRet:
             jit->ret();
             break;
@@ -146,20 +109,16 @@ bool MachineCodeRenderer::render(JIT* jit) {
             jit->reti(inst[1]);
             break;
 
-        case VirtualJIT::Opcodes::kEpilog:
-            jit->epilog();
-            break;
-
         case VirtualJIT::Opcodes::kLabel:
             m_labels.emplace_back(jit->label());
             break;
 
-        case VirtualJIT::Opcodes::kPatchAt:
-            jit->patchAt(m_labels[inst[1]], m_labels[inst[2]]);
+        case VirtualJIT::Opcodes::kPatchHere:
+            jit->patchHere(m_labels[inst[1]]);
             break;
 
-        case VirtualJIT::Opcodes::kPatch:
-            jit->patch(m_labels[inst[1]]);
+        case VirtualJIT::Opcodes::kPatchThere:
+            jit->patchThere(m_labels[inst[1]], m_labels[inst[2]]);
             break;
 
         case VirtualJIT::Opcodes::kAlias:
@@ -208,9 +167,8 @@ void MachineCodeRenderer::allocateRegister(VReg vReg, JIT* jit) {
 }
 
 MachineCodeRenderer::MReg MachineCodeRenderer::mReg(VReg vReg, JIT* jit) {
-
-    if (vReg == JIT::kFramePointerReg) {
-        return JIT::kFramePointerReg;
+    if (vReg < 0) {
+        return vReg;
     }
 
     auto allocIter = m_allocatedRegisters.find(vReg);

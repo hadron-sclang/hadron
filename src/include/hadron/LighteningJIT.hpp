@@ -10,7 +10,7 @@ extern "C" {
 struct jit_gpr;
 typedef struct jit_gpr jit_gpr_t;
 struct jit_pointer;
-typedef struct jit_pointer jit_pointer_t;
+typedef void* jit_pointer_t;
 struct jit_state;
 typedef struct jit_state jit_state_t;
 }

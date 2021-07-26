@@ -72,8 +72,8 @@ JITMemoryArena::MCodePtr JITMemoryArena::alloc(size_t size) {
     }
 
     // Allocate the memory.
-    void* memory = je_aligned_alloc(kJITMemAlign, size);
-    auto mcode = MCodePtr(memory, [this](void* ptr) { free(ptr); });
+    uint8_t* memory = reinterpret_cast<uint8_t*>(je_aligned_alloc(kJITMemAlign, size));
+    auto mcode = MCodePtr(memory, std::function<void(uint8_t*)>([this](uint8_t* ptr) { freeMCode(ptr); }));
 
     // Restore old thread arena.
     result = je_mallctl("thread.arena", nullptr, nullptr, reinterpret_cast<void*>(&arena), sizeof(unsigned));
