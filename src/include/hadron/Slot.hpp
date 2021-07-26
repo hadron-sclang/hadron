@@ -36,6 +36,11 @@ public:
         uint8_t* machineCodeAddress;
         Slot* slotPointer;
         Hash symbolHash;
+#       ifdef HADRON_64_BIT
+        int64_t registerSpill;
+#       else
+        int32_t registerSpill;
+#       endif
     };
     Value value;
 };

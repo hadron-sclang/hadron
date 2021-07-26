@@ -4,6 +4,7 @@
 #include "hadron/VirtualJIT.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/SyntaxAnalyzer.hpp"
+#include "hadron/ThreadContext.hpp"
 #include "Keywords.hpp"
 
 #include "fmt/format.h"
@@ -14,7 +15,7 @@
 
 class RegisterAllocator {
 public:
-    RegisterAllocator(hadron::VirtualJIT* virtualJIT): m_virtualJIT(virtualJIT) {}
+    RegisterAllocator(hadron::VirtualJIT* virtualJIT): m_virtualJIT(virtualJIT), m_tempRegisterCount(0) {}
     RegisterAllocator() = delete;
     ~RegisterAllocator() = default;
 
@@ -41,6 +42,12 @@ public:
     ScopedRegister regForValue(const hadron::ast::ValueAST* value) {
         hadron::JIT::Reg reg = allocateRegister(value->nameHash);
         return ScopedRegister(reg, this, value->canRelease);
+    }
+
+    ScopedRegister tempRegister() {
+        hadron::JIT::Reg reg = allocateRegister(hadron::hash(fmt::format("_temp_{}", m_tempRegisterCount)));
+        m_tempRegisterCount++;
+        return ScopedRegister(reg, this, true);
     }
 
 private:
@@ -73,6 +80,7 @@ private:
     std::vector<hadron::Hash> m_registerValues;
     std::unordered_map<hadron::Hash, hadron::JIT::Reg> m_allocatedRegisters;
     std::set<hadron::JIT::Reg> m_freeRegisters;
+    size_t m_tempRegisterCount;
 };
 
 namespace hadron {
@@ -83,24 +91,13 @@ CodeGenerator::CodeGenerator(const ast::BlockAST* block, std::shared_ptr<ErrorRe
     m_errorReporter(errorReporter) {}
 
 bool CodeGenerator::generate() {
-    m_jit->prolog();
-    // We always call allocai as that gives the MachineCodeGenerator a chance to add any stack space needed for
-    // register spilling. In the future there may be stack variables so this number can be nonzero as well, and the
-    // register spilling stack would exist above this stack space, to keep the addresses here valid.
-    m_jit->allocai(0);
-
-    // First argument is always the Slot return address. ** For now all arguments can be assumed to be addresses.
-    // Slot variables can also live on the stack, and will have addresses relative to the frame pointer.
-    m_addresses.emplace(std::make_pair(hash("_blockValue"), m_jit->arg()));
     RegisterAllocator allocator(m_jit.get());
 
     for (const auto& statement : m_block->statements) {
         jitStatement(statement.get(), &allocator);
     }
 
-    // Any non-zero return integer value means function success.
-    m_jit->reti(1);
-    m_jit->epilog();
+    m_jit->ret();
     return true;
 }
 
@@ -124,33 +121,21 @@ void CodeGenerator::jitStatement(const ast::AST* ast, RegisterAllocator* allocat
         // not expected at top level
     } break;
 
-    // TODO: can the syntax analysis part get the tree into rough 3-addr form?
-
-    case ast::kSaveToSlot: {
-        const auto saveToSlot = reinterpret_cast<const ast::SaveToSlotAST*>(ast);
-        // Load the address of the slot into a register.
-        ScopedReg slotAddressReg = allocator->regForHash(hash(fmt::format("_addr_{:016x}",
-            saveToSlot->value->nameHash)));
-        JIT::Label addressValue = m_addresses.find(saveToSlot->value->nameHash)->second;
-        m_jit->getarg_w(slotAddressReg.reg, addressValue);
-        // Store the integer value into the Slot memory. TODO: this register should already be allocated, and it not
-        // being so is an error condition.
-        ScopedReg slotValueReg = allocator->regForValue(saveToSlot->value.get());
-        if (offsetof(Slot, value.intValue)) {
-            m_jit->stxi_i(offsetof(Slot, value.intValue), slotAddressReg.reg, slotValueReg.reg);
-        } else {
-            m_jit->str_i(slotAddressReg.reg, slotValueReg.reg);
-        }
-        slotValueReg.free();
+    case ast::kSaveToReturnSlot: {
+        const auto saveReturn = reinterpret_cast<const ast::SaveToReturnSlotAST*>(ast);
+        // Need to load the frame pointer into a register first, it should be directly pointing at the Return
+        // value slot.
+        ScopedReg framePointerReg = allocator->tempRegister();
+        m_jit->ldxi_w(framePointerReg.reg, JIT::kContextPointerReg, offsetof(ThreadContext, framePointer));
+        // Save the value into the slot.
+        ScopedReg retValueReg = allocator->regForValue(saveReturn->value.get());
+        m_jit->stxi_i(offsetof(Slot, value.intValue), framePointerReg.reg, retValueReg.reg);
+        retValueReg.free();
         // Load the slot type into a register so it can be written into memory.
-        ScopedReg slotTypeReg = allocator->regForHash(hash(fmt::format("_type_{:08x}", saveToSlot->value->valueType)));
+        ScopedReg slotTypeReg = allocator->tempRegister();
         m_jit->movi(slotTypeReg.reg, Type::kInteger);
         // Store the type into the Slot memory.
-        if (offsetof(Slot, type)) {
-            m_jit->stxi_i(offsetof(Slot, type), slotAddressReg.reg, slotTypeReg.reg);
-        } else {
-            m_jit->str_i(slotAddressReg.reg, slotTypeReg.reg);
-        }
+        m_jit->stxi_i(offsetof(Slot, type), framePointerReg.reg, slotTypeReg.reg);
     } break;
 
     case ast::kAssign: {

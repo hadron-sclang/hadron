@@ -13,21 +13,13 @@ namespace hadron {
 VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter):
     JIT(errorReporter),
     m_maxRegisters(std::numeric_limits<int32_t>::max()),
-    m_maxFloatRegisters(std::numeric_limits<int32_t>::max()) {}
+    m_maxFloatRegisters(std::numeric_limits<int32_t>::max()),
+    m_addressCount(0) {}
 
 VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter, int maxRegisters, int maxFloatRegisters):
     JIT(errorReporter),
     m_maxRegisters(maxRegisters),
     m_maxFloatRegisters(maxFloatRegisters) { }
-
-bool VirtualJIT::emit() {
-    return true;
-}
-
-bool VirtualJIT::evaluate(Slot* /* value */) const {
-    m_errorReporter->addInternalError("VirtualJIT got evaluation request.");
-    return false;
-}
 
 int VirtualJIT::getRegisterCount() const {
     if (m_maxRegisters < 3) {
@@ -65,10 +57,10 @@ JIT::Label VirtualJIT::bgei(Reg a, int b) {
     return label;
 }
 
-JIT::Label VirtualJIT::jmpi() {
+JIT::Label VirtualJIT::jmp() {
     JIT::Label label = m_labels.size();
     m_labels.emplace_back(m_instructions.size());
-    m_instructions.emplace_back(Inst{Opcodes::kJmpi, label});
+    m_instructions.emplace_back(Inst{Opcodes::kJmp, label});
     return label;
 }
 
@@ -86,12 +78,6 @@ void VirtualJIT::ldxi_l(Reg target, Reg address, int offset) {
 
 void VirtualJIT::str_i(Reg address, Reg value) {
     m_instructions.emplace_back(Inst{Opcodes::kStrI, use(address), use(value)});
-}
-
-void VirtualJIT::sti_i(Address address, Reg value) {
-    int addressNumber = m_addresses.size();
-    m_addresses.emplace_back(address);
-    m_instructions.emplace_back(Inst{Opcodes::kStiI, addressNumber, use(value)});
 }
 
 void VirtualJIT::stxi_w(int offset, Reg address, Reg value) {
@@ -124,20 +110,26 @@ JIT::Label VirtualJIT::label() {
     return m_labels.size() - 1;
 }
 
+JIT::Address VirtualJIT::address() {
+    JIT::Address addressIndex = m_addressCount;
+    ++m_addressCount;
+    return addressIndex;
+}
+
 void VirtualJIT::patchHere(Label label) {
     if (label < static_cast<int>(m_labels.size())) {
         m_labels[label] = m_instructions.size();
-        m_instructions.emplace_back(Inst{Opcodes::kPatch, label});
+        m_instructions.emplace_back(Inst{Opcodes::kPatchHere, label});
     } else {
         m_errorReporter->addInternalError(fmt::format("VirtualJIT patch label_{} contains out-of-bounds label argument "
             "as there are only {} labels", label, m_labels.size()));
     }
 }
 
-void VirtualJIT::patchThere(Label target, Label location) {
+void VirtualJIT::patchThere(Label target, Address location) {
     if (target < static_cast<int>(m_labels.size()) && location < static_cast<int>(m_labels.size())) {
         m_labels[target] = m_labels[location];
-        m_instructions.emplace_back(Inst{Opcodes::kPatchAt, target, location});
+        m_instructions.emplace_back(Inst{Opcodes::kPatchThere, target, location});
     } else {
         m_errorReporter->addInternalError(fmt::format("VirtualJIT patchat label_{} label_{} contains out-of-bounds "
             "label argument as there are only {} labels", target, location, m_labels.size()));
@@ -197,8 +189,8 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} bgei %vr{}, {} label_{}\n", label, inst[1], inst[2], inst[3]);
             break;
 
-        case kJmpi:
-            code << fmt::format("{} jmpi label_{}\n", label, inst[1]);
+        case kJmp:
+            code << fmt::format("{} jmp label_{}\n", label, inst[1]);
             break;
 
         case kLdxiI:
@@ -207,10 +199,6 @@ bool VirtualJIT::toString(std::string& codeString) const {
 
         case kStrI:
             code << fmt::format("{} str_i %vr{}, %vr{}\n", label, inst[1], inst[2]);
-            break;
-
-        case kStiI:
-            code << fmt::format("{} sti_i 0x{:x}, %vr{}\n", label, m_addresses[inst[1]], inst[2]);
             break;
 
         case kStxiI:

@@ -106,16 +106,6 @@ TEST_CASE("Assembler Base Cases") {
         CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
         CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kStrI, 4, 0});
     }
-    SUBCASE("sti_i") {
-        Assembler assembler("alias %vr0\n"
-                            "sti_i 0x25 %vr0");
-        REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
-        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kStiI, 0, 0});
-        REQUIRE(assembler.virtualJIT()->addresses().size() == 1);
-        CHECK(assembler.virtualJIT()->addresses()[0] == reinterpret_cast<void*>(0x25));
-    }
     SUBCASE("stxi_w") {
         Assembler assembler("alias %vr1\n"
                             "alias %vr10\n"

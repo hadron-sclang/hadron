@@ -33,7 +33,7 @@ public:
 
     using Label = int32_t;
     using Reg = int32_t;
-    using Address = void*;
+    using Address = int32_t;
  
     // We reserve GPR(0) and GPR(1) for the context and stack pointers, respectively.
     static constexpr JIT::Reg kContextPointerReg = -2;
@@ -63,7 +63,7 @@ public:
     // if a >= b goto Label
     virtual Label bgei(Reg a, int b) = 0;
     // unconditionally jump to Label
-    virtual Label jmpi() = 0;
+    virtual Label jmp() = 0;
 
     // * loads
     // %target = *(%address + offset)
@@ -74,8 +74,6 @@ public:
     // * stores
     // *address = value
     virtual void str_i(Reg address, Reg value) = 0;
-    // *address = value
-    virtual void sti_i(Address address, Reg value) = 0;
     // *(offset + address) = value  // note: immediate address with register offset not currently supported
     virtual void stxi_w(int offset, Reg address, Reg value) = 0;
     virtual void stxi_i(int offset, Reg address, Reg value) = 0;
@@ -89,13 +87,15 @@ public:
     // reti value (return immediate value)
     virtual void reti(int value) = 0;
 
-    // * labels
+    // * labels - relocateable code addresses
     // Makes a new label for backward branches.
     virtual Label label() = 0;
+    // Get the current address of the jitted code
+    virtual Address address() = 0;
     // Makes |label| point to current position in JIT, for forward jumps.
     virtual void patchHere(Label label) = 0;
     // Makes |target| point to |location|, for backward jumps.
-    virtual void patchThere(Label target, Label location) = 0;
+    virtual void patchThere(Label target, Address location) = 0;
 
 protected:
     std::shared_ptr<ErrorReporter> m_errorReporter;

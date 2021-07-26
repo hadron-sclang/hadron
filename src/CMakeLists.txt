@@ -138,6 +138,7 @@ target_compile_options(hadron PUBLIC
 
 target_compile_definitions(hadron PUBLIC
     SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG
+    HADRON_64_BIT
 )
 
 target_link_libraries(hadron PUBLIC

@@ -12,6 +12,22 @@ extern "C" {
 }
 #pragma GCC diagnostic pop
 
+namespace {
+    // We need to save all of the callee-save registers, which is a per-architecture value not exposed by lightening.h
+    // so supplied here.
+#   if defined(__i386__)
+        static constexpr size_t kCalleeSaveRegisters = 3;
+#   elif defined(__x86_64__)
+        static constexpr size_t kCalleeSaveRegisters = 7;
+#   elif defined(__arm__)
+        static constexpr size_t kCalleeSaveRegisters = 7;
+#   elif defined(__aarch64__)
+        static constexpr size_t kCalleeSaveRegisters = 10;
+#   else
+#   error "Undefined chipset"
+#   endif
+}
+
 namespace hadron {
 
 
@@ -102,8 +118,8 @@ JIT::Label LighteningJIT::bgei(Reg a, int b) {
     return m_labels.size() - 1;
 }
 
-JIT::Label LighteningJIT::jmpi() {
-    m_labels.emplace_back(jit_jmpi(m_state));
+JIT::Label LighteningJIT::jmp() {
+    m_labels.emplace_back(jit_jmp(m_state));
     return m_labels.size() - 1;
 }
 
@@ -125,10 +141,6 @@ void LighteningJIT::ldxi_l(Reg target, Reg address, int offset) {
 
 void LighteningJIT::str_i(Reg address, Reg value) {
     jit_str_i(m_state, reg(address), reg(value));
-}
-
-void LighteningJIT::sti_i(Address address, Reg value) {
-    jit_sti_i(m_addresses[address], reg(value));
 }
 
 void LighteningJIT::stxi_w(int offset, Reg address, Reg value) {
@@ -160,26 +172,31 @@ void LighteningJIT::reti(int value) {
 }
 
 JIT::Label LighteningJIT::label() {
-    m_labels.emplace_back(_jit_label(m_state));
+    m_labels.emplace_back(jit_emit_addr(m_state));
     return m_labels.size() - 1;
 }
 
-void LighteningJIT::patchHere(Label label) {
-    jit_patch(m_state, m_labels[label]);
+JIT::Address LighteningJIT::address() {
+    JIT::Address addressIndex = m_addresses.size();
+    m_addresses.emplace_back(jit_address(m_state));
+    return addressIndex;
 }
 
-void LighteningJIT::patchThere(Label target, Label location) {
-    jit_patch_there(m_state, m_labels[target], m_labels[location]);
+void LighteningJIT::patchHere(Label label) {
+    jit_patch_here(m_state, m_labels[label]);
+}
+
+void LighteningJIT::patchThere(Label target, Address location) {
+    jit_patch_there(m_state, m_labels[target], m_addresses[location]);
 }
 
 jit_gpr_t LighteningJIT::reg(Reg r) {
-    if (r >= getRegisterCount()) {
-        SPDLOG_CRITICAL("LighteningJIT got request for %r{}, but there are only {} machine registers", r,
-            getRegisterCount());
-    }
+    assert(r < getRegisterCount());
     // Account for the two reserved registers.
     r = r + 2;
-    return JIT_GPR(r);
+    jit_gpr gpr;
+    gpr.regno = r;
+    return gpr;
 }
 
 } // namespace hadron

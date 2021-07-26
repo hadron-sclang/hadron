@@ -2,26 +2,36 @@
 
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/LighteningJIT.hpp"
+#include "hadron/Slot.hpp"
 #include "hadron/VirtualJIT.hpp"
 
 #include "fmt/format.h"
+
+#include <algorithm>
+#include <cassert>
+#include <functional>
 
 namespace hadron {
 
 MachineCodeRenderer::MachineCodeRenderer(const VirtualJIT* virtualJIT, std::shared_ptr<ErrorReporter> errorReporter):
     m_virtualJIT(virtualJIT),
-    m_errorReporter(errorReporter),
-    m_spillStackSize(0),
-    m_spillStackOffsetBytes(0) { }
+    m_errorReporter(errorReporter) { }
 
 bool MachineCodeRenderer::render(JIT* jit) {
-    m_machineRegisterCount = std::min(jit->getRegisterCount(),
-        static_cast<int>(m_virtualJIT->registerUses().size()));
+    int numberOfVirtualRegisters = static_cast<int>(m_virtualJIT->registerUses().size());
+    // If JIT is a virtual JIT it may report a very large number of registers, this keeps it to the minimum of
+    // the number of registers we have or (in the large number case) the number we need.
+    int machineRegisterCount = std::min(jit->getRegisterCount(), numberOfVirtualRegisters);
+    bool hasSpillArea = numberOfVirtualRegisters > machineRegisterCount;
+    m_spillAreaSize = hasSpillArea ? numberOfVirtualRegisters : 0;
 
     // Mark all machine registers as free.
-    for (int i = 0; i < m_machineRegisterCount; ++i) {
-        m_freeRegisters.emplace(i);
+    for (int i = 0; i < machineRegisterCount; ++i) {
+        m_freeRegisters.emplace_back(i);
     }
+    // As this is an in-order list it should have heap property already.
+    assert(std::is_heap(m_freeRegisters.begin(), m_freeRegisters.end(), std::less<int>()));
+
     // Set up the use cursors to all point at the first instruction.
     m_useCursors.resize(m_virtualJIT->registerUses().size(), 0);
 
@@ -61,8 +71,8 @@ bool MachineCodeRenderer::render(JIT* jit) {
             m_labels.emplace_back(jit->bgei(inst[1], inst[2]));
             break;
 
-        case VirtualJIT::Opcodes::kJmpi:
-            m_labels.emplace_back(jit->jmpi());
+        case VirtualJIT::Opcodes::kJmp:
+            m_labels.emplace_back(jit->jmp());
             break;
 
         case VirtualJIT::Opcodes::kLdxiW:
@@ -79,10 +89,6 @@ bool MachineCodeRenderer::render(JIT* jit) {
 
         case VirtualJIT::Opcodes::kStrI:
             jit->str_i(inst[1], inst[2]);
-            break;
-
-        case VirtualJIT::Opcodes::kStiI:
-            jit->sti_i(m_virtualJIT->addresses()[inst[1]], inst[2]);
             break;
 
         case VirtualJIT::Opcodes::kStxiW:
@@ -113,6 +119,10 @@ bool MachineCodeRenderer::render(JIT* jit) {
             m_labels.emplace_back(jit->label());
             break;
 
+        case VirtualJIT::Opcodes::kAddress:
+            jit->address();
+            break;
+
         case VirtualJIT::Opcodes::kPatchHere:
             jit->patchHere(m_labels[inst[1]]);
             break;
@@ -122,7 +132,7 @@ bool MachineCodeRenderer::render(JIT* jit) {
             break;
 
         case VirtualJIT::Opcodes::kAlias:
-            allocateRegister(inst[1]);
+            allocateRegister(inst[1], jit);
             break;
 
         case VirtualJIT::Opcodes::kUnalias:
@@ -130,13 +140,11 @@ bool MachineCodeRenderer::render(JIT* jit) {
             break;
 
         default:
-            m_errorReporter->addInternalError(fmt::format("MachineCodeRenderer got unidentified VirtualJIT Opcode "
-                "0x{:x}.", inst[0]));
+            assert(false);
             return false;
         }
     }
 
-    // Render final bytecode.
     return true;
 }
 
@@ -157,8 +165,9 @@ void MachineCodeRenderer::allocateRegister(VReg vReg, JIT* jit) {
     MReg reg;
     // Allocate any unused registers first.
     if (m_freeRegisters.size()) {
-        reg = *(m_freeRegisters.begin());
-        m_freeRegisters.erase(m_freeRegisters.begin());
+        std::pop_heap(m_freeRegisters.begin(), m_freeRegisters.end(), std::less<int>());
+        reg = m_freeRegisters.back();
+        m_freeRegisters.pop_back();
     } else {
         reg = spill(jit);
     }
@@ -177,39 +186,31 @@ MachineCodeRenderer::MReg MachineCodeRenderer::mReg(VReg vReg, JIT* jit) {
     }
 
     // Not allocated but active means it must be spilled, prepare to unspill.
-    auto unspillIter = m_spilledRegisters.find(vReg);
-    if (unspillIter == m_spilledRegisters.end()) {
-        m_errorReporter->addInternalError(fmt::format("MachineCodeRenderer got request for machine register for virtual"
-            " register %vr{}, which is neither allocated or spilled.", vReg));
-        return 0;
-    }
+    assert(m_spilledRegisters.count(vReg));
 
     MReg reg;
     // If there's no free regsiters we must first spill something.
     if (!m_freeRegisters.size()) {
         reg = spill(jit);
     } else {
-        reg = *(m_freeRegisters.begin());
-        m_freeRegisters.erase(m_freeRegisters.end());
+        std::pop_heap(m_freeRegisters.begin(), m_freeRegisters.end(), std::less<int>());
+        reg = m_freeRegisters.back();
+        m_freeRegisters.pop_back();
     }
 
     // Now we have a free register, unspill into it.
-    jit->ldxi_w(reg, JIT::kFramePointerReg, m_spillStackOffsetBytes + (unspillIter->second * sizeof(void*)));
-    m_freeSpillIndices.emplace(unspillIter->second);
-    m_spilledRegisters.erase(unspillIter);
+    jit->ldxi_w(reg, JIT::kStackPointerReg, -((vReg * sizeof(Slot)) + offsetof(Slot, value.registerSpill)));
+    m_spilledRegisters.erase(vReg);
     m_allocatedRegisters.emplace(std::make_pair(vReg, reg));
 
     return reg;
 }
 
-void MachineCodeRenderer::freeRegister(VReg vReg, JIT* jit) {
+void MachineCodeRenderer::freeRegister(VReg vReg) {
     auto allocIter = m_allocatedRegisters.find(vReg);
-    if (allocIter == m_allocatedRegisters.end()) {
-        m_errorReporter->addInternalError(fmt::format("MachineCodeRenderer got request to free virtual register %vr{} "
-            "that was not allocted.", vReg));
-        return;
-    }
-    m_freeRegisters.emplace(allocIter->second);
+    assert(allocIter != m_allocatedRegisters.end());
+    m_freeRegisters.emplace_back(allocIter->second);
+    std::push_heap(m_freeRegisters.begin(), m_freeRegisters.end(), std::less<int>());
     m_allocatedRegisters.erase(allocIter);
 }
 
@@ -227,26 +228,13 @@ MachineCodeRenderer::MReg MachineCodeRenderer::spill(JIT* jit) {
 
     // Lookup, spill, then remove current machine register allocated to virtual register.
     auto spillIter = m_allocatedRegisters.find(farthestUseRegister);
-    // Spilling a register that isn't currently allocated is an error.
-    if (spillIter == m_allocatedRegisters.end()) {
-        m_errorReporter->addInternalError(fmt::format("MachineCodeRenderer got spill request and chose %vr{}, but "
-            "%vr{} is not in the allocated registers list.", farthestUseRegister, farthestUseRegister));
-        return 0;
-    }
-
+    assert(spillIter != m_allocatedRegisters.end());
     MReg reg = spillIter->second;
     m_allocatedRegisters.erase(spillIter);
 
-    // Having no room in spill storage is an error.
-    if (!m_freeSpillIndices.size()) {
-        m_errorReporter->addInternalError("MachineCodeRenderer got spill request but no room to spill.");
-        return 0;
-    }
-
-    int spillIndex = *(m_freeSpillIndices.begin());
-    m_freeSpillIndices.erase(m_freeSpillIndices.begin());
-    jit->stxi_w(m_spillStackOffsetBytes + (spillIndex * sizeof(void*)), JIT::kFramePointerReg, reg);
-    m_spilledRegisters.emplace(std::make_pair(farthestUseRegister, spillIndex));
+    jit->stxi_w(-((farthestUseRegister * sizeof(Slot)) + offsetof(Slot, value.registerSpill)),
+        JIT::kStackPointerReg, reg);
+    m_spilledRegisters.emplace(farthestUseRegister);
     return reg;
 }
 

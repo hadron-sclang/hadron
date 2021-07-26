@@ -3,9 +3,9 @@
 
 #include "hadron/JIT.hpp"
 
-#include <unordered_map>
 #include <memory>
-#include <set>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace hadron {
@@ -31,9 +31,6 @@ private:
     using MReg = JIT::Reg;
     using VReg = JIT::Reg;
 
-    const VirtualJIT* m_virtualJIT;
-    std::shared_ptr<ErrorReporter> m_errorReporter;
-
     /*
      *  Virtual Registers move through states as follows:
      *
@@ -48,7 +45,8 @@ private:
      *
      * Free virtual registers aren't tracked in the system. Allocated virtual registers are keys in the
      * m_allocatedRegisters map, with the associated machine register as the value. Spilled virtual registers
-     * are tracked as keys in the m_spilledRegisters map, with the index into the stack area as value.
+     * are tracked as keys in the m_spilledRegisters set. Virtual registers are always spilled into and out of their
+     * index in order on the stack.
      *
      * Machine registers move through a simpler state diagram:
      *
@@ -56,14 +54,7 @@ private:
      *
      * Spilling and unspilling virtual registers doesn't change the 'allocated' state of the target machine register,
      * only the association between virtual registers and target machine register. Free machine registers are tracked
-     * in the m_freeRegisters set. This is an ordered set to allow for stability in register assignment but also
-     * because on LightningJIT at least the lower-numbered registers are caller-save and so may be cheaper to allocate
-     * across function calls.
-     *
-     * Optimal spilling strategy is an NP-Hard computational problem. This heuristic is a naive "bottom-up" spilling
-     * algorithm that chooses the register to spill based on furthest use from the current location. This strategy
-     * gives reasonable overall performance but over time may require further refinement.
-     *
+     * in the m_freeRegisters min heap. This is ordered to allow for stability in register assignment.
      */
 
     // Immediately allocate a machine register for the supplied virtual register, issuing spill code if needed.
@@ -72,29 +63,25 @@ private:
     // code to make room.
     MReg mReg(VReg vReg, JIT* jit);
     // Free the underlying machine register associated with this virtual register.
-    void freeRegister(VReg vReg, JIT* jit);
+    void freeRegister(VReg vReg);
     // Select the most appropriate allocated virutal register and spill it, returning the freed machine register.
     MReg spill(JIT* jit);
 
+    const VirtualJIT* m_virtualJIT;
+    std::shared_ptr<ErrorReporter> m_errorReporter;
+
+    // Size in slots of the register spill area, useful for advancing the stack pointer past this in function calls.
+    int m_spillAreaSize;
+
     std::vector<JIT::Label> m_labels;
-    // Either the actual machine register count or the maximum number of virtual registers, depending on which is
-    // fewer. This is stored to prevent problems when rendering to another VirtualJIT that reports many registers.
-    int m_machineRegisterCount;
-    // How many register-size spaces to reserve on the stack for register spilling.
-    int m_spillStackSize;
-    // We start the spill stack after whatever the virtual JIT stack has reserved, so we store the size of the
-    // virtual JIT stack here to start the spill stack from.
-    int m_spillStackOffsetBytes;
-    // Map of virtual registers to machine registers.
+    // Map of allocated virtual registers to machine registers.
     std::unordered_map<VReg, MReg> m_allocatedRegisters;
-    // The set of free machine registers.  // TODO: these sets could very easily be min heaps.
-    std::set<MReg> m_freeRegisters;
-    // Map of spilled virtual registers to spill stack space index.
-    std::unordered_map<VReg, int> m_spilledRegisters;
-    // The set of free spill indices.
-    std::set<int> m_freeSpillIndices;
+    // A min heap of free register numbers, for stable ordering in allocation.
+    std::vector<MReg> m_freeRegisters;
+    // Set of spilled registers.
+    std::unordered_set<VReg> m_spilledRegisters;
     // For each virtual register n this vector contains the index in the nth virtualJIT uses() register for the *next*
-    // use of the register in the machine code, or size_t if the virtual register is no longer used.
+    // use of the register in the machine code, or size of that array if the virtual register is no longer used.
     std::vector<size_t> m_useCursors;
 };
 

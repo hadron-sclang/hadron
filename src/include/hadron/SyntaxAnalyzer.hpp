@@ -36,8 +36,7 @@ namespace ast {
         kValue,
         kWhile,       // while loop
         kClass,       // class definition
-        kLoadFromSlot,
-        kSaveToSlot
+        kSaveToReturnSlot
     };
 
     struct AST {
@@ -99,10 +98,10 @@ namespace ast {
         bool canRelease = false;
     };
 
-    // Store a typed Value (virtual register) into a slot.
-    struct SaveToSlotAST : public AST {
-        SaveToSlotAST(): AST(kSaveToSlot) {}
-        virtual ~SaveToSlotAST() = default;
+    // Store a typed Value (virtual register) into the return Slot on the program stack.
+    struct SaveToReturnSlotAST : public AST {
+        SaveToReturnSlotAST(): AST(kSaveToReturnSlot) {}
+        virtual ~SaveToReturnSlotAST() = default;
 
         std::unique_ptr<ValueAST> value;
     };

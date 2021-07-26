@@ -35,7 +35,6 @@ private:
     const ast::BlockAST* m_block;
     std::unique_ptr<VirtualJIT> m_jit;
     std::shared_ptr<ErrorReporter> m_errorReporter;
-    std::unordered_map<hadron::Hash, hadron::JIT::Label> m_addresses;
 };
 
 } // namespace hadron

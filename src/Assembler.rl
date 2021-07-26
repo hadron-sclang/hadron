@@ -27,21 +27,12 @@
         arg[argIndex] = strtol(argStart + 2, nullptr, 16);
         ++argIndex;
     }
-    action addressArg {
-        // Parse 32 or 64 bit addresses, skipping over the '0x' part of the address.
-        if (sizeof(void*) == 8) {
-            addressArg = reinterpret_cast<void*>(strtoll(argStart + 2, nullptr, 16));
-        } else {
-            addressArg = reinterpret_cast<void*>(strtol(argStart + 2, nullptr, 16));
-        }
-    }
     action eof_ok { return true; }
 
     label = 'label_' digit+;
     reg = ('%vr' digit+ %regArg);
     integer = ('-'? digit+ %intArg);
     hexint = ('0x' xdigit+ %hexArg);
-    address = ('0x' xdigit+ %addressArg);
     labelnum = (label %labelArg);
     whitespace = (' ' | '\t')+;
     optlabel = (label ':')? whitespace?;
@@ -66,8 +57,8 @@
         optlabel 'bgei' start reg ws integer ws labelnum optcomment {
             m_jit->bgei(arg[0], arg[1]);
         };
-        optlabel 'jmpi' start labelnum optcomment {
-            m_jit->jmpi();
+        optlabel 'jmp' start labelnum optcomment {
+            m_jit->jmp();
         };
         optlabel 'ldxi_w' start reg ws reg ws hexint optcomment {
             m_jit->ldxi_w(arg[0], arg[1], arg[2]);
@@ -80,9 +71,6 @@
         };
         optlabel 'str_i' start reg ws reg optcomment {
             m_jit->str_i(arg[0], arg[1]);
-        };
-        optlabel 'sti_i' start address ws reg optcomment {
-            m_jit->sti_i(addressArg, arg[0]);
         };
         optlabel 'stxi_w' start hexint ws reg ws reg optcomment {
             m_jit->stxi_w(arg[0], arg[1], arg[2]);
@@ -172,7 +160,6 @@ bool Assembler::assemble() {
     const char* argStart = nullptr;
     int argIndex = 0;
     std::array<int, 3> arg;
-    void* addressArg = nullptr;
 
     %% write init;
 

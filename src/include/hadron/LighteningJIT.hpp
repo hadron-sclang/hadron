@@ -9,10 +9,11 @@
 extern "C" {
 struct jit_gpr;
 typedef struct jit_gpr jit_gpr_t;
-struct jit_pointer;
-typedef void* jit_pointer_t;
 struct jit_state;
 typedef struct jit_state jit_state_t;
+struct jit_reloc;
+typedef struct jit_reloc jit_reloc_t;
+typedef void* jit_pointer_t;
 }
 
 namespace hadron {
@@ -35,8 +36,6 @@ public:
     void reset();
     // End recording jit bytecode into the buffer, writes the final size to sizeOut. Returns the jit address to begin().
     void* end(size_t* sizeOut);
-    // Get the current address of the JIT.
-    uint8_t* address();
 
     // Save current state from the calling C-style stack frame, including all callee-save registers, and update the
     // C stack pointer (modulo alignment) to point just below this. Returns the number of bytes pushed on to the stack,
@@ -57,12 +56,11 @@ public:
     void movr(Reg target, Reg value) override;
     void movi(Reg target, int value) override;
     Label bgei(Reg a, int b) override;
-    Label jmpi() override;
+    Label jmp() override;
     void ldxi_w(Reg target, Reg address, int offset) override;
     void ldxi_i(Reg target, Reg address, int offset) override;
     void ldxi_l(Reg target, Reg address, int offset) override;
     void str_i(Reg address, Reg value) override;
-    void sti_i(Address address, Reg value) override;
     void stxi_w(int offset, Reg address, Reg value) override;
     void stxi_i(int offset, Reg address, Reg value) override;
     void stxi_l(int offset, Reg address, Reg value) override;
@@ -70,32 +68,20 @@ public:
     void retr(Reg r) override;
     void reti(int value) override;
     Label label() override;
+    Address address() override;
     void patchHere(Label label) override;
-    void patchThere(Label target, Label location) override;
+    void patchThere(Label target, Address location) override;
 
     // Lightening requires a call to a global setup function before emitting any JIT bytecode.
     static void initJITGlobals();
 
 private:
-    // We need to save all of the callee-save registers, which is a per-architecture value not exposed by lightening.h
-    // so supplied here.
-#   if defined(__i386__)
-        static constexpr size_t kCalleeSaveRegisters = 3;
-#   elif defined(__x86_64__)
-        static constexpr size_t kCalleeSaveRegisters = 7;
-#   elif defined(__arm__)
-        static constexpr size_t kCalleeSaveRegisters = 7;
-#   elif defined(__aarch64__)
-        static constexpr size_t kCalleeSaveRegisters = 10;
-#   else
-#   error "Undefined chipset"
-#   endif
-
     // Converts register number to the Lightening register type.
     jit_gpr_t reg(Reg r);
     jit_state_t* m_state;
+    std::vector<jit_pointer_t> m_addresses;
     // Non-owning pointers to nodes within the jit_state struct, used for labels.
-    std::vector<jit_pointer_t> m_labels;
+    std::vector<jit_reloc_t> m_labels;
     // Offset in bytes from the stack frame pointer where the stack begins.
     int m_stackBase;
 };
