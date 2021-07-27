@@ -60,11 +60,17 @@ TEST_CASE("Assembler Base Cases") {
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 7});
         CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kBgei, 7, 42});
     }
-    SUBCASE("jmpi") {
-        Assembler assembler("jmpi label_22");
+    SUBCASE("jmp") {
+        Assembler assembler("jmp");
         REQUIRE(assembler.assemble());
         REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kJmpi, 0});
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kJmp, 0});
+    }
+    SUBCASE("jmpr") {
+        Assembler assembler("jmpr %vr2");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kJmpR, 2});
     }
     SUBCASE("ldxi_w") {
         Assembler assembler("alias %vr2\n"

@@ -33,11 +33,11 @@ struct Function {
         Hash hash;
         std::unique_ptr<NameIndex> next;
         int index;
-    }
+    };
     struct NameTable : public LSBHashTable<NameIndex> {
         NameTable() : LSBHashTable() {}
         virtual ~NameTable() = default;
-    }
+    };
     NameTable nameIndices;
 
     typedef void (*ExecJIT)();

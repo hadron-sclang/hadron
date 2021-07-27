@@ -31,7 +31,7 @@ bool Compiler::start(size_t numberOfThreads) {
 
     if (numberOfThreads == 0) {
         unsigned hardwareThreads = std::thread::hardware_concurrency();
-        if (hardwareThreds > 4) {
+        if (hardwareThreads > 4) {
             numberOfThreads = (hardwareThreads / 2) - 1;
         } else {
             numberOfThreads = 1;

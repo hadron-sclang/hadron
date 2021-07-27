@@ -4,8 +4,11 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/JITMemoryArena.hpp"
 #include "hadron/LighteningJIT.hpp"
+#include "hadron/ThreadContext.hpp"
+#include "hadron/Function.hpp"
 
 #include "spdlog/spdlog.h"
+
 
 namespace hadron {
 
@@ -28,7 +31,8 @@ bool Interpreter::start() {
     JITMemoryArena::MCodePtr m_trampolines = m_compiler->jitMemoryArena()->alloc(4096);
     LighteningJIT jit(m_errorReporter);
     jit.begin(m_trampolines.get(), 4096);
-    m_entryTrampoline = jit_address_to_function_pointer(jit.address());
+    m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const uint8_t*)>(
+            jit.addressToFunctionPointer(jit.address()));
     auto align = jit.enterABI();
     // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* context and a uint8_t*
     // machineCode pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded
@@ -43,16 +47,23 @@ bool Interpreter::start() {
     // Jump into the calling code.
     jit.jmpr(0);
 
-    m_exitTrampoline = jit_address_to_function_pointer(jit.address());
+    m_exitTrampoline = jit.addressToFunctionPointer(jit.address());
     jit.leaveABI(align);
     jit.ret();
+
+    return true;
 }
 
 void Interpreter::stop() {
-
+    // Destroy jitted memory before destroying compiler, as the Compiler owns the JIT memory
+    m_trampolines.reset();
+    if (m_compiler) {
+        m_compiler->stop();
+    }
 }
 
 std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
+
 
 }
 
@@ -68,9 +79,9 @@ void Interpreter::enterMachineCode(ThreadContext* context, const uint8_t* machin
     // Set machine return address as the exit trampoline into Hadron stack frame.
     *(context->framePointer) = Slot(Type::kFramePointer, context->framePointer);
     --(context->framePointer);
-    *(context->framePointer) = Slot(Type::kFramePointer, context->stackPointer);
+    *(context->framePointer) = Slot(Type::kStackPointer, context->stackPointer);
     --(context->framePointer);
-    *(context->framePointer) = Slot(static_cast<uint8_t*>(m_exitTrampoline));
+    *(context->framePointer) = Slot(reinterpret_cast<uint8_t*>(m_exitTrampoline));
     --(context->framePointer);
 
     // Initialize return value.
@@ -79,7 +90,7 @@ void Interpreter::enterMachineCode(ThreadContext* context, const uint8_t* machin
     context->stackPointer = context->framePointer;
 
     // Set up exit state.
-    context->exitMachineCode = static_cast<uint8_t*>(m_exitTrampoline);
+    context->exitMachineCode = reinterpret_cast<uint8_t*>(m_exitTrampoline);
     context->machineCodeStatus = 0;
 
     // Hit the trampoline.

@@ -46,6 +46,8 @@ public:
     // Computes JIT_SP-2 and returns.
     Reg getCStackPointerRegister() const;
     void leaveABI(size_t stackSize);
+    using FunctionPointer = void (*)();
+    FunctionPointer addressToFunctionPointer(Address a);
 
     // ==== JIT overrides
     int getRegisterCount() const override;
@@ -57,6 +59,7 @@ public:
     void movi(Reg target, int value) override;
     Label bgei(Reg a, int b) override;
     Label jmp() override;
+    void jmpr(Reg r) override;
     void ldxi_w(Reg target, Reg address, int offset) override;
     void ldxi_i(Reg target, Reg address, int offset) override;
     void ldxi_l(Reg target, Reg address, int offset) override;

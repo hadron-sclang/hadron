@@ -57,8 +57,11 @@
         optlabel 'bgei' start reg ws integer ws labelnum optcomment {
             m_jit->bgei(arg[0], arg[1]);
         };
-        optlabel 'jmp' start labelnum optcomment {
+        optlabel 'jmp' optcomment {
             m_jit->jmp();
+        };
+        optlabel 'jmpr' start reg optcomment {
+            m_jit->jmpr(arg[0]);
         };
         optlabel 'ldxi_w' start reg ws reg ws hexint optcomment {
             m_jit->ldxi_w(arg[0], arg[1], arg[2]);

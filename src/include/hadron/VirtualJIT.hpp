@@ -28,6 +28,7 @@ public:
     void movi(Reg target, int value) override;
     Label bgei(Reg a, int b) override;
     Label jmp() override;
+    void jmpr(Reg r) override;
     void ldxi_w(Reg target, Reg address, int offset) override;
     void ldxi_i(Reg target, Reg address, int offset) override;
     void ldxi_l(Reg target, Reg address, int offset) override;
@@ -50,6 +51,7 @@ public:
         kMovi       = 0x0400,
         kBgei       = 0x0500,
         kJmp        = 0x0600,
+        kJmpR       = 0x0605,
         kLdxiW      = 0x0700,
         kLdxiI      = 0x0800,
         kLdxiL      = 0x0900,

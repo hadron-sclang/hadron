@@ -56,7 +56,6 @@ void LighteningJIT::markThreadForJITExecution() {
     pthread_jit_write_protect_np(true);
 }
 
-
 int LighteningJIT::getRegisterCount() const {
     // Two registers always reserved for context pointer and stack pointer.
 #   if defined(__i386__)
@@ -95,6 +94,10 @@ void LighteningJIT::leaveABI(size_t stackSize) {
     return jit_leave_jit_abi(m_state, kCalleeSaveRegisters, 0, stackSize);
 }
 
+LighteningJIT::FunctionPointer LighteningJIT::addressToFunctionPointer(Address a) {
+    return jit_address_to_function_pointer(m_addresses[a]);
+}
+
 void LighteningJIT::addr(Reg target, Reg a, Reg b) {
     jit_addr(m_state, reg(target), reg(a), reg(b));
 }
@@ -121,6 +124,10 @@ JIT::Label LighteningJIT::bgei(Reg a, int b) {
 JIT::Label LighteningJIT::jmp() {
     m_labels.emplace_back(jit_jmp(m_state));
     return m_labels.size() - 1;
+}
+
+void LighteningJIT::jmpr(Reg r) {
+    jit_jmpr(m_state, reg(r));
 }
 
 void LighteningJIT::ldxi_w(Reg target, Reg address, int offset) {
