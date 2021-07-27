@@ -27,7 +27,7 @@ bool MachineCodeRenderer::render(JIT* jit) {
 
     // Mark all machine registers as free.
     for (int i = 0; i < machineRegisterCount; ++i) {
-        m_freeRegisters.emplace_back(i);
+        m_freeRegisters.emplace_back(machineRegisterCount - 1 - i);
     }
     // As this is an in-order list it should have heap property already.
     assert(std::is_heap(m_freeRegisters.begin(), m_freeRegisters.end(), std::less<int>()));

@@ -43,7 +43,7 @@ ExternalProject_add(jemalloc
     GIT_PROGRESS ON
     UPDATE_COMMAND ""
     BUILD_IN_SOURCE ON
-    CONFIGURE_COMMAND ./autogen.sh --prefix=/Users/luken/src/hadron/build/install-ext --disable-cxx --disable-zone-allocator
+    CONFIGURE_COMMAND ./autogen.sh --prefix=/Users/luken/src/hadron/build/install-ext --disable-cxx --disable-zone-allocator --enable-debug
     BUILD_COMMAND make -j
     INSTALL_COMMAND make install
     BUILD_BYPRODUCTS ${INSTALL_EXT}/lib/libjemalloc.a

@@ -41,7 +41,7 @@ public:
     // C stack pointer (modulo alignment) to point just below this. Returns the number of bytes pushed on to the stack,
     // which should be passed back to leaveABI() as the stackSize argument to restore the stack to original state.
     size_t enterABI();
-    // Load 2 arguments from C calling code stack frame or registers, and move them into the supplied reg arguments.
+    // Load 2 pointer arguments from C calling code stack frame or registers, and move them into the supplied registers.
     void loadCArgs2(Reg arg1, Reg arg2);
     // Computes JIT_SP-2 and returns.
     Reg getCStackPointerRegister() const;
@@ -80,7 +80,7 @@ public:
 
 private:
     // Converts register number to the Lightening register type.
-    jit_gpr_t reg(Reg r);
+    jit_gpr_t reg(Reg r) const;
     jit_state_t* m_state;
     std::vector<jit_pointer_t> m_addresses;
     // Non-owning pointers to nodes within the jit_state struct, used for labels.

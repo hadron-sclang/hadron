@@ -9,6 +9,7 @@
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/MachineCodeRenderer.hpp"
 #include "hadron/Parser.hpp"
+#include "hadron/SourceFile.hpp"
 #include "hadron/SyntaxAnalyzer.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "hadron/VirtualJIT.hpp"
@@ -26,35 +27,40 @@ Interpreter::~Interpreter() {
 }
 
 bool Interpreter::setup() {
+    // Creating the arena requires allocating memory in that arena, and therefore writing to the arena, so we need to
+    // ask for write permissions to the arena in order to create it.
+    LighteningJIT::markThreadForJITCompilation();
+
     if (!m_jitMemoryArena->createArena()) {
+        SPDLOG_ERROR("Failed to create JIT memory arena.");
         return false;
     }
 
     // Compile the entry and exit trampolines. This matches the Guile entry/exit trampolines pretty closely.
     LighteningJIT::markThreadForJITCompilation();
     // Complete guess as to a reasonable size.
-    JITMemoryArena::MCodePtr m_trampolines = m_compiler->jitMemoryArena()->alloc(4096);
+    JITMemoryArena::MCodePtr m_trampolines = m_jitMemoryArena->alloc(4096);
     LighteningJIT jit(m_errorReporter);
     jit.begin(m_trampolines.get(), 4096);
     m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const uint8_t*)>(
             jit.addressToFunctionPointer(jit.address()));
     auto align = jit.enterABI();
-    // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* context and a uint8_t*
-    // machineCode pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded
-    // into Reg 0. As Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register,
-    // I have taken some care to ensure that GPR(2)/Reg 0 is not the stack pointer on any of the supported
-    // architectures.
+    // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* context and a uint8_t* machineCode
+    // pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded into Reg 0. As
+    // Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register, I have taken
+    // some care to ensure that GPR(2)/Reg 0 is not the stack pointer on any of the supported architectures.
     jit.loadCArgs2(JIT::kContextPointerReg, JIT::Reg(0));
     // Save the C stack pointer.
     jit.stxi_w(offsetof(ThreadContext, cStackPointer), JIT::kContextPointerReg, jit.getCStackPointerRegister());
     // Restore the Hadron stack pointer
-    jit.ldxi_w(JIT::kStackPointerReg, offsetof(ThreadContext, stackPointer), JIT::kContextPointerReg);
+    jit.ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, stackPointer));
     // Jump into the calling code.
     jit.jmpr(0);
 
     m_exitTrampoline = jit.addressToFunctionPointer(jit.address());
     jit.leaveABI(align);
     jit.ret();
+    jit.end();
 
     return true;
 }
@@ -70,21 +76,23 @@ void Interpreter::teardown() {
 
 std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
     LighteningJIT::markThreadForJITCompilation();
+    m_errorReporter->setCode(code.data());
+
     Lexer lexer(code, m_errorReporter);
     if (!lexer.lex() || !m_errorReporter->ok()) {
-        SPDLOG_DEBUG("Lexing failed, firing empty callback.");
+        SPDLOG_DEBUG("Lexing failed");
         return nullptr;
     }
 
     Parser parser(&lexer, m_errorReporter);
     if (!parser.parse() || !m_errorReporter->ok()) {
-        SPDLOG_DEBUG("Parsing failed, firing empty callback.");
+        SPDLOG_DEBUG("Parsing failed");
         return nullptr;
     }
 
     SyntaxAnalyzer analyzer(&parser, m_errorReporter);
     if (!analyzer.buildAST() || !m_errorReporter->ok()) {
-        SPDLOG_DEBUG("Analysis failed, firing empty callback.");
+        SPDLOG_DEBUG("Analysis failed");
         return nullptr;
     }
 
@@ -98,7 +106,7 @@ std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
     const ast::BlockAST* blockAST = reinterpret_cast<const ast::BlockAST*>(analyzer.ast());
     CodeGenerator generator(blockAST, m_errorReporter);
     if (!generator.generate() || !m_errorReporter->ok()) {
-        SPDLOG_DEBUG("Code Generation failed, firing empty callback.");
+        SPDLOG_DEBUG("Code Generation failed");
         return nullptr;
     }
 
@@ -122,7 +130,7 @@ std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
             return nullptr;
         }
 
-        LighteningJIT jit(m_errorReporter)
+        LighteningJIT jit(m_errorReporter);
         jit.begin(machineCode.get(), machineCodeSize);
 
         MachineCodeRenderer renderer(generator.virtualJIT(), m_errorReporter);
@@ -133,7 +141,7 @@ std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
 
         if (!jit.hasJITBufferOverflow()) {
             size_t jitSize = 0;
-            uint8_t* codeStart = jit.end(&jitSize);
+            const uint8_t* codeStart = static_cast<const uint8_t*>(jit.end(&jitSize));
             SPDLOG_INFO("JIT completed, buffer size {} bytes, jit size {} bytes.", machineCodeSize, jitSize);
             function->machineCode = codeStart;
             function->machineCodeOwned = std::move(machineCode);
@@ -148,12 +156,29 @@ std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
     return function;
 }
 
-std::unique_ptr<Function> Interpreter::compileFile() {
+std::unique_ptr<Function> Interpreter::compileFile(std::string path) {
+    SourceFile file(path);
+    if (!file.read(m_errorReporter)) {
+        return nullptr;
+    }
 
+    return compile(std::string_view(file.codeView()));
 }
 
 Slot Interpreter::run(Function* func) {
+    LighteningJIT::markThreadForJITExecution();
+    ThreadContext threadContext;
+    if (!threadContext.allocateStack()) {
+        SPDLOG_ERROR("Failed to allocate Hadron stack.");
+        return Slot();
+    }
 
+    // Trampoline into JIT code.
+    enterMachineCode(&threadContext, func->machineCode);
+
+    // Extract result from stack.
+    Slot result = *(threadContext.framePointer);
+    return result;
 }
 
 void Interpreter::enterMachineCode(ThreadContext* context, const uint8_t* machineCode) {
@@ -177,7 +202,7 @@ void Interpreter::enterMachineCode(ThreadContext* context, const uint8_t* machin
     // Hit the trampoline.
     SPDLOG_INFO("Machine code entry.");
     m_entryTrampoline(context, machineCode);
-    SPDLOG_INFO("Machine code exit.")
+    SPDLOG_INFO("Machine code exit.");
 }
 
 }  // namespace hadron

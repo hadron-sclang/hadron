@@ -67,10 +67,12 @@ TEST_CASE("Assembler Base Cases") {
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kJmp, 0});
     }
     SUBCASE("jmpr") {
-        Assembler assembler("jmpr %vr2");
+        Assembler assembler("alias %vr2\n"
+                            "jmpr %vr2");
         REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kJmpR, 2});
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 2});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kJmpR, 2});
     }
     SUBCASE("ldxi_w") {
         Assembler assembler("alias %vr2\n"

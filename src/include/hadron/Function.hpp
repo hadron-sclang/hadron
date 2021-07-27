@@ -39,7 +39,7 @@ struct Function {
     };
     NameTable nameIndices;
 
-    uint8_t* machineCode;
+    const uint8_t* machineCode;
     JITMemoryArena::MCodePtr machineCodeOwned;
 };
 

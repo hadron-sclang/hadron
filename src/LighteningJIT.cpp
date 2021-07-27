@@ -56,6 +56,73 @@ void LighteningJIT::markThreadForJITExecution() {
     pthread_jit_write_protect_np(true);
 }
 
+void LighteningJIT::begin(uint8_t* buffer, size_t size) {
+    jit_begin(m_state, buffer, size);
+}
+
+bool LighteningJIT::hasJITBufferOverflow() {
+    return jit_has_overflow(m_state);
+}
+
+void LighteningJIT::reset() {
+    jit_reset(m_state);
+}
+
+void* LighteningJIT::end(size_t* sizeOut) {
+    return jit_end(m_state, sizeOut);
+}
+
+size_t LighteningJIT::enterABI() {
+    auto align = jit_enter_jit_abi(m_state, kCalleeSaveRegisters, 0, 0);
+    return align;
+}
+
+void LighteningJIT::loadCArgs2(Reg arg1, Reg arg2) {
+    jit_operand_t a;
+    a.abi = JIT_OPERAND_ABI_POINTER;
+    a.kind = JIT_OPERAND_KIND_GPR;
+    a.loc.gpr.gpr = reg(arg1);
+    a.loc.gpr.addend = 0;
+
+    jit_operand_t b;
+    b.abi = JIT_OPERAND_ABI_POINTER;
+    b.kind = JIT_OPERAND_KIND_GPR;
+    b.loc.gpr.gpr = reg(arg2);
+    b.loc.gpr.addend = 0;
+
+    jit_load_args_2(m_state, a, b);
+}
+
+JIT::Reg LighteningJIT::getCStackPointerRegister() const {
+#   if defined(__i386__)
+    Reg r = 4;   // JIT_SP = JIT_GPR(4)
+#   elif defined(__x86_64__)
+    Reg r = 4;   // JIT_SP = JIT_GPR(4)
+#   elif defined(__arm__)
+    Reg r = 13;  // JIT_SP = JIT_GPR(13)
+#   elif defined(__aarch64__)
+    Reg r = 31;  // JIT_SP = JIT_GPR(31)
+#   else
+#   error "Undefined chipset"
+#   endif
+    r = r - 2;  // Adjust register number for the two reserved registers.
+
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wc99-extensions"
+    assert(jit_same_gprs(reg(r), JIT_SP));
+#   pragma GCC diagnostic pop
+
+    return r;
+}
+
+void LighteningJIT::leaveABI(size_t stackSize) {
+    return jit_leave_jit_abi(m_state, kCalleeSaveRegisters, 0, stackSize);
+}
+
+LighteningJIT::FunctionPointer LighteningJIT::addressToFunctionPointer(Address a) {
+    return jit_address_to_function_pointer(m_addresses[a]);
+}
+
 int LighteningJIT::getRegisterCount() const {
     // Two registers always reserved for context pointer and stack pointer.
 #   if defined(__i386__)
@@ -83,19 +150,6 @@ int LighteningJIT::getFloatRegisterCount() const {
 #   else
 #   error "Undefined chipset"
 #   endif
-}
-
-size_t LighteningJIT::enterABI() {
-    auto align = jit_enter_jit_abi(m_state, kCalleeSaveRegisters, 0, 0);
-    return align;
-}
-
-void LighteningJIT::leaveABI(size_t stackSize) {
-    return jit_leave_jit_abi(m_state, kCalleeSaveRegisters, 0, stackSize);
-}
-
-LighteningJIT::FunctionPointer LighteningJIT::addressToFunctionPointer(Address a) {
-    return jit_address_to_function_pointer(m_addresses[a]);
 }
 
 void LighteningJIT::addr(Reg target, Reg a, Reg b) {
@@ -197,7 +251,7 @@ void LighteningJIT::patchThere(Label target, Address location) {
     jit_patch_there(m_state, m_labels[target], m_addresses[location]);
 }
 
-jit_gpr_t LighteningJIT::reg(Reg r) {
+jit_gpr_t LighteningJIT::reg(Reg r) const {
     assert(r < getRegisterCount());
     // Account for the two reserved registers.
     r = r + 2;

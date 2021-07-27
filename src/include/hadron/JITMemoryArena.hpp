@@ -31,6 +31,9 @@ public:
     void destroyArena();
 
 private:
+    unsigned setArena();
+    void restoreArena(unsigned arena);
+
     void freeMCode(uint8_t* mcode);
 
     unsigned m_arenaID;

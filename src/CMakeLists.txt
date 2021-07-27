@@ -103,6 +103,7 @@ add_library(hadron STATIC
     include/hadron/MachineCodeRenderer.hpp
     include/hadron/Parser.hpp
     include/hadron/Slot.hpp
+    include/hadron/SourceFile.hpp
     include/hadron/SyntaxAnalyzer.hpp
     include/hadron/ThreadContext.hpp
     include/hadron/Type.hpp
@@ -111,6 +112,7 @@ add_library(hadron STATIC
     CodeGenerator.cpp
     ErrorReporter.cpp
     FileSystem.hpp
+    Function.cpp
     Hash.cpp
     Interpreter.cpp
     JITMemoryArena.cpp
@@ -118,6 +120,7 @@ add_library(hadron STATIC
     MachineCodeRenderer.cpp
     Parser.cpp
     Slot.cpp
+    SourceFile.cpp
     SyntaxAnalyzer.cpp
     ThreadContext.cpp
     VirtualJIT.cpp

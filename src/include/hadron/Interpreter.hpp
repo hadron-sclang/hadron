@@ -4,9 +4,7 @@
 #include "hadron/JITMemoryArena.hpp"
 #include "hadron/Slot.hpp"
 
-#include <condition_variable>
 #include <memory>
-#include <mutex>
 #include <string_view>
 
 namespace hadron {
@@ -32,7 +30,7 @@ public:
     // a separate thread, would it make sense to also have some sort of closure call option too, like took a function or
     // something to call back when compilation was complete?
     std::unique_ptr<Function> compile(std::string_view code);
-    std::unique_ptr<Function> compileFile();
+    std::unique_ptr<Function> compileFile(std::string path);
 
     // Runs the provided block on the calling thread. Constructs a new ThreadContext, including a stack. On normal exit,
     // pulls the result from the stack and returns it.
@@ -51,9 +49,6 @@ private:
     void (*m_exitTrampoline)();
 
     JITMemoryArena::MCodePtr m_trampolines;
-
-    std::mutex m_compilerMutex;
-    std::condition_variable m_compilerVariable;
 };
 
 } // namespace hadron

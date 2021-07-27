@@ -201,8 +201,12 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} jmpr %vr{}\n", label, inst[1]);
             break;
 
+        case kLdxiW:
+            code << fmt::format("{} ldxi_w %vr{}, %vr{}, 0x{:x}\n", label, inst[1], inst[2], inst[3]);
+            break;
+
         case kLdxiI:
-            code << fmt::format("{} ldxi_i %vr{}, %vr{}, 0x{:x}", label, inst[1], inst[2], inst[3]);
+            code << fmt::format("{} ldxi_i %vr{}, %vr{}, 0x{:x}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kStrI:
@@ -258,11 +262,11 @@ bool VirtualJIT::toString(std::string& codeString) const {
 }
 
 JIT::Reg VirtualJIT::use(JIT::Reg reg) {
-    if (reg < static_cast<int>(m_registerUses.size())) {
-        m_registerUses[reg].emplace_back(m_instructions.size());
-    } else {
-        m_errorReporter->addInternalError(fmt::format("VirtualJIT attempting to use unallocated register {}.", reg));
+    if (reg < 0) {
+        return reg;
     }
+    assert(reg < static_cast<int>(m_registerUses.size()));
+    m_registerUses[reg].emplace_back(m_instructions.size());
     return reg;
 }
 
