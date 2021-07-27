@@ -5,7 +5,8 @@
 
 namespace hadron {
 
-Function::Function(const ast::BlockAST* block): hadronEntry(nullptr), cWrapper(nullptr) {
+Function::Function(const ast::BlockAST* block):
+    hadronEntry(nullptr), machineCode(nullptr) {
     numberOfArgs = blockAST->arguments.size();
     if (numberOfArgs) {
         argumentNames = std::make_unique<Hash[]>(numberOfArgs);

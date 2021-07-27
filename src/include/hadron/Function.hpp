@@ -2,6 +2,7 @@
 #define SRC_HADRON_INCLUDE_FUNCTION_HPP_
 
 #include "hadron/Hash.hpp"
+#include "hadron/JITMemoryArena.hpp"
 #include "hadron/LSBHashTable.hpp"
 #include "hadron/Slot.hpp"
 
@@ -22,8 +23,6 @@ struct Function {
     Function(const ast::BlockAST* block);
     ~Function() = default;
 
-    bool buildEntryTrampoline(LighteningJIT* jit);
-
     int numberOfArgs;
     // Argument names in order.
     std::unique_ptr<Hash[]> argumentNames;
@@ -40,21 +39,8 @@ struct Function {
     };
     NameTable nameIndices;
 
-    typedef void (*ExecJIT)();
-    ExecJIT hadronEntry;
-
-    // Set up the stack the way this function would expect if it were being called from other hadron
-    // mcode.
-    void prepareArgs(ThreadContext* context, int numOrderedArgs, Slot* orderedArgs, int numKeywordArgs,
-        Slot* keywordArgs);
-
-
-    // C++ wrapper to pack arguments into Hadron ABI, call into hadronEntry, catch the return, unpack the return
-    // value, and return it.
-    Slot value(ThreadContext* context, int numOrderedArgs, Slot* orderedArgs, int numKeywordArgs, Slot* keywordArgs);
-
-private:
-    ExecJIT cWrapper;
+    uint8_t* machineCode;
+    JITMemoryArena::MCodePtr machineCodeOwned;
 };
 
 }

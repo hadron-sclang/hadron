@@ -11,7 +11,6 @@
 
 namespace hadron {
 
-class Compiler;
 class ErrorReporter;
 struct Function;
 struct ThreadContext;
@@ -22,11 +21,10 @@ public:
     Interpreter();
     ~Interpreter();
 
-    // Starts the Compiler threads, setup entry and exit trampolines, other infrastructure needed to compile and
-    // run sclang code.
-    bool start();
+    // Setup entry and exit trampolines, other infrastructure needed to compile and run sclang code.
+    bool setup();
     // Tear down resources and prepare for exit.
-    void stop();
+    void teardown();
 
     // Compile the provided code string and return a function. TODO: We want to allow mixing of interpreted code,
     // class definitions, and class extensions. Is there a std::variant<> return pattern, or would it make more sense
@@ -45,7 +43,7 @@ private:
     void enterMachineCode(ThreadContext* context, const uint8_t* machineCode);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
-    std::unique_ptr<Compiler> m_compiler;
+    std::unique_ptr<JITMemoryArena> m_jitMemoryArena;
 
     // Saves registers, initializes thread context and stack pointer registers, and jumps into the machine code pointer.
     void (*m_entryTrampoline)(ThreadContext* context, const uint8_t* machineCode);

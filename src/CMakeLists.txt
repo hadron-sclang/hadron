@@ -91,7 +91,6 @@ add_library(hadron STATIC
 
     include/hadron/Assembler.hpp
     include/hadron/CodeGenerator.hpp
-    include/hadron/Compiler.hpp
     include/hadron/ErrorReporter.hpp
     include/hadron/Function.hpp
     include/hadron/Hash.hpp
@@ -110,7 +109,6 @@ add_library(hadron STATIC
     include/hadron/VirtualJIT.hpp
 
     CodeGenerator.cpp
-    Compiler.cpp
     ErrorReporter.cpp
     FileSystem.hpp
     Hash.cpp
