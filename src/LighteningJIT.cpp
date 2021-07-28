@@ -18,7 +18,7 @@ namespace {
 #   if defined(__i386__)
         static constexpr size_t kCalleeSaveRegisters = 3;
 #   elif defined(__x86_64__)
-        static constexpr size_t kCalleeSaveRegisters = 7;
+        static constexpr size_t kCalleeSaveRegisters = 5;
 #   elif defined(__arm__)
         static constexpr size_t kCalleeSaveRegisters = 7;
 #   elif defined(__aarch64__)
@@ -68,8 +68,10 @@ void LighteningJIT::reset() {
     jit_reset(m_state);
 }
 
-void* LighteningJIT::end(size_t* sizeOut) {
-    return jit_end(m_state, sizeOut);
+JIT::Address LighteningJIT::end(size_t* sizeOut) {
+    JIT::Address addressIndex = m_addresses.size();
+    m_addresses.emplace_back(jit_end(m_state, sizeOut));
+    return addressIndex;
 }
 
 size_t LighteningJIT::enterABI() {

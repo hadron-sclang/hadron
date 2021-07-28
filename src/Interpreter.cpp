@@ -39,11 +39,9 @@ bool Interpreter::setup() {
     // Compile the entry and exit trampolines. This matches the Guile entry/exit trampolines pretty closely.
     LighteningJIT::markThreadForJITCompilation();
     // Complete guess as to a reasonable size.
-    JITMemoryArena::MCodePtr m_trampolines = m_jitMemoryArena->alloc(4096);
+    m_trampolines = m_jitMemoryArena->alloc(256);
     LighteningJIT jit(m_errorReporter);
-    jit.begin(m_trampolines.get(), 4096);
-    m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const uint8_t*)>(
-            jit.addressToFunctionPointer(jit.address()));
+    jit.begin(m_trampolines.get(), 256);
     auto align = jit.enterABI();
     // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* context and a uint8_t* machineCode
     // pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded into Reg 0. As
@@ -55,12 +53,19 @@ bool Interpreter::setup() {
     // Restore the Hadron stack pointer
     jit.ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, stackPointer));
     // Jump into the calling code.
-    jit.jmpr(0);
+    jit.jmpr(JIT::Reg(0));
 
     m_exitTrampoline = jit.addressToFunctionPointer(jit.address());
+    // Restore the C stack pointer.
+    jit.ldxi_w(jit.getCStackPointerRegister(), JIT::kContextPointerReg, offsetof(ThreadContext, cStackPointer));
     jit.leaveABI(align);
     jit.ret();
-    jit.end();
+    assert(!jit.hasJITBufferOverflow());
+    size_t trampolineSize = 0;
+    auto entryAddr = jit.end(&trampolineSize);
+    m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const uint8_t*)>(
+            jit.addressToFunctionPointer(entryAddr));
+    SPDLOG_INFO("JIT trampoline at {} bytes.", trampolineSize);
 
     return true;
 }
@@ -141,7 +146,7 @@ std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
 
         if (!jit.hasJITBufferOverflow()) {
             size_t jitSize = 0;
-            const uint8_t* codeStart = static_cast<const uint8_t*>(jit.end(&jitSize));
+            const uint8_t* codeStart = jit.getAddress(jit.end(&jitSize));
             SPDLOG_INFO("JIT completed, buffer size {} bytes, jit size {} bytes.", machineCodeSize, jitSize);
             function->machineCode = codeStart;
             function->machineCodeOwned = std::move(machineCode);

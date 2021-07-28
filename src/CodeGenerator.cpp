@@ -91,13 +91,19 @@ CodeGenerator::CodeGenerator(const ast::BlockAST* block, std::shared_ptr<ErrorRe
     m_errorReporter(errorReporter) {}
 
 bool CodeGenerator::generate() {
+    using ScopedReg = RegisterAllocator::ScopedRegister;
     RegisterAllocator allocator(m_jit.get());
 
     for (const auto& statement : m_block->statements) {
         jitStatement(statement.get(), &allocator);
     }
 
-    m_jit->ret();
+    // Load caller return address from framePointer + 1.
+    ScopedReg framePointerReg = allocator.tempRegister();
+    m_jit->ldxi_w(framePointerReg.reg, JIT::kContextPointerReg, offsetof(ThreadContext, framePointer));
+    ScopedReg returnAddressReg = allocator.tempRegister();
+    m_jit->ldxi_w(returnAddressReg.reg, framePointerReg.reg, sizeof(Slot) + offsetof(Slot, value.machineCodeAddress));
+    m_jit->jmpr(returnAddressReg.reg);
     return true;
 }
 

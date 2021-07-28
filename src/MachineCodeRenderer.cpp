@@ -75,6 +75,10 @@ bool MachineCodeRenderer::render(JIT* jit) {
             m_labels.emplace_back(jit->jmp());
             break;
 
+        case VirtualJIT::Opcodes::kJmpR:
+            jit->jmpr(inst[1]);
+            break;
+
         case VirtualJIT::Opcodes::kLdxiW:
             jit->ldxi_w(inst[1], inst[2], inst[3]);
             break;

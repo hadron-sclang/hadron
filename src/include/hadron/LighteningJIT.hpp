@@ -35,7 +35,7 @@ public:
     // Set pointer back to beginning of buffer.
     void reset();
     // End recording jit bytecode into the buffer, writes the final size to sizeOut. Returns the jit address to begin().
-    void* end(size_t* sizeOut);
+    Address end(size_t* sizeOut);
 
     // Save current state from the calling C-style stack frame, including all callee-save registers, and update the
     // C stack pointer (modulo alignment) to point just below this. Returns the number of bytes pushed on to the stack,
@@ -77,6 +77,8 @@ public:
 
     // Lightening requires a call to a global setup function before emitting any JIT bytecode.
     static void initJITGlobals();
+
+    const uint8_t* getAddress(Address a) const { return static_cast<const uint8_t*>(m_addresses[a]); }
 
 private:
     // Converts register number to the Lightening register type.
