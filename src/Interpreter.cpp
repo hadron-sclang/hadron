@@ -171,15 +171,21 @@ std::unique_ptr<Function> Interpreter::compileFile(std::string path) {
 }
 
 Slot Interpreter::run(Function* func) {
-    LighteningJIT::markThreadForJITExecution();
     ThreadContext threadContext;
     if (!threadContext.allocateStack()) {
         SPDLOG_ERROR("Failed to allocate Hadron stack.");
         return Slot();
     }
 
+    LighteningJIT::markThreadForJITExecution();
+
     // Trampoline into JIT code.
     enterMachineCode(&threadContext, func->machineCode);
+
+    // Any memory allocation in the JIT arena requires the thread be marked for compilation, which allows writing to
+    // the JIT memory regions. TODO: we need a better threading model to isolate the execution threads from the
+    // rest of the system.
+    LighteningJIT::markThreadForJITCompilation();
 
     // Extract result from stack.
     Slot result = *(threadContext.framePointer);

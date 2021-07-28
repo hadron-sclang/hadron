@@ -30,5 +30,8 @@ int main(int argc, char* argv[]) {
     hadron::Slot result = interpreter.run(function.get());
     std::cout << result.asString() << std::endl;
 
+    // Need to delete all compiled code before destroying the interpreter.
+    function.reset();
+
     return 0;
 }
