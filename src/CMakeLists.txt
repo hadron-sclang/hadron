@@ -222,15 +222,3 @@ target_link_libraries(hlang
     gflags
     hadron
 )
-
-
-####
-# delete me
-add_executable(ljit
-    ljit.cpp
-)
-
-target_link_libraries(ljit
-#    hadron
-    lightening
-)
