@@ -60,11 +60,19 @@ TEST_CASE("Assembler Base Cases") {
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 7});
         CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kBgei, 7, 42});
     }
-    SUBCASE("jmpi") {
-        Assembler assembler("jmpi label_22");
+    SUBCASE("jmp") {
+        Assembler assembler("jmp");
         REQUIRE(assembler.assemble());
         REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kJmpi, 0});
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kJmp, 0});
+    }
+    SUBCASE("jmpr") {
+        Assembler assembler("alias %vr2\n"
+                            "jmpr %vr2");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 2});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kJmpR, 2});
     }
     SUBCASE("ldxi_w") {
         Assembler assembler("alias %vr2\n"
@@ -106,16 +114,6 @@ TEST_CASE("Assembler Base Cases") {
         CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
         CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kStrI, 4, 0});
     }
-    SUBCASE("sti_i") {
-        Assembler assembler("alias %vr0\n"
-                            "sti_i 0x25 %vr0");
-        REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
-        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kStiI, 0, 0});
-        REQUIRE(assembler.virtualJIT()->addresses().size() == 1);
-        CHECK(assembler.virtualJIT()->addresses()[0] == reinterpret_cast<void*>(0x25));
-    }
     SUBCASE("stxi_w") {
         Assembler assembler("alias %vr1\n"
                             "alias %vr10\n"
@@ -146,54 +144,6 @@ TEST_CASE("Assembler Base Cases") {
         CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 10});
         CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kStxiL, 4, 1, 10});
     }
-    SUBCASE("prolog") {
-        Assembler assembler("prolog");
-        REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kProlog});
-    }
-    SUBCASE("arg") {
-        Assembler assembler("arg");
-        REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kArg, 0});
-    }
-    SUBCASE("getarg_w") {
-        Assembler assembler("alias %vr0\n"
-                            "getarg_w %vr0 label_0");
-        REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
-        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kGetargW, 0, 0});
-    }
-    SUBCASE("getarg_i") {
-        Assembler assembler("alias %vr0\n"
-                            "getarg_i %vr0 label_0");
-        REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
-        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kGetargI, 0, 0});
-    }
-    SUBCASE("getarg_l") {
-        Assembler assembler("alias %vr0\n"
-                            "getarg_l %vr0 label_0");
-        REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
-        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kGetargL, 0, 0});
-    }
-    SUBCASE("allocai") {
-        Assembler assembler("allocai 1024");
-        REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAllocai, 1024});
-    }
-    SUBCASE("allocai") {
-        Assembler assembler("frame 0");
-        REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kFrame, 0});
-    }
     SUBCASE("ret") {
         Assembler assembler("ret");
         REQUIRE(assembler.assemble());
@@ -214,35 +164,29 @@ TEST_CASE("Assembler Base Cases") {
         REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kReti, 99});
     }
-    SUBCASE("epilog") {
-        Assembler assembler("epilog");
-        REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kEpilog});
-    }
     SUBCASE("label") {
         Assembler assembler("label");
         REQUIRE(assembler.assemble());
         REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kLabel});
     }
-    SUBCASE("patchat") {
+    SUBCASE("patch_here") {
+        Assembler assembler("label\n"
+                            "patch_here label_0");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kLabel});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kPatchHere, 0});
+    }
+    SUBCASE("patch_there") {
         Assembler assembler("label\n"
                             "label\n"
-                            "patchat label_0 label_1");
+                            "patch_there label_0 label_1");
         REQUIRE(assembler.assemble());
         REQUIRE(assembler.virtualJIT()->instructions().size() == 3);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kLabel});
         CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kLabel});
-        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kPatchAt, 0, 1});
-    }
-    SUBCASE("patch") {
-        Assembler assembler("label\n"
-                            "patch label_0");
-        REQUIRE(assembler.assemble());
-        REQUIRE(assembler.virtualJIT()->instructions().size() == 2);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kLabel});
-        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kPatch, 0});
+        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kPatchThere, 0, 1});
     }
     SUBCASE("alias") {
         Assembler assembler("alias %vr0");

@@ -1,6 +1,7 @@
 // hlang is a command-line sclang interpreter.
-#include "hadron/CompilerContext.hpp"
 #include "hadron/ErrorReporter.hpp"
+#include "hadron/Function.hpp"
+#include "hadron/Interpreter.hpp"
 #include "hadron/Slot.hpp"
 
 #include "gflags/gflags.h"
@@ -15,24 +16,19 @@ int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
     spdlog::set_level(spdlog::level::debug);
 
-    hadron::CompilerContext::initJITGlobals();
-
-    // Read the input file into a compiler context.
-    hadron::CompilerContext cc(FLAGS_inputFile);
-
-    if (!cc.readFile()) {
+    hadron::Interpreter interpreter;
+    if (!interpreter.setup()) {
+        SPDLOG_ERROR("Interpreter setup failed.");
         return -1;
     }
 
-    hadron::Slot result;
-    if (!cc.evaluate(&result)) {
-        std::cerr << "Error evaluating file input '" << FLAGS_inputFile << "." << std::endl;
+    auto function = interpreter.compileFile(FLAGS_inputFile);
+    if (!function) {
         return -1;
     }
 
+    hadron::Slot result = interpreter.run(function.get());
     std::cout << result.asString() << std::endl;
-
-    hadron::CompilerContext::finishJITGlobals();
 
     return 0;
 }

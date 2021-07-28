@@ -27,21 +27,12 @@
         arg[argIndex] = strtol(argStart + 2, nullptr, 16);
         ++argIndex;
     }
-    action addressArg {
-        // Parse 32 or 64 bit addresses, skipping over the '0x' part of the address.
-        if (sizeof(void*) == 8) {
-            addressArg = reinterpret_cast<void*>(strtoll(argStart + 2, nullptr, 16));
-        } else {
-            addressArg = reinterpret_cast<void*>(strtol(argStart + 2, nullptr, 16));
-        }
-    }
     action eof_ok { return true; }
 
     label = 'label_' digit+;
     reg = ('%vr' digit+ %regArg);
     integer = ('-'? digit+ %intArg);
     hexint = ('0x' xdigit+ %hexArg);
-    address = ('0x' xdigit+ %addressArg);
     labelnum = (label %labelArg);
     whitespace = (' ' | '\t')+;
     optlabel = (label ':')? whitespace?;
@@ -66,8 +57,11 @@
         optlabel 'bgei' start reg ws integer ws labelnum optcomment {
             m_jit->bgei(arg[0], arg[1]);
         };
-        optlabel 'jmpi' start labelnum optcomment {
-            m_jit->jmpi();
+        optlabel 'jmp' optcomment {
+            m_jit->jmp();
+        };
+        optlabel 'jmpr' start reg optcomment {
+            m_jit->jmpr(arg[0]);
         };
         optlabel 'ldxi_w' start reg ws reg ws hexint optcomment {
             m_jit->ldxi_w(arg[0], arg[1], arg[2]);
@@ -81,9 +75,6 @@
         optlabel 'str_i' start reg ws reg optcomment {
             m_jit->str_i(arg[0], arg[1]);
         };
-        optlabel 'sti_i' start address ws reg optcomment {
-            m_jit->sti_i(addressArg, arg[0]);
-        };
         optlabel 'stxi_w' start hexint ws reg ws reg optcomment {
             m_jit->stxi_w(arg[0], arg[1], arg[2]);
         };
@@ -92,27 +83,6 @@
         };
         optlabel 'stxi_l' start hexint ws reg ws reg optcomment {
             m_jit->stxi_l(arg[0], arg[1], arg[2]);
-        };
-        optlabel 'prolog' optcomment {
-            m_jit->prolog();
-        };
-        optlabel 'arg' optcomment {
-            m_jit->arg();
-        };
-        optlabel 'getarg_w' start reg ws labelnum optcomment {
-            m_jit->getarg_w(arg[0], arg[1]);
-        };
-        optlabel 'getarg_i' start reg ws labelnum optcomment {
-            m_jit->getarg_i(arg[0], arg[1]);
-        };
-        optlabel 'getarg_l' start reg ws labelnum optcomment {
-            m_jit->getarg_l(arg[0], arg[1]);
-        };
-        optlabel 'allocai' start integer optcomment {
-            m_jit->allocai(arg[0]);
-        };
-        optlabel 'frame' start integer optcomment {
-            m_jit->frame(arg[0]);
         };
         optlabel 'ret' optcomment {
             m_jit->ret();
@@ -123,17 +93,14 @@
         optlabel 'reti' start integer optcomment {
             m_jit->reti(arg[0]);
         };
-        optlabel 'epilog' optcomment {
-            m_jit->epilog();
-        };
         optlabel 'label' optcomment {
             m_jit->label();
         };
-        optlabel 'patchat' start labelnum ws labelnum optcomment {
-            m_jit->patchAt(arg[0], arg[1]);
+        optlabel 'patch_here' start labelnum optcomment {
+            m_jit->patchHere(arg[0]);
         };
-        optlabel 'patch' start labelnum optcomment {
-            m_jit->patch(arg[0]);
+        optlabel 'patch_there' start labelnum ws labelnum optcomment {
+            m_jit->patchThere(arg[0], arg[1]);
         };
         optlabel 'alias' start reg optcomment {
             m_jit->alias(arg[0]);
@@ -196,7 +163,6 @@ bool Assembler::assemble() {
     const char* argStart = nullptr;
     int argIndex = 0;
     std::array<int, 3> arg;
-    void* addressArg = nullptr;
 
     %% write init;
 

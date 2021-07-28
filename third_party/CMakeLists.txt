@@ -33,21 +33,29 @@ if(APPLE)
     )
 endif()
 
-### GNU Lightning
-ExternalProject_add(lightning
+### jemalloc
+ExternalProject_add(jemalloc
     PREFIX ext
     STEP_TARGETS install
     EXCLUDE_FROM_ALL ON
-    GIT_REPOSITORY https://git.savannah.gnu.org/git/lightning.git
-    GIT_TAG master
+    GIT_REPOSITORY https://github.com/jemalloc/jemalloc.git
+    GIT_TAG 5.2.1
     GIT_PROGRESS ON
     UPDATE_COMMAND ""
     BUILD_IN_SOURCE ON
-    CONFIGURE_COMMAND ./bootstrap && ./configure --prefix=${INSTALL_EXT}
-    BUILD_COMMAND make
+    CONFIGURE_COMMAND ./autogen.sh --prefix=/Users/luken/src/hadron/build/install-ext --disable-cxx --disable-zone-allocator --enable-debug
+    BUILD_COMMAND make -j
     INSTALL_COMMAND make install
-    BUILD_BYPRODUCTS ${INSTALL_EXT}/lib/liblightning.a
+    BUILD_BYPRODUCTS ${INSTALL_EXT}/lib/libjemalloc.a
 )
+
+### lightening
+add_library(lightening STATIC
+    lightening/lightening/lightening.c
+    lightening/lightening/endian.h
+    lightening/lightening.h
+)
+target_include_directories(lightening PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/lightening)
 
 #### spdlog
 set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "require spdlog to use our external fmt")

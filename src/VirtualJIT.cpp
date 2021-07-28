@@ -13,28 +13,13 @@ namespace hadron {
 VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter):
     JIT(errorReporter),
     m_maxRegisters(std::numeric_limits<int32_t>::max()),
-    m_maxFloatRegisters(std::numeric_limits<int32_t>::max()) {}
+    m_maxFloatRegisters(std::numeric_limits<int32_t>::max()),
+    m_addressCount(0) {}
 
 VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter, int maxRegisters, int maxFloatRegisters):
     JIT(errorReporter),
     m_maxRegisters(maxRegisters),
     m_maxFloatRegisters(maxFloatRegisters) { }
-
-bool VirtualJIT::emit() {
-    return true;
-}
-
-bool VirtualJIT::evaluate(Slot* /* value */) const {
-    m_errorReporter->addInternalError("VirtualJIT got evaluation request.");
-    return false;
-}
-
-void VirtualJIT::print() const {
-    std::string code;
-    if (toString(code)) {
-        std::cout << code;
-    }
-}
 
 int VirtualJIT::getRegisterCount() const {
     if (m_maxRegisters < 3) {
@@ -72,11 +57,15 @@ JIT::Label VirtualJIT::bgei(Reg a, int b) {
     return label;
 }
 
-JIT::Label VirtualJIT::jmpi() {
+JIT::Label VirtualJIT::jmp() {
     JIT::Label label = m_labels.size();
     m_labels.emplace_back(m_instructions.size());
-    m_instructions.emplace_back(Inst{Opcodes::kJmpi, label});
+    m_instructions.emplace_back(Inst{Opcodes::kJmp, label});
     return label;
+}
+
+void VirtualJIT::jmpr(Reg r) {
+    m_instructions.emplace_back(Inst{Opcodes::kJmpR, use(r)});
 }
 
 void VirtualJIT::ldxi_w(Reg target, Reg address, int offset) {
@@ -95,12 +84,6 @@ void VirtualJIT::str_i(Reg address, Reg value) {
     m_instructions.emplace_back(Inst{Opcodes::kStrI, use(address), use(value)});
 }
 
-void VirtualJIT::sti_i(Address address, Reg value) {
-    int addressNumber = m_addresses.size();
-    m_addresses.emplace_back(address);
-    m_instructions.emplace_back(Inst{Opcodes::kStiI, addressNumber, use(value)});
-}
-
 void VirtualJIT::stxi_w(int offset, Reg address, Reg value) {
     m_instructions.emplace_back(Inst{Opcodes::kStxiW, offset, use(address), use(value)});
 }
@@ -111,37 +94,6 @@ void VirtualJIT::stxi_i(int offset, Reg address, Reg value) {
 
 void VirtualJIT::stxi_l(int offset, Reg address, Reg value) {
     m_instructions.emplace_back(Inst{Opcodes::kStxiL, offset, use(address), use(value)});
-}
-
-void VirtualJIT::prolog() {
-    m_instructions.emplace_back(Inst{Opcodes::kProlog});
-}
-
-JIT::Label VirtualJIT::arg() {
-    JIT::Label label = m_labels.size();
-    m_labels.emplace_back(m_instructions.size());
-    m_instructions.emplace_back(Inst{Opcodes::kArg, label});
-    return label;
-}
-
-void VirtualJIT::getarg_w(Reg target, Label arg) {
-    m_instructions.emplace_back(Inst{Opcodes::kGetargW, use(target), arg});
-}
-
-void VirtualJIT::getarg_i(Reg target, Label arg) {
-    m_instructions.emplace_back(Inst{Opcodes::kGetargI, use(target), arg});
-}
-
-void VirtualJIT::getarg_l(Reg target, Label arg) {
-    m_instructions.emplace_back(Inst{Opcodes::kGetargL, use(target), arg});
-}
-
-void VirtualJIT::allocai(int stackSizeBytes) {
-    m_instructions.emplace_back(Inst{Opcodes::kAllocai, stackSizeBytes});
-}
-
-void VirtualJIT::frame(int stackSizeBytes) {
-    m_instructions.emplace_back(Inst{Opcodes::kFrame, stackSizeBytes});
 }
 
 void VirtualJIT::ret() {
@@ -156,33 +108,35 @@ void VirtualJIT::reti(int value) {
     m_instructions.emplace_back(Inst{Opcodes::kReti, value});
 }
 
-void VirtualJIT::epilog() {
-    m_instructions.emplace_back(Inst{Opcodes::kEpilog});
-}
-
 JIT::Label VirtualJIT::label() {
     m_labels.emplace_back(m_instructions.size());
     m_instructions.emplace_back(Inst{Opcodes::kLabel});
     return m_labels.size() - 1;
 }
 
-void VirtualJIT::patchAt(Label target, Label location) {
-    if (target < static_cast<int>(m_labels.size()) && location < static_cast<int>(m_labels.size())) {
-        m_labels[target] = m_labels[location];
-        m_instructions.emplace_back(Inst{Opcodes::kPatchAt, target, location});
-    } else {
-        m_errorReporter->addInternalError(fmt::format("VirtualJIT patchat label_{} label_{} contains out-of-bounds "
-            "label argument as there are only {} labels", target, location, m_labels.size()));
-    }
+JIT::Address VirtualJIT::address() {
+    JIT::Address addressIndex = m_addressCount;
+    ++m_addressCount;
+    return addressIndex;
 }
 
-void VirtualJIT::patch(Label label) {
+void VirtualJIT::patchHere(Label label) {
     if (label < static_cast<int>(m_labels.size())) {
         m_labels[label] = m_instructions.size();
-        m_instructions.emplace_back(Inst{Opcodes::kPatch, label});
+        m_instructions.emplace_back(Inst{Opcodes::kPatchHere, label});
     } else {
         m_errorReporter->addInternalError(fmt::format("VirtualJIT patch label_{} contains out-of-bounds label argument "
             "as there are only {} labels", label, m_labels.size()));
+    }
+}
+
+void VirtualJIT::patchThere(Label target, Address location) {
+    if (target < static_cast<int>(m_labels.size()) && location < static_cast<int>(m_labels.size())) {
+        m_labels[target] = m_labels[location];
+        m_instructions.emplace_back(Inst{Opcodes::kPatchThere, target, location});
+    } else {
+        m_errorReporter->addInternalError(fmt::format("VirtualJIT patchat label_{} label_{} contains out-of-bounds "
+            "label argument as there are only {} labels", target, location, m_labels.size()));
     }
 }
 
@@ -239,52 +193,28 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} bgei %vr{}, {} label_{}\n", label, inst[1], inst[2], inst[3]);
             break;
 
-        case kJmpi:
-            code << fmt::format("{} jmpi label_{}\n", label, inst[1]);
+        case kJmp:
+            code << fmt::format("{} jmp label_{}\n", label, inst[1]);
+            break;
+
+        case kJmpR:
+            code << fmt::format("{} jmpr %vr{}\n", label, inst[1]);
+            break;
+
+        case kLdxiW:
+            code << fmt::format("{} ldxi_w %vr{}, %vr{}, 0x{:x}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kLdxiI:
-            code << fmt::format("{} ldxi_i %vr{}, %vr{}, 0x{:x}", label, inst[1], inst[2], inst[3]);
+            code << fmt::format("{} ldxi_i %vr{}, %vr{}, 0x{:x}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kStrI:
             code << fmt::format("{} str_i %vr{}, %vr{}\n", label, inst[1], inst[2]);
             break;
 
-        case kStiI:
-            code << fmt::format("{} sti_i 0x{:x}, %vr{}\n", label, m_addresses[inst[1]], inst[2]);
-            break;
-
         case kStxiI:
             code << fmt::format("{} stxi_i 0x{:x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
-            break;
-
-        case kProlog:
-            code << fmt::format("{} prolog\n", label);
-            break;
-
-        case kArg:
-            code << fmt::format("{} arg label_{}\n", label, inst[1]);
-            break;
-
-        case kGetargW:
-            code << fmt::format("{} getarg_w %vr{}, label_{}\n", label, inst[1], inst[2]);
-            break;
-
-        case kGetargI:
-            code << fmt::format("{} getarg_i %vr{}, label_{}\n", label, inst[1], inst[2]);
-            break;
-
-        case kGetargL:
-            code << fmt::format("{} getarg_l %vr{}, label_{}\n", label, inst[1], inst[2]);
-            break;
-
-        case kAllocai:
-            code << fmt::format("{} allocai {}\n", label, inst[1]);
-            break;
-
-        case kFrame:
-            code << fmt::format("{} frame {}\n", label, inst[1]);
             break;
 
         case kRet:
@@ -299,20 +229,16 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} reti {}\n", label, inst[1]);
             break;
 
-        case kEpilog:
-            code << fmt::format("{} epilog\n", label);
-            break;
-
         case kLabel:
             code << fmt::format("{}\n", label);
             break;
 
-        case kPatchAt:
-            code << fmt::format("{} patchat label_{}, label_{}\n", label, inst[1], inst[2]);
+        case kPatchHere:
+            code << fmt::format("{} patch label_{}\n", label, inst[1]);
             break;
 
-        case kPatch:
-            code << fmt::format("{} patch label_{}\n", label, inst[1]);
+        case kPatchThere:
+            code << fmt::format("{} patchat label_{}, label_{}\n", label, inst[1], inst[2]);
             break;
 
         case kAlias:
@@ -336,11 +262,11 @@ bool VirtualJIT::toString(std::string& codeString) const {
 }
 
 JIT::Reg VirtualJIT::use(JIT::Reg reg) {
-    if (reg < static_cast<int>(m_registerUses.size())) {
-        m_registerUses[reg].emplace_back(m_instructions.size());
-    } else {
-        m_errorReporter->addInternalError(fmt::format("VirtualJIT attempting to use unallocated register {}.", reg));
+    if (reg < 0) {
+        return reg;
     }
+    assert(reg < static_cast<int>(m_registerUses.size()));
+    m_registerUses[reg].emplace_back(m_instructions.size());
     return reg;
 }
 

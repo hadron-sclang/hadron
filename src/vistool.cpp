@@ -66,6 +66,15 @@ std::string printType(const hadron::Type type) {
 
         case hadron::Type::kSlot:
             return "(slot)";
+
+        case hadron::Type::kMachineCodePointer:
+            return "(machine code)";
+
+        case hadron::Type::kFramePointer:
+            return "(frame pointer)";
+
+        case hadron::Type::kStackPointer:
+            return "(stack pointer)";
     }
 
     return "(unknown type!)";
@@ -630,12 +639,8 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
         }
     } break;
 
-    case hadron::ast::ASTType::kLoadFromSlot: {
-
-    } break;
-
-    case hadron::ast::ASTType::kSaveToSlot: {
-        const auto save = reinterpret_cast<const hadron::ast::SaveToSlotAST*>(ast);
+    case hadron::ast::ASTType::kSaveToReturnSlot: {
+        const auto save = reinterpret_cast<const hadron::ast::SaveToReturnSlotAST*>(ast);
         outFile << fmt::format("    ast_{} [shape=house label=\"slot store\"]\n", astSerial);
         outFile << fmt::format("    ast_{} -> ast_{}\n", astSerial, serial);
         visualizeAST(outFile, serial, save->value.get(), symbols);

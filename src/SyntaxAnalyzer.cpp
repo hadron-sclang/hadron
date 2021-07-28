@@ -67,7 +67,7 @@ std::unique_ptr<ast::BlockAST> SyntaxAnalyzer::buildBlock(const parse::BlockNode
         }
     }
 
-    auto save = std::make_unique<ast::SaveToSlotAST>();
+    auto save = std::make_unique<ast::SaveToReturnSlotAST>();
     save->value = findValue(blockValueHash, block.get(), false);
     block->statements.emplace_back(std::move(save));
     return block;

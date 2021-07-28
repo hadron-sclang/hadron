@@ -1,6 +1,7 @@
 #ifndef SRC_RUNTIME_SLOT_HPP_
 #define SRC_RUNTIME_SLOT_HPP_
 
+#include "hadron/Hash.hpp"
 #include "hadron/Type.hpp"
 
 #include <cstddef>
@@ -10,8 +11,10 @@ namespace hadron {
 
 struct Slot {
 public:
-    Slot(): type(kNil) {}
-    Slot(int intValue): type(Type::kInteger), intValue(intValue) {}
+    Slot(): type(kNil), value(nullptr) {}
+    Slot(int32_t intValue): type(Type::kInteger), value(intValue) {}
+    Slot(uint8_t* machineCodeAddress): type(Type::kMachineCodePointer), value(machineCodeAddress) {}
+    Slot(Type pointerType, Slot* pointer): type(pointerType), value(pointer) {}
     ~Slot() = default;
 
     // Placement new
@@ -20,14 +23,30 @@ public:
     std::string asString();
 
     Type type;
-    int intValue = 0;
+    uint32_t padding;
+    union Value {
+        Value(): machineCodeAddress(nullptr) {}
+        Value(int32_t v): intValue(v) {}
+        Value(uint8_t* a): machineCodeAddress(a) {}
+        Value(Slot* p): slotPointer(p) {}
+        Value(nullptr_t): slotPointer(nullptr) {}
+
+        int32_t intValue;
+        double doubleValue;
+        uint8_t* machineCodeAddress;
+        Slot* slotPointer;
+        Hash symbolHash;
+#       ifdef HADRON_64_BIT
+        int64_t registerSpill;
+#       else
+        int32_t registerSpill;
+#       endif
+    };
+    Value value;
 };
 
-} // namespace hadron
+static_assert(sizeof(Slot) == 16);
 
-extern "C" {
-    void* slot_Init(hadron::Slot* inSlot);
-    void* slot_fromInt(hadron::Slot* inSlot, int intValue);
-} // extern "C"
+} // namespace hadron
 
 #endif // SRC_RUNTIME_SLOT_HPP_

@@ -25,7 +25,7 @@ ExternalProject_add(colm
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${INSTALL_EXT} --disable-manual
     BUILD_IN_SOURCE ON
-    BUILD_COMMAND make
+    BUILD_COMMAND make -j
     INSTALL_COMMAND make install
     EXCLUDE_FROM_ALL ON
 )
@@ -42,7 +42,7 @@ ExternalProject_add(ragel
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${INSTALL_EXT} --with-colm=${INSTALL_EXT} --disable-manual
     BUILD_IN_SOURCE ON
-    BUILD_COMMAND make
+    BUILD_COMMAND make -j
     INSTALL_COMMAND make install
     EXCLUDE_FROM_ALL ON
 )
@@ -56,7 +56,8 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
 )
 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
-    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Assembler.rl"
+    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Assembler.rl"
     MAIN_DEPENDENCY Assembler.rl
     DEPENDS ragel-install
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
@@ -87,48 +88,70 @@ add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
-    ErrorReporter.cpp
-    CodeGenerator.cpp
-    CompilerContext.cpp
-    FileSystem.hpp
-    Hash.cpp
+
     include/hadron/Assembler.hpp
     include/hadron/CodeGenerator.hpp
-    include/hadron/CompilerContext.hpp
     include/hadron/ErrorReporter.hpp
+    include/hadron/Function.hpp
     include/hadron/Hash.hpp
     include/hadron/JIT.hpp
+    include/hadron/JITMemoryArena.hpp
     include/hadron/Lexer.hpp
-    include/hadron/LightningJIT.hpp
+    include/hadron/LighteningJIT.hpp
     include/hadron/Literal.hpp
+    include/hadron/LSBHashTable.hpp
     include/hadron/MachineCodeRenderer.hpp
     include/hadron/Parser.hpp
     include/hadron/Slot.hpp
+    include/hadron/SourceFile.hpp
     include/hadron/SyntaxAnalyzer.hpp
+    include/hadron/ThreadContext.hpp
     include/hadron/Type.hpp
     include/hadron/VirtualJIT.hpp
-    LightningJIT.cpp
+
+    CodeGenerator.cpp
+    ErrorReporter.cpp
+    FileSystem.hpp
+    Function.cpp
+    Hash.cpp
+    Interpreter.cpp
+    JITMemoryArena.cpp
+    LighteningJIT.cpp
     MachineCodeRenderer.cpp
     Parser.cpp
     Slot.cpp
+    SourceFile.cpp
     SyntaxAnalyzer.cpp
+    ThreadContext.cpp
     VirtualJIT.cpp
 )
 
 file(GLOB HADRON_PUBLIC_HEADERS include/hadron/*.hpp)
 set_target_properties(hadron PROPERTIES PUBLIC_HEADER "${HADRON_PUBLIC_HEADERS}")
 
-target_compile_options(hadron PUBLIC -g -Wall -Wextra -Wpedantic -Werror)
+target_compile_options(hadron PUBLIC
+    -g
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Werror
+)
+
+target_compile_definitions(hadron PUBLIC
+    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG
+    HADRON_64_BIT
+)
 
 target_link_libraries(hadron PUBLIC
     fmt
     spdlog
     xxHash::xxhash
-    "${INSTALL_EXT}/lib/liblightning.a"
+    lightening
+    "${INSTALL_EXT}/lib/libjemalloc.a"
 )
 
 add_dependencies(hadron
-    lightning-install
+    jemalloc-install
 )
 
 if(APPLE)
@@ -149,6 +172,7 @@ add_executable(unittests
     Assembler_unittests.cpp
     ErrorReporter_unittests.cpp
     Lexer_unittests.cpp
+    LSBHashTable_unittests.cpp
     MachineCodeRenderer_unittests.cpp
     Parser_unittests.cpp
     SyntaxAnalyzer_unittests.cpp
