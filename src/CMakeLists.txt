@@ -94,6 +94,7 @@ add_library(hadron STATIC
     include/hadron/ErrorReporter.hpp
     include/hadron/Function.hpp
     include/hadron/Hash.hpp
+    include/hadron/HIR.hpp
     include/hadron/JIT.hpp
     include/hadron/JITMemoryArena.hpp
     include/hadron/Lexer.hpp
