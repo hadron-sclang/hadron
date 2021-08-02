@@ -18,20 +18,10 @@
 // ride as parallel variables to their names values. We perform LVN and constant folding as we go.
 
 // We can then do a bottoms-up dead code elimination pass. This allows us to be verbose with the type system
-// assignments, I think, 
+// assignments, I think,
 namespace hadron {
 
 namespace hir {
-
-
-// We squish everything into a top-level scope
-// value names are going to be _<name>_<owningBlockNo>_value
-// or _<name>_<owningBlockNo>_type ...
-struct BlockHIR {
-    int blockNumber;
-    std::unordered_map<Hash, std::string> valueNames;
-    std::list<std::unique_ptr<StatementHIR>> statements;
-};
 
 struct ValueHIR {
     int owningBlock;
@@ -54,12 +44,9 @@ enum OpcodeHIR {
 
 };
 
-struct StatementHIR {
-    Opc
-};
-
-
 } // namespace hir
+
+
 
 } // namespace hadron
 
