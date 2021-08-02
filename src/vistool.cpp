@@ -4,8 +4,8 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Lexer.hpp"
-#include "hadron/Literal.hpp"
 #include "hadron/Parser.hpp"
+#include "hadron/Slot.hpp"
 #include "hadron/SyntaxAnalyzer.hpp"
 #include "hadron/Type.hpp"
 #include "Keywords.hpp"
@@ -80,17 +80,17 @@ std::string printType(const hadron::Type type) {
     return "(unknown type!)";
 }
 
-std::string printLiteral(const hadron::Literal& literal) {
-    std::string type = printType(literal.type());
-    switch (literal.type()) {
+std::string printSlot(const hadron::Slot& literal) {
+    std::string type = printType(literal.type);
+    switch (literal.type) {
     case hadron::Type::kInteger:
-        return fmt::format("(int) {}", literal.asInteger());
+        return fmt::format("(int) {}", literal.value.intValue);
 
     case hadron::Type::kFloat:
-        return fmt::format("(float) {}", literal.asFloat());
+        return fmt::format("(float) {}", literal.value.floatValue);
 
     case hadron::Type::kBoolean:
-        return fmt::format("(bool) {}", trueFalse(literal.asBoolean()));
+        return fmt::format("(bool) {}", trueFalse(literal.value.boolValue));
 
     default:
         break;
@@ -324,7 +324,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             nodeSerial,
             nullOrNo(node->next.get()),
             std::string(token.range.data(), token.range.size()),
-            printLiteral(literal->value)); 
+            printSlot(literal->value)); 
     } break;
 
     case hadron::parse::NodeType::kName: {
@@ -613,7 +613,7 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
 
     case hadron::ast::ASTType::kConstant: {
         const auto constant = reinterpret_cast<const hadron::ast::ConstantAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=<<b>{}</b>>]\n", astSerial, printLiteral(constant->value));
+        outFile << fmt::format("    ast_{} [label=<<b>{}</b>>]\n", astSerial, printSlot(constant->value));
     } break;
 
     case hadron::ast::ASTType::kWhile: {
@@ -673,7 +673,7 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
             outFile << "        <tr><td><font face=\"monospace\">const:</font>";
             for (auto pair : classAST->constants) {
                 std::string constName = classAST->names.find(pair.first)->second;
-                outFile << constName << "=" << printLiteral(pair.second);
+                outFile << constName << "=" << printSlot(pair.second);
             }
             outFile << "</td></tr>\n";
         }

@@ -37,8 +37,8 @@ TEST_CASE("Identifier Resolution") {
         REQUIRE(assign->value);
         REQUIRE(assign->value->astType == ast::ASTType::kConstant);
         const auto constant = reinterpret_cast<const ast::ConstantAST*>(assign->value.get());
-        REQUIRE(constant->value.type() == Type::kInteger);
-        CHECK(constant->value.asInteger() == 3);
+        REQUIRE(constant->value.type == Type::kInteger);
+        CHECK(constant->value.value.intValue == 3);
         ++statement;
         REQUIRE((*statement)->astType == ast::ASTType::kAssign);
         assign = reinterpret_cast<const ast::AssignAST*>(statement->get());

@@ -1,7 +1,6 @@
 #include "hadron/SyntaxAnalyzer.hpp"
 
 #include "hadron/Lexer.hpp"
-#include "hadron/Slot.hpp"
 #include "hadron/Parser.hpp"
 #include "Keywords.hpp"
 
@@ -176,7 +175,7 @@ void SyntaxAnalyzer::fillAST(const parse::Node* parseNode, ast::BlockAST* block,
             assign->value = buildExprTree(varDefNode->initialValue.get(), block);
         } else {
             // Initialize variables to nil if they don't have a specified initial value.
-            assign->value = std::make_unique<ast::ConstantAST>(Literal(Type::kNil));
+            assign->value = std::make_unique<ast::ConstantAST>(Slot(Type::kNil));
         }
         assign->target = findValue(name.hash, block, true);
         // Propagate type from value to both target and the assignment statement.

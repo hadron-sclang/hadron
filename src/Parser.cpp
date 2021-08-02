@@ -1388,15 +1388,15 @@ std::unique_ptr<parse::LiteralNode> Parser::parseLiteral() {
         next(); // literal
     } else if (m_token.name == Token::Name::kMinus && m_tokenIndex < m_lexer->tokens().size() - 1 &&
                m_lexer->tokens()[m_tokenIndex + 1].name == Token::Name::kLiteral) {
-        if (m_lexer->tokens()[m_tokenIndex + 1].value.type() == Type::kFloat) {
+        if (m_lexer->tokens()[m_tokenIndex + 1].value.type == Type::kFloat) {
             next(); // '-'
             literal = std::make_unique<parse::LiteralNode>(m_tokenIndex - 1,
-                    Literal(-1.0f * m_token.value.asFloat()));
+                    Slot(-1.0f * m_token.value.value.floatValue));
             next(); // literal
-        } else if (m_lexer->tokens()[m_tokenIndex + 1].value.type() == Type::kInteger) {
+        } else if (m_lexer->tokens()[m_tokenIndex + 1].value.type == Type::kInteger) {
             next(); // '-'
             literal = std::make_unique<parse::LiteralNode>(m_tokenIndex - 1,
-                    Literal(-1 * m_token.value.asInteger()));
+                    Slot(-1 * m_token.value.value.intValue));
             next(); // literal
         }
     }
@@ -1414,7 +1414,7 @@ std::unique_ptr<parse::Node> Parser::parseArrayElements() {
     std::unique_ptr<parse::Node> firstElem;
     if (m_token.name == Token::Name::kKeyword) {
         // keybinop exprseq
-        firstElem = std::make_unique<parse::LiteralNode>(m_tokenIndex, Literal(Type::kSymbol));
+        firstElem = std::make_unique<parse::LiteralNode>(m_tokenIndex, Slot(Type::kSymbol));
         next(); // keyword
         auto exprSeq = parseExprSeq();
         if (!exprSeq) {
@@ -1440,7 +1440,7 @@ std::unique_ptr<parse::Node> Parser::parseArrayElements() {
         next(); // ,
         if (m_token.name == Token::Name::kKeyword) {
             firstElem->append(std::make_unique<parse::LiteralNode>(m_tokenIndex,
-                    Literal(Type::kSymbol)));
+                    Slot(Type::kSymbol)));
             next(); // keyword
             auto exprSeq = parseExprSeq();
             if (!exprSeq) {

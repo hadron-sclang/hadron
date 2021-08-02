@@ -2,7 +2,7 @@
 #define SRC_INCLUDE_HADRON_TOKEN_HPP_
 
 #include "hadron/Hash.hpp"
-#include "hadron/Literal.hpp"
+#include "hadron/Slot.hpp"
 
 #include <string_view>
 
@@ -56,9 +56,10 @@ struct Token {
 
     Name name;
     std::string_view range;
-    Literal value;
+    Slot value;
     bool couldBeBinop;
-    Hash hash;
+    Hash hash = 0;
+    bool escapeString = false;
 
     Token(): name(kEmpty), couldBeBinop(false) {}
 
@@ -67,8 +68,8 @@ struct Token {
         name(kLiteral), range(start, length), value(intValue), couldBeBinop(false) {}
 
     /*! Makes a float kLiteral token */
-    Token(const char* start, size_t length, float doubleValue):
-        name(kLiteral), range(start, length), value(doubleValue), couldBeBinop(false) {}
+    Token(const char* start, size_t length, double floatValue):
+        name(kLiteral), range(start, length), value(floatValue), couldBeBinop(false) {}
 
     /*! Makes a boolean kLiteral token */
     Token(const char* start, size_t length, bool boolean, Hash h = 0):
@@ -76,8 +77,12 @@ struct Token {
 
     /*! Makes an kLiteral token */
     Token(const char* start, size_t length, Type literalType, bool hasEscapeCharacters = false, Hash h = 0):
-        name(kLiteral), range(start, length), value(literalType, hasEscapeCharacters), couldBeBinop(false),
-        hash(h) {}
+            name(kLiteral),
+            range(start, length),
+            value(literalType),
+            couldBeBinop(false),
+            hash(h),
+            escapeString(hasEscapeCharacters) {}
 
     /*! Makes a token with no value storage */
     Token(Name n, const char* start, size_t length, bool binop = false, Hash h = 0):

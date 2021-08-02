@@ -29,7 +29,7 @@
         };
         # Float base-10
         digit+ '.' digit+ {
-            float value = strtof(ts, nullptr);
+            double value = strtod(ts, nullptr);
             m_tokens.emplace_back(Token(ts, te - ts, value));
         };
 
@@ -218,7 +218,7 @@
 
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
-#include "hadron/Literal.hpp"
+#include "hadron/Slot.hpp"
 #include "hadron/Type.hpp"
 #include "Keywords.hpp"
 
