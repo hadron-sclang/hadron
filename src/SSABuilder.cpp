@@ -43,12 +43,8 @@ std::unique_ptr<Frame> SSABuilder::build(const Lexer* lexer, const parse::BlockN
                 // parse error. Or, there's going to have to be an *if* block added to each variable in turn with
                 // something like `if variable missing then do init expr` which just seems terrible.
                 // For now we just do assignments with the LoadArgument opcode.
-
-
-                auto loadArgValue = std::make_unique<hir::LoadArgumentHIR>(argIndex, true);
-
-                auto loadArgType = std::make_unique<hir::LoadArgumentHIR>(argIndex, false);
-
+                m_block->nameRevisions[name] = findOrInsert(std::make_unique<hir::LoadArgumentHIR>(argIndex, true));
+                m_block->typeRevisions[name] = findOrInsert(std::make_unique<hir::LoadArgumentHIR>(argIndex, false));
                 ++argIndex;
                 varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
             }
@@ -59,45 +55,114 @@ std::unique_ptr<Frame> SSABuilder::build(const Lexer* lexer, const parse::BlockN
 
     // Variable definitions are allowed inline in Hadron, so we process variable definitions just like expression
     // sequences in the main body.
+    std::pair<int32_t, int32_t> finalValue = std::make_pair(-1, -1);
     if (blockNode->variables) {
-        fillBlock(blockNode->variables.get());
+        finalValue = buildValue(blockNode->variables.get());
     }
     if (blockNode->body) {
-        fillBlock(blockNode->body.get());
+        finalValue = buildValue(blockNode->body.get());
     }
 
+    // Add a *save to return* HIR with final value and type, which will only be added if not redundant with an already
+    // specified idential return value.
+    findOrInsert(std::make_unique<hir::StoreReturnHIR>(finalValue));
     return frame;
 }
 
-void SSABuilder::fillBlock(const parse::Node* node) {
+std::pair<int32_t, int32_t> SSABuilder::buildValue(const parse::Node* node) {
+    std::pair<int32_t, int32_t> nodeValue = std::make_pair(-1, -1);
     switch(node->nodeType) {
     case parse::NodeType::kEmpty:
         assert(false); // kEmpty is invalid node type.
+        return std::make_pair(-1, -1);
         break;
 
     case parse::NodeType::kVarDef: {
         const auto varDef = reinterpret_cast<const parse::VarDefNode*>(node);
         auto nameToken = m_lexer->tokens()[varDef->tokenIndex];
+        // TODO: error reporting for variable redefinition
         if (varDef->initialValue) {
-            auto values = buildSSA(varDef->initialValue.get());
-            m_block->nameRevisions[nameToken.hash] = values.first;
-            m_block->typeRevisions[nameToken.hash] = values.second;
+            nodeValue = buildValue(varDef->initialValue.get());
+            m_block->nameRevisions[nameToken.hash] = nodeValue.first;
+            m_block->typeRevisions[nameToken.hash] = nodeValue.second;
         } else {
             auto initialValue = std::make_unique<hir::ConstantHIR>(Slot());
+            nodeValue.first = findOrInsert(std::move(initialValue));
+            m_block->nameRevisions[nameToken.hash] = nodeValue.first;
             auto initialType = std::make_unique<hir::ConstantHIR>(Slot(Type::kType, Slot::Value(Type::kNil)));
+            nodeValue.second = findOrInsert(std::move(initialType));
+            m_block->typeRevisions[nameToken.hash] = nodeValue.second;
         }
-
-        // TODO:: error reporting for variable redefinition
-
     } break;
 
     case parse::NodeType::kVarList: {
+        const auto varList = reinterpret_cast<const parse::VarListNode*>(node);
+        if (varList->definitions) {
+            nodeValue = buildValue(varList->definitions.get());
+        }
+    } break;
+
+
+    case parse::NodeType::kArgList:
+    case parse::NodeType::kMethod:
+    case parse::NodeType::kClassExt:
+    case parse::NodeType::kClass:
+        assert(false); // internal error, not a valid node within a block
+        break;
+
+    case parse::NodeType::kReturn: {
+        const auto returnNode = reinterpret_cast<const parse::ReturnNode*>(node);
+        assert(returnNode->valueExpr);
+        nodeValue = buildValue(returnNode->valueExpr.get());
+        // We assign a unique value to the result of calling StoreReturn in the off chance that it has already been
+        // called with identical values, in the same block. StoreReturn will be called automatically with the last
+        // block value, so it is possible that this call makes the automatic store return redundant. But the return
+        // value pair of this return is still the nodeValue of the expression sequence within returnNode.
+        findOrInsert(std::make_unique<hir::StoreReturnHIR>(nodeValue));
+    } break;
+
+    case parse::NodeType::kDynList: {
+        assert(false);  // TODO
+    } break;
+
+    case parse::NodeType::kBlock: {
+        // This represents, in fact, the creation of a new *Frame* of scope for local variables. But very odd to
+        // encounter in this kind of context.
+    } break;
+
+    case parse::NodeType::kLiteral: {
+        const auto literal = reinterpret_cast<const parse::LiteralNode*>(node);
+        nodeValue.first = findOrInsert(std::make_unique<hir::ConstantHIR>(literal->value));
+        nodeValue.second = findOrInsert(std::make_unique<hir::ConstantHIR>(
+            Slot(Type::kType, Slot::Value(literal->value.type))));
     } break;
 
     default: // DELETE ME
         break;
     }
+
+    if (node->next) {
+        nodeValue = buildValue(node->next.get());
+    }
+
+    return nodeValue;
 }
 
+int32_t SSABuilder::findOrInsert(std::unique_ptr<hir::HIR> hir) {
+    if (!hir->isAlwaysUnique()) {
+        // Walk through block looking for equivalent exising hir.
+        for (const auto hirPair : m_block->values) {
+            if (hirPair.second->isEquivalent(hir.get())) {
+                return hirPair.first;
+            }
+        }
+    }
+    int32_t valueNumber = m_frame->valueCount;
+    hir->valueNumber = valueNumber;
+    ++m_frame->valueCount;
+    m_block->values.emplace(std::make_pair(valueNumber, hir.get()));
+    m_block->statements.emplace_back(std::move(hir));
+    return valueNumber;
+}
 
 } // namespace hadron

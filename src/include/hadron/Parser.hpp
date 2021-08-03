@@ -27,7 +27,6 @@ enum NodeType {
     kReturn,
     kDynList,
     kBlock,
-    kValue,
     kLiteral,
     kName,
     kExprSeq,

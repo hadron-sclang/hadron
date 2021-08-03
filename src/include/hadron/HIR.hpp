@@ -30,7 +30,7 @@ namespace hir {
 enum Opcode {
     kLoadArgument,
     kConstant,
-    kCopy,
+    kStoreReturn,
     kBinop,
     kDispatch,
     kPsi
@@ -40,11 +40,17 @@ enum Opcode {
 // the reads member.
 struct HIR {
     HIR() = delete;
-    explicit HIR(Opcode op): opcode(op) {}
+    explicit HIR(Opcode op): opcode(op), valueNumber(-1) {}
     virtual ~HIR() = default;
     Opcode opcode;
+    int32_t valueNumber;
     std::unordered_set<int32_t> reads;
 
+    // Some things should never be de-depulicated (such as function calls) and so we should skip trying to search
+    // for redefinition and always assign them a unique value.
+    virtual bool isAlwaysUnique() const = 0;
+    // For those things that are not always unique, this function compares the two HIR objects and returns true if
+    // they are *semantically* the same.
     virtual bool isEquivalent(const HIR* hir) const = 0;
 };
 
@@ -55,14 +61,25 @@ struct LoadArgumentHIR : public HIR {
     int32_t index;
     bool loadValue;
 
+    bool isAlwaysUnique() const override;
     bool isEquivalent(const HIR* hir) const override;
 };
 
 struct ConstantHIR : public HIR {
     ConstantHIR(const Slot& val): HIR(kConstant), value(val) {}
     virtual ~ConstantHIR() = default;
-    Slot value;
+    Slot value;  // TODO: this should collapse to be a word? slot should have a function to return its value as a word
 
+    bool isAlwaysUnique() const override;
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+struct StoreReturnHIR : public HIR {
+    StoreReturnHIR(std::pair<int32_t, int32_t> retVal);
+    virtual ~StoreReturnHIR() = default;
+    std::pair<int32_t, int32_t> returnValue;
+
+    bool isAlwaysUnique() const override;
     bool isEquivalent(const HIR* hir) const override;
 };
 

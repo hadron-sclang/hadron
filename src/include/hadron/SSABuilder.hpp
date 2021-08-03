@@ -63,16 +63,12 @@ public:
     std::unique_ptr<Frame> build(const Lexer* lexer, const parse::BlockNode* blockNode);
 
 private:
-    // Recursively traverse the parse tree rooted at |node|, placing HIR into the current m_block, and updating m_frame
-    // and m_block as necessary.
-    void fillBlock(const parse::Node* node);
-
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively.
-    std::pair<int32_t, int32_t> buildSSA(const parse::Node* node);
+    std::pair<int32_t, int32_t> buildValue(const parse::Node* node);
 
     // Algorithm is to iterate through all previously defined values *in the block* to see if they have already defined
-    // an identical value.
+    // an identical value. Returns the value either inserted or re-used. Takes ownership of hir.
     int32_t findOrInsert(std::unique_ptr<hir::HIR> hir);
 
     Lexer* m_lexer;
