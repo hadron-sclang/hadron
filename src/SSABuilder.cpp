@@ -18,7 +18,7 @@ std::unique_ptr<Frame> SSABuilder::build(const Lexer* lexer, const parse::BlockN
     auto frame = std::make_unique<Frame>();
     // Make an entry block and add to frame.
     m_frame = frame.get();
-    frame->blocks.emplace_back(std::make_unique<Block>(0));
+    frame->blocks.emplace_back(std::make_unique<Block>(m_frame, 0));
     m_block = frame->blocks.begin()->get();
 
     // Build argument name list and default values.
@@ -81,11 +81,10 @@ void SSABuilder::fillBlock(const parse::Node* node) {
         if (varDef->initialValue) {
             auto values = buildSSA(varDef->initialValue.get());
             m_block->nameRevisions[nameToken.hash] = values.first;
-            m_block->typeRevisions[nameToken.hash] = values.ssecond;
+            m_block->typeRevisions[nameToken.hash] = values.second;
         } else {
-            std::unique_ptr<hir::HIR> initialValue = std::make_unique<
-            std::unique_ptr<hir::HIR> initialType;
-
+            auto initialValue = std::make_unique<hir::ConstantHIR>(Slot());
+            auto initialType = std::make_unique<hir::ConstantHIR>(Slot(Type::kType, Slot::Value(Type::kNil)));
         }
 
         // TODO:: error reporting for variable redefinition

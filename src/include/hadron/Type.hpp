@@ -18,12 +18,13 @@ enum Type : std::uint32_t {
     kClass   = 0x0040,
     kObject  = 0x0080,
     kArray   = 0x0100,
+    kAny     = 0x01ff,
 
     // Internal implementation types
-    kMachineCodePointer = 0x10000,
-    kFramePointer       = 0x20000,
-    kStackPointer       = 0x40000,
-    kType               = 0x80000,
+    kMachineCodePointer = 0x80000000,
+    kFramePointer       = 0x40000000,
+    kStackPointer       = 0x20000000,
+    kType               = 0x10000000,
 };
 
 } // namespace hadron

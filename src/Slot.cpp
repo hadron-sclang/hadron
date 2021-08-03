@@ -31,6 +31,10 @@ bool Slot::operator==(const Slot& s) const {
         assert(false);  // TODO
         return false;
 
+    case Type::kAny:
+        assert(false); // internal error
+        return false;
+
     case Type::kMachineCodePointer:
         return value.machineCodeAddress == s.value.machineCodeAddress;
 

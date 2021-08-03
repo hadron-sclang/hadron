@@ -45,7 +45,7 @@ namespace ast {
         virtual ~AST() = default;
 
         ASTType astType;
-        Type valueType = Type::kSlot;
+        Type valueType = Type::kAny;
     };
 
     struct ValueAST;

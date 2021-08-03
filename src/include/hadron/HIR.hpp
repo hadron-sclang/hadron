@@ -2,6 +2,7 @@
 #define SRC_INCLUDE_HADRON_HIR_HPP_
 
 #include "hadron/Hash.hpp"
+#include "hadron/Slot.hpp"
 
 #include <list>
 #include <memory>
@@ -59,7 +60,7 @@ struct LoadArgumentHIR : public HIR {
 
 struct ConstantHIR : public HIR {
     ConstantHIR(const Slot& val): HIR(kConstant), value(val) {}
-    virtual ~ConstantHIR = default;
+    virtual ~ConstantHIR() = default;
     Slot value;
 
     bool isEquivalent(const HIR* hir) const override;

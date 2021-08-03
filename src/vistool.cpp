@@ -64,8 +64,8 @@ std::string printType(const hadron::Type type) {
         case hadron::Type::kArray:
             return "(array)";
 
-        case hadron::Type::kSlot:
-            return "(slot)";
+        case hadron::Type::kAny:
+            return "(*any*)";
 
         case hadron::Type::kMachineCodePointer:
             return "(machine code)";
@@ -75,6 +75,9 @@ std::string printType(const hadron::Type type) {
 
         case hadron::Type::kStackPointer:
             return "(stack pointer)";
+
+        case hadron::Type::kType:
+            return "(type)";
     }
 
     return "(unknown type!)";
