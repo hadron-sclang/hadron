@@ -43,10 +43,13 @@ std::unique_ptr<Frame> SSABuilder::build(const Lexer* lexer, const parse::BlockN
                 // parse error. Or, there's going to have to be an *if* block added to each variable in turn with
                 // something like `if variable missing then do init expr` which just seems terrible.
                 // For now we just do assignments with the LoadArgument opcode.
-                auto loadArg = std::make_unique<hir::LoadArgumentHIR>(name, argIndex);
+
+
+                auto loadArgValue = std::make_unique<hir::LoadArgumentHIR>(argIndex, true);
+
+                auto loadArgType = std::make_unique<hir::LoadArgumentHIR>(argIndex, false);
+
                 ++argIndex;
-                frame->revisions.emplace(name);
-                frame->addRevision(loadArg.get());
                 varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
             }
             varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
@@ -78,9 +81,7 @@ void SSABuilder::fillBlock(const parse::Node* node) {
         // TODO:: error reporting for variable redefinition
         m_frame->variableNames.emplace(nameToken.hash);
         if (varDef->initialValue) {
-            buildAssign(nameToken.hash, varDef->initialValue.get());
         } else {
-            buildAssignConstant(nameToken.hash, Slot());
         }
 
     } break;
@@ -93,12 +94,5 @@ void SSABuilder::fillBlock(const parse::Node* node) {
     }
 }
 
-void SSABuilder::buildAssign(Hash name, const parse::Node* value) {
-
-}
-
-void SSABuilder::buildAssignSlot(Hash name, const Slot& slot) {
-
-}
 
 } // namespace hadron

@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 // The literature calls the entire data structure a Control Flow Graph, and the individual nodes are called Blocks.
 // There is also a strict heirarchy of scope, which the LSC parser at least calls a Block. Could be called a Frame,
@@ -34,25 +35,24 @@ enum Opcode {
     kPsi
 };
 
-struct Reference {
-    Hash name;
-    int32_t revision;
-    Block* block;
-    HIR* statement;
-};
-
-// All HIR instructions modify the value, thus creating a new version, and may read multiple other values.
+// All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in
+// the reads member.
 struct HIR {
     HIR() = delete;
-    explicit HIR(Opcode op, Hash tgt): opcode(op), target(tgt), revision(-1) {}
+    explicit HIR(Opcode op): opcode(op) {}
+    virtual ~HIR() = default;
     Opcode opcode;
-    Hash target;
-    int32_t revision;
+    std::unordered_set<int32_t> reads;
+    virtual bool isEquivalent(const HIR* hir) const = 0;
 };
 
 struct LoadArgumentHIR : public HIR {
-    LoadArgumentHIR(Hash tgt, int32_t argIndex): HIR(kLoadArgument, tgt), index(argIndex) {}
+    // If value is true this will load the value of the argument, if false it will load the type.
+    LoadArgumentHIR(int32_t argIndex, bool value): HIR(kLoadArgument), index(argIndex), loadValue(value) {}
+    virtual ~LoadArgumentHIR() = default;
     int32_t index;
+    bool loadValue;
+    bool isEquivalent(const HIR* hir) const override;
 };
 
 } // namespace hir

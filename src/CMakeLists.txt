@@ -115,6 +115,7 @@ add_library(hadron STATIC
     FileSystem.hpp
     Function.cpp
     Hash.cpp
+    HIR.cpp
     Interpreter.cpp
     JITMemoryArena.cpp
     LighteningJIT.cpp

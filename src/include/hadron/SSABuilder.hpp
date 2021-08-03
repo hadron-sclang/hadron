@@ -25,9 +25,12 @@ struct Frame;
 struct Block {
     Block(Frame* owningFrame, int blockNumber): frame(owningFrame), number(blockNumber) {}
 
-    // value numbers are frame-wide but for LVN the value lookups are block-local, because extra-block values
+    // Value numbers are frame-wide but for LVN the value lookups are block-local, because extra-block values
     // need to go through a psi function in this Block.
     std::unordered_map<int32_t, hir::HIR*> values;
+    // Map of named values to value numbers
+    std::unordered_map<Hash, int32_t> nameRevisions;
+    std::unordered_map<Hash, int32_t> typeRevisions;
 
     Frame* frame;
     int number;
@@ -38,24 +41,17 @@ struct Block {
 // Represents a stack frame, so can have arguments supplied, is a scope for local variables, has an entrance and exit
 // Block.
 struct Frame {
-    Frame(): parent(nullptr) {}
+    Frame(): valueCount(0), parent(nullptr) {}
     ~Frame() = default;
 
     // In-order hashes of argument names.
     std::vector<Hash> argumentOrder;
-    // References to the HIR opcodes for each revision of each named value (variables and arguments)
-    std::unordered_map<Hash, std::vector<hir::HIR*>> revisions;
+
+    // Local Value Numbering uses this to continue to increment value numbering.
+    int32_t valueCount;
 
     Frame* parent;
     std::list<std::unique_ptr<Block>> blocks;
-
-    // Modifies revision number of op
-    void addRevision(hir::HIR* op) {
-        auto iter = revisions.find(op->target);
-        assert(iter != revisions.end());
-        op->revision = static_cast<int32_t>(iter->second.size());
-        iter->second.emplace_back(op);
-    }
 };
 
 // Goes from parse tree to HIR in blocks of HIR in SSA form.
@@ -70,11 +66,9 @@ private:
     // Recursively traverse the parse tree rooted at |node|, placing HIR into the current m_block, and updating m_frame
     // and m_block as necessary.
     void fillBlock(const parse::Node* node);
-    // Decompose the expression sequence at value to a series of expressions, then assign the final value to the next
-    // version of name.
-    void buildAssign(Hash name, const parse::Node* value);
-    // Assign a constnat value to the latest version of the value.
-    void buildAssignConstant(Hash name, const Slot& slot);
+
+    // Algorithm is to iterate through all previously defined values *in the block* to see if they have already defined
+    // an identical value. Returns -1 i
 
     Lexer* m_lexer;
     std::shared_ptr<ErrorReporter> m_errorReporter;
