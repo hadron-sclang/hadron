@@ -43,6 +43,7 @@ struct HIR {
     virtual ~HIR() = default;
     Opcode opcode;
     std::unordered_set<int32_t> reads;
+
     virtual bool isEquivalent(const HIR* hir) const = 0;
 };
 
@@ -52,6 +53,15 @@ struct LoadArgumentHIR : public HIR {
     virtual ~LoadArgumentHIR() = default;
     int32_t index;
     bool loadValue;
+
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+struct ConstantHIR : public HIR {
+    ConstantHIR(const Slot& val): HIR(kConstant), value(val) {}
+    virtual ~ConstantHIR = default;
+    Slot value;
+
     bool isEquivalent(const HIR* hir) const override;
 };
 

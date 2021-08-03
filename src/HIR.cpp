@@ -12,7 +12,13 @@ bool LoadArgumentHIR::isEquivalent(const HIR* hir) const {
     return (index == loadArg->index) && (loadValue == loadArg->loadValue);
 }
 
-
+bool ConstantHIR::isEquivalent(const HIR* hir) const {
+    if (hir->opcode != kConstant) {
+        return false;
+    }
+    const auto constant = reinterpret_cast<const ConstantHIR*>(hir);
+    return value == constant->value;
+}
 
 } // namespace hir
 

@@ -78,11 +78,17 @@ void SSABuilder::fillBlock(const parse::Node* node) {
     case parse::NodeType::kVarDef: {
         const auto varDef = reinterpret_cast<const parse::VarDefNode*>(node);
         auto nameToken = m_lexer->tokens()[varDef->tokenIndex];
-        // TODO:: error reporting for variable redefinition
-        m_frame->variableNames.emplace(nameToken.hash);
         if (varDef->initialValue) {
+            auto values = buildSSA(varDef->initialValue.get());
+            m_block->nameRevisions[nameToken.hash] = values.first;
+            m_block->typeRevisions[nameToken.hash] = values.ssecond;
         } else {
+            std::unique_ptr<hir::HIR> initialValue = std::make_unique<
+            std::unique_ptr<hir::HIR> initialType;
+
         }
+
+        // TODO:: error reporting for variable redefinition
 
     } break;
 

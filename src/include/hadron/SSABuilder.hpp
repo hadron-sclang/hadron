@@ -67,8 +67,13 @@ private:
     // and m_block as necessary.
     void fillBlock(const parse::Node* node);
 
+    // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
+    // expression value and expression type respectively.
+    std::pair<int32_t, int32_t> buildSSA(const parse::Node* node);
+
     // Algorithm is to iterate through all previously defined values *in the block* to see if they have already defined
-    // an identical value. Returns -1 i
+    // an identical value.
+    int32_t findOrInsert(std::unique_ptr<hir::HIR> hir);
 
     Lexer* m_lexer;
     std::shared_ptr<ErrorReporter> m_errorReporter;

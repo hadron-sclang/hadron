@@ -24,6 +24,9 @@ public:
     // Placement new
     void* operator new(size_t, Slot* address) { return address; }
 
+    // Comparisons
+    bool operator==(const Slot& s) const;
+
     std::string asString();
 
     Type type;
@@ -48,6 +51,7 @@ public:
 #       else
         int32_t registerSpill;
 #       endif
+        Type typeValue;
     };
     Value value;
 };
