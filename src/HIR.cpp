@@ -6,9 +6,6 @@ namespace hir {
 
 //////////////////////
 // LoadArgumentHIR
-bool LoadArgumentHIR::isAlwaysUnique() const {
-    return false;
-}
 
 bool LoadArgumentHIR::isEquivalent(const HIR* hir) const {
     if (hir->opcode != kLoadArgument) {
@@ -20,9 +17,6 @@ bool LoadArgumentHIR::isEquivalent(const HIR* hir) const {
 
 //////////////////////
 // ConstantHIR
-bool ConstantHIR::isAlwaysUnique() const {
-    return false;
-}
 
 bool ConstantHIR::isEquivalent(const HIR* hir) const {
     if (hir->opcode != kConstant) {
@@ -39,10 +33,6 @@ StoreReturnHIR::StoreReturnHIR(std::pair<int32_t, int32_t> retVal): HIR(kStoreRe
     reads.emplace(returnValue.second);
 }
 
-bool StoreReturnHIR::isAlwaysUnique() const {
-    return false;
-}
-
 bool StoreReturnHIR::isEquivalent(const HIR* hir) const {
     if (hir->opcode != kStoreReturn) {
         return false;
@@ -50,6 +40,30 @@ bool StoreReturnHIR::isEquivalent(const HIR* hir) const {
     const auto storeReturn = reinterpret_cast<const StoreReturnHIR*>(hir);
     return returnValue == storeReturn->returnValue;
 }
+
+//////////////////////
+// Dispatch
+bool Dispatch::isEquivalent(const HIR* /* hir */) const {
+    return false;
+}
+
+//////////////////////
+// DispatchCallHIR
+void DispatchCallHIR::addKeywordArgument(std::pair<int32_t, int32_t> keyword, std::pair<int32_t, int32_t> value) {
+    reads.insert(keyword.first);
+    reads.insert(keyword.second);
+    keywordArguments.emplace_back(keyword);
+    reads.insert(value.first);
+    reads.insert(value.second);
+    keywordArguments.emplace_back(value);
+}
+
+void DispatchCallHIR::addArgument(std::pair<int32_t, int32_t> argument) {
+    reads.insert(argument.first);
+    reads.insert(argument.second);
+    arguments.emplace_back(argument);
+}
+
 
 } // namespace hir
 

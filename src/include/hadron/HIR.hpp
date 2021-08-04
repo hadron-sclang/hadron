@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 // The literature calls the entire data structure a Control Flow Graph, and the individual nodes are called Blocks.
 // There is also a strict heirarchy of scope, which the LSC parser at least calls a Block. Could be called a Frame,
@@ -31,9 +32,15 @@ enum Opcode {
     kLoadArgument,
     kConstant,
     kStoreReturn,
-    kBinop,
-    kDispatch,
-    kPhi
+
+    // Method calling.
+    kDispatchCall,  // save all registers, set up calling stack, represents a modification of the target
+    kDispatchLoadReturn,  // just like LoadArgument, can get type or value from stack, call before Cleanup
+    kDispatchCleanup, // must be called after a kDispatch
+
+    // Perhaps just a dispatch, but marked as having the potential for inlining.
+    kBinop
+//    kPhi
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in
@@ -46,11 +53,7 @@ struct HIR {
     int32_t valueNumber;
     std::unordered_set<int32_t> reads;
 
-    // Some things should never be de-depulicated (such as function calls) and so we should skip trying to search
-    // for redefinition and always assign them a unique value.
-    virtual bool isAlwaysUnique() const = 0;
-    // For those things that are not always unique, this function compares the two HIR objects and returns true if
-    // they are *semantically* the same.
+    // Compare two HIR objects and return true if they are *semantically* the same.
     virtual bool isEquivalent(const HIR* hir) const = 0;
 };
 
@@ -61,7 +64,6 @@ struct LoadArgumentHIR : public HIR {
     int32_t index;
     bool loadValue;
 
-    bool isAlwaysUnique() const override;
     bool isEquivalent(const HIR* hir) const override;
 };
 
@@ -70,7 +72,6 @@ struct ConstantHIR : public HIR {
     virtual ~ConstantHIR() = default;
     Slot value;  // TODO: this should collapse to be a word? slot should have a function to return its value as a word
 
-    bool isAlwaysUnique() const override;
     bool isEquivalent(const HIR* hir) const override;
 };
 
@@ -79,8 +80,41 @@ struct StoreReturnHIR : public HIR {
     virtual ~StoreReturnHIR() = default;
     std::pair<int32_t, int32_t> returnValue;
 
-    bool isAlwaysUnique() const override;
     bool isEquivalent(const HIR* hir) const override;
+};
+
+// Private struct to provide the overrides around equivalence, which are all the same for the Dispatch HIR objects.
+struct Dispatch : public HIR {
+    virtual ~Dispatch() = default;
+
+    bool isEquivalent(const HIR* hir) const override;
+
+protected:
+    Dispatch(Opcode op): HIR(op) {}
+};
+
+struct DispatchCallHIR : public Dispatch {
+    DispatchCallHIR(): Dispatch(kDispatchCall) {}
+    virtual ~DispatchCallHIR() = default;
+
+    // Convenience routines that add to respective vectors but also add to the <reads> structure.
+    void addKeywordArgument(std::pair<int32_t, int32_t> keyword, std::pair<int32_t, int32_t> value);
+    void addArgument(std::pair<int32_t, int32_t> argument);
+
+    std::vector<std::pair<int32_t, int32_t>> keywordArguments;
+    std::vector<std::pair<int32_t, int32_t>> arguments;
+};
+
+struct DispatchLoadReturnHIR : public Dispatch {
+    // If |value| is true this will load the value of the return, if false it will load the type.
+    DispatchLoadReturnHIR(bool value): Dispatch(kDispatchLoadReturn), loadValue(value) {}
+    virtual ~DispatchLoadReturnHIR() = default;
+    bool loadValue;
+};
+
+struct DispatchCleanupHIR : public Dispatch {
+    DispatchCleanupHIR(): Dispatch(kDispatchCleanup) {}
+    virtual ~DispatchCleanupHIR() = default;
 };
 
 } // namespace hir

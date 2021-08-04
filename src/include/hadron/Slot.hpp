@@ -19,6 +19,7 @@ public:
         Value(uint8_t* a): machineCodeAddress(a) {}
         Value(Slot* p): slotPointer(p) {}
         Value(nullptr_t): slotPointer(nullptr) {}
+        Value(Hash h): symbolHash(h) {}
         Value(Type t): typeValue(t) {}
 
         int32_t intValue;

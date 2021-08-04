@@ -250,7 +250,7 @@ struct MultiAssignNode : public Node {
 };
 */
 
-// target.selector = value
+// target.selector = value, token should point at selector
 struct SetterNode : public Node {
     SetterNode(size_t index): Node(NodeType::kSetter, index) {}
     virtual ~SetterNode() = default;
