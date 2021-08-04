@@ -33,7 +33,7 @@ enum Opcode {
     kStoreReturn,
     kBinop,
     kDispatch,
-    kPsi
+    kPhi
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in

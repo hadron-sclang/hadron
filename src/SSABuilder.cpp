@@ -9,16 +9,23 @@
 namespace hadron {
 
 SSABuilder::SSABuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter):
-    m_lexer(lexer), m_errorReporter(errorReporter), m_frame(nullptr), m_block(nullptr) { }
+    m_lexer(lexer),
+    m_errorReporter(errorReporter),
+    m_frame(nullptr),
+    m_block(nullptr),
+    m_blockSerial(0),
+    m_valueSerial(0) { }
 
 SSABuilder::~SSABuilder() { }
 
-std::unique_ptr<Frame> SSABuilder::build(const Lexer* lexer, const parse::BlockNode* blockNode) {
+std::unique_ptr<Frame> SSABuilder::buildFrame(const parse::BlockNode* blockNode) {
     assert(blockNode);
     auto frame = std::make_unique<Frame>();
-    // Make an entry block and add to frame.
+    frame->parent = m_frame;
     m_frame = frame.get();
-    frame->blocks.emplace_back(std::make_unique<Block>(m_frame, 0));
+    // Make an entry block and add to frame.
+    frame->blocks.emplace_back(std::make_unique<Block>(m_frame, m_blockSerial));
+    ++m_blockSerial;
     m_block = frame->blocks.begin()->get();
 
     // Build argument name list and default values.
@@ -126,8 +133,15 @@ std::pair<int32_t, int32_t> SSABuilder::buildValue(const parse::Node* node) {
     } break;
 
     case parse::NodeType::kBlock: {
-        // This represents, in fact, the creation of a new *Frame* of scope for local variables. But very odd to
-        // encounter in this kind of context.
+        const auto blockNode = reinterpret_cast<const parse::BlockNode*>(node);
+        Frame* parentFrame = m_frame;
+        auto subFrame = buildFrame(blockNode);
+        parentFrame->subFrames.emplace_back(std::move(subFrame));
+        m_frame = parentFrame;
+        // Think we're recursing in and out of the frame successfully, but what happens to the block or blocks that
+        // get created? How does that get wired into the overall block structure?
+        // TODO: refactor once we have context - could be a block literal, could be part of control flow. Could
+        // also be a HIR Block 
     } break;
 
     case parse::NodeType::kLiteral: {
@@ -135,6 +149,27 @@ std::pair<int32_t, int32_t> SSABuilder::buildValue(const parse::Node* node) {
         nodeValue.first = findOrInsert(std::make_unique<hir::ConstantHIR>(literal->value));
         nodeValue.second = findOrInsert(std::make_unique<hir::ConstantHIR>(
             Slot(Type::kType, Slot::Value(literal->value.type))));
+    } break;
+
+    case parse::NodeType::kName: {
+        const auto name = reinterpret_cast<const parse::NameNode*>(node);
+        nodeValue = findName(m_lexer->tokens()[name->tokenIndex].hash);
+    } break;
+
+    case parse::NodeType::kExprSeq: {
+        const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(node);
+        assert(exprSeq->expr);
+        nodeValue = buildValue(exprSeq->expr.get());
+    } break;
+
+    case parse::NodeType::kAssign: {
+        const auto assign = reinterpret_cast<const parse::AssignNode*>(node);
+        assert(assign->name);
+        assert(assign->value);
+        nodeValue = buildValue(assign->value.get());
+        auto name = m_lexer->tokens()[assign->name->tokenIndex].hash;
+        m_block->nameRevisions[name] = nodeValue.first;
+        m_block->typeRevisions[name] = nodeValue.second;
     } break;
 
     default: // DELETE ME
@@ -157,9 +192,9 @@ int32_t SSABuilder::findOrInsert(std::unique_ptr<hir::HIR> hir) {
             }
         }
     }
-    int32_t valueNumber = m_frame->valueCount;
+    int32_t valueNumber = m_valueSerial;
     hir->valueNumber = valueNumber;
-    ++m_frame->valueCount;
+    ++m_valueSerial;
     m_block->values.emplace(std::make_pair(valueNumber, hir.get()));
     m_block->statements.emplace_back(std::move(hir));
     return valueNumber;

@@ -41,17 +41,15 @@ struct Block {
 // Represents a stack frame, so can have arguments supplied, is a scope for local variables, has an entrance and exit
 // Block.
 struct Frame {
-    Frame(): valueCount(0), parent(nullptr) {}
+    Frame(): parent(nullptr) {}
     ~Frame() = default;
 
     // In-order hashes of argument names.
     std::vector<Hash> argumentOrder;
 
-    // Local Value Numbering uses this to continue to increment value numbering.
-    int32_t valueCount;
-
     Frame* parent;
     std::list<std::unique_ptr<Block>> blocks;
+    std::list<std::unique_ptr<Frame>> subFrames;
 };
 
 // Goes from parse tree to HIR in blocks of HIR in SSA form.
@@ -60,7 +58,7 @@ public:
     SSABuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);
     ~SSABuilder();
 
-    std::unique_ptr<Frame> build(const Lexer* lexer, const parse::BlockNode* blockNode);
+    std::unique_ptr<Frame> buildFrame(const parse::BlockNode* blockNode);
 
 private:
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
@@ -71,10 +69,17 @@ private:
     // an identical value. Returns the value either inserted or re-used. Takes ownership of hir.
     int32_t findOrInsert(std::unique_ptr<hir::HIR> hir);
 
+    // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
+    // to propagate the values back to the currrent block.
+    std::pair<int32_t, int32_t> findName(Hash hash);
+
+
     Lexer* m_lexer;
     std::shared_ptr<ErrorReporter> m_errorReporter;
     Frame* m_frame;
     Block* m_block;
+    int m_blockSerial; // huh, what happens if blocks and values get same serial numbers?
+    int32_t m_valueSerial;
 };
 
 } // namespace hadron
