@@ -3,9 +3,11 @@
 #include "FileSystem.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
+#include "hadron/HIR.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Slot.hpp"
+#include "hadron/SSABuilder.hpp"
 #include "hadron/SyntaxAnalyzer.hpp"
 #include "hadron/Type.hpp"
 #include "Keywords.hpp"
@@ -24,6 +26,7 @@ DEFINE_string(inputFile, "", "path to input file to process");
 DEFINE_string(outputFile, "", "path to output file to save to");
 DEFINE_bool(parseTree, false, "print the parse tree");
 DEFINE_bool(syntaxTree, false, "print the syntax tree");
+DEFINE_bool(ssa, false, "print the SSA tree");
 
 std::string nullOrNo(const hadron::parse::Node* node) {
     if (node) return "";
@@ -684,6 +687,42 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
     }
 }
 
+void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
+    outFile << fmt::format("    block_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n"
+        "        <tr><td bgcolor=\"lightGray\"><b>{}</b></td></tr>\n", block->number, block->number);
+    for (const auto& hir : block->statements) {
+        switch (hir->opcode) {
+        case hadron::hir::Opcode::kLoadArgument: {
+            const auto loadArg = reinterpret_cast<const hadron::hir::LoadArgumentHIR*>(hir.get());
+            outFile << fmt::format("        <tr><td>v<sub>{}</sub> &#8592; LoadArg{}({})</td></tr>\n",
+                loadArg->valueNumber, loadArg->index, loadArg->loadValue ? "Value" : "Type");
+        } break;
+
+        case hadron::hir::Opcode::kConstant: {
+            const auto constant = reinterpret_cast<const hadron::hir::ConstantHIR*>(hir.get());
+            outFile << fmt::format("      <tr><td>v<sub>{}</sub> &#8592; {}</td></tr>\n", constant->valueNumber,
+                printSlot(constant->value));
+        } break;
+        }
+    }
+    //        "<tr><td port=\"keywordArguments\">keywordArguments {}</td></tr></table>>]\n",
+    // Then render the connections to other blocks.
+}
+
+void visualizeFrame(std::ofstream& outFile, int& serial, const hadron::Frame* frame) {
+    int frameSerial = serial;
+    ++serial;
+    // Frames are subgraphs with cluster prefix name so that GraphViz will draw a box around them.
+    outFile << fmt::format("  subgraph cluster_{} {{\n", frameSerial);
+    for (const auto& block : frame->blocks) {
+        visualizeBlock(outFile, block.get());
+    }
+    for (const auto& subFrame : frame->subFrames) {
+        visualizeFrame(outFile, serial, subFrame.get());
+    }
+    outFile << fmt::format("  }}  // end of cluster_{}\n", frameSerial);
+}
+
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
     spdlog::set_level(spdlog::level::debug);
@@ -772,6 +811,19 @@ int main(int argc, char* argv[]) {
         int serial = 0;
         std::map<hadron::Hash, std::string> symbols;
         visualizeAST(outFile, serial, syntaxAnalyzer.ast(), symbols);
+        outFile << "}" << std::endl;
+    } else if (FLAGS_ssa) {
+        hadron::SSABuilder builder(&lexer, errorReporter);
+        // For now we only support Blocks at the top level.
+        if (parser.root()->nodeType != hadron::parse::NodeType::kBlock) {
+            spdlog::error("nonblock root, not building ssa");
+            return -1;
+        }
+        auto frame = builder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
+        outFile << fmt::format("// parse tree visualization of {}\n", FLAGS_inputFile);
+        outFile << "digraph HadronSSA {" << std::endl;
+        int serial = 0;
+        visualizeFrame(outFile, serial, frame.get());
         outFile << "}" << std::endl;
     }
 

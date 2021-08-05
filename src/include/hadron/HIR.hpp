@@ -37,8 +37,6 @@ enum Opcode {
     kDispatchCall,  // save all registers, set up calling stack, represents a modification of the target
     kDispatchLoadReturn,  // just like LoadArgument, can get type or value from stack, call before Cleanup
     kDispatchCleanup, // must be called after a kDispatch
-
-//    kPhi
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in
@@ -68,7 +66,7 @@ struct LoadArgumentHIR : public HIR {
 struct ConstantHIR : public HIR {
     ConstantHIR(const Slot& val): HIR(kConstant), value(val) {}
     virtual ~ConstantHIR() = default;
-    Slot value;  // TODO: this should collapse to be a word? slot should have a function to return its value as a word
+    Slot value;
 
     bool isEquivalent(const HIR* hir) const override;
 };
