@@ -38,8 +38,6 @@ enum Opcode {
     kDispatchLoadReturn,  // just like LoadArgument, can get type or value from stack, call before Cleanup
     kDispatchCleanup, // must be called after a kDispatch
 
-    // Perhaps just a dispatch, but marked as having the potential for inlining.
-    kBinop
 //    kPhi
 };
 
@@ -118,8 +116,6 @@ struct DispatchCleanupHIR : public Dispatch {
 };
 
 } // namespace hir
-
-
 
 } // namespace hadron
 

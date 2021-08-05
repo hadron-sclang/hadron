@@ -213,16 +213,18 @@ std::pair<int32_t, int32_t> SSABuilder::buildValue(const parse::Node* node) {
     } break;
 
     case parse::NodeType::kBinopCall: {
-//        const auto binop = reinterpret_cast<const parse::BinopCallNode*>(node);
-        // Constant folding definitely a thing that can happen, but where? Here? - yes, resolve both left and right
-        // nodes to values. If they both are constants can fold right here. Otherwise we keep as a binop and after
-        // simplification of the type values perhaps can lower to either an arithmetic statement or keep as a
-        // function call.
-    }
+        const auto binop = reinterpret_cast<const parse::BinopCallNode*>(node);
+        auto selector = m_lexer->tokens()[binop->tokenIndex].hash;
+        nodeValue = buildDispatch(binop->leftHand.get(), selector, binop->rightHand.get(), nullptr);
+    } break;
 
-    default: // DELETE ME
-        assert(false);
-        break;
+    case parse::NodeType::kPerformList: {
+        assert(false); // TODO
+    } break;
+
+    case parse::NodeType::kNumericSeries: {
+        assert(false); // TODO
+    } break;
     }
 
     return nodeValue;
@@ -240,10 +242,6 @@ std::pair<int32_t, int32_t> SSABuilder::buildFinalValue(const parse::Node* node)
 
 std::pair<int32_t, int32_t> SSABuilder::buildDispatch(const parse::Node* target, Hash selector,
     const parse::Node* arguments, const parse::KeyValueNode* keywordArguments) {
-    // TODO: this is how the parse tree will represent (at least for now) control flow calls - I think they should
-    // be first-class citizens of the parse tree, to represent their upgraded status in Hadron. It feels weird to be
-    // special-casing a method call for something as impactful as a while loop, if-then, etc.
-
     auto dispatch = std::make_unique<hir::DispatchCallHIR>();
     auto targetValues = buildFinalValue(target);
     // Build argument list starting with target argument as `this`.
