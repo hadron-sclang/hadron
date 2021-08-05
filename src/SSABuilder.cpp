@@ -55,12 +55,7 @@ std::unique_ptr<Frame> SSABuilder::buildFrame(const parse::BlockNode* blockNode)
                 // parse error. Or, there's going to have to be an *if* block added to each variable in turn with
                 // something like `if variable missing then do init expr` which just seems terrible.
                 // For now we just do assignments with the LoadArgument opcode.
-                m_block->nameRevisions[name] = insert(std::make_unique<hir::LoadArgumentHIR>(argIndex, true));
-                // TODO: the type of any argument should always be kAny, to inform the type deduction system that
-                // we cannot assume the type of any argument. But we may need to execute the instruction at runtime to
-                // load the type. Perhaps there's a pass while cleaning up type phis where we can interpret this HIR as
-                // essentially a constant.
-                m_block->typeRevisions[name] = insert(std::make_unique<hir::LoadArgumentHIR>(argIndex, false));
+                m_block->revisions[name] = insert(std::make_unique<hir::LoadArgumentHIR>(m_frame, argIndex));
                 ++argIndex;
                 varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
             }
@@ -71,19 +66,18 @@ std::unique_ptr<Frame> SSABuilder::buildFrame(const parse::BlockNode* blockNode)
 
     // Variable definitions are allowed inline in Hadron, so we process variable definitions just like expression
     // sequences in the main body.
-    std::pair<int32_t, int32_t> finalValue = std::make_pair(-1, -1);
     if (blockNode->variables) {
-        finalValue = buildFinalValue(blockNode->variables.get());
+        buildFinalValue(blockNode->variables.get());
     }
     if (blockNode->body) {
-        finalValue = buildFinalValue(blockNode->body.get());
+        buildFinalValue(blockNode->body.get());
     }
-    // TODO: what to do with finalValue?
+
     return frame;
 }
 
-std::pair<int32_t, int32_t> SSABuilder::buildValue(const parse::Node* node) {
-    std::pair<int32_t, int32_t> nodeValue = std::make_pair(-1, -1);
+Value SSABuilder::buildValue(const parse::Node* node) {
+    Value nodeValue;
     switch(node->nodeType) {
     case parse::NodeType::kEmpty:
         assert(false); // kEmpty is invalid node type.
@@ -95,15 +89,11 @@ std::pair<int32_t, int32_t> SSABuilder::buildValue(const parse::Node* node) {
         // TODO: error reporting for variable redefinition
         if (varDef->initialValue) {
             nodeValue = buildFinalValue(varDef->initialValue.get());
-            m_block->nameRevisions[nameToken.hash] = nodeValue.first;
-            m_block->typeRevisions[nameToken.hash] = nodeValue.second;
+            m_block->revisions[nameToken.hash] = nodeValue;
         } else {
             auto initialValue = std::make_unique<hir::ConstantHIR>(Slot());
-            nodeValue.first = findOrInsert(std::move(initialValue));
-            m_block->nameRevisions[nameToken.hash] = nodeValue.first;
-            auto initialType = std::make_unique<hir::ConstantHIR>(Slot(Type::kType, Slot::Value(Type::kNil)));
-            nodeValue.second = findOrInsert(std::move(initialType));
-            m_block->typeRevisions[nameToken.hash] = nodeValue.second;
+            nodeValue = findOrInsert(std::move(initialValue));
+            m_block->revisions[nameToken.hash] = nodeValue;
         }
     } break;
 
@@ -126,7 +116,7 @@ std::pair<int32_t, int32_t> SSABuilder::buildValue(const parse::Node* node) {
         const auto returnNode = reinterpret_cast<const parse::ReturnNode*>(node);
         assert(returnNode->valueExpr);
         nodeValue = buildFinalValue(returnNode->valueExpr.get());
-        findOrInsert(std::make_unique<hir::StoreReturnHIR>(nodeValue));
+        findOrInsert(std::make_unique<hir::StoreReturnHIR>(m_frame, nodeValue));
     } break;
 
     case parse::NodeType::kDynList: {
@@ -164,9 +154,7 @@ std::pair<int32_t, int32_t> SSABuilder::buildValue(const parse::Node* node) {
 
     case parse::NodeType::kLiteral: {
         const auto literal = reinterpret_cast<const parse::LiteralNode*>(node);
-        nodeValue.first = findOrInsert(std::make_unique<hir::ConstantHIR>(literal->value));
-        nodeValue.second = findOrInsert(std::make_unique<hir::ConstantHIR>(
-            Slot(Type::kType, Slot::Value(literal->value.type))));
+        nodeValue = findOrInsert(std::make_unique<hir::ConstantHIR>(literal->value));
     } break;
 
     case parse::NodeType::kName: {
@@ -188,8 +176,7 @@ std::pair<int32_t, int32_t> SSABuilder::buildValue(const parse::Node* node) {
         assert(assign->value);
         nodeValue = buildFinalValue(assign->value.get());
         auto name = m_lexer->tokens()[assign->name->tokenIndex].hash;
-        m_block->nameRevisions[name] = nodeValue.first;
-        m_block->typeRevisions[name] = nodeValue.second;
+        m_block->revisions[name] = nodeValue;
     } break;
 
     case parse::NodeType::kSetter: {
@@ -230,8 +217,8 @@ std::pair<int32_t, int32_t> SSABuilder::buildValue(const parse::Node* node) {
     return nodeValue;
 }
 
-std::pair<int32_t, int32_t> SSABuilder::buildFinalValue(const parse::Node* node) {
-    auto finalValue = std::make_pair(-1, -1);
+Value SSABuilder::buildFinalValue(const parse::Node* node) {
+    Value finalValue;
     while (node) {
         finalValue = buildValue(node);
         node = node->next.get();
@@ -240,16 +227,14 @@ std::pair<int32_t, int32_t> SSABuilder::buildFinalValue(const parse::Node* node)
     return finalValue;
 }
 
-std::pair<int32_t, int32_t> SSABuilder::buildDispatch(const parse::Node* target, Hash selector,
-    const parse::Node* arguments, const parse::KeyValueNode* keywordArguments) {
+Value SSABuilder::buildDispatch(const parse::Node* target, Hash selector, const parse::Node* arguments,
+        const parse::KeyValueNode* keywordArguments) {
     auto dispatch = std::make_unique<hir::DispatchCallHIR>();
-    auto targetValues = buildFinalValue(target);
+    auto targetValue = buildFinalValue(target);
     // Build argument list starting with target argument as `this`.
-    dispatch->addArgument(targetValues);
-    // Next is selector added as a symbol.
-    dispatch->addArgument(std::make_pair(
-        findOrInsert(std::make_unique<hir::ConstantHIR>(Slot(Type::kSymbol, Slot::Value(selector)))),
-        findOrInsert(std::make_unique<hir::ConstantHIR>(Slot(Type::kType, Slot::Value(Type::kSymbol))))));
+    dispatch->addArgument(targetValue);
+    // Next is selector added as a symbol constant.
+    dispatch->addArgument(findOrInsert(std::make_unique<hir::ConstantHIR>(Slot(Type::kSymbol, Slot::Value(selector)))));
     // Now append any additional arguments.
     while (arguments) {
         dispatch->addArgument(buildValue(arguments));
@@ -257,34 +242,32 @@ std::pair<int32_t, int32_t> SSABuilder::buildDispatch(const parse::Node* target,
     }
     // Now append any keyword arguments.
     while (keywordArguments) {
+        assert(keywordArguments->nodeType == parse::NodeType::kKeyValue);
         auto keyName = m_lexer->tokens()[keywordArguments->tokenIndex].hash;
-        dispatch->addKeywordArgument(std::make_pair(
+        dispatch->addKeywordArgument(
             findOrInsert(std::make_unique<hir::ConstantHIR>(Slot(Type::kSymbol, Slot::Value(keyName)))),
-            findOrInsert(std::make_unique<hir::ConstantHIR>(Slot(Type::kType, Slot::Value(Type::kSymbol))))),
             buildFinalValue(keywordArguments->value.get()));
         keywordArguments = reinterpret_cast<const parse::KeyValueNode*>(keywordArguments->next.get());
     }
 
-    // Add the dispatch call and get the updated value number for the target, to record the mutation.
-    int32_t updatedTarget = insert(std::move(dispatch));
+    // Add the dispatch call and get the updated value number for the target, to record the mutation of the target.
+    Value updatedTarget = insert(std::move(dispatch));
     // Do a reverse search on local names to update their values to new target as needed. Type is assumed to be
     // invariant for the target. If this was an anonymous target nothing will be updated, but if there were
     // local names that were tracking the target value they must be updated to reflect any modifications
     // by the setter call.
-    for (auto iter : m_block->nameRevisions) {
-        if (iter.second == targetValues.first) {
+    for (auto iter : m_block->revisions) {
+        if (iter.second == targetValue) {
             iter.second = updatedTarget;
         }
     }
 
-    std::pair<int32_t, int32_t> returnValue;
-    returnValue.first = insert(std::make_unique<hir::DispatchLoadReturnHIR>(true));
-    returnValue.second = insert(std::make_unique<hir::DispatchLoadReturnHIR>(false));
+    Value returnValue = insert(std::make_unique<hir::DispatchLoadReturnHIR>());
     insert(std::make_unique<hir::DispatchCleanupHIR>());
     return returnValue;
 }
 
-int32_t SSABuilder::findOrInsert(std::unique_ptr<hir::HIR> hir) {
+Value SSABuilder::findOrInsert(std::unique_ptr<hir::HIR> hir) {
     // Walk through block looking for equivalent exising HIR.
     for (const auto hirPair : m_block->values) {
         if (hirPair.second->isEquivalent(hir.get())) {
@@ -294,13 +277,25 @@ int32_t SSABuilder::findOrInsert(std::unique_ptr<hir::HIR> hir) {
     return insert(std::move(hir));
 }
 
-int32_t SSABuilder::insert(std::unique_ptr<hir::HIR> hir) {
-    int32_t valueNumber = m_valueSerial;
-    hir->valueNumber = valueNumber;
-    ++m_valueSerial;
-    m_block->values.emplace(std::make_pair(valueNumber, hir.get()));
+Value SSABuilder::insert(std::unique_ptr<hir::HIR> hir) {
+    auto valueNumber = m_valueSerial;
+    auto value = hir->proposeValue(valueNumber);
+    // We don't bump the value serial for invalid values (meaning read-only operations)
+    if (value.isValid()) {
+        ++m_valueSerial;
+        m_block->values.emplace(std::make_pair(value, hir.get()));
+    }
     m_block->statements.emplace_back(std::move(hir));
-    return valueNumber;
+    return value;
+}
+
+Value SSABuilder::findName(Hash name) {
+    // TODO: out-of-block searches.
+    auto rev = m_block->revisions.find(name);
+    if (rev == m_block->revisions.end()) {
+        return Value();
+    }
+    return rev->second;
 }
 
 } // namespace hadron

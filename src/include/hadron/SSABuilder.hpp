@@ -23,20 +23,23 @@ struct Node;
 } // namespace parse
 
 struct Frame;
+
 struct Block {
     Block(Frame* owningFrame, int blockNumber): frame(owningFrame), number(blockNumber) {}
 
     // Value numbers are frame-wide but for LVN the value lookups are block-local, because extra-block values
-    // need to go through a psi function in this Block.
-    std::unordered_map<int32_t, hir::HIR*> values;
-    // Map of named values to value numbers TODO: switch to single map of pairs
-    std::unordered_map<Hash, int32_t> nameRevisions;
-    std::unordered_map<Hash, int32_t> typeRevisions;
+    // need to go through a Phi function in this Block.
+    std::unordered_map<Value, hir::HIR*> values;
+    // Map of names (variables, arguments) to most recent revision of values.
+    std::unordered_map<Hash, Value> revisions;
 
+    // Owning frame of this block.
     Frame* frame;
+    // Unique block number.
     int number;
     std::list<Block*> predecessors;
     std::list<Block*> successors;
+    // Statements in order of execution.
     std::list<std::unique_ptr<hir::HIR>> statements;
 };
 
@@ -66,28 +69,29 @@ private:
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not
     // iterate to process the |node->next| pointer. Call buildFinalValue() to do that.
-    std::pair<int32_t, int32_t> buildValue(const parse::Node* node);
-    std::pair<int32_t, int32_t> buildFinalValue(const parse::Node* node);
-    std::pair<int32_t, int32_t> buildDispatch(const parse::Node* target, Hash selector, const parse::Node* arguments,
+    Value buildValue(const parse::Node* node);
+    Value buildFinalValue(const parse::Node* node);
+    Value buildDispatch(const parse::Node* target, Hash selector, const parse::Node* arguments,
         const parse::KeyValueNode* keywordArguments);
 
     // Algorithm is to iterate through all previously defined values *in the block* to see if they have already defined
     // an identical value. Returns the value either inserted or re-used. Takes ownership of hir.
-    int32_t findOrInsert(std::unique_ptr<hir::HIR> hir);
-    int32_t insert(std::unique_ptr<hir::HIR> hir);
+    Value findOrInsert(std::unique_ptr<hir::HIR> hir);
+    Value insert(std::unique_ptr<hir::HIR> hir);
 
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
     // tables.
-    std::pair<int32_t, int32_t> findName(Hash name);
-
+    Value findName(Hash name);
+    // Returns the local value number after insertion, is this needed?
+    // Value findValue(Value v);
 
     Lexer* m_lexer;
     std::shared_ptr<ErrorReporter> m_errorReporter;
     Frame* m_frame;
     Block* m_block;
     int m_blockSerial; // huh, what happens if blocks and values get same serial numbers?
-    int32_t m_valueSerial;
+    uint32_t m_valueSerial;
 };
 
 } // namespace hadron

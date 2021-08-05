@@ -4,33 +4,42 @@ namespace hadron {
 
 namespace hir {
 
-//////////////////////
+//////////////////////////
 // LoadArgumentHIR
-
 bool LoadArgumentHIR::isEquivalent(const HIR* hir) const {
     if (hir->opcode != kLoadArgument) {
         return false;
     }
     const auto loadArg = reinterpret_cast<const LoadArgumentHIR*>(hir);
-    return (index == loadArg->index) && (loadValue == loadArg->loadValue);
+    return (frame == loadArg->frame) && (index == loadArg->index);
 }
 
-//////////////////////
-// ConstantHIR
+Value LoadArgumentHIR::proposeValue(uint32_t number) {
+    value.number = number;
+    value.typeFlags = Type::kAny;
+    return value;
+}
 
+//////////////////////////
+// ConstantHIR
 bool ConstantHIR::isEquivalent(const HIR* hir) const {
     if (hir->opcode != kConstant) {
         return false;
     }
-    const auto constant = reinterpret_cast<const ConstantHIR*>(hir);
-    return value == constant->value;
+    const auto constantHIR = reinterpret_cast<const ConstantHIR*>(hir);
+    return (constant == constantHIR->constant);
 }
 
-//////////////////////
+Value ConstantHIR::proposeValue(uint32_t number) {
+    value.number = number;
+    value.typeFlags = constant.type;
+    return value;
+}
+
+//////////////////////////
 // StoreReturnHIR
-StoreReturnHIR::StoreReturnHIR(std::pair<int32_t, int32_t> retVal): HIR(kStoreReturn), returnValue(retVal) {
-    reads.emplace(returnValue.first);
-    reads.emplace(returnValue.second);
+StoreReturnHIR::StoreReturnHIR(Frame* f, Value retVal): HIR(kStoreReturn), frame(f), returnValue(retVal) {
+    reads.emplace(retVal);
 }
 
 bool StoreReturnHIR::isEquivalent(const HIR* hir) const {
@@ -38,30 +47,56 @@ bool StoreReturnHIR::isEquivalent(const HIR* hir) const {
         return false;
     }
     const auto storeReturn = reinterpret_cast<const StoreReturnHIR*>(hir);
-    return returnValue == storeReturn->returnValue;
+    return (frame == storeReturn->frame) && (returnValue == storeReturn->returnValue);
 }
 
-//////////////////////
+Value StoreReturnHIR::proposeValue(uint32_t /* number */) {
+    value.number = 0;
+    value.typeFlags = 0;
+    return value;
+}
+
+//////////////////////////
 // Dispatch
 bool Dispatch::isEquivalent(const HIR* /* hir */) const {
     return false;
 }
 
-//////////////////////
+//////////////////////////
 // DispatchCallHIR
-void DispatchCallHIR::addKeywordArgument(std::pair<int32_t, int32_t> keyword, std::pair<int32_t, int32_t> value) {
-    reads.insert(keyword.first);
-    reads.insert(keyword.second);
-    keywordArguments.emplace_back(keyword);
-    reads.insert(value.first);
-    reads.insert(value.second);
-    keywordArguments.emplace_back(value);
+void DispatchCallHIR::addKeywordArgument(Value key, Value keyValue) {
+    reads.insert(key);
+    keywordArguments.emplace_back(key);
+    reads.insert(keyValue);
+    keywordArguments.emplace_back(keyValue);
 }
 
-void DispatchCallHIR::addArgument(std::pair<int32_t, int32_t> argument) {
-    reads.insert(argument.first);
-    reads.insert(argument.second);
+void DispatchCallHIR::addArgument(Value argument) {
+    reads.insert(argument);
     arguments.emplace_back(argument);
+}
+
+Value DispatchCallHIR::proposeValue(uint32_t number) {
+    value.number = number;
+    assert(arguments.size());
+    value.typeFlags = arguments[0].typeFlags;
+    return value;
+}
+
+//////////////////////////
+// DispatchLoadReturnHIR
+Value DispatchLoadReturnHIR::proposeValue(uint32_t number) {
+    value.number = number;
+    value.typeFlags = Type::kAny;
+    return value;
+}
+
+//////////////////////////
+// DispatchCleanupHIR
+Value DispatchCleanupHIR::proposeValue(uint32_t /* number */) {
+    value.number = 0;
+    value.typeFlags = 0;
+    return value;
 }
 
 

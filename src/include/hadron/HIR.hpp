@@ -4,6 +4,7 @@
 #include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
 
+#include <functional>
 #include <list>
 #include <memory>
 #include <string>
@@ -24,7 +25,37 @@
 // assignments, I think, as we can treat them like parallel values.
 namespace hadron {
 
+
+// Represents a pair of value number (for Local Value Numbering during SSA form construction) and Type flags created
+// by ORing the Types of variables together across Phi nodes.
+struct Value {
+    // A typeFlag of 0 represents an invalid Value.
+    Value(): number(0), typeFlags(0) {}
+    Value(uint32_t num, uint32_t flags): number(num), typeFlags(flags) {}
+    ~Value() = default;
+    bool isValid() const { return typeFlags != 0; }
+    bool operator==(const Value& v) const { return number == v.number; }
+
+    uint32_t number;
+    uint32_t typeFlags;
+};
+
+} // namespace hadron
+
+// Inject a hash template specialization for Value into the std namespace, so we can use Values as keys in STL
+// maps and sets. Note that we only key off the number in a Value.
+namespace std {
+template<> struct hash<hadron::Value> {
+    std::size_t operator()(const hadron::Value & v) const noexcept {
+        return std::hash<uint32_t>{}(v.number);
+    }
+};
+} // namespace std
+
+namespace hadron {
+
 struct Block;
+struct Frame;
 
 namespace hir {
 
@@ -43,39 +74,50 @@ enum Opcode {
 // the reads member.
 struct HIR {
     HIR() = delete;
-    explicit HIR(Opcode op): opcode(op), valueNumber(-1) {}
+    explicit HIR(Opcode op): opcode(op) {}
     virtual ~HIR() = default;
     Opcode opcode;
-    int32_t valueNumber;
-    std::unordered_set<int32_t> reads;
+    Value value;
+    std::unordered_set<Value> reads;
 
+    // Recommended way to set the |value| member. Allows the HIR object to modify the proposed value type. For
+    // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
+    // that this operation is read-only.
+    virtual Value proposeValue(uint32_t number) = 0;
     // Compare two HIR objects and return true if they are *semantically* the same.
     virtual bool isEquivalent(const HIR* hir) const = 0;
 };
 
+// Loads the argument at |index| from the stack.
 struct LoadArgumentHIR : public HIR {
-    // If value is true this will load the value of the argument, if false it will load the type.
-    LoadArgumentHIR(int32_t argIndex, bool value): HIR(kLoadArgument), index(argIndex), loadValue(value) {}
+    LoadArgumentHIR(Frame* f, int argIndex): HIR(kLoadArgument), frame(f), index(argIndex) {}
     virtual ~LoadArgumentHIR() = default;
-    int32_t index;
-    bool loadValue;
+    Frame* frame;
+    int index;
 
+    // Forces the kAny type for all arguments.
+    Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
 };
 
 struct ConstantHIR : public HIR {
-    ConstantHIR(const Slot& val): HIR(kConstant), value(val) {}
+    ConstantHIR(const Slot& c): HIR(kConstant), constant(c) {}
     virtual ~ConstantHIR() = default;
-    Slot value;
+    Slot constant;
 
+    // Forces the type of the |constant| Slot.
+    Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
 };
 
 struct StoreReturnHIR : public HIR {
-    StoreReturnHIR(std::pair<int32_t, int32_t> retVal);
+    StoreReturnHIR(Frame* f, Value retVal);
     virtual ~StoreReturnHIR() = default;
-    std::pair<int32_t, int32_t> returnValue;
+    Frame* frame;
+    Value returnValue;
 
+    // Always returns an invalid value, as this is a read-only operation.
+    Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
 };
 
@@ -94,23 +136,31 @@ struct DispatchCallHIR : public Dispatch {
     virtual ~DispatchCallHIR() = default;
 
     // Convenience routines that add to respective vectors but also add to the <reads> structure.
-    void addKeywordArgument(std::pair<int32_t, int32_t> keyword, std::pair<int32_t, int32_t> value);
-    void addArgument(std::pair<int32_t, int32_t> argument);
+    void addKeywordArgument(Value key, Value keyValue);
+    void addArgument(Value argument);
 
-    std::vector<std::pair<int32_t, int32_t>> keywordArguments;
-    std::vector<std::pair<int32_t, int32_t>> arguments;
+    std::vector<Value> keywordArguments;
+    std::vector<Value> arguments;
+
+    // Copies the type of its first argument, which is the this pointer for the dispatch, and doesn't change.
+    Value proposeValue(uint32_t number) override;
 };
 
+// TODO: Could make this "read" the return value of the DispatchCall, to make the dependency clear
 struct DispatchLoadReturnHIR : public Dispatch {
-    // If |value| is true this will load the value of the return, if false it will load the type.
-    DispatchLoadReturnHIR(bool value): Dispatch(kDispatchLoadReturn), loadValue(value) {}
+    DispatchLoadReturnHIR(): Dispatch(kDispatchLoadReturn) {}
     virtual ~DispatchLoadReturnHIR() = default;
-    bool loadValue;
+
+    // Forces the kAny type for the return.
+    Value proposeValue(uint32_t number) override;
 };
 
 struct DispatchCleanupHIR : public Dispatch {
     DispatchCleanupHIR(): Dispatch(kDispatchCleanup) {}
     virtual ~DispatchCleanupHIR() = default;
+
+    // Always returns an invalid value, as this is a read-only operation.
+    Value proposeValue(uint32_t number) override;
 };
 
 } // namespace hir
