@@ -124,51 +124,12 @@ struct ReturnNode : public Node {
     std::unique_ptr<Node> valueExpr;
 };
 
-/*
-struct SlotNode : public Node {
-    SlotNode();
-    virtual ~SlotNode() = default;
-};
-
-struct DynDictNode : public Node {
-    DynDictNode();
-    virtual ~DynDictNode() = default;
-};
-*/
-
 struct DynListNode : public Node {
     DynListNode(size_t index): Node(NodeType::kDynList, index) {}
     virtual ~DynListNode() = default;
 
     std::unique_ptr<Node> elements;
 };
-
-/*
-struct LitListNode : public Node {
-    LitListNode();
-    virtual ~LitListNode() = default;
-};
-
-struct LitDictNode : public Node {
-    LitDictNode();
-    virtual ~LitDictNode() = default;
-};
-
-struct StaticVarListNode : public Node {
-    StaticVarListNode();
-    virtual ~StaticVarListNode() = default;
-};
-
-struct InstVarListNode : public Node {
-    InstVarListNode();
-    virtual ~InstVarListNode() = default;
-};
-
-struct PoolVarListNode : public Node {
-    PoolVarListNode();
-    virtual ~PoolVarListNode() = default;
-};
-*/
 
 struct LiteralNode : public Node {
     LiteralNode(size_t index, const Slot& v): Node(NodeType::kLiteral, index), value(v) {}
@@ -214,18 +175,6 @@ struct BinopCallNode : public Node {
     std::unique_ptr<Node> rightHand;
 };
 
-// DropNodes in LSC represent exprs that could be potentially dropped, such that
-// "1; 2; 3;" would result in expr "1" and "2" being dropped and never being evaluated.
-// This is a parse tree transformation that we would prefer to do as a separate step.
-// The different optimization steps will be easier to design, configure, and verify if
-// they happen in discrete steps, rather than all at once.
-/*
-struct DropNode : public Node {
-    DropNode();
-    virtual ~DropNode() = default;
-};
-*/
-
 struct ExprSeqNode : public Node {
     ExprSeqNode(size_t index, std::unique_ptr<Node> firstExpr):
         Node(NodeType::kExprSeq, index), expr(std::move(firstExpr)) {}
@@ -243,13 +192,6 @@ struct AssignNode : public Node {
     std::unique_ptr<Node> value;
 };
 
-/*
-struct MultiAssignNode : public Node {
-    MultiAssignNode();
-    virtual ~MultiAssignNode() = default;
-};
-*/
-
 // target.selector = value, token should point at selector
 struct SetterNode : public Node {
     SetterNode(size_t index): Node(NodeType::kSetter, index) {}
@@ -259,18 +201,6 @@ struct SetterNode : public Node {
     std::unique_ptr<Node> target;
     std::unique_ptr<Node> value;
 };
-
-/*
-struct CurryArgNode : public Node {
-    CurryArgNode();
-    virtual ~CurryArgNode() = default;
-};
-
-struct BlockReturnNode : public Node {
-    BlockReturnNode();
-    virtual ~BlockReturnNode() = default;
-};
-*/
 
 // Below nodes are higher-level syntax constructs that LSC processes into lower-level function calls during parsing.
 // We keep these high-level for first parsing pass.
@@ -311,44 +241,6 @@ public:
 
 private:
     bool next();
-
-    std::unique_ptr<parse::Node> parseRoot();
-
-    std::unique_ptr<parse::ClassNode> parseClass();
-    std::unique_ptr<parse::ClassExtNode> parseClassExtension();
-    std::unique_ptr<parse::Node> parseCmdLineCode();
-
-    std::unique_ptr<parse::VarListNode> parseClassVarDecls();
-    std::unique_ptr<parse::VarListNode> parseClassVarDecl();
-    std::unique_ptr<parse::MethodNode> parseMethods();
-    std::unique_ptr<parse::MethodNode> parseMethod();
-    std::unique_ptr<parse::VarListNode> parseFuncVarDecls();
-    std::unique_ptr<parse::VarListNode> parseFuncVarDecl();
-    std::unique_ptr<parse::Node> parseFuncBody();
-
-    std::unique_ptr<parse::VarListNode> parseRWVarDefList();
-    std::unique_ptr<parse::VarDefNode> parseRWVarDef();
-    std::unique_ptr<parse::VarListNode> parseConstDefList();
-    std::unique_ptr<parse::VarDefNode> parseConstDef();
-    std::unique_ptr<parse::VarListNode> parseVarDefList();
-    std::unique_ptr<parse::VarDefNode> parseVarDef();
-    std::unique_ptr<parse::VarListNode> parseSlotDefList();
-    std::unique_ptr<parse::VarDefNode> parseSlotDef();
-    std::unique_ptr<parse::ArgListNode> parseArgDecls();
-
-    std::unique_ptr<parse::Node> parseMethodBody();
-    std::unique_ptr<parse::Node> parseExprSeq();
-    std::unique_ptr<parse::Node> parseExpr(bool captureSuffixes = true);
-
-    // If the current token is a literal, or a unary negation token followed by an int or float literal, consumes those
-    // tokens and returns a LiteralNode with the value. Otherwise consumes no tokens and returns nullptr.
-    std::unique_ptr<parse::LiteralNode> parseLiteral();
-
-    std::unique_ptr<parse::Node> parseArrayElements();
-    std::unique_ptr<parse::Node> parseArgList();
-    std::unique_ptr<parse::KeyValueNode> parseKeywordArgList();
-    std::unique_ptr<parse::Node> parseBlockList();
-    std::unique_ptr<parse::Node> parseBlockOrGenerator();
 
     std::unique_ptr<Lexer> m_ownLexer;
     Lexer* m_lexer;

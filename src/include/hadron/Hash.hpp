@@ -1,6 +1,7 @@
-#ifndef SRC_HASH_HPP_
-#define SRC_HASH_HPP_
+#ifndef SRC_INCLUDE_HADRON_HASH_HPP_
+#define SRC_INCLUDE_HADRON_HASH_HPP_
 
+#include <functional>
 #include <string_view>
 
 namespace hadron {
@@ -12,6 +13,6 @@ using Hash = uint64_t;
 Hash hash(std::string_view symbol);
 Hash hash(const char* symbol, size_t length);
 
-}  // hadron;
+}  // namespace hadron
 
-#endif // SRC_HASH_HPP_
+#endif // SRC_INCLUDE_HADRON_HASH_HPP_
