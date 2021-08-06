@@ -2,7 +2,7 @@
 #define SRC_SYNTAX_ANALYZER_HPP_
 
 #include "hadron/Hash.hpp"
-#include "hadron/Literal.hpp"
+#include "hadron/Slot.hpp"
 #include "hadron/Type.hpp"
 
 #include <list>
@@ -45,7 +45,7 @@ namespace ast {
         virtual ~AST() = default;
 
         ASTType astType;
-        Type valueType = Type::kSlot;
+        Type valueType = Type::kAny;
     };
 
     struct ValueAST;
@@ -116,12 +116,12 @@ namespace ast {
     };
 
     struct ConstantAST : public AST {
-        ConstantAST(const Literal& literal): AST(kConstant), value(literal) {
-            valueType = value.type();
+        ConstantAST(const Slot& literal): AST(kConstant), value(literal) {
+            valueType = value.type;
         }
         ConstantAST() = delete;
         virtual ~ConstantAST() = default;
-        Literal value;
+        Slot value;
     };
 
     struct WhileAST : public AST {
@@ -154,7 +154,7 @@ namespace ast {
 
         std::unordered_map<Hash, Value> variables;
         std::unordered_map<Hash, Value> classVariables;
-        std::unordered_map<Hash, Literal> constants;
+        std::unordered_map<Hash, Slot> constants;
         std::unordered_map<Hash, std::unique_ptr<BlockAST>> methods;
         std::unordered_map<Hash, std::unique_ptr<BlockAST>> classMethods;
         // Values store their names in the struct. For the constants and methods we store the name here.

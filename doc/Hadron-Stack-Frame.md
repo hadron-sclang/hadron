@@ -17,8 +17,8 @@ entry point the stack is laid out as follows:
 | `fp` + 1      | Caller Return Address  |               |
 | `fp`          | Return Value Slot      |               |
 |               | < dispatch work area > |               |
-|               | Argument 0             | `sp` + n      |
-|               | Argument 1             | `sp` + n - 1  |
+|               | Argument 0 (this)      | `sp` + n      |
+|               | Argument 1 (selector)  | `sp` + n - 1  |
 |               |  ...                   |  ...          |
 |               | Argument n - 1         | `sp` + 1      |
 |               | < register spill area> | `sp`          |
@@ -34,23 +34,23 @@ To dispatch a method the caller must first determine the callee frame pointer lo
 previous frame pointer storage, the caller return address, and the return value slot, initalized to `nil`. Then the
 dispatch area is setup as follows:
 
-| frame pointer | contents                | stack pointer |
-|---------------|-------------------------|---------------|
-| `fp`          | Return Value Slot       |               |
-| `fp` + 1      | Target Name Hash        |               |
-| `fp` + 2      | Selector Name Hash      |               |
-| `fp` + 3      | Number of Keyword Args  |               |
-| `fp` + 4      | Number of In-order Args |               |
-| `fp` + 5      | Keyword Arg 0 Keyword   |               |
-| `fp` + 6      | Keyword Arg 0 Value     |               |
-|  ...          | ...                     |               |
-|               | Argument 0              | `sp` + n      |
+| frame pointer | contents                   | stack pointer |
+|---------------|----------------------------|---------------|
+| `fp`          | Return Value Slot          |               |
+| `fp` - 1      | Number of Keyword Args * 2 |               |
+| `fp` - 2      | Number of In-order Args    |               |
+| `fp` - 3      | Keyword Arg 0 Keyword      |               |
+| `fp` - 4      | Keyword Arg 0 Value        |               |
+|  ...          | ...                        |               |
+|               | Argument 0 (this)          | `sp` + n      |
+|               | Argument 1 (selector)      | `sp` + n - 1  |
 
-With the hashes and argument counts, followed by the keyword/value argument pairs, taking up the space in the dispatch
-work area. Note that `fp` and `sp` are already set up for the function call. The dispatch code can find the target
-function, append any arguments from the inorder list that were ommitted from the originating code by consulting the
-defaults list (and fixing up `sp`), and then override any values in the argument stack by iterating through the provided
-keyword arguments. Then the dispatch jumps directly into the callee code.
+Note that the argument counts, followed by the keyword/value argument pairs, take up the space in the dispatch work
+area. The design is such that `fp` and `sp` are already set up for the function call. The first two arguments are always
+the method target (the `this` pointer) and a Symbol selector. The dispatch code can find the target function, append any
+arguments from the inorder list that were ommitted from the originating code by consulting the defaults list (and fixing
+up `sp`), and then override any values in the argument stack by iterating through the provided keyword arguments. Then
+the dispatch jumps directly into the callee code.
 
 As Hadron does not use the application stack there are no `call` or `ret` instructions, only `jmp` and stack
 manipulation. To return from machine code it is a matter of jumping back to the caller return address provided at `fp` +

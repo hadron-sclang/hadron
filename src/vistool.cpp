@@ -3,9 +3,11 @@
 #include "FileSystem.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
+#include "hadron/HIR.hpp"
 #include "hadron/Lexer.hpp"
-#include "hadron/Literal.hpp"
 #include "hadron/Parser.hpp"
+#include "hadron/Slot.hpp"
+#include "hadron/SSABuilder.hpp"
 #include "hadron/SyntaxAnalyzer.hpp"
 #include "hadron/Type.hpp"
 #include "Keywords.hpp"
@@ -24,6 +26,7 @@ DEFINE_string(inputFile, "", "path to input file to process");
 DEFINE_string(outputFile, "", "path to output file to save to");
 DEFINE_bool(parseTree, false, "print the parse tree");
 DEFINE_bool(syntaxTree, false, "print the syntax tree");
+DEFINE_bool(ssa, false, "print the SSA tree");
 
 std::string nullOrNo(const hadron::parse::Node* node) {
     if (node) return "";
@@ -35,7 +38,7 @@ std::string trueFalse(bool v) {
     return "false";
 }
 
-std::string printType(const hadron::Type type) {
+std::string printType(const uint32_t type) {
     switch (type) {
         case hadron::Type::kNil:
             return "(nil)";
@@ -64,8 +67,8 @@ std::string printType(const hadron::Type type) {
         case hadron::Type::kArray:
             return "(array)";
 
-        case hadron::Type::kSlot:
-            return "(slot)";
+        case hadron::Type::kAny:
+            return "(*any*)";
 
         case hadron::Type::kMachineCodePointer:
             return "(machine code)";
@@ -75,22 +78,64 @@ std::string printType(const hadron::Type type) {
 
         case hadron::Type::kStackPointer:
             return "(stack pointer)";
+
+        case hadron::Type::kType:
+            return "(type)";
     }
 
-    return "(unknown type!)";
+    // Must be a compound type, build.
+    std::vector<std::string> types;
+    if (type & hadron::Type::kNil) {
+        types.emplace_back("nil");
+    }
+    if (type & hadron::Type::kInteger) {
+        types.emplace_back("int");
+    }
+    if (type & hadron::Type::kFloat) {
+        types.emplace_back("float");
+    }
+    if (type & hadron::Type::kBoolean) {
+        types.emplace_back("bool");
+    }
+    if (type & hadron::Type::kString) {
+        types.emplace_back("string");
+    }
+    if (type & hadron::Type::kSymbol) {
+        types.emplace_back("symbol");
+    }
+    if (type & hadron::Type::kClass) {
+        types.emplace_back("class");
+    }
+    if (type & hadron::Type::kObject) {
+        types.emplace_back("object");
+    }
+    if (type & hadron::Type::kArray) {
+        types.emplace_back("array");
+    }
+
+    if (types.size() == 0) {
+        return "(unknown type!)";
+    }
+    assert(types.size() > 2);
+    std::string compoundType = "(" + types[0];
+    for (size_t i = 1; i < types.size() - 1; ++i) {
+        compoundType += "| " + types[i];
+    }
+    compoundType += "| " + types[types.size() - 1] + ")";
+    return compoundType;
 }
 
-std::string printLiteral(const hadron::Literal& literal) {
-    std::string type = printType(literal.type());
-    switch (literal.type()) {
+std::string printSlot(const hadron::Slot& literal) {
+    std::string type = printType(literal.type);
+    switch (literal.type) {
     case hadron::Type::kInteger:
-        return fmt::format("(int) {}", literal.asInteger());
+        return fmt::format("(int) {}", literal.value.intValue);
 
     case hadron::Type::kFloat:
-        return fmt::format("(float) {}", literal.asFloat());
+        return fmt::format("(float) {}", literal.value.floatValue);
 
     case hadron::Type::kBoolean:
-        return fmt::format("(bool) {}", trueFalse(literal.asBoolean()));
+        return fmt::format("(bool) {}", trueFalse(literal.value.boolValue));
 
     default:
         break;
@@ -324,7 +369,7 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
             nodeSerial,
             nullOrNo(node->next.get()),
             std::string(token.range.data(), token.range.size()),
-            printLiteral(literal->value)); 
+            printSlot(literal->value)); 
     } break;
 
     case hadron::parse::NodeType::kName: {
@@ -613,7 +658,7 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
 
     case hadron::ast::ASTType::kConstant: {
         const auto constant = reinterpret_cast<const hadron::ast::ConstantAST*>(ast);
-        outFile << fmt::format("    ast_{} [label=<<b>{}</b>>]\n", astSerial, printLiteral(constant->value));
+        outFile << fmt::format("    ast_{} [label=<<b>{}</b>>]\n", astSerial, printSlot(constant->value));
     } break;
 
     case hadron::ast::ASTType::kWhile: {
@@ -673,12 +718,89 @@ void visualizeAST(std::ofstream& outFile, int& serial, const hadron::ast::AST* a
             outFile << "        <tr><td><font face=\"monospace\">const:</font>";
             for (auto pair : classAST->constants) {
                 std::string constName = classAST->names.find(pair.first)->second;
-                outFile << constName << "=" << printLiteral(pair.second);
+                outFile << constName << "=" << printSlot(pair.second);
             }
             outFile << "</td></tr>\n";
         }
     } break;
     }
+}
+
+std::string printValue(hadron::Value v) {
+    if (!v.isValid()) {
+        return ("&lt;invalid value&gt;");
+    }
+    return fmt::format("{} v<sub>{}</sub>", printType(v.typeFlags), v.number);
+}
+
+void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
+    outFile << fmt::format("    block_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n"
+        "      <tr><td bgcolor=\"lightGray\"><b>Block {}</b></td></tr>\n", block->number, block->number);
+    for (const auto& hir : block->statements) {
+        switch (hir->opcode) {
+        case hadron::hir::Opcode::kLoadArgument: {
+            const auto loadArg = reinterpret_cast<const hadron::hir::LoadArgumentHIR*>(hir.get());
+            outFile << fmt::format("        <tr><td>{} &#8592; LoadArg({})</td></tr>\n",
+                printValue(loadArg->value), loadArg->index);
+        } break;
+
+        case hadron::hir::Opcode::kConstant: {
+            const auto constant = reinterpret_cast<const hadron::hir::ConstantHIR*>(hir.get());
+            outFile << fmt::format("      <tr><td>{} &#8592; {}</td></tr>\n", printValue(constant->value),
+                printSlot(constant->constant));
+        } break;
+
+        case hadron::hir::Opcode::kStoreReturn: {
+            const auto storeReturn = reinterpret_cast<const hadron::hir::StoreReturnHIR*>(hir.get());
+            outFile << fmt::format("      <tr><td>StoreReturn({})</td></tr>\n", printValue(storeReturn->returnValue));
+        } break;
+
+        case hadron::hir::Opcode::kDispatchCall: {
+            const auto dispatchCall = reinterpret_cast<const hadron::hir::DispatchCallHIR*>(hir.get());
+            // Assumed to have at least one argument always.
+            assert(dispatchCall->arguments.size());
+            outFile << fmt::format("      <tr><td>{} &#8592; Dispatch({}", printValue(dispatchCall->value),
+                printValue(dispatchCall->arguments[0]));
+            for (size_t i = 1; i < dispatchCall->arguments.size(); ++i) {
+                outFile << fmt::format(", v<sub>{}</sub>", dispatchCall->arguments[i].number);
+            }
+            for (size_t i = 0; i < dispatchCall->keywordArguments.size(); i += 2) {
+                outFile << fmt::format(", v<sub>{}</sub>: v<sub>{}</sub>", dispatchCall->keywordArguments[i].number,
+                    dispatchCall->keywordArguments[i + 1].number);
+            }
+            outFile << ")</td></tr>" << std::endl;
+        } break;
+
+        case hadron::hir::Opcode::kDispatchLoadReturn: {
+            const auto dispatchRet = reinterpret_cast<const hadron::hir::DispatchLoadReturnHIR*>(hir.get());
+            outFile << fmt::format("      <tr><td>{} &#8592; LoadReturn()</td></tr>\n", printValue(dispatchRet->value));
+        } break;
+
+        case hadron::hir::Opcode::kDispatchCleanup: {
+            outFile << "      <tr><td>DispatchCleanup()</td></tr>" << std::endl;
+        } break;
+        }
+    }
+    outFile << "      </table>>]" << std::endl;
+
+    // Now we render the connections to other blocks.
+    for (const auto successor : block->successors) {
+        outFile << fmt::format("      block_{} -> block_{}\n", block->number, successor->number);
+    }
+}
+
+void visualizeFrame(std::ofstream& outFile, int& serial, const hadron::Frame* frame) {
+    int frameSerial = serial;
+    ++serial;
+    // Frames are subgraphs with cluster prefix name so that GraphViz will draw a box around them.
+    outFile << fmt::format("  subgraph cluster_{} {{\n", frameSerial);
+    for (const auto& block : frame->blocks) {
+        visualizeBlock(outFile, block.get());
+    }
+    for (const auto& subFrame : frame->subFrames) {
+        visualizeFrame(outFile, serial, subFrame.get());
+    }
+    outFile << fmt::format("  }}  // end of cluster_{}\n", frameSerial);
 }
 
 int main(int argc, char* argv[]) {
@@ -769,6 +891,19 @@ int main(int argc, char* argv[]) {
         int serial = 0;
         std::map<hadron::Hash, std::string> symbols;
         visualizeAST(outFile, serial, syntaxAnalyzer.ast(), symbols);
+        outFile << "}" << std::endl;
+    } else if (FLAGS_ssa) {
+        hadron::SSABuilder builder(&lexer, errorReporter);
+        // For now we only support Blocks at the top level.
+        if (parser.root()->nodeType != hadron::parse::NodeType::kBlock) {
+            spdlog::error("nonblock root, not building ssa");
+            return -1;
+        }
+        auto frame = builder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
+        outFile << fmt::format("// parse tree visualization of {}\n", FLAGS_inputFile);
+        outFile << "digraph HadronSSA {" << std::endl;
+        int serial = 0;
+        visualizeFrame(outFile, serial, frame.get());
         outFile << "}" << std::endl;
     }
 

@@ -1,7 +1,7 @@
 #ifndef SRC_PARSER_HPP_
 #define SRC_PARSER_HPP_
 
-#include "hadron/Literal.hpp"
+#include "hadron/Slot.hpp"
 #include "hadron/Token.hpp"
 #include "hadron/Type.hpp"
 
@@ -27,7 +27,6 @@ enum NodeType {
     kReturn,
     kDynList,
     kBlock,
-    kValue,
     kLiteral,
     kName,
     kExprSeq,
@@ -172,11 +171,11 @@ struct PoolVarListNode : public Node {
 */
 
 struct LiteralNode : public Node {
-    LiteralNode(size_t index, const Literal& v): Node(NodeType::kLiteral, index), value(v) {}
+    LiteralNode(size_t index, const Slot& v): Node(NodeType::kLiteral, index), value(v) {}
     virtual ~LiteralNode() = default;
 
     // Due to unary negation of literals, this value may differ from the token value at tokenIndex.
-    Literal value;
+    Slot value;
 };
 
 struct NameNode : public Node {
@@ -251,7 +250,7 @@ struct MultiAssignNode : public Node {
 };
 */
 
-// target.selector = value
+// target.selector = value, token should point at selector
 struct SetterNode : public Node {
     SetterNode(size_t index): Node(NodeType::kSetter, index) {}
     virtual ~SetterNode() = default;

@@ -159,7 +159,7 @@ void CodeGenerator::jitStatement(const ast::AST* ast, RegisterAllocator* allocat
             if (calc->right->astType == ast::ASTType::kConstant) {
                 const auto rightConst = reinterpret_cast<const ast::ConstantAST*>(calc->right.get());
                 if (calc->selector == kAddHash) {
-                    m_jit->addi(targetReg.reg, leftReg.reg, rightConst->value.asInteger());
+                    m_jit->addi(targetReg.reg, leftReg.reg, rightConst->value.value.intValue);
                 }
             } else {
                 // assumption that it has to be a value ast
@@ -171,7 +171,7 @@ void CodeGenerator::jitStatement(const ast::AST* ast, RegisterAllocator* allocat
             }
         } else if (assign->value->astType == ast::ASTType::kConstant) {
             const auto constAST = reinterpret_cast<const ast::ConstantAST*>(assign->value.get());
-            m_jit->movi(targetReg.reg, constAST->value.asInteger());
+            m_jit->movi(targetReg.reg, constAST->value.value.intValue);
         }
     } break;
 

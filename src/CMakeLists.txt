@@ -94,16 +94,17 @@ add_library(hadron STATIC
     include/hadron/ErrorReporter.hpp
     include/hadron/Function.hpp
     include/hadron/Hash.hpp
+    include/hadron/HIR.hpp
     include/hadron/JIT.hpp
     include/hadron/JITMemoryArena.hpp
     include/hadron/Lexer.hpp
     include/hadron/LighteningJIT.hpp
-    include/hadron/Literal.hpp
     include/hadron/LSBHashTable.hpp
     include/hadron/MachineCodeRenderer.hpp
     include/hadron/Parser.hpp
     include/hadron/Slot.hpp
     include/hadron/SourceFile.hpp
+    include/hadron/SSABuilder.hpp
     include/hadron/SyntaxAnalyzer.hpp
     include/hadron/ThreadContext.hpp
     include/hadron/Type.hpp
@@ -114,6 +115,7 @@ add_library(hadron STATIC
     FileSystem.hpp
     Function.cpp
     Hash.cpp
+    HIR.cpp
     Interpreter.cpp
     JITMemoryArena.cpp
     LighteningJIT.cpp
@@ -121,6 +123,7 @@ add_library(hadron STATIC
     Parser.cpp
     Slot.cpp
     SourceFile.cpp
+    SSABuilder.cpp
     SyntaxAnalyzer.cpp
     ThreadContext.cpp
     VirtualJIT.cpp
