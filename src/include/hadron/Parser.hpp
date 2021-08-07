@@ -240,8 +240,15 @@ public:
     Lexer* lexer() const { return m_lexer; }
     std::shared_ptr<ErrorReporter> errorReporter() { return m_errorReporter; }
 
-private:
+
+    // Access to parser from Bison Parser
+    void setRoot(std::unique_ptr<parse::Node> root) { m_root = std::move(root); }
+    const Token& token() const { return m_token; }
+    size_t tokenIndex() const { return m_tokenIndex; }
+    // Advance the token to the next one.
     bool next();
+
+private:
 
     std::unique_ptr<Lexer> m_ownLexer;
     Lexer* m_lexer;
