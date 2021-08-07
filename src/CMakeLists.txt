@@ -81,6 +81,28 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     VERBATIM
 )
 
+# find a version of Bison newer than 3.2
+if (APPLE)
+    execute_process(
+        COMMAND brew --prefix bison
+        RESULT_VARIABLE BREW_BISON
+        OUTPUT_VARIABLE BREW_BISON_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if (BREW_BISON EQUAL 0 AND EXISTS "${BREW_BISON_PREFIX}")
+        message(STATUS "Found Bison keg installed by Homebrew at ${BREW_BISON_PREFIX}")
+        set(BISON_EXECUTABLE "${BREW_BISON_PREFIX}/bin/bison")
+    endif()
+endif()
+find_package(BISON REQUIRED)
+
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
+    COMMAND "${BISON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/Parser.yy" -o "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
+    MAIN_DEPENDENCY Parser.yy
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    VERBATIM
+)
+
 ######
 # libhadron
 add_library(hadron STATIC
@@ -88,6 +110,7 @@ add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
 
     include/hadron/Assembler.hpp
     include/hadron/CodeGenerator.hpp
@@ -120,7 +143,7 @@ add_library(hadron STATIC
     JITMemoryArena.cpp
     LighteningJIT.cpp
     MachineCodeRenderer.cpp
-    Parser.cpp
+#    Parser.cpp
     Slot.cpp
     SourceFile.cpp
     SSABuilder.cpp

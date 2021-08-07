@@ -1,6 +1,7 @@
 %require "3.2"
 %language "c++"
 %define api.value.type variant
+// %define api.parser.class { hadron::Parser }
 %token <hadron::Slot> INTEGER
 
 %type<std::unique_ptr<hadron::parse::Node>> root funcbody expr exprn
@@ -11,13 +12,7 @@
 %type<std::unique_ptr<hadron::parse::LiteralNode>> integer
 
 %{
-#include "hadron/ParserEngine.hpp"
-
 #include "hadron/Parser.hpp"
-#include "hadron/Slot.hpp"
-#include "hadron/Token.hpp"
-
-#include <memory>
 %}
 
 %%
