@@ -121,6 +121,7 @@ struct ReturnNode : public Node {
     ReturnNode(size_t index): Node(NodeType::kReturn, index) {}
     virtual ~ReturnNode() = default;
 
+    // nullptr means default return value.
     std::unique_ptr<Node> valueExpr;
 };
 
