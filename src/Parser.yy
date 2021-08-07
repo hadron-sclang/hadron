@@ -1,6 +1,7 @@
 %require "3.2"
 %language "c++"
 %define api.value.type variant
+%skeleton "lalr1-c++17.cc"
 // %define api.parser.class { hadron::Parser }
 %token <hadron::Slot> INTEGER
 
@@ -39,7 +40,7 @@ cmdlinecode : funcbody
             ;
 
 funcbody    : funretval
-                { $funcbody = $funretval; }
+                { $funcbody = std::move($funretval); }
             | exprseq funretval
                 {
                     auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>(m_index);
