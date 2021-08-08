@@ -10,11 +10,15 @@
 %token <size_t> BINOP KEYWORD OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA SEMICOLON COLON
 %token <size_t> CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR IDENTIFIER CLASSNAME DOT DOTDOT ELLIPSES CURRYARGUMENT
 
-%type<std::unique_ptr<hadron::parse::Node>> root funcbody expr exprn exprseq classes classextensions classdef
-%type<std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode
-%type<std::unique_ptr<hadron::parse::ReturnNode>> funretval
+%type <std::unique_ptr<hadron::parse::Node>> root funcbody expr exprn exprseq classes classextensions
+%type <std::unique_ptr<hadron::parse::ClassNode>> classdef
+%type <std::unique_ptr<hadron::parse::ClassExtNode>> classextension
+%type <std::unique_ptr<hadron::parse::VarListNode>> classvardecl classvardecls
+%type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
+%type <std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode methbody
+%type <std::unique_ptr<hadron::parse::ReturnNode>> funretval
 
-%type <std::optional<size_t>> superclass optname
+%type <std::optional<size_t>> superclass optname primitive
 
 %{
 #include "hadron/Parser.hpp"
@@ -48,24 +52,24 @@ classes[target] :
                 ;
 
 classextensions[target] : classextension
-                        | classeextensions[build] classextension
+                        | classextensions[build] classextension
                             {
                                 $build->append($classextension);
                                 $target = std::move($build);
                             }
                         ;
 
-classdef    : classname superclass OPENCURLY classvardecls methods CLOSECURLY
+classdef    : CLASSNAME superclass OPENCURLY classvardecls methods CLOSECURLY
                 {
-                    auto classDef = std::make_unique<hadron::parse::ClassNode>($classname);
+                    auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME);
                     classDef->superClassNameIndex = $superclass;
                     classDef->variables = std::move($classvardecls);
                     classDef->methods = std::move($methods);
                     $classdef = std::move(classDef);
                 }
-            | classname OPENSQUARE optname CLOSESQUARE superclass OPENCURLY classvardecls methods CLOSECURLY
+            | CLASSNAME OPENSQUARE optname CLOSESQUARE superclass OPENCURLY classvardecls methods CLOSECURLY
                 {
-                    auto classDef = std::make_unique<hadron::parse::ClassNode>($classname);
+                    auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME);
                     classDef->superClassNameIndex = $superclass;
                     classDef->optionalNameIndex = $optname;
                     classDef->variables = std::move($classvardecls);
@@ -74,21 +78,87 @@ classdef    : classname superclass OPENCURLY classvardecls methods CLOSECURLY
                 }
             ;
 
-classextension  : PLUS classname OPENCURLY methods CLOSECURLY
+classextension  : PLUS CLASSNAME OPENCURLY methods CLOSECURLY
                     {
-                        auto classExt = std::make_unique<hadron::parse::ClassExtNode>($classname);
+                        auto classExt = std::make_unique<hadron::parse::ClassExtNode>($CLASSNAME);
                         classExt->methods = std::move($methods);
                         $classextension = std::move(classExt);
                     }
                 ;
 
-cmdlinecode : funcbody
+optname : { $optname = std::nullopt; }
+        | IDENTIFIER
+            { $optname = $IDENTIFIER; }
+        ;
+
+superclass  : { $superclass = std::nullopt; }
+            | COLON CLASSNAME
+                { $superclass = $CLASSNAME; }
+
+classvardecls[target]   : { $target = nullptr; }
+                        | classvardecls[build] classvardecl
+                            {
+                                $build->append($classvardecl);
+                                $target = std::move($build);
+                            }
+                        ;
+
+classvardecl    : CLASSVAR rwslotdeflist SEMICOLON
+                    {
+                        auto varList = std::make_unique<hadron::parse::VarListNode>($CLASSVAR);
+                        varList->definitions = std::move($rwslotdeflist);
+                        $classvardecl = std::move(varList);
+                    }
+                | VAR rwslotdeflist SEMICOLON
+                    {
+                        auto varList = std::make_unique<hadron::parse::VarListNode>($VAR);
+                        varList->definitions = std::move($rwslotdeflist);
+                        $classvardecl = std::move(varList);
+                    }
+                | CONST constdeflist SEMICOLON
+                    {
+                        auto varList = std::make_unique<hadron::parse::VarListNode>($CONST);
+                        varList->definitions = std::move($constdeflist);
+                        $classvardecl = std::move(varList);
+                    }
+                ;
+
+methods[target] : { $target = nullptr; }
+                | methods[build] methoddef
+                    {
+                        $build->append($methoddef);
+                        $target = std::move($build);
+                    }
+                ;
+
+methoddef   : IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY
                 {
-                    auto block = std::make_unique<hadron::parse::BlockNode>(hadronParser->tokenIndex());
-                    block->body = $funcbody;
-                    $cmdlinecode = std::move(block);
+                    auto method = std::make_unique<hadron::parse::MethodNode>($IDENTIFIER, false);
+                    method->primitiveIndex = $primitive;
+                    method->body = std::move($methbody);
+                    $methoddef = std::move(method);
                 }
+            | ASTERISK IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY
+                {
+                    auto method = std::make_unique<hadron::parse::MethodNode>($IDENTIFIER, true);
+                    method->primitiveIndex = $primitive;
+                    method->body = std::move($methbody);
+                    $methoddef = std::move(method);
+                }
+// TODO: binops
             ;
+
+optsemi :
+        | ';'
+        ;
+
+optcomma	:
+			| ','
+			;
+
+optequal	:
+			| '='
+			;
 
 funcbody    : funretval
                 { $funcbody = std::move($funretval); }
@@ -100,6 +170,21 @@ funcbody    : funretval
                     $funcbody = std::move(exprSeq);
                 }
             ;
+
+
+cmdlinecode : funcbody
+                {
+                    auto block = std::make_unique<hadron::parse::BlockNode>(hadronParser->tokenIndex());
+                    block->body = $funcbody;
+                    $cmdlinecode = std::move(block);
+                }
+            ;
+
+methbody    : retval
+            | exprseq retval
+                {
+                    
+                }
 
 funretval   :
                 { $funretval = std::make_unique<hadron::parse::ReturnNode>(hadronParser->tokenIndex()); }
@@ -118,10 +203,6 @@ exprn[target]   : expr
                         $target = std::move($build);
                     }
                 ;
-
-optsemi :
-        | ';'
-        ;
 
 exprseq : exprn optsemi
             { $exprseq = std::move($exprn); }
