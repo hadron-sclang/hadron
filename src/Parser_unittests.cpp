@@ -81,10 +81,15 @@ TEST_CASE("Parser root") {
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
-        REQUIRE(parser.root()->nodeType == parse::NodeType::kLiteral);
-        CHECK(parser.root()->next == nullptr);
-        CHECK(parser.root()->tail == parser.root());
-        auto literal = reinterpret_cast<const parse::LiteralNode*>(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        CHECK(block->arguments == nullptr);
+        CHECK(block->variables == nullptr);
+        CHECK(block->next == nullptr);
+        CHECK(block->tail == parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(block->body->expr.get());
         CHECK(literal->tokenIndex == 0);
         CHECK(literal->value.type == Type::kInteger);
         CHECK(literal->value.value.intValue == 42);
@@ -129,7 +134,11 @@ TEST_CASE("Parser classdef") {
         CHECK(name.range.compare("a") == 0);
         CHECK(name.hash == hash("a"));
         CHECK(!classNode->methods->isClassMethod);
-        CHECK(classNode->methods->body == nullptr);
+        REQUIRE(classNode->methods->body != nullptr);
+        const auto method = classNode->methods->body.get();
+        CHECK(method->arguments == nullptr);
+        CHECK(method->variables == nullptr);
+        CHECK(method->body == nullptr);
         CHECK(classNode->methods->next == nullptr);
     }
 

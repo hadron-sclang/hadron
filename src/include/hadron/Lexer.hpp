@@ -25,6 +25,7 @@ public:
 
     // Access for testing
     std::shared_ptr<ErrorReporter> errorReporter() { return m_errorReporter; }
+    std::string_view code() const { return m_code; }
 
 private:
     std::string_view m_code;

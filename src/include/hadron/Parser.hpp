@@ -17,26 +17,26 @@ class Lexer;
 namespace parse {
 
 enum NodeType {
-    kEmpty,
-    kVarDef,
-    kVarList,
-    kArgList,
-    kMethod,
-    kClassExt,
-    kClass,
-    kReturn,
-    kDynList,
-    kBlock,
-    kLiteral,
-    kName,
-    kExprSeq,
-    kAssign,
-    kSetter,
-    kKeyValue,
-    kCall,
-    kBinopCall,
-    kPerformList,
-    kNumericSeries
+    kEmpty = 0,
+    kVarDef = 1,
+    kVarList = 2,
+    kArgList = 3,
+    kMethod = 4,
+    kClassExt = 5,
+    kClass = 6,
+    kReturn = 7,
+    kDynList = 8,
+    kBlock = 9,
+    kLiteral = 10,
+    kName = 11,
+    kExprSeq = 12,
+    kAssign = 13,
+    kSetter = 14,
+    kKeyValue = 15,
+    kCall = 16,
+    kBinopCall = 17,
+    kPerformList = 18,
+    kNumericSeries = 19
 };
 
 struct Node {
@@ -79,13 +79,21 @@ struct ArgListNode : public Node {
     std::optional<size_t> varArgsNameIndex;
 };
 
+struct ExprSeqNode : public Node {
+    ExprSeqNode(size_t index, std::unique_ptr<Node> firstExpr):
+        Node(NodeType::kExprSeq, index), expr(std::move(firstExpr)) {}
+    virtual ~ExprSeqNode() = default;
+
+    std::unique_ptr<Node> expr;
+};
+
 struct BlockNode : public Node {
     BlockNode(size_t index): Node(NodeType::kBlock, index) {}
     virtual ~BlockNode() = default;
 
     std::unique_ptr<ArgListNode> arguments;
     std::unique_ptr<VarListNode> variables;
-    std::unique_ptr<Node> body;
+    std::unique_ptr<ExprSeqNode> body;
 };
 
 struct MethodNode : public Node {
@@ -176,14 +184,6 @@ struct BinopCallNode : public Node {
     std::unique_ptr<Node> rightHand;
 };
 
-struct ExprSeqNode : public Node {
-    ExprSeqNode(size_t index, std::unique_ptr<Node> firstExpr):
-        Node(NodeType::kExprSeq, index), expr(std::move(firstExpr)) {}
-    virtual ~ExprSeqNode() = default;
-
-    std::unique_ptr<Node> expr;
-};
-
 // From an = command, assigns value to the identifier in name.
 struct AssignNode : public Node {
     AssignNode(size_t index): Node(NodeType::kAssign, index) {}
@@ -240,12 +240,10 @@ public:
     Lexer* lexer() const { return m_lexer; }
     std::shared_ptr<ErrorReporter> errorReporter() { return m_errorReporter; }
 
-
     // Access to parser from Bison Parser
-    void setRoot(std::unique_ptr<parse::Node> root) { m_root = std::move(root); }
-    const Token& token() const { return m_token; }
+    void setRoot(std::unique_ptr<parse::Node> root);
+    Token token(size_t index) const;
     size_t tokenIndex() const { return m_tokenIndex; }
-    // Advance the token to the next one.
     bool next();
 
 private:
