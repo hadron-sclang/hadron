@@ -6,14 +6,15 @@
 %param { hadron::Parser* hadronParser }
 %skeleton "lalr1.cc"
 
-%token LITERAL PRIMITIVE PLUS MINUS ASTERISK LESSTHAN GREATERTHAN PIPE READWRITEVAR LEFTARROW BINOP KEYWORD OPENPAREN
-%token CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG
-%token CONST CLASSVAR IDENTIFIER CLASSNAME DOT DOTDOT ELLIPSES CURRYARGUMENT
+%token <size_t> EMPTY LITERAL PRIMITIVE PLUS MINUS ASTERISK ASSIGN LESSTHAN GREATERTHAN PIPE READWRITEVAR LEFTARROW
+%token <size_t> BINOP KEYWORD OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA SEMICOLON COLON
+%token <size_t> CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR IDENTIFIER CLASSNAME DOT DOTDOT ELLIPSES CURRYARGUMENT
 
-%type<std::unique_ptr<hadron::parse::Node>> root funcbody expr exprn exprseq
+%type<std::unique_ptr<hadron::parse::Node>> root funcbody expr exprn exprseq classes classextensions classdef
 %type<std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode
-%type<std::unique_ptr<hadron::parse::ClassNode>> classes classdef
 %type<std::unique_ptr<hadron::parse::ReturnNode>> funretval
+
+%type <std::optional<size_t>> superclass optname
 
 %{
 #include "hadron/Parser.hpp"
@@ -29,16 +30,56 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser);
 %%
 root    : classes
             { hadronParser->setRoot($classes); }
+        | classextensions
+            { hadronParser->setRoot($classextensions); }
         | cmdlinecode
             { hadronParser->setRoot($cmdlinecode); }
         ;
 
-classes[target] : { hadronParser->setRoot(nullptr); }
-//                | classes[build] classdef
-//                    {
-//                        $build->append($classdef);
-//                        $target = std::move($build);
-//                    }
+classes[target] :
+                    {
+                        $target = std::make_unique<hadron::parse::Node>(hadron::parse::NodeType::kEmpty, 0);
+                    }
+                | classes[build] classdef
+                    {
+                        $build->append($classdef);
+                        $target = std::move($build);
+                    }
+                ;
+
+classextensions[target] : classextension
+                        | classeextensions[build] classextension
+                            {
+                                $build->append($classextension);
+                                $target = std::move($build);
+                            }
+                        ;
+
+classdef    : classname superclass OPENCURLY classvardecls methods CLOSECURLY
+                {
+                    auto classDef = std::make_unique<hadron::parse::ClassNode>($classname);
+                    classDef->superClassNameIndex = $superclass;
+                    classDef->variables = std::move($classvardecls);
+                    classDef->methods = std::move($methods);
+                    $classdef = std::move(classDef);
+                }
+            | classname OPENSQUARE optname CLOSESQUARE superclass OPENCURLY classvardecls methods CLOSECURLY
+                {
+                    auto classDef = std::make_unique<hadron::parse::ClassNode>($classname);
+                    classDef->superClassNameIndex = $superclass;
+                    classDef->optionalNameIndex = $optname;
+                    classDef->variables = std::move($classvardecls);
+                    classDef->methods = std::move($methods);
+                    $classdef = std::move(classDef);
+                }
+            ;
+
+classextension  : PLUS classname OPENCURLY methods CLOSECURLY
+                    {
+                        auto classExt = std::make_unique<hadron::parse::ClassExtNode>($classname);
+                        classExt->methods = std::move($methods);
+                        $classextension = std::move(classExt);
+                    }
                 ;
 
 cmdlinecode : funcbody
@@ -58,6 +99,7 @@ funcbody    : funretval
                     exprSeq->expr->append($funretval);
                     $funcbody = std::move(exprSeq);
                 }
+            ;
 
 funretval   :
                 { $funretval = std::make_unique<hadron::parse::ReturnNode>(hadronParser->tokenIndex()); }
@@ -75,7 +117,7 @@ exprn[target]   : expr
                         $build->append(std::move($expr));
                         $target = std::move($build);
                     }
-        ;
+                ;
 
 optsemi :
         | ';'
@@ -99,10 +141,116 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
         return yy::parser::make_YYEOF();
     }
     switch (hadronParser->token().name) {
+    case hadron::Token::Name::kEmpty:
+        return yy::parser::make_EMPTY(hadronParser->tokenIndex());
+
     case hadron::Token::Name::kLiteral:
-        return yy::parser::make_LITERAL();
-    default:
-        break;
+        return yy::parser::make_LITERAL(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kPrimitive:
+        return yy::parser::make_PRIMITIVE(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kPlus:
+        return yy::parser::make_PLUS(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kMinus:
+        return yy::parser::make_MINUS(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kAsterisk:
+        return yy::parser::make_ASTERISK(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kAssign:
+        return yy::parser::make_ASSIGN(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kLessThan:
+        return yy::parser::make_LESSTHAN(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kGreaterThan:
+        return yy::parser::make_GREATERTHAN(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kPipe:
+        return yy::parser::make_PIPE(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kReadWriteVar:
+        return yy::parser::make_READWRITEVAR(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kLeftArrow:
+        return yy::parser::make_LEFTARROW(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kBinop:
+        return yy::parser::make_BINOP(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kKeyword:
+        return yy::parser::make_KEYWORD(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kOpenParen:
+        return yy::parser::make_OPENPAREN(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kCloseParen:
+        return yy::parser::make_CLOSEPAREN(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kOpenCurly:
+        return yy::parser::make_OPENCURLY(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kCloseCurly:
+        return yy::parser::make_CLOSECURLY(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kOpenSquare:
+        return yy::parser::make_OPENSQUARE(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kCloseSquare:
+        return yy::parser::make_CLOSESQUARE(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kComma:
+        return yy::parser::make_COMMA(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kSemicolon:
+        return yy::parser::make_SEMICOLON(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kColon:
+        return yy::parser::make_COLON(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kCaret:
+        return yy::parser::make_CARET(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kTilde:
+        return yy::parser::make_TILDE(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kHash:
+        return yy::parser::make_HASH(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kGrave:
+        return yy::parser::make_GRAVE(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kVar:
+        return yy::parser::make_VAR(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kArg:
+        return yy::parser::make_ARG(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kConst:
+        return yy::parser::make_CONST(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kClassVar:
+        return yy::parser::make_CLASSVAR(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kIdentifier:
+        return yy::parser::make_IDENTIFIER(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kClassName:
+        return yy::parser::make_CLASSNAME(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kDot:
+        return yy::parser::make_DOT(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kDotDot:
+        return yy::parser::make_DOTDOT(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kEllipses:
+        return yy::parser::make_ELLIPSES(hadronParser->tokenIndex());
+
+    case hadron::Token::Name::kCurryArgument:
+        return yy::parser::make_CURRYARGUMENT(hadronParser->tokenIndex());
     }
 
     return yy::parser::make_YYEOF();
