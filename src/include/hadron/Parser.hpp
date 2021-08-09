@@ -146,6 +146,8 @@ struct LiteralNode : public Node {
 
     // Due to unary negation of literals, this value may differ from the token value at tokenIndex.
     Slot value;
+    // If blockLiteral is non-null, this is a blockLiteral and the Slot is ignored.
+    std::unique_ptr<BlockNode> blockLiteral;
 };
 
 struct NameNode : public Node {
