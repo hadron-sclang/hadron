@@ -161,7 +161,7 @@ struct KeyValueNode : public Node {
     KeyValueNode(size_t index): Node(NodeType::kKeyValue, index) {}
     virtual ~KeyValueNode() = default;
 
-    std::unique_ptr<Node> value;
+    std::unique_ptr<ExprSeqNode> value;
 };
 
 // target.selector(arguments, keyword: arguments)
@@ -184,6 +184,7 @@ struct BinopCallNode : public Node {
 
     std::unique_ptr<Node> leftHand;
     std::unique_ptr<Node> rightHand;
+    std::unique_ptr<Node> adverb;
 };
 
 // From an = command, assigns value to the identifier in name.
@@ -236,24 +237,30 @@ public:
     Parser(std::string_view code);
     ~Parser();
 
+    // Parse interpreter input. root() will always be a BlockNode or an empty Node (in event of empty input)
     bool parse();
+    // Parse input with class definitions or class extensions. root() will be a ClassNode or ClassExtNode.
+    bool parseClass();
 
     const parse::Node* root() const { return m_root.get(); }
     Lexer* lexer() const { return m_lexer; }
     std::shared_ptr<ErrorReporter> errorReporter() { return m_errorReporter; }
 
     // Access to parser from Bison Parser
-    void setRoot(std::unique_ptr<parse::Node> root);
+    void addRoot(std::unique_ptr<parse::Node> root);
     Token token(size_t index) const;
     size_t tokenIndex() const { return m_tokenIndex; }
-    bool next();
+    void next() { ++m_tokenIndex; }
+    bool sendInterpret() const { return m_sendInterpret; }
+    void setInterpret(bool i) { m_sendInterpret = i; }
 
 private:
+    bool innerParse();
 
     std::unique_ptr<Lexer> m_ownLexer;
     Lexer* m_lexer;
     size_t m_tokenIndex;
-    Token m_token;
+    bool m_sendInterpret;
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     std::unique_ptr<parse::Node> m_root;

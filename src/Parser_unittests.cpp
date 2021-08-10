@@ -11,7 +11,7 @@ namespace hadron {
 
 // root: classes | classextensions | cmdlinecode
 TEST_CASE("Parser root") {
-    SUBCASE("root: <e>") {
+    SUBCASE("root: <e> (for interpreted code)") {
         Parser parser("");
         REQUIRE(parser.parse());
 
@@ -22,9 +22,20 @@ TEST_CASE("Parser root") {
         CHECK(parser.root()->tail == parser.root());
     }
 
+    SUBCASE("root: <e> (for classes)") {
+        Parser parser("");
+        REQUIRE(parser.parseClass());
+
+        REQUIRE(parser.root() != nullptr);
+        CHECK(parser.root()->nodeType == parse::NodeType::kEmpty);
+        CHECK(parser.root()->tokenIndex == 0);
+        CHECK(parser.root()->next.get() == nullptr);
+        CHECK(parser.root()->tail == parser.root());
+    }
+
     SUBCASE("root: classes") {
         Parser parser("A { } B { }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -54,7 +65,7 @@ TEST_CASE("Parser root") {
 
     SUBCASE("root: classextensions") {
         Parser parser("+ A { } + B { }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClassExt);
@@ -101,7 +112,7 @@ TEST_CASE("Parser root") {
 TEST_CASE("Parser classdef") {
     SUBCASE("classdef: classname superclass '{' classvardecls methods '}'") {
         Parser parser("A : B { var x; a { } }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -144,7 +155,7 @@ TEST_CASE("Parser classdef") {
 
     SUBCASE("classdef: classname '[' optname ']' superclass '{' classvardecls methods '}'") {
         Parser parser("Sub [ opt ] : Super { const c = -5; *meth { } }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -200,7 +211,7 @@ TEST_CASE("Parser classdef") {
 TEST_CASE("Parser classextension") {
     SUBCASE("classextension: '+' classname '{' methods '}'") {
         Parser parser("+ Cls { *classMethod {} method {} }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClassExt);
@@ -329,7 +340,7 @@ TEST_CASE("Parser cmdlinecode") {
 TEST_CASE("Parser classvardecls") {
     SUBCASE("classvardecls: <e>") {
         Parser parser("A { }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -347,7 +358,7 @@ TEST_CASE("Parser classvardecls") {
 
     SUBCASE("classvardecls: classvardecls classvardecl") {
         Parser parser("C { classvar a, b, c; var d, e, f; const g = 1, h = 2, i = 3; }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -478,7 +489,7 @@ TEST_CASE("Parser classvardecls") {
 TEST_CASE("Parser classvardecl") {
     SUBCASE("classvardecl: CLASSVAR rwslotdeflist ';'") {
         Parser parser("X { classvar <> a, > b, < c; }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -532,7 +543,7 @@ TEST_CASE("Parser classvardecl") {
 
     SUBCASE("classvardecl: VAR rwslotdeflist ';'") {
         Parser parser("Y { var < d1, <> e2, > f3; }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -586,7 +597,7 @@ TEST_CASE("Parser classvardecl") {
 
     SUBCASE("classvardecl: SC_CONST constdeflist ';'") {
         Parser parser("Z { const bogon = 42, <  red5 = \"goin' in\"; }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -637,7 +648,7 @@ TEST_CASE("Parser classvardecl") {
 TEST_CASE("Parser methods") {
     SUBCASE("methods: <e>") {
         Parser parser("Zed { }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -654,7 +665,7 @@ TEST_CASE("Parser methods") {
 
     SUBCASE("methods: methods methoddef") {
         Parser parser("Multi { m { } ++ { } *x { } * * { } }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -714,7 +725,7 @@ TEST_CASE("Parser methods") {
 TEST_CASE("Parser methoddef") {
     SUBCASE("methoddef: name '{' argdecls funcvardecls primitive methbody '}'") {
         Parser parser("W { m1 { |z| var c = z; _Prim; c; } }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -780,7 +791,7 @@ TEST_CASE("Parser methoddef") {
 
     SUBCASE("methoddef: binop '{' argdecls funcvardecls primitive methbody '}'") {
         Parser parser("Kz { +/+ { arg b, c; var m, n; _Thunk 17; } }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -857,7 +868,7 @@ TEST_CASE("Parser methoddef") {
 
     SUBCASE("methoddef: '*' name '{' argdecls funcvardecls primitive methbody '}'") {
         Parser parser("Mx { *clsMeth { |m=5, n=7| var k = 0; var z = \\sym; _X ^\\k } }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -955,7 +966,7 @@ TEST_CASE("Parser methoddef") {
 
     SUBCASE("methoddef: '*' binop '{' argdecls funcvardecls primitive methbody '}'") {
         Parser parser("QRS { * !== { arg x = nil, y = true; var sd; var mm; _Pz ^nil; } }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -1235,7 +1246,7 @@ TEST_CASE("Parser funcbody") {
 TEST_CASE("Parser rwslotdeflist") {
     SUBCASE("rwslotdeflist: rwslotdef") {
         Parser parser("M { var <> rw; }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -1269,7 +1280,7 @@ TEST_CASE("Parser rwslotdeflist") {
 
     SUBCASE("rwslotdeflist ',' rwslotdef") {
         Parser parser("Cv { classvar a, < b, > c; }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -1325,7 +1336,7 @@ TEST_CASE("Parser rwslotdeflist") {
 TEST_CASE("Parser rwslotdef") {
     SUBCASE("rwslotdef: rwspec name") {
         Parser parser("BFG { var prv_x; }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -1359,7 +1370,7 @@ TEST_CASE("Parser rwslotdef") {
 
     SUBCASE("rwslotdef: rwspec name '=' slotliteral") {
         Parser parser("Lit { var >ax = 2; }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -1400,7 +1411,7 @@ TEST_CASE("Parser rwslotdef") {
 TEST_CASE("Parser constdeflist") {
     SUBCASE("constdeflist: constdef") {
         Parser parser("UniConst { const psi=\"psi\"; }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -1434,7 +1445,7 @@ TEST_CASE("Parser constdeflist") {
 
     SUBCASE("constdeflist: constdeflist optcomma constdef") {
         Parser parser("MultiConst { const a = -1.0 <b=2 < c = 3.0; }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -1502,7 +1513,7 @@ TEST_CASE("Parser constdeflist") {
 TEST_CASE("Parser constdef") {
     SUBCASE("constdef: rspec name '=' slotliteral") {
         Parser parser("Math { const <epsilon= -0.0001; }");
-        REQUIRE(parser.parse());
+        REQUIRE(parser.parseClass());
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kClass);
@@ -2182,7 +2193,7 @@ TEST_CASE("Parser msgsend") {
     }
 
     SUBCASE("msgsend: expr '.' name '(' keyarglist1 optcomma ')' blocklist") {
-        Parser parser("( SinOsc.ar(freq: 440, phase: 0, mul: 0.7,) )");
+        Parser parser("SinOsc.ar(freq: 440, phase: 0, mul: 0.7,)");
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
@@ -2193,8 +2204,9 @@ TEST_CASE("Parser msgsend") {
         CHECK(block->next == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kCall);
-        auto call = reinterpret_cast<const parse::CallNode*>(block->body.get());
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
         auto nameToken = parser.lexer()->tokens()[call->tokenIndex];
         CHECK(nameToken.name == Token::kIdentifier);
         CHECK(nameToken.range.compare("ar") == 0);
@@ -2218,8 +2230,9 @@ TEST_CASE("Parser msgsend") {
         CHECK(nameToken.range.compare("freq") == 0);
         CHECK(nameToken.hash == hash("freq"));
         REQUIRE(keyValue->value != nullptr);
-        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
-        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        REQUIRE(keyValue->value->expr != nullptr);
+        REQUIRE(keyValue->value->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value->expr.get());
         CHECK(literal->value.type == Type::kInteger);
         CHECK(literal->value.value.intValue == 440);
 
@@ -2231,8 +2244,9 @@ TEST_CASE("Parser msgsend") {
         CHECK(nameToken.range.compare("phase") == 0);
         CHECK(nameToken.hash == hash("phase"));
         REQUIRE(keyValue->value != nullptr);
-        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
-        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        REQUIRE(keyValue->value->expr != nullptr);
+        REQUIRE(keyValue->value->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value->expr.get());
         CHECK(literal->value.type == Type::kInteger);
         CHECK(literal->value.value.intValue == 0);
 
@@ -2244,8 +2258,9 @@ TEST_CASE("Parser msgsend") {
         CHECK(nameToken.range.compare("mul") == 0);
         CHECK(nameToken.hash == hash("mul"));
         REQUIRE(keyValue->value != nullptr);
-        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
-        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        REQUIRE(keyValue->value->expr != nullptr);
+        REQUIRE(keyValue->value->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value->expr.get());
         CHECK(literal->value.type == Type::kFloat);
         CHECK(literal->value.value.floatValue == 0.7);
         CHECK(keyValue->next == nullptr);
@@ -2258,7 +2273,7 @@ TEST_CASE("Parser msgsend") {
     }
 
     SUBCASE("msgsend: expr '.' name '(' ')' blocklist") {
-        Parser parser("( Array.new(); )");
+        Parser parser("Array.new();");
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
@@ -2269,8 +2284,9 @@ TEST_CASE("Parser msgsend") {
         CHECK(block->next == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kCall);
-        auto call = reinterpret_cast<const parse::CallNode*>(block->body.get());
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
         auto nameToken = parser.lexer()->tokens()[call->tokenIndex];
         REQUIRE(nameToken.name == Token::kIdentifier);
         CHECK(nameToken.range.compare("new") == 0);
@@ -2287,14 +2303,17 @@ TEST_CASE("Parser msgsend") {
         CHECK(nameToken.hash == hash("Array"));
     }
 
-    // TODO: remove needless blocks around everything?
     SUBCASE("msgsend: expr '.' name '(' arglist1 optkeyarglist ')' blocklist") {
         Parser parser("this.method(x, y, z, a: 1, b: 2, c: 3)");
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
-        REQUIRE(parser.root()->nodeType == parse::NodeType::kCall);
-        auto call = reinterpret_cast<const parse::CallNode*>(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
         auto nameToken = parser.lexer()->tokens()[call->tokenIndex];
         CHECK(nameToken.name == Token::kIdentifier);
         CHECK(nameToken.range.compare("method") == 0);
@@ -2309,29 +2328,38 @@ TEST_CASE("Parser msgsend") {
         CHECK(nameToken.hash == hash("this"));
 
         REQUIRE(call->arguments != nullptr);
-        REQUIRE(call->arguments->nodeType == parse::NodeType::kName);
-        name = reinterpret_cast<const parse::NameNode*>(call->arguments.get());
+        REQUIRE(call->arguments->nodeType == parse::NodeType::kExprSeq);
+        const parse::ExprSeqNode* exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(call->arguments.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kName);
+        name = reinterpret_cast<const parse::NameNode*>(exprSeq->expr.get());
         nameToken = parser.lexer()->tokens()[name->tokenIndex];
         CHECK(nameToken.name == Token::kIdentifier);
         CHECK(nameToken.range.compare("x") == 0);
         CHECK(nameToken.hash == hash("x"));
 
-        REQUIRE(name->next != nullptr);
-        REQUIRE(name->next->nodeType == parse::NodeType::kName);
-        name = reinterpret_cast<const parse::NameNode*>(name->next.get());
+        REQUIRE(exprSeq->next != nullptr);
+        REQUIRE(exprSeq->next->nodeType == parse::NodeType::kExprSeq);
+        exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(exprSeq->next.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kName);
+        name = reinterpret_cast<const parse::NameNode*>(exprSeq->expr.get());
         nameToken = parser.lexer()->tokens()[name->tokenIndex];
         CHECK(nameToken.name == Token::kIdentifier);
         CHECK(nameToken.range.compare("y") == 0);
         CHECK(nameToken.hash == hash("y"));
 
-        REQUIRE(name->next != nullptr);
-        REQUIRE(name->next->nodeType == parse::NodeType::kName);
-        name = reinterpret_cast<const parse::NameNode*>(name->next.get());
+        REQUIRE(exprSeq->next != nullptr);
+        REQUIRE(exprSeq->next->nodeType == parse::NodeType::kExprSeq);
+        exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(exprSeq->next.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kName);
+        name = reinterpret_cast<const parse::NameNode*>(exprSeq->expr.get());
         nameToken = parser.lexer()->tokens()[name->tokenIndex];
         CHECK(nameToken.name == Token::kIdentifier);
         CHECK(nameToken.range.compare("z") == 0);
         CHECK(nameToken.hash == hash("z"));
-        CHECK(name->next == nullptr);
+        CHECK(exprSeq->next == nullptr);
 
         REQUIRE(call->keywordArguments != nullptr);
         REQUIRE(call->keywordArguments->nodeType == parse::NodeType::kKeyValue);
@@ -2342,8 +2370,9 @@ TEST_CASE("Parser msgsend") {
         CHECK(nameToken.range.compare("a") == 0);
         CHECK(nameToken.hash == hash("a"));
         REQUIRE(keyValue->value != nullptr);
-        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
-        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        REQUIRE(keyValue->value->expr != nullptr);
+        REQUIRE(keyValue->value->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value->expr.get());
         CHECK(literal->value.type == Type::kInteger);
         CHECK(literal->value.value.intValue == 1);
 
@@ -2355,8 +2384,9 @@ TEST_CASE("Parser msgsend") {
         CHECK(nameToken.range.compare("b") == 0);
         CHECK(nameToken.hash == hash("b"));
         REQUIRE(keyValue->value != nullptr);
-        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
-        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        REQUIRE(keyValue->value->expr != nullptr);
+        REQUIRE(keyValue->value->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value->expr.get());
         CHECK(literal->value.type == Type::kInteger);
         CHECK(literal->value.value.intValue == 2);
 
@@ -2368,8 +2398,9 @@ TEST_CASE("Parser msgsend") {
         CHECK(nameToken.range.compare("c") == 0);
         CHECK(nameToken.hash == hash("c"));
         REQUIRE(keyValue->value != nullptr);
-        REQUIRE(keyValue->value->nodeType == parse::NodeType::kLiteral);
-        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value.get());
+        REQUIRE(keyValue->value->expr != nullptr);
+        REQUIRE(keyValue->value->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(keyValue->value->expr.get());
         CHECK(literal->value.type == Type::kInteger);
         CHECK(literal->value.value.intValue == 3);
         CHECK(keyValue->next == nullptr);
@@ -2383,8 +2414,12 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
-        REQUIRE(parser.root()->nodeType == parse::NodeType::kCall);
-        auto call = reinterpret_cast<const parse::CallNode*>(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
         auto name = parser.lexer()->tokens()[call->tokenIndex];
         REQUIRE(name.name == Token::kIdentifier);
         CHECK(name.range.compare("neg") == 0);
@@ -2402,7 +2437,7 @@ TEST_CASE("Parser msgsend") {
 
 TEST_CASE("Parser expr") {
     SUBCASE("expr: expr1") {
-        Parser parser("( \\g )");
+        Parser parser("\\g");
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
@@ -2413,8 +2448,9 @@ TEST_CASE("Parser expr") {
         CHECK(block->next == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kLiteral);
-        auto literal = reinterpret_cast<const parse::LiteralNode*>(block->body.get());
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(block->body->expr.get());
         CHECK(literal->value.type == Type::kSymbol);
     }
 
@@ -2425,7 +2461,7 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: classname") {
-        Parser parser("( Object )");
+        Parser parser("Object");
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
@@ -2436,8 +2472,9 @@ TEST_CASE("Parser expr") {
         CHECK(block->next == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kName);
-        auto name = reinterpret_cast<const parse::NameNode*>(block->body.get());
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kName);
+        auto name = reinterpret_cast<const parse::NameNode*>(block->body->expr.get());
         auto nameToken = parser.lexer()->tokens()[name->tokenIndex];
         REQUIRE(nameToken.name == Token::kClassName);
         CHECK(nameToken.range.compare("Object") == 0);
@@ -2451,7 +2488,7 @@ TEST_CASE("Parser expr") {
     SUBCASE("expr: '`' expr") {
     }
 
-    SUBCASE("expr binop2 adverb expr %prec binop") {
+    SUBCASE("expr: expr binop2 adverb expr %prec binop") {
         Parser parser("( a + b not: c )");
         REQUIRE(parser.parse());
 
@@ -2463,8 +2500,9 @@ TEST_CASE("Parser expr") {
         CHECK(block->next == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kBinopCall);
-        const parse::BinopCallNode* binop = reinterpret_cast<const parse::BinopCallNode*>(block->body.get());
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kBinopCall);
+        const parse::BinopCallNode* binop = reinterpret_cast<const parse::BinopCallNode*>(block->body->expr.get());
         auto nameToken = parser.lexer()->tokens()[binop->tokenIndex];
         REQUIRE(nameToken.name == Token::kKeyword);
         CHECK(nameToken.range.compare("not") == 0);
@@ -2513,9 +2551,11 @@ TEST_CASE("Parser expr") {
         CHECK(block->next == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kAssign);
-        auto assign = reinterpret_cast<const parse::AssignNode*>(block->body.get());
-        auto name = parser.lexer()->tokens()[assign->tokenIndex];
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kAssign);
+        auto assign = reinterpret_cast<const parse::AssignNode*>(block->body->expr.get());
+        REQUIRE(assign->name != nullptr);
+        auto name = parser.lexer()->tokens()[assign->name->tokenIndex];
         REQUIRE(name.name == Token::kIdentifier);
         CHECK(name.range.compare("four") == 0);
         CHECK(name.hash == hash("four"));
@@ -2540,9 +2580,11 @@ TEST_CASE("Parser expr") {
         CHECK(block->next == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kAssign);
-        auto assign = reinterpret_cast<const parse::AssignNode*>(block->body.get());
-        auto name = parser.lexer()->tokens()[assign->tokenIndex];
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kAssign);
+        auto assign = reinterpret_cast<const parse::AssignNode*>(block->body->expr.get());
+        REQUIRE(assign->name != nullptr);
+        auto name = parser.lexer()->tokens()[assign->name->tokenIndex];
         REQUIRE(name.name == Token::kIdentifier);
         CHECK(name.range.compare("globez") == 0);
         CHECK(name.hash == hash("globez"));
@@ -2566,8 +2608,9 @@ TEST_CASE("Parser expr") {
         CHECK(block->next == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kSetter);
-        auto setter = reinterpret_cast<const parse::SetterNode*>(block->body.get());
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kSetter);
+        auto setter = reinterpret_cast<const parse::SetterNode*>(block->body->expr.get());
         auto nameToken = parser.lexer()->tokens()[setter->tokenIndex];
         REQUIRE(nameToken.name == Token::kIdentifier);
         CHECK(nameToken.range.compare("property") == 0);
@@ -2682,7 +2725,7 @@ TEST_CASE("Parser expr1") {
     }
 
     SUBCASE("expr1: '~' name") {
-        Parser parser("( ~z )");
+        Parser parser("~z");
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
