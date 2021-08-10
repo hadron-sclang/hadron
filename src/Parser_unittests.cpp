@@ -2790,8 +2790,12 @@ TEST_CASE("Parser arrayelems") {
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
-        REQUIRE(parser.root()->nodeType == parse::NodeType::kDynList);
-        auto array = reinterpret_cast<const parse::DynListNode*>(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDynList);
+        auto array = reinterpret_cast<const parse::DynListNode*>(block->body->expr.get());
         CHECK(array->elements == nullptr);
     }
 
@@ -2800,18 +2804,29 @@ TEST_CASE("Parser arrayelems") {
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
-        REQUIRE(parser.root()->nodeType == parse::NodeType::kDynList);
-        auto array = reinterpret_cast<const parse::DynListNode*>(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDynList);
+        auto array = reinterpret_cast<const parse::DynListNode*>(block->body->expr.get());
 
         REQUIRE(array->elements != nullptr);
-        REQUIRE(array->elements->nodeType == parse::NodeType::kLiteral);
-        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(array->elements.get());
+        REQUIRE(array->elements->nodeType == parse::NodeType::kExprSeq);
+        const parse::ExprSeqNode* exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(array->elements.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
         CHECK(literal->value.type == Type::kInteger);
         CHECK(literal->value.value.intValue == 1);
+        CHECK(literal->next == nullptr);
 
-        REQUIRE(literal->next != nullptr);
-        REQUIRE(literal->next->nodeType == parse::NodeType::kLiteral);
-        literal = reinterpret_cast<const parse::LiteralNode*>(literal->next.get());
+        REQUIRE(exprSeq->next != nullptr);
+        REQUIRE(exprSeq->next->nodeType == parse::NodeType::kExprSeq);
+        exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(exprSeq->next.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
         CHECK(literal->value.type == Type::kInteger);
         CHECK(literal->value.value.intValue == -2);
     }
@@ -2823,8 +2838,12 @@ TEST_CASE("Parser arrayelems1") {
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
-        REQUIRE(parser.root()->nodeType == parse::NodeType::kDynList);
-        auto array = reinterpret_cast<const parse::DynListNode*>(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDynList);
+        auto array = reinterpret_cast<const parse::DynListNode*>(block->body->expr.get());
 
         REQUIRE(array->elements != nullptr);
         REQUIRE(array->elements->nodeType == parse::NodeType::kExprSeq);
@@ -2856,8 +2875,13 @@ TEST_CASE("Parser arrayelems1") {
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
-        REQUIRE(parser.root()->nodeType == parse::NodeType::kDynList);
-        auto array = reinterpret_cast<const parse::DynListNode*>(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->expr != nullptr);
+
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDynList);
+        auto array = reinterpret_cast<const parse::DynListNode*>(block->body->expr.get());
 
         REQUIRE(array->elements != nullptr);
         REQUIRE(array->elements->nodeType == parse::NodeType::kExprSeq);
@@ -2897,8 +2921,12 @@ TEST_CASE("Parser arrayelems1") {
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
-        REQUIRE(parser.root()->nodeType == parse::NodeType::kDynList);
-        auto array = reinterpret_cast<const parse::DynListNode*>(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDynList);
+        auto array = reinterpret_cast<const parse::DynListNode*>(block->body->expr.get());
 
         REQUIRE(array->elements != nullptr);
         REQUIRE(array->elements->nodeType == parse::NodeType::kLiteral);
@@ -2906,8 +2934,11 @@ TEST_CASE("Parser arrayelems1") {
         CHECK(literal->value.type == Type::kSymbol);
 
         REQUIRE(literal->next != nullptr);
-        REQUIRE(literal->next->nodeType == parse::NodeType::kLiteral);
-        literal = reinterpret_cast<const parse::LiteralNode*>(literal->next.get());
+        REQUIRE(literal->next->nodeType == parse::NodeType::kExprSeq);
+        const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(literal->next.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
         CHECK(literal->value.type == Type::kInteger);
         CHECK(literal->value.value.intValue == 440);
         CHECK(literal->next == nullptr);

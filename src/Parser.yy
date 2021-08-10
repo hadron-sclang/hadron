@@ -372,6 +372,30 @@ arrayelems  : %empty { $arrayelems = nullptr; }
             ;
 
 arrayelems1[target] : exprseq { $target = std::move($exprseq); }
+                    | exprseq[build] COLON exprseq[next] { $target = append(std::move($build), std::move($next)); }
+                    | KEYWORD exprseq {
+                            auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD, hadron::Slot(
+                                hadron::Type::kSymbol, hadron::Slot::Value()));
+                            $target = append<std::unique_ptr<hadron::parse::Node>>(std::move(literal),
+                                std::move($exprseq));
+                        }
+                    | arrayelems1[build] COMMA exprseq {
+                            $target = append<std::unique_ptr<hadron::parse::Node>>(std::move($build),
+                                std::move($exprseq));
+                        }
+                    | arrayelems1[build] COMMA KEYWORD exprseq {
+                            auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD, hadron::Slot(
+                                hadron::Type::kSymbol, hadron::Slot::Value()));
+                            auto affixes = append<std::unique_ptr<hadron::parse::Node>>(std::move(literal),
+                                std::move($exprseq));
+                            $target = append(std::move($build), std::move(affixes));
+                        }
+                    | arrayelems1[build] COMMA exprseq[append] COLON exprseq[next] {
+                        auto affixes = append<std::unique_ptr<hadron::parse::Node>>(std::move($append),
+                            std::move($next));
+                        $target = append(std::move($build), std::move(affixes));
+                        }
+                    ;
 
 expr1[target]   : literal { $target = std::move($literal); }
                 | IDENTIFIER { $target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER); }
