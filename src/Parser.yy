@@ -16,9 +16,11 @@
 %token <size_t> CURRYARGUMENT
 
 %type <std::unique_ptr<hadron::parse::ArgListNode>> argdecls
-%type <std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode block
+%type <std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode block blocklist1 blocklist
+%type <std::unique_ptr<hadron::parse::CallNode>> msgsend
 %type <std::unique_ptr<hadron::parse::ClassExtNode>> classextension classextensions
 %type <std::unique_ptr<hadron::parse::ClassNode>> classdef classes
+%type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1
 %type <std::unique_ptr<hadron::parse::LiteralNode>> literal
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
 %type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1
@@ -82,7 +84,7 @@ root    : classes
             { hadronParser->setRoot(std::move($cmdlinecode)); }
         ;
 
-classes[target] : /* empty */
+classes[target] : %empty
                     { $target = nullptr;}
                 | classes[build] classdef
                     { $target = append(std::move($build), std::move($classdef)); }
@@ -121,18 +123,18 @@ classextension  : PLUS CLASSNAME OPENCURLY methods CLOSECURLY
                     }
                 ;
 
-optname : /* empty */
+optname : %empty
             { $optname = std::nullopt; }
         | IDENTIFIER
             { $optname = $IDENTIFIER; }
         ;
 
-superclass  : /* empty */
+superclass  : %empty
                 { $superclass = std::nullopt; }
             | COLON CLASSNAME
                 { $superclass = $CLASSNAME; }
 
-classvardecls[target]   : /* empty */
+classvardecls[target]   : %empty
                             { $target = nullptr; }
                         | classvardecls[build] classvardecl
                             { $target = append(std::move($build), std::move($classvardecl)); }
@@ -158,7 +160,7 @@ classvardecl    : CLASSVAR rwslotdeflist SEMICOLON
                     }
                 ;
 
-methods[target] : /* empty */
+methods[target] : %empty
                     { $target = nullptr; }
                 | methods[build] methoddef
                     { $target = append(std::move($build), std::move($methoddef)); }
@@ -206,15 +208,15 @@ methoddef   : IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOS
                 }
             ;
 
-optsemi : /* empty */
+optsemi : %empty
         | SEMICOLON
         ;
 
-optcomma	: /* empty */
+optcomma	: %empty
 			| COMMA
 			;
 
-optequal	: /* empty */
+optequal	: %empty
 			| ASSIGN
 			;
 
@@ -235,10 +237,10 @@ funcbody    : CARET expr optsemi
             ;
 
 
-cmdlinecode : OPENPAREN funcvardecls1 methbody CLOSEPAREN
+cmdlinecode : OPENPAREN funcvardecls methbody CLOSEPAREN
                 {
                     auto block = std::make_unique<hadron::parse::BlockNode>($OPENPAREN);
-                    block->variables = std::move($funcvardecls1);
+                    block->variables = std::move($funcvardecls);
                     block->body = std::move($methbody);
                     $cmdlinecode = std::move(block);
                 }
@@ -277,13 +279,13 @@ methbody    : retval
                 }
             ;
 
-primitive   : /* empty */
+primitive   : %empty
                 { $primitive = std::nullopt; }
             | PRIMITIVE optsemi
                 { $primitive = $PRIMITIVE; }
             ;
 
-retval  : /* empty */
+retval  : %empty
             { $retval = nullptr; }
         | CARET expr optsemi
             {
@@ -293,7 +295,7 @@ retval  : /* empty */
             }
         ;
 
-funretval   : /* empty */
+funretval   : %empty
                 { $funretval = nullptr; }
             | CARET expr optsemi
                 {
@@ -302,6 +304,34 @@ funretval   : /* empty */
                     $funretval = std::move(ret);
                 }
             ;
+
+blocklist1[target]  : block
+                        { $target = std::move($block); }
+                    | blocklist1[build] block
+                        { $target = append(std::move($build), std::move($block)); }
+                    ;
+
+blocklist   : %empty
+                { $blocklist = nullptr; }
+            | blocklist1
+                { $blocklist = std::move($blocklist1); }
+            ;
+
+msgsend : IDENTIFIER blocklist1
+            {
+                auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
+                call->arguments = std::move($blocklist1);
+                $msgsend = std::move(call);
+            }
+        | expr DOT IDENTIFIER OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist
+            {
+                auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
+                call->target = std::move($expr);
+                call->arguments = std::move($blocklist);
+                call->keywordArguments = std::move($keyarglist1);
+                $msgsend = std::move(call);
+            }
+        ;
 
 exprn[target]   : expr
                     { $target = std::move($expr); }
@@ -317,10 +347,14 @@ expr1[target]   : literal
                     { $target = std::move($literal); }
                 | IDENTIFIER
                     { $target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER); }
+                | msgsend
+                    { $target = std::move($msgsend); }
                 ;
 
 expr[target]    : expr1
                     { $target = std::move($expr1); }
+                | CLASSNAME
+                    { $target = std::make_unique<hadron::parse::NameNode>($CLASSNAME); }
                 ;
 
 block   : OPENCURLY argdecls funcvardecls methbody CLOSECURLY
@@ -333,7 +367,7 @@ block   : OPENCURLY argdecls funcvardecls methbody CLOSECURLY
             }
         ;
 
-funcvardecls[target]    : /* empty */
+funcvardecls[target]    : %empty
                             { $target = nullptr; }
                         | funcvardecls[build] funcvardecl
                             { $target = append(std::move($build), std::move($funcvardecl)); }
@@ -352,7 +386,7 @@ funcvardecl : VAR vardeflist SEMICOLON
                 }
             ;
 
-argdecls    : /* empty */
+argdecls    : %empty
                 { $argdecls = nullptr; }
             | ARG vardeflist SEMICOLON
                 {
@@ -402,7 +436,7 @@ constdef    : rspec IDENTIFIER ASSIGN literal
                 }
             ;
 
-slotdeflist0    : /* empty */
+slotdeflist0    : %empty
                     { $slotdeflist0 = nullptr; }
                 | slotdeflist
                     { $slotdeflist0 = std::move($slotdeflist); }
@@ -424,7 +458,7 @@ slotdef : IDENTIFIER
             }
         ;
 
-vardeflist0 : /* empty */
+vardeflist0 : %empty
                 { $vardeflist0 = nullptr; }
             | vardeflist
                 { $vardeflist0 = std::move($vardeflist); }
@@ -475,14 +509,28 @@ rwslotdef   : rwspec IDENTIFIER
                 }
             ;
 
-rwspec  : /* empty */ { $rwspec = std::make_pair(false, false); }
+rwspec  : %empty { $rwspec = std::make_pair(false, false); }
         | LESSTHAN { $rwspec = std::make_pair(true, false); }
         | GREATERTHAN { $rwspec = std::make_pair(false, true); }
         | READWRITEVAR { $rwspec = std::make_pair(true, true); }
         ;
 
-rspec   : /* empty */ { $rspec = false; }
+rspec   : %empty { $rspec = false; }
         | LESSTHAN { $rspec = true; }
+        ;
+
+keyarglist1[target] : keyarg
+                        { $target = std::move($keyarg); }
+                    | keyarglist1[build] COMMA keyarg
+                        { $target = append(std::move($build), std::move($keyarg)); }
+                    ;
+
+keyarg  : KEYWORD exprseq
+            {
+                auto keyarg = std::make_unique<hadron::parse::KeyValueNode>($KEYWORD);
+                keyarg->value = std::move($exprseq);
+                $keyarg = std::move(keyarg);
+            }
         ;
 
 literal : LITERAL
