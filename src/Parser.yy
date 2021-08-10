@@ -24,12 +24,12 @@
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist
 %type <std::unique_ptr<hadron::parse::LiteralNode>> literal
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
-%type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */
+%type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ arrayelems arrayelems1
 %type <std::unique_ptr<hadron::parse::ReturnNode>> funretval retval
 %type <std::unique_ptr<hadron::parse::VarDefNode>> rwslotdeflist rwslotdef slotdef vardef constdef constdeflist
 %type <std::unique_ptr<hadron::parse::VarDefNode>> vardeflist slotdeflist vardeflist0 slotdeflist0
 %type <std::unique_ptr<hadron::parse::VarListNode>> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
-%type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1
+%type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1
 
 %type <std::optional<size_t>> superclass optname primitive
 %type <std::pair<bool, bool>> rwspec
@@ -38,7 +38,7 @@
 %type <std::pair<size_t, double>> float
 %type <size_t> binop binop2
 
-// %left COLON
+//%left COLON
 //%right ASSIGN
 %precedence ASSIGN
 %left BINOP KEYWORD PLUS MINUS ASTERISK LESSTHAN GREATERTHAN PIPE READWRITEVAR LEFTARROW
@@ -299,6 +299,21 @@ msgsend : IDENTIFIER blocklist1 {
                 call->arguments = std::move($blocklist1);
                 $msgsend = std::move(call);
             }
+        | IDENTIFIER OPENPAREN CLOSEPAREN blocklist1 {
+                auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
+                call->arguments = std::move($blocklist1);
+                $msgsend = std::move(call);
+            }
+        | IDENTIFIER OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
+                auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
+                call->arguments = append<std::unique_ptr<hadron::parse::Node>>(std::move($arglist1),
+                    std::move($blocklist));
+                call->keywordArguments = std::move($optkeyarglist);
+                $msgsend = std::move(call);
+            }
+        | IDENTIFIER OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
+                // TODO: performList
+            }
         | expr DOT IDENTIFIER OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
                 call->target = std::move($expr);
@@ -352,14 +367,26 @@ exprseq : exprn optsemi {
             }
         ;
 
+arrayelems  : %empty { $arrayelems = nullptr; }
+            | arrayelems1 optcomma { $arrayelems = std::move($arrayelems1); }
+            ;
+
+arrayelems1[target] : exprseq { $target = std::move($exprseq); }
+
 expr1[target]   : literal { $target = std::move($literal); }
                 | IDENTIFIER { $target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER); }
                 | msgsend { $target = std::move($msgsend); }
+// TODO: why does this cause so many shift/reduce conflicts?
 //                | OPENPAREN exprseq CLOSEPAREN { $target = std::move($exprseq); }
                 | TILDE IDENTIFIER {
                         auto name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER);
                         name->isGlobal = true;
                         $target = std::move(name);
+                    }
+                | OPENSQUARE arrayelems CLOSESQUARE {
+                        auto list = std::make_unique<hadron::parse::DynListNode>($OPENSQUARE);
+                        list->elements = std::move($arrayelems);
+                        $target = std::move(list);
                     }
                 ;
 
@@ -390,6 +417,14 @@ expr[target]    : expr1 { $target = std::move($expr1); }
                         setter->target = std::move($build);
                         setter->value = std::move($value);
                         $target = std::move(setter);
+                    }
+                | IDENTIFIER OPENPAREN arglist1 optkeyarglist CLOSEPAREN ASSIGN expr[value] {
+                        if ($optkeyarglist != nullptr) {
+                            // TODO: LSC error condition "Setter method called with keyword arguments"
+                        }
+                        auto setter = std::make_unique<hadron::parse::SetterNode>($IDENTIFIER);
+                        setter->target = std::move($arglist1);
+                        setter->value = std::move($value);
                     }
                 ;
 
@@ -536,6 +571,10 @@ rspec   : %empty { $rspec = false; }
 arglist1[target]    : exprseq { $target = std::move($exprseq); }
                     | arglist1[build] COMMA exprseq { $target = append(std::move($build), std::move($exprseq)); }
                     ;
+
+arglistv1   : ASTERISK exprseq { $arglistv1 = std::move($exprseq); }
+            | arglist1 COMMA ASTERISK exprseq { $arglistv1 = append(std::move($arglist1), std::move($exprseq)); }
+            ;
 
 keyarglist1[target] : keyarg { $target = std::move($keyarg); }
                     | keyarglist1[build] COMMA keyarg { $target = append(std::move($build), std::move($keyarg)); }

@@ -2773,8 +2773,12 @@ TEST_CASE("Parser literal") {
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
-        REQUIRE(parser.root()->nodeType == parse::NodeType::kLiteral);
-        auto literal = reinterpret_cast<const parse::LiteralNode*>(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(block->body->expr.get());
         CHECK(literal->value.type == Type::kInteger);
         CHECK(literal->value.value.intValue == -1);
     }
