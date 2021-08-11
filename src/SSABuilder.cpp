@@ -212,6 +212,10 @@ Value SSABuilder::buildValue(const parse::Node* node) {
     case parse::NodeType::kNumericSeries: {
         assert(false); // TODO
     } break;
+
+    case parse::NodeType::kIf: {
+        assert(false); // TODO
+    } break;
     }
 
     return nodeValue;

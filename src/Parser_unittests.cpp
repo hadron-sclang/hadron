@@ -2967,4 +2967,53 @@ TEST_CASE("Parser arrayelems1") {
     }
 }
 
+TEST_CASE("Parser if") {
+    SUBCASE("if '(' expr ',' block ',' block ')'") {
+        Parser parser("if ([true, false].choose, { \"true\".postln; }, { \"false\".postln; });");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->expr != nullptr);
+
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kIf);
+        const auto ifNode = reinterpret_cast<const parse::IfNode*>(block->body->expr.get());
+
+        // [true, false].choose
+        REQUIRE(ifNode->condition != nullptr);
+        REQUIRE(ifNode->condition->expr != nullptr);
+        REQUIRE(ifNode->condition->expr->nodeType == parse::NodeType::kCall);
+        const parse::CallNode* call = reinterpret_cast<parse::CallNode*>(ifNode->condition->expr.get());
+        REQUIRE(call->target != nullptr);
+        REQUIRE(call->target->nodeType == parse::NodeType::kDynList);
+        const auto dynList = reinterpret_cast<const parse::DynListNode*>(call->target.get());
+        REQUIRE(dynList->elements != nullptr);
+        REQUIRE(dynList->elements->nodeType == parse::NodeType::kExprSeq);
+        const parse::ExprSeqNode* exprSeq = reinterpret_cast<parse::ExprSeqNode*>(dynList->elements.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->value == Slot(Type::kBoolean, Slot::Value(true)));
+        REQUIRE(exprSeq->next != nullptr);
+        REQUIRE(exprSeq->next->nodeType == parse::NodeType::kExprSeq);
+        exprSeq = reinterpret_cast<parse::ExprSeqNode*>(exprSeq->next.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->value == Slot(Type::kBoolean, Slot::Value(false)));
+
+        // { "true".postln }
+        REQUIRE(ifNode->trueBlock);
+        REQUIRE(ifNode->trueBlock->body);
+        REQUIRE(ifNode->trueBlock->body->expr);
+        REQUIRE(ifNode->trueBlock->body->expr->nodeType == parse::NodeType::kCall);
+        call = reinterpret_cast<const parse::CallNode*>(ifNode->trueBlock->body->expr.get());
+        REQUIRE(call->target);
+        REQUIRE(call->target->nodeType == parse::NodeType::kLiteral);
+        REQUIRE(false);  // TODO: finish
+    }
+}
+
 } // namespace hadron

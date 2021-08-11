@@ -36,7 +36,8 @@ enum NodeType {
     kCall = 16,
     kBinopCall = 17,
     kPerformList = 18,
-    kNumericSeries = 19
+    kNumericSeries = 19,
+    kIf = 20
 };
 
 struct Node {
@@ -223,6 +224,16 @@ struct NumericSeriesNode : public Node {
     std::unique_ptr<Node> start;
     std::unique_ptr<Node> step;
     std::unique_ptr<Node> stop;
+};
+
+struct IfNode : public Node {
+    IfNode(size_t index): Node(NodeType::kIf, index) {}
+    virtual ~IfNode() = default;
+
+    std::unique_ptr<ExprSeqNode> condition;
+    std::unique_ptr<BlockNode> trueBlock;
+    // optional else condition.
+    std::unique_ptr<BlockNode> falseBlock;
 };
 
 } // namespace parse

@@ -14,13 +14,14 @@
 %token <size_t> LITERAL FLOAT INTEGER PRIMITIVE PLUS MINUS ASTERISK ASSIGN LESSTHAN GREATERTHAN PIPE READWRITEVAR
 %token <size_t> LEFTARROW BINOP KEYWORD OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA
 %token <size_t> SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR IDENTIFIER CLASSNAME DOT DOTDOT ELLIPSES
-%token <size_t> CURRYARGUMENT
+%token <size_t> CURRYARGUMENT IF
 
 %type <std::unique_ptr<hadron::parse::ArgListNode>> argdecls
 %type <std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode block blocklist1 blocklist
 %type <std::unique_ptr<hadron::parse::CallNode>> msgsend
 %type <std::unique_ptr<hadron::parse::ClassExtNode>> classextension classextensions
 %type <std::unique_ptr<hadron::parse::ClassNode>> classdef classes
+%type <std::unique_ptr<hadron::parse::IfNode>> if
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist
 %type <std::unique_ptr<hadron::parse::LiteralNode>> literal
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
@@ -344,6 +345,34 @@ msgsend : IDENTIFIER blocklist1 {
             }
         ;
 
+if  : IF OPENPAREN exprseq COMMA block[true] COMMA block[false] optcomma CLOSEPAREN {
+            auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
+            ifNode->condition = std::move($exprseq);
+            ifNode->trueBlock = std::move($true);
+            ifNode->falseBlock = std::move($false);
+            $if = std::move(ifNode);
+        }
+    | IF OPENPAREN exprseq COMMA block[true] optcomma CLOSEPAREN {
+            auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
+            ifNode->condition = std::move($exprseq);
+            ifNode->trueBlock = std::move($true);
+            $if = std::move(ifNode);
+        }
+    | expr DOT IF OPENPAREN block[true] COMMA block[false] optcomma CLOSEPAREN {
+            auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
+            ifNode->condition = std::make_unique<hadron::parse::ExprSeqNode>($expr->tokenIndex, std::move($expr));
+            ifNode->trueBlock = std::move($true);
+            ifNode->falseBlock = std::move($false);
+            $if = std::move(ifNode);
+        }
+    | expr DOT IF OPENPAREN block[true] optcomma CLOSEPAREN {
+            auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
+            ifNode->condition = std::make_unique<hadron::parse::ExprSeqNode>($expr->tokenIndex, std::move($expr));
+            ifNode->trueBlock = std::move($true);
+            $if = std::move(ifNode);
+        }
+    ;
+
 // TODO: figure out is this used? What does it mean? Things like: "4 + .foo 5" parse in LSC (evaluates to 9).
 /*
 adverb  : %empty { $adverb = nullptr; }
@@ -412,6 +441,7 @@ expr1[target]   : literal { $target = std::move($literal); }
                         list->elements = std::move($arrayelems);
                         $target = std::move(list);
                     }
+                | if { $target = std::move($if); }
                 ;
 
 expr[target]    : expr1 { $target = std::move($expr1); }
@@ -791,6 +821,9 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
 
     case hadron::Token::Name::kCurryArgument:
         return yy::parser::make_CURRYARGUMENT(index, token.range);
+
+    case hadron::Token::Name::kIf:
+        return yy::parser::make_IF(index, token.range);
     }
 
     return yy::parser::make_END(token.range);

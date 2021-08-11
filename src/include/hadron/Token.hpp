@@ -56,7 +56,10 @@ struct Token {
         kDot,
         kDotDot,
         kEllipses,
-        kCurryArgument
+        kCurryArgument,
+
+        // Control Flow
+        kIf
     };
 
     Name name;
