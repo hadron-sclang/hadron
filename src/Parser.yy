@@ -796,7 +796,7 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
     return yy::parser::make_END(token.range);
 }
 
-void yy::parser::error(const std::string_view& location, const std::string& errorString) {
+void yy::parser::error(const std::string_view& /* location */, const std::string& errorString) {
     hadronParser->errorReporter()->addError(errorString);
 }
 
