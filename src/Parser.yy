@@ -38,13 +38,9 @@
 %type <std::pair<size_t, double>> float
 %type <size_t> binop binop2
 
-//%left COLON
-//%right ASSIGN
 %precedence ASSIGN
 %left BINOP KEYWORD PLUS MINUS ASTERISK LESSTHAN GREATERTHAN PIPE READWRITEVAR LEFTARROW
 %precedence DOT
-//%precedence UMINUS
-//%right UMINUS
 %start root
 
 %{
@@ -89,7 +85,7 @@ root    : classes { hadronParser->addRoot(std::move($classes)); }
         | INTERPRET cmdlinecode { hadronParser->addRoot(std::move($cmdlinecode)); }
         ;
 
-classes[target] : %empty { $target = nullptr;}
+classes[target] : %empty { $target = nullptr; }
                 | classes[build] classdef { $target = append(std::move($build), std::move($classdef)); }
                 ;
 
@@ -200,12 +196,12 @@ optsemi : %empty
         ;
 
 optcomma	: %empty
-			| COMMA
-			;
+            | COMMA
+            ;
 
 optequal	: %empty
-			| ASSIGN
-			;
+            | ASSIGN
+            ;
 
 funcbody    : funretval {
                     if ($funretval) {
@@ -801,10 +797,6 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
 }
 
 void yy::parser::error(const std::string_view& location, const std::string& errorString) {
-    spdlog::error(errorString);
-    if (!location.empty()) {
-        spdlog::error(location);
-    }
     hadronParser->errorReporter()->addError(errorString);
 }
 
@@ -863,7 +855,6 @@ bool Parser::innerParse() {
     m_root = nullptr;
     m_tokenIndex = 0;
     yy::parser parser(this);
-//    parser.set_debug_level(1);
     auto error = parser.parse();
     if (error != 0) {
         return false;
