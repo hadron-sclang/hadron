@@ -11,7 +11,12 @@ namespace hadron {
 // Lexer lexes source to produce Tokens, Parser consumes Tokens to produce Parse Tree.
 struct Token {
     enum Name {
-        kEmpty,  // represents no token
+        kEmpty,      // represents no token
+        kInterpret,  // The LSC grammar is ambiguous as written without the insertion of a special token informing the
+                     // parser that the input text is interpreted code. Without this the grammar cannot determine if
+                     // a classname input is a class definition or a reference to a class as part of an expression.
+                     // To fix we inject this token at the beginning of interpreted code. There may be other ways to
+                     // resolve this ambiguity but they will likely require some changes to the grammar.
         kLiteral,
         kPrimitive,
 

@@ -10,8 +10,9 @@ following:
  * CMake
  * GNU Autotools, specifically automake and autoconf
  * GNU Libtool
+ * GNU Bison newer than 3.2
 
 All of which can be installed with the command:
 
-`brew install cmake automake autoconf libtool`
+`brew install cmake automake autoconf libtool bison`
 
