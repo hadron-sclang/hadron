@@ -2073,9 +2073,11 @@ TEST_CASE("Parser exprseq") {
 
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->nodeType == parse::NodeType::kExprSeq);
-        auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(block->body.get());
-
+        const parse::ExprSeqNode* exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(block->body.get());
         REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kExprSeq);
+        exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(exprSeq->expr.get());
+
         REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kName);
         const parse::NameNode* nameNode = reinterpret_cast<const parse::NameNode*>(exprSeq->expr.get());
         auto name = parser.lexer()->tokens()[nameNode->tokenIndex];
@@ -2489,7 +2491,7 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: expr binop2 adverb expr %prec binop") {
-        Parser parser("( a + b not: c )");
+        Parser parser("a + b not: c");
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
@@ -2540,7 +2542,7 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: name '=' expr") {
-        Parser parser("( four = 4 )");
+        Parser parser("four = 4");
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
@@ -2569,7 +2571,7 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: '~' name '=' expr") {
-        Parser parser("( ~globez = \"xyz\" )");
+        Parser parser("~globez = \"xyz\"");
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
@@ -2597,7 +2599,7 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: expr '.' name '=' expr") {
-        Parser parser("( ~object.property = true )");
+        Parser parser("~object.property = true");
         REQUIRE(parser.parse());
 
         REQUIRE(parser.root() != nullptr);
@@ -2673,9 +2675,15 @@ TEST_CASE("Parser expr1") {
 
         REQUIRE(parser.root() != nullptr);
         REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
-        auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
-        CHECK(block->variables == nullptr);
+        const parse::BlockNode* block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kLiteral);
+        const auto literal = reinterpret_cast<const parse::LiteralNode*>(block->body->expr.get());
+        REQUIRE(literal->blockLiteral != nullptr);
+        block = literal->blockLiteral.get();
 
+        CHECK(block->variables == nullptr);
         REQUIRE(block->arguments != nullptr);
         REQUIRE(block->arguments->varList != nullptr);
         REQUIRE(block->arguments->varList->definitions != nullptr);
@@ -2687,8 +2695,9 @@ TEST_CASE("Parser expr1") {
         CHECK(defs->initialValue == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kReturn);
-        auto ret = reinterpret_cast<const parse::ReturnNode*>(block->body.get());
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kReturn);
+        auto ret = reinterpret_cast<const parse::ReturnNode*>(block->body->expr.get());
 
         REQUIRE(ret->valueExpr != nullptr);
         REQUIRE(ret->valueExpr->nodeType == parse::NodeType::kCall);
@@ -2700,8 +2709,11 @@ TEST_CASE("Parser expr1") {
         CHECK(call->arguments == nullptr);
         CHECK(call->keywordArguments == nullptr);
 
-        REQUIRE(call->target->nodeType == parse::NodeType::kBinopCall);
-        auto binop = reinterpret_cast<const parse::BinopCallNode*>(call->target.get());
+        REQUIRE(call->target->nodeType == parse::NodeType::kExprSeq);
+        const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(call->target.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kBinopCall);
+        auto binop = reinterpret_cast<const parse::BinopCallNode*>(exprSeq->expr.get());
         nameToken = parser.lexer()->tokens()[binop->tokenIndex];
         REQUIRE(nameToken.name == Token::kBinop);
         CHECK(nameToken.range.compare("===") == 0);
@@ -2736,8 +2748,9 @@ TEST_CASE("Parser expr1") {
         CHECK(block->next == nullptr);
 
         REQUIRE(block->body != nullptr);
-        REQUIRE(block->body->nodeType == parse::NodeType::kName);
-        auto name = reinterpret_cast<const parse::NameNode*>(block->body.get());
+        REQUIRE(block->body->expr != nullptr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kName);
+        auto name = reinterpret_cast<const parse::NameNode*>(block->body->expr.get());
         auto nameToken = parser.lexer()->tokens()[name->tokenIndex];
         CHECK(name->isGlobal);
         REQUIRE(nameToken.name == Token::kIdentifier);

@@ -225,9 +225,9 @@ funcbody    : funretval {
             ;
 
 
-cmdlinecode : OPENPAREN funcvardecls funcbody CLOSEPAREN {
+cmdlinecode : OPENPAREN funcvardecls1 funcbody CLOSEPAREN {
                     auto block = std::make_unique<hadron::parse::BlockNode>($OPENPAREN);
-                    block->variables = std::move($funcvardecls);
+                    block->variables = std::move($funcvardecls1);
                     block->body = std::move($funcbody);
                     $cmdlinecode = std::move(block);
                 }
@@ -296,6 +296,11 @@ blocklist   : %empty { $blocklist = nullptr; }
 
 msgsend : IDENTIFIER blocklist1 {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
+                call->arguments = std::move($blocklist1);
+                $msgsend = std::move(call);
+            }
+        | OPENPAREN binop2 CLOSEPAREN blocklist1 {
+                auto call = std::make_unique<hadron::parse::CallNode>($binop2);
                 call->arguments = std::move($blocklist1);
                 $msgsend = std::move(call);
             }
@@ -400,8 +405,7 @@ arrayelems1[target] : exprseq { $target = std::move($exprseq); }
 expr1[target]   : literal { $target = std::move($literal); }
                 | IDENTIFIER { $target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER); }
                 | msgsend { $target = std::move($msgsend); }
-// TODO: why does this cause so many shift/reduce conflicts?
-//                | OPENPAREN exprseq CLOSEPAREN { $target = std::move($exprseq); }
+                | OPENPAREN exprseq CLOSEPAREN { $target = std::move($exprseq); }
                 | TILDE IDENTIFIER {
                         auto name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER);
                         name->isGlobal = true;
