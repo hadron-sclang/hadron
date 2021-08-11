@@ -166,10 +166,6 @@ struct KeyValueNode : public Node {
 };
 
 // target.selector(arguments, keyword: arguments)
-// target can also be null, in which case target is assumed to be the first argument, for example:
-// while({x < 5}, { /* code */ });
-// blocklists are appended to arguments, so this syntax will result in the same construction:
-// while { x < 5 } { /* code */ };
 struct CallNode : public Node {
     CallNode(size_t index): Node(NodeType::kCall, index) {}
     virtual ~CallNode() = default;
