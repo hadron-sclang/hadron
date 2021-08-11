@@ -235,9 +235,24 @@ cmdlinecode : OPENPAREN funcvardecls1 funcbody CLOSEPAREN {
                     $cmdlinecode = std::move(block);
                 }
             | funcbody {
+                    // To keep the grammar unambiguous we require variable declarations in the first cmdlinecode
+                    // rule, so that it doesn't collide with the definition of a expr1 as '(' exprseq ')'. So what
+                    // happens to blocks that come in in parenthesis surrounding expressions without variable
+                    // declaration is they match this rule for cmdlinecode, then match the expr1 rule, resulting
+                    // in nested ExprSeqNodes from block. Meaning block->body is always an ExprSeqNode created by
+                    // the match with the exprseq rule inside of funcbody, but then the block->body->expr node is
+                    // also an ExprSeqNode, matching against the expr1 rule. We remove the redundant ExprSeqNode
+                    // here.
                     if ($funcbody) {
                         auto block = std::make_unique<hadron::parse::BlockNode>($funcbody->tokenIndex);
-                        block->body = std::move($funcbody);
+                        if ($funcbody->expr && $funcbody->expr->nodeType == hadron::parse::NodeType::kExprSeq) {
+                            hadron::parse::ExprSeqNode* exprSeq = reinterpret_cast<hadron::parse::ExprSeqNode*>(
+                                $funcbody->expr.get());
+                            block->body = std::make_unique<hadron::parse::ExprSeqNode>($funcbody->tokenIndex,
+                                std::move(exprSeq->expr));
+                        } else {
+                            block->body = std::move($funcbody);
+                        }
                         $cmdlinecode = std::move(block);
                     } else {
                         $cmdlinecode = nullptr;
@@ -389,7 +404,7 @@ adverb  : %empty { $adverb = nullptr; }
 */
 
 exprn[target]   : expr { $target = std::move($expr); }
-                | exprn[build] SEMICOLON expr {  $target = append(std::move($build), std::move($expr)); }
+                | exprn[build] SEMICOLON expr { $target = append(std::move($build), std::move($expr)); }
                 ;
 
 exprseq : exprn optsemi {
@@ -430,7 +445,12 @@ arrayelems1[target] : exprseq { $target = std::move($exprseq); }
 expr1[target]   : literal { $target = std::move($literal); }
                 | IDENTIFIER { $target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER); }
                 | msgsend { $target = std::move($msgsend); }
-                | OPENPAREN exprseq CLOSEPAREN { $target = std::move($exprseq); }
+                | OPENPAREN exprseq CLOSEPAREN {
+                        // To keep consistent with variable-less cmdlinecode blocks that get parsed as this we point
+                        // to the openening parenthesis with the tokenIndex.
+                        $exprseq->tokenIndex = $OPENPAREN;
+                        $target = std::move($exprseq);
+                    }
                 | TILDE IDENTIFIER {
                         auto name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER);
                         name->isGlobal = true;

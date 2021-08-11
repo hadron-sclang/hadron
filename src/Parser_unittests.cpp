@@ -2075,9 +2075,6 @@ TEST_CASE("Parser exprseq") {
         REQUIRE(block->body->nodeType == parse::NodeType::kExprSeq);
         const parse::ExprSeqNode* exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(block->body.get());
         REQUIRE(exprSeq->expr != nullptr);
-        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kExprSeq);
-        exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(exprSeq->expr.get());
-
         REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kName);
         const parse::NameNode* nameNode = reinterpret_cast<const parse::NameNode*>(exprSeq->expr.get());
         auto name = parser.lexer()->tokens()[nameNode->tokenIndex];

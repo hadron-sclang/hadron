@@ -493,6 +493,33 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         spdlog::warn("TODO: NumericSeriesNode");
         break;
 
+    case hadron::parse::NodeType::kIf: {
+        const auto ifNode = reinterpret_cast<const hadron::parse::IfNode*>(node);
+        outFile << fmt::format("    node_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">"
+            "<tr><td bgcolor=\"lightGray\"><b>if</b></td></tr>"
+            "<tr><td port=\"next\">next {}</td></tr>"
+            "<tr><td port=\"condition\">condition {}</td></tr>"
+            "<tr><td port=\"true\">true {}</td></tr>"
+            "<tr><td port=\"false\">false {}</td></tr></table>>]\n",
+            nodeSerial,
+            nullOrNo(node->next.get()),
+            nullOrNo(ifNode->condition.get()),
+            nullOrNo(ifNode->trueBlock.get()),
+            nullOrNo(ifNode->falseBlock.get()));
+        if (ifNode->condition) {
+            outFile << fmt::format("    node_{}:condition -> node_{}\n", nodeSerial, serial);
+            visualizeParseNode(outFile, parser, serial, ifNode->condition.get());
+        }
+        if (ifNode->trueBlock) {
+            outFile << fmt::format("    node_{}:true -> node_{}\n", nodeSerial, serial);
+            visualizeParseNode(outFile, parser, serial, ifNode->trueBlock.get());
+        }
+        if (ifNode->falseBlock) {
+            outFile << fmt::format("    node_{}:false -> node_{}\n", nodeSerial, serial);
+            visualizeParseNode(outFile, parser, serial, ifNode->falseBlock.get());
+        }
+    } break;
+
     default:
         spdlog::error("Encountered unknown parse tree node type."); 
         return;
@@ -755,6 +782,12 @@ void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
             outFile << fmt::format("      <tr><td>StoreReturn({})</td></tr>\n", printValue(storeReturn->returnValue));
         } break;
 
+        case hadron::hir::Opcode::kIf: {
+            const auto ifHIR = reinterpret_cast<const hadron::hir::IfHIR*>(hir.get());
+            outFile << fmt::format("      <tr><td>{} &#8592; if {} then goto {} else goto {}</td></tr>\n",
+                printValue(ifHIR->value), printValue(ifHIR->condition), ifHIR->trueBlock, ifHIR->falseBlock);
+        } break;
+
         case hadron::hir::Opcode::kDispatchCall: {
             const auto dispatchCall = reinterpret_cast<const hadron::hir::DispatchCallHIR*>(hir.get());
             // Assumed to have at least one argument always.
@@ -782,11 +815,6 @@ void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
         }
     }
     outFile << "      </table>>]" << std::endl;
-
-    // Now we render the connections to other blocks.
-    for (const auto successor : block->successors) {
-        outFile << fmt::format("      block_{} -> block_{}\n", block->number, successor->number);
-    }
 }
 
 void visualizeFrame(std::ofstream& outFile, int& serial, const hadron::Frame* frame) {
@@ -801,6 +829,18 @@ void visualizeFrame(std::ofstream& outFile, int& serial, const hadron::Frame* fr
         visualizeFrame(outFile, serial, subFrame.get());
     }
     outFile << fmt::format("  }}  // end of cluster_{}\n", frameSerial);
+}
+
+void visualizeFrameEdges(std::ofstream& outFile, const hadron::Frame* frame) {
+    // Describe edges in our own blocks first.
+    for (const auto& block : frame->blocks) {
+        for (const auto successor : block->successors) {
+            outFile << fmt::format("  block_{} -> block_{}\n", block->number, successor->number);
+        }
+    }
+    for (const auto& subFrame : frame->subFrames) {
+        visualizeFrameEdges(outFile, subFrame.get());
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -852,12 +892,14 @@ int main(int argc, char* argv[]) {
         size_t currentLine = 1;
         size_t tokenIndex = 0;
         while (tokenIndex < parser.lexer()->tokens().size()) {
-            outFile << fmt::format("        line_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" "
-                "cellspacing=\"0\"><tr><td><font point-size=\"24\">line {}:</font></td>", currentLine, currentLine);
+            std::string lineStart = fmt::format("        line_{} [shape=plain label=<<table border=\"0\" "
+                "cellborder=\"1\" cellspacing=\"0\"><tr><td><font point-size=\"24\">line {}:</font></td>",
+                currentLine, currentLine);
             size_t tokenLine = errorReporter->getLineNumber(parser.lexer()->tokens()[tokenIndex].range.data());
             int tokenLineCount = 0;
+            std::string lineBody = "";
             while (tokenLine == currentLine) {
-                outFile << fmt::format("<td port=\"token_{}\"><font face=\"monospace\" "
+                lineBody += fmt::format("<td port=\"token_{}\"><font face=\"monospace\" "
                     "point-size=\"24\">{}</font></td>", tokenIndex,
                     htmlEscape(std::string(parser.lexer()->tokens()[tokenIndex].range.data(),
                         parser.lexer()->tokens()[tokenIndex].range.size())));
@@ -869,9 +911,11 @@ int main(int argc, char* argv[]) {
                     tokenLine = 0;
                 }
             }
-            outFile << "</tr></table>>]" << std::endl;
-            if (tokenLine > 1 && tokenLineCount > 0) {
-                outFile << fmt::format("        line_{} -> line_{}\n", currentLine, tokenLine);
+            if (tokenLineCount) {
+                outFile << lineStart << lineBody << "</tr></table>>]" << std::endl;
+                if (tokenLine > 1) {
+                    outFile << fmt::format("        line_{} -> line_{}\n", currentLine, tokenLine);
+                }
             }
             currentLine = tokenLine;
         }
@@ -904,6 +948,9 @@ int main(int argc, char* argv[]) {
         outFile << "digraph HadronSSA {" << std::endl;
         int serial = 0;
         visualizeFrame(outFile, serial, frame.get());
+        // Describing edges between blocks seems to cause dot to move blocks into subframes, so we describe all the
+        // edges in the root graph.
+        visualizeFrameEdges(outFile, frame.get());
         outFile << "}" << std::endl;
     }
 

@@ -123,8 +123,9 @@ Value SSABuilder::buildValue(const parse::Node* node) {
         assert(false);  // TODO
     } break;
 
-    // This only works for inline blocks <- when do these happen?
+    // This only works for inline blocks <- when do these happen? Are they blockLiterals?
     case parse::NodeType::kBlock: {
+        assert(false); // TODO: figure out when these happen and what's going on here.
         const auto blockNode = reinterpret_cast<const parse::BlockNode*>(node);
         // Preserve current frame and block, for wiring into the new frame and block. Encountering a block always
         // terminates the current block.
@@ -214,7 +215,57 @@ Value SSABuilder::buildValue(const parse::Node* node) {
     } break;
 
     case parse::NodeType::kIf: {
-        assert(false); // TODO
+        const auto ifNode = reinterpret_cast<const parse::IfNode*>(node);
+        auto condition = buildFinalValue(ifNode->condition.get());
+        auto ifHIROwning = std::make_unique<hir::IfHIR>(condition);
+        // Insert the if HIR but keep a copy of the pointer around to connect it to the true and false blocks.
+        hir::IfHIR* ifHIR = ifHIROwning.get();
+        insert(std::move(ifHIROwning));
+        // Preserve the current block and frame for insertion of the new subframes as children.
+        Frame* parentFrame = m_frame;
+        Block* ifBlock = m_block;
+
+        // Build the true condition block.
+        assert(ifNode->trueBlock);
+        auto trueFrameOwning = buildFrame(ifNode->trueBlock.get());
+        Frame* trueFrame = trueFrameOwning.get();
+        parentFrame->subFrames.emplace_back(std::move(trueFrameOwning));
+        ifHIR->trueBlock = trueFrame->blocks.front()->number;
+        ifBlock->successors.emplace_back(trueFrame->blocks.front().get());
+        trueFrame->blocks.front()->predecessors.emplace_back(ifBlock);
+
+        // Build the else condition block if present.
+        Frame* falseFrame = nullptr;
+        if (ifNode->falseBlock) {
+            auto falseFrameOwning = buildFrame(ifNode->falseBlock.get());
+            falseFrame = falseFrameOwning.get();
+            parentFrame->subFrames.emplace_back(std::move(falseFrameOwning));
+            ifHIR->falseBlock = falseFrame->blocks.front()->number;
+            ifBlock->successors.emplace_back(falseFrame->blocks.front().get());
+            falseFrame->blocks.front()->predecessors.emplace_back(ifBlock);
+        }
+
+        // Create a new block in the parent frame for code after the if statement.
+        auto continueBlock = std::make_unique<Block>(parentFrame, m_blockSerial);
+        ++m_blockSerial;
+        m_block = continueBlock.get();
+        parentFrame->blocks.emplace_back(std::move(continueBlock));
+        m_frame = parentFrame;
+
+        // Wire trueFrame exit block to the continue block here.
+        trueFrame->blocks.back()->successors.emplace_back(m_block);
+        m_block->predecessors.emplace_back(trueFrame->blocks.back().get());
+
+        // Either wire the else condition to the continue block, or wire the if false condition directly here if no
+        // else condition specified.
+        if (falseFrame) {
+            falseFrame->blocks.back()->successors.emplace_back(m_block);
+            m_block->predecessors.emplace_back(falseFrame->blocks.back().get());
+        } else {
+            ifHIR->falseBlock = m_block->number;
+            ifBlock->successors.emplace_back(m_block);
+            m_block->predecessors.emplace_back(ifBlock);
+        }
     } break;
     }
 

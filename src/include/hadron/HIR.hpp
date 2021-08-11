@@ -64,6 +64,9 @@ enum Opcode {
     kConstant,
     kStoreReturn,
 
+    // Control flow
+    kIf,
+
     // Method calling.
     kDispatchCall,  // save all registers, set up calling stack, represents a modification of the target
     kDispatchLoadReturn,  // just like LoadArgument, can get type or value from stack, call before Cleanup
@@ -118,6 +121,24 @@ struct StoreReturnHIR : public HIR {
 
     // Always returns an invalid value, as this is a read-only operation.
     Value proposeValue(uint32_t number) override;
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+// TODO: inherit from some common BranchHIR terminal instruction? Maybe also a block exit HIR too?
+struct IfHIR : public HIR {
+    IfHIR() = delete;
+    IfHIR(Value cond);
+    virtual ~IfHIR() = default;
+
+    Value condition;
+    int trueBlock;
+    int falseBlock; // can be -1?
+
+    // Computation of the type of an if is a function of the type of the branching blocks, so for initial value
+    // type computation we return kAny because the types of the branch blocks aren't yet known. A subsequent round
+    // of phi reduction/constant folding/dead code elimination could simplify the type considerably.
+    Value proposeValue(uint32_t number) override;
+    // Because 'if' statements are terminal blocks, isEquivalent is always false.
     bool isEquivalent(const HIR* hir) const override;
 };
 

@@ -57,6 +57,22 @@ Value StoreReturnHIR::proposeValue(uint32_t /* number */) {
 }
 
 //////////////////////////
+// IfHIR
+IfHIR::IfHIR(Value cond): HIR(kIf), condition(cond) {
+    reads.emplace(cond);
+}
+
+Value IfHIR::proposeValue(uint32_t number) {
+    value.number = number;
+    value.typeFlags = Type::kAny;
+    return value;
+}
+
+bool IfHIR::isEquivalent(const HIR* /* hir */) const {
+    return false;
+}
+
+//////////////////////////
 // Dispatch
 bool Dispatch::isEquivalent(const HIR* /* hir */) const {
     return false;
