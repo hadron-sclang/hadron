@@ -1,5 +1,7 @@
 # Hadron Grammer Extensions
 
+Gathering a list of proposed changes to the legacy SuperCollider grammar. None of these are yet implemented.
+
 ## Type Formatting
 
 Hadron extends SuperCollider grammer to allow for specification of static types for variables, arguments, and functions.
