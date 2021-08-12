@@ -20,7 +20,7 @@ via OSC messages. But, having a faster language interpreter opens up several oth
 are potentially exciting.
 
 For example, typical SC deployments run the language and audio server on the same computer. In this context, every CPU
-cycle taken up by the language represents a CPU cycle not availble for audio synthesis. Having a faster language might
+cycle taken up by the language represents a CPU cycle not available for audio synthesis. Having a faster language might
 increase the usability of SC on smaller and more inexpensive hardware platforms.
 
 Furthermore, a faster language means that more of SuperCollider could be implemented in SuperCollider itself. A typical
@@ -36,10 +36,11 @@ itself.
 ## Extensibility and Interoperability
 
 An important feature of any high-level programming language like SuperCollider is the ability to link with lower-level
-system libraries to provide system functions such as filesystem, network, and peripheral access. Hadron depends on LLVM
-for native machine code generation, and another important function that LLVM can offer is to enable lazy linking to
-libraries. This, with supporting engineering, should allow calls to C and C++-based libraries from SuperCollider code
-*without* recompilation of either the interpreter or the class library.
+system libraries to provide system functions such as filesystem, network, and peripheral access. Hadron will extend the
+SuperCollider grammar with type hinting and function signatures to enable calling C and C++ functions *directly* from
+the language runtime. The Hadron C API will hopefully enable a wide variety of interoperability and extensibility
+options, while also allowing the core library to remain small, delegating many functions (such as UI and MIDI
+frameworks) to extensions.
 
 ## Usability
 
