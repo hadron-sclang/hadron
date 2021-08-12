@@ -32,6 +32,9 @@ struct Block {
     std::unordered_map<Value, hir::HIR*> values;
     // Map of names (variables, arguments) to most recent revision of values.
     std::unordered_map<Hash, Value> revisions;
+    // Map of values defined extra-locally and their local value. For convenience we also put local values in here,
+    // mapping to themselves.
+    std::unordered_map<Value, Value> localValues;
 
     // Owning frame of this block.
     Frame* frame;
@@ -76,15 +79,16 @@ private:
 
     // Algorithm is to iterate through all previously defined values *in the block* to see if they have already defined
     // an identical value. Returns the value either inserted or re-used. Takes ownership of hir.
-    Value findOrInsert(std::unique_ptr<hir::HIR> hir);
-    Value insert(std::unique_ptr<hir::HIR> hir);
+    Value findOrInsertLocal(std::unique_ptr<hir::HIR> hir);
+    Value insertLocal(std::unique_ptr<hir::HIR> hir);
+    Value insert(std::unique_ptr<hir::HIR> hir, Block* block);
 
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
     // tables.
     Value findName(Hash name);
-    // Returns the local value number after insertion, is this needed?
-    // Value findValue(Value v);
+    // Returns the local value number after insertion.
+    Value findValue(Value v, Block* block);
 
     Lexer* m_lexer;
     std::shared_ptr<ErrorReporter> m_errorReporter;

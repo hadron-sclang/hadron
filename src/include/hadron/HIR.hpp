@@ -35,6 +35,7 @@ struct Value {
     ~Value() = default;
     bool isValid() const { return typeFlags != 0; }
     bool operator==(const Value& v) const { return number == v.number; }
+    bool operator!=(const Value& v) const { return number != v.number; }
 
     uint32_t number;
     uint32_t typeFlags;
@@ -65,6 +66,7 @@ enum Opcode {
     kStoreReturn,
 
     // Control flow
+    kPhi,
     kIf,
 
     // Method calling.
@@ -120,6 +122,17 @@ struct StoreReturnHIR : public HIR {
     Value returnValue;
 
     // Always returns an invalid value, as this is a read-only operation.
+    Value proposeValue(uint32_t number) override;
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+
+struct PhiHIR : public HIR {
+    PhiHIR(): HIR(kPhi) {}
+
+    std::vector<Value> inputs;
+    void addInput(Value v);
+
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
 };

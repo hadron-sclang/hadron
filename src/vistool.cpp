@@ -782,6 +782,20 @@ void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
             outFile << fmt::format("      <tr><td>StoreReturn({})</td></tr>\n", printValue(storeReturn->returnValue));
         } break;
 
+        case hadron::hir::Opcode::kPhi: {
+            const auto phi = reinterpret_cast<const hadron::hir::PhiHIR*>(hir.get());
+            outFile << fmt::format("      <tr><td>{} &#8592; &phi;(", printValue(phi->value));
+            if (phi->inputs.size() > 1) {
+                for (size_t i = 0; i < phi->inputs.size() - 1; ++i) {
+                    outFile << printValue(phi->inputs[i]) << ", ";
+                }
+            }
+            if (phi->inputs.size() > 0) {
+                outFile << printValue(phi->inputs[phi->inputs.size() - 1]);
+            }
+            outFile << ")</td></tr>" << std::endl;
+        } break;
+
         case hadron::hir::Opcode::kIf: {
             const auto ifHIR = reinterpret_cast<const hadron::hir::IfHIR*>(hir.get());
             outFile << fmt::format("      <tr><td>{} &#8592; if {} then goto {} else goto {}</td></tr>\n",
