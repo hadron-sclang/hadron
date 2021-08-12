@@ -23,6 +23,14 @@
 
 // We can then do a bottoms-up dead code elimination pass. This allows us to be verbose with the type system
 // assignments, I think, as we can treat them like parallel values.
+
+/*
+A good block order leads to short lifetime intervals with few holes. Our block or- der guarantees the following
+properties: First, all predecessors of a block are located before this block, with the exception of back- ward edges of
+loops. This implies that all dominators of a block are located before this block. Secondly, all blocks that are part of
+the same loop are contiguous, i.e., there is no non-loop block between two loop blocks.
+*/
+
 namespace hadron {
 
 

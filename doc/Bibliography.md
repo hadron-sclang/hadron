@@ -6,21 +6,21 @@ TODO: normalize citation style.
 
 ## Register Allocation
 
-  * **Chaitin, G. J. Register allocation and spilling via graph coloring. In Proceedings of the SIGPLAN 82 Symposium on
-    Compiler Construction. SIGPLAN Not. (ACM) 17, 6 (June 1982), 98-105.** The canonical paper on register allocation,
-    uses an algorithm based on graph coloring. Also this paper proved that optimal register allocation is NP-Hard.
+  * Chaitin, G. J. Register allocation and spilling via graph coloring. In Proceedings of the SIGPLAN 82 Symposium on
+    Compiler Construction. SIGPLAN Not. (ACM) 17, 6 (June 1982), 98-105.
 
-  * **Poletto, Massimiliano; Sarkar, Vivek (1999). "Linear scan register allocation". ACM Transactions on Programming
-    Languages and Systems. 21 (5): 895–913** Describes the approach often favored by JIT compilers because of faster
-    compilation speed.
+  * Poletto, Massimiliano; Sarkar, Vivek (1999). "Linear scan register allocation". ACM Transactions on Programming
+    Languages and Systems. 21 (5): 895–913
 
-  * **Vivek Sarkar and Rajkishore Barik. Extended linear scan: an alternate foundation for global register
-    allocation. In LCTES/CC, pages 141–155. ACM, 2007.** An update to the linear scan allocation algorithm that uses
-    fewer registers in favor of copies.
+  * Vivek Sarkar and Rajkishore Barik. Extended linear scan: an alternate foundation for global register
+    allocation. In LCTES/CC, pages 141–155. ACM, 2007.
 
- * **Christian Wimmer and Michael Franz. Linear Scan Register Allocation on SSA Form. CGO '10: Proceedings of the 8th
-   annual IEEE/ACM international symposium on Code generation and optimizationApril 2010 Pages 170–179.** Some have
-   observed that register allocation could be simplified by taking code in SSA form as input. 
+  * C. Wimmer and H. M&ouml;ssenb&ouml;ck. Optimized interval splitting in a linear scan register allocator. In
+    Proceedings of the ACM/USENIX International Conference on Virtual Execution Environments, pages 132–141. ACM Press,
+    2005.
+
+  * Christian Wimmer and Michael Franz. Linear Scan Register Allocation on SSA Form. CGO '10: Proceedings of the 8th
+    annual IEEE/ACM international symposium on Code generation and optimization. April 2010 Pages 170–179.
 
 ## Garbage Collection
 
