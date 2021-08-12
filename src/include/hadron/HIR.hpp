@@ -35,6 +35,7 @@ struct Value {
     ~Value() = default;
     bool isValid() const { return typeFlags != 0; }
     bool operator==(const Value& v) const { return number == v.number; }
+    bool operator!=(const Value& v) const { return number != v.number; }
 
     uint32_t number;
     uint32_t typeFlags;
@@ -63,6 +64,10 @@ enum Opcode {
     kLoadArgument,
     kConstant,
     kStoreReturn,
+
+    // Control flow
+    kPhi,
+    kIf,
 
     // Method calling.
     kDispatchCall,  // save all registers, set up calling stack, represents a modification of the target
@@ -118,6 +123,35 @@ struct StoreReturnHIR : public HIR {
 
     // Always returns an invalid value, as this is a read-only operation.
     Value proposeValue(uint32_t number) override;
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+
+struct PhiHIR : public HIR {
+    PhiHIR(): HIR(kPhi) {}
+
+    std::vector<Value> inputs;
+    void addInput(Value v);
+
+    Value proposeValue(uint32_t number) override;
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+// TODO: inherit from some common BranchHIR terminal instruction? Maybe also a block exit HIR too?
+struct IfHIR : public HIR {
+    IfHIR() = delete;
+    IfHIR(Value cond);
+    virtual ~IfHIR() = default;
+
+    Value condition;
+    int trueBlock;
+    int falseBlock; // can be -1?
+
+    // Computation of the type of an if is a function of the type of the branching blocks, so for initial value
+    // type computation we return kAny because the types of the branch blocks aren't yet known. A subsequent round
+    // of phi reduction/constant folding/dead code elimination could simplify the type considerably.
+    Value proposeValue(uint32_t number) override;
+    // Because 'if' statements are terminal blocks, isEquivalent is always false.
     bool isEquivalent(const HIR* hir) const override;
 };
 

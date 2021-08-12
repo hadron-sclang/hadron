@@ -2075,9 +2075,6 @@ TEST_CASE("Parser exprseq") {
         REQUIRE(block->body->nodeType == parse::NodeType::kExprSeq);
         const parse::ExprSeqNode* exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(block->body.get());
         REQUIRE(exprSeq->expr != nullptr);
-        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kExprSeq);
-        exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(exprSeq->expr.get());
-
         REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kName);
         const parse::NameNode* nameNode = reinterpret_cast<const parse::NameNode*>(exprSeq->expr.get());
         auto name = parser.lexer()->tokens()[nameNode->tokenIndex];
@@ -2964,6 +2961,187 @@ TEST_CASE("Parser arrayelems1") {
     }
 
     SUBCASE("arrayelems1 ',' exprseq ':' exprseq") {
+    }
+}
+
+TEST_CASE("Parser if") {
+    SUBCASE("if '(' exprseq ',' block ',' block optcomma')'") {
+        Parser parser("if ([true, false].choose, { \"true\".postln; }, { \"false\".postln; }, );");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body != nullptr);
+        REQUIRE(block->body->expr != nullptr);
+
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kIf);
+        const auto ifNode = reinterpret_cast<const parse::IfNode*>(block->body->expr.get());
+
+        // [true, false].choose
+        REQUIRE(ifNode->condition != nullptr);
+        REQUIRE(ifNode->condition->expr != nullptr);
+        REQUIRE(ifNode->condition->expr->nodeType == parse::NodeType::kCall);
+        const parse::CallNode* call = reinterpret_cast<parse::CallNode*>(ifNode->condition->expr.get());
+        REQUIRE(call->target != nullptr);
+        REQUIRE(call->target->nodeType == parse::NodeType::kDynList);
+        const auto dynList = reinterpret_cast<const parse::DynListNode*>(call->target.get());
+        REQUIRE(dynList->elements != nullptr);
+        REQUIRE(dynList->elements->nodeType == parse::NodeType::kExprSeq);
+        const parse::ExprSeqNode* exprSeq = reinterpret_cast<parse::ExprSeqNode*>(dynList->elements.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->value == Slot(Type::kBoolean, Slot::Value(true)));
+        REQUIRE(exprSeq->next != nullptr);
+        REQUIRE(exprSeq->next->nodeType == parse::NodeType::kExprSeq);
+        exprSeq = reinterpret_cast<parse::ExprSeqNode*>(exprSeq->next.get());
+        REQUIRE(exprSeq->expr != nullptr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->value == Slot(Type::kBoolean, Slot::Value(false)));
+
+        // { "true".postln }
+        REQUIRE(ifNode->trueBlock);
+        REQUIRE(ifNode->trueBlock->body);
+        REQUIRE(ifNode->trueBlock->body->expr);
+        REQUIRE(ifNode->trueBlock->body->expr->nodeType == parse::NodeType::kCall);
+        call = reinterpret_cast<const parse::CallNode*>(ifNode->trueBlock->body->expr.get());
+        REQUIRE(call->target);
+        REQUIRE(call->target->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(call->target.get());
+        CHECK(literal->value.type == Type::kString);
+        auto token = parser.lexer()->tokens()[literal->tokenIndex];
+        CHECK(token.range.compare("true") == 0);
+        CHECK(literal->next == nullptr);
+
+        REQUIRE(ifNode->falseBlock);
+        REQUIRE(ifNode->falseBlock->body);
+        REQUIRE(ifNode->falseBlock->body->expr);
+        REQUIRE(ifNode->falseBlock->body->expr->nodeType == parse::NodeType::kCall);
+        call = reinterpret_cast<const parse::CallNode*>(ifNode->falseBlock->body->expr.get());
+        REQUIRE(call->target);
+        REQUIRE(call->target->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(call->target.get());
+        CHECK(literal->value.type == Type::kString);
+        token = parser.lexer()->tokens()[literal->tokenIndex];
+        CHECK(token.range.compare("false") == 0);
+        CHECK(literal->next == nullptr);
+    }
+
+    SUBCASE("if '(' exprseq ',' block optcomma ')'") {
+        Parser parser("if(x,{y},);");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kIf);
+        const auto ifNode = reinterpret_cast<const parse::IfNode*>(block->body->expr.get());
+
+        // x
+        REQUIRE(ifNode->condition);
+        REQUIRE(ifNode->condition->expr);
+        REQUIRE(ifNode->condition->expr->nodeType == parse::NodeType::kName);
+        const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(ifNode->condition->expr.get());
+        auto token = parser.lexer()->tokens()[name->tokenIndex];
+        CHECK(token.range.compare("x") == 0);
+
+        // {y}
+        REQUIRE(ifNode->trueBlock);
+        REQUIRE(ifNode->trueBlock->body);
+        REQUIRE(ifNode->trueBlock->body->expr);
+        REQUIRE(ifNode->trueBlock->body->expr->nodeType == parse::NodeType::kName);
+        name = reinterpret_cast<const parse::NameNode*>(ifNode->trueBlock->body->expr.get());
+        token = parser.lexer()->tokens()[name->tokenIndex];
+        CHECK(token.range.compare("y") == 0);
+
+        CHECK(ifNode->falseBlock == nullptr);
+        CHECK(ifNode->next == nullptr);
+    }
+
+    SUBCASE("expr.if '(' block ',' block optcomma ')'") {
+        Parser parser("(x % 2).if({\\odd},{\\even});");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kIf);
+        const auto ifNode = reinterpret_cast<const parse::IfNode*>(block->body->expr.get());
+
+        // (x % 2)
+        REQUIRE(ifNode->condition);
+        REQUIRE(ifNode->condition->expr);
+        REQUIRE(ifNode->condition->expr->nodeType == parse::NodeType::kExprSeq);
+        const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(ifNode->condition->expr.get());
+        REQUIRE(exprSeq->expr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kBinopCall);
+        const auto binop = reinterpret_cast<const parse::BinopCallNode*>(exprSeq->expr.get());
+        auto token = parser.lexer()->tokens()[binop->tokenIndex];
+        CHECK(token.range.compare("%") == 0);
+        CHECK(token.hash == hash("%"));
+        REQUIRE(binop->leftHand);
+        CHECK(binop->leftHand->nodeType == parse::NodeType::kName);
+        token = parser.lexer()->tokens()[binop->leftHand->tokenIndex];
+        CHECK(token.range.compare("x") == 0);
+        CHECK(token.hash == hash("x"));
+        REQUIRE(binop->rightHand);
+        CHECK(binop->rightHand->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(binop->rightHand.get());
+        CHECK(literal->value == Slot(Type::kInteger, Slot::Value(2)));
+
+        // {\odd}
+        REQUIRE(ifNode->trueBlock);
+        REQUIRE(ifNode->trueBlock->body);
+        REQUIRE(ifNode->trueBlock->body->expr);
+        REQUIRE(ifNode->trueBlock->body->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(ifNode->trueBlock->body->expr.get());
+        CHECK(literal->value.type == Type::kSymbol);
+        token = parser.lexer()->tokens()[literal->tokenIndex];
+        CHECK(token.range.compare("odd") == 0);
+
+        // {\even}
+        REQUIRE(ifNode->falseBlock);
+        REQUIRE(ifNode->falseBlock->body);
+        REQUIRE(ifNode->falseBlock->body->expr);
+        REQUIRE(ifNode->falseBlock->body->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(ifNode->falseBlock->body->expr.get());
+        CHECK(literal->value.type == Type::kSymbol);
+        token = parser.lexer()->tokens()[literal->tokenIndex];
+        CHECK(token.range.compare("even") == 0);
+    }
+
+    SUBCASE("expr.if '(' block optcomma ')'") {
+        Parser parser("true.if({-23})");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kIf);
+        const auto ifNode = reinterpret_cast<const parse::IfNode*>(block->body->expr.get());
+
+        // true
+        REQUIRE(ifNode->condition);
+        REQUIRE(ifNode->condition->expr);
+        REQUIRE(ifNode->condition->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(ifNode->condition->expr.get());
+        CHECK(literal->value == Slot(Type::kBoolean, Slot::Value(true)));
+
+        // {-23}
+        REQUIRE(ifNode->trueBlock);
+        REQUIRE(ifNode->trueBlock->body);
+        REQUIRE(ifNode->trueBlock->body->expr);
+        REQUIRE(ifNode->trueBlock->body->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(ifNode->trueBlock->body->expr.get());
+        CHECK(literal->value == Slot(Type::kInteger, Slot::Value(-23)));
     }
 }
 

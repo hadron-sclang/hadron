@@ -163,6 +163,9 @@
         'var' {
             m_tokens.emplace_back(Token(Token::Name::kVar, ts, 3, false, kVarHash));
         };
+        'if' {
+            m_tokens.emplace_back(Token(Token::Name::kIf, ts, 2, false, kIfHash));
+        };
 
         ###############
         # identifiers #

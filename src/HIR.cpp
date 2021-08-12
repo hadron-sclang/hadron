@@ -57,6 +57,56 @@ Value StoreReturnHIR::proposeValue(uint32_t /* number */) {
 }
 
 //////////////////////////
+// PhiHIR
+void PhiHIR::addInput(Value v) {
+    inputs.emplace_back(v);
+    reads.emplace(v);
+}
+
+Value PhiHIR::proposeValue(uint32_t number) {
+    value.number = number;
+    value.typeFlags = Type::kAny;
+    return value;
+}
+
+bool PhiHIR::isEquivalent(const HIR* hir) const {
+    if (hir->opcode != kPhi) {
+        return false;
+    }
+    const PhiHIR* phi = reinterpret_cast<const PhiHIR*>(hir);
+    // Empty phis are not equivalent to any other phi.
+    if (inputs.size() == 0 || phi->inputs.size() == 0) {
+        return false;
+    }
+    if (inputs.size() != phi->inputs.size()) {
+        return false;
+    }
+    // Order has to be the same, too.
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        if (inputs[i] != phi->inputs[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+//////////////////////////
+// IfHIR
+IfHIR::IfHIR(Value cond): HIR(kIf), condition(cond) {
+    reads.emplace(cond);
+}
+
+Value IfHIR::proposeValue(uint32_t number) {
+    value.number = number;
+    value.typeFlags = Type::kAny;
+    return value;
+}
+
+bool IfHIR::isEquivalent(const HIR* /* hir */) const {
+    return false;
+}
+
+//////////////////////////
 // Dispatch
 bool Dispatch::isEquivalent(const HIR* /* hir */) const {
     return false;
