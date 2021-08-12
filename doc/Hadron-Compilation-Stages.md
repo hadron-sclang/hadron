@@ -1,39 +1,36 @@
 # Hadron Compilation Stages
 
-## Lexing produces a Token stream
+## Lexing produces a token stream
 
-The source is lexed into tokens using a token analyzer state machine built using Ragel. Using Lexer.rl as input, Ragel
-generates Lexer.cpp at build time, which contains the lexing state machine.
+The source is lexed into tokens using a token analyzer state machine built using Ragel. Using `src/Lexer.rl` as input,
+Ragel generates `src/Lexer.cpp` at build time, which contains the lexing state machine. We lex in a separate stage from
+parsing to enable fast lexing of sclang input for situations like a syntax highlighter re-using just the lexer in
+Hadron.
 
-## Parsing produces a Parse Tree
+## Parsing produces a parse tree
 
 The goal of parsing in Hadron is to produce a *parse tree* only, meaning a tree representation of the input tokens
 identified by the lexer. This is different from LSC which lexes, parses, and does some optimizations to the parse tree
-all in one pass. The parse tree is built by the Parser defined in Parser.cpp.
+all in one pass. The parse tree is built by the Parser defined in `src/Parser.yy`, which Bison processes into
+`src/Parser.cpp` at build time.
 
-## Syntax Analysis produces an Abstract Syntax Tree (AST)
+## SSABuilder lowers the parse tree to Hadron Intermediate Representation (HIR)
 
-The Syntax Analyzer uses the parse tree to build a lower-level Abstract Syntax Tree (AST), in which nodes have no
-required relationship to the input source. This AST is used to identify control-flow structures (`if`, `while`, `do`),
-and to locate scoped variables and arguments. The Syntax Analyzer object is found in SyntaxAnalyzer.cpp.
+Hadron Intermediate Representation is defined in `src/include/hadron/HIR.hpp`. HIR is designed for conversion by the
+`src/SSABuilder.cpp` object from the parse tree directly into [Static Single
+Assignment](https://en.wikipedia.org/wiki/Static_single_assignment_form) (SSA) form. SSA form simplifies several of the
+optimizations that Hadron can perform on input code, and also is very important to the type deduction system, because
+SSA simplifies tracking modifications of variable values across branches in code, which may impact their type.
 
-It would be cool if we could drop the original source code after this, so any string_view references to the code can't
-live past the Parse Tree.
+## CodeGenerator assigns registers and emits Lightening machine code
 
-## AST Optimizations and Tree Transformations
+Processor register allocation is an NP-hard problem. Register allocation is also very important for compiled code speed,
+as registers are by far the fastest form of storage on a computer. Some recent work in compiler research (see
+Bibliography) explores performing register allocation from code in SSA form, instead of first translating code out of
+SSA form and then performing the register allocation. This approach is also attractive to JIT compilers because it saves
+a step in the compilation process, therefore saving on compilation time.
 
-Type deduction and code lowering can happen here - also dead code elimination, others.
-
-## Code Generation produces a Control Flow Graph of Blocks with HIR
-
-Since the AST has variable references organized with type deductions in place, as well as control flow structures
-readily identified, it is now possible to generate Blocks of code containing the lower-level Hadron Intermediate
-Representation (HIR) defined. These blocks are organized into a Control Flow Graph form.
-
-## LLVM IR Backend Code Generation produces LLVM IR for (possibly AoT only) Compilation
-
-CFG => SSA => LLVM IR => LLVM => Machine Code
-
-## GNU Lightning Backend Code (fast(er) path)
-
-CFG => Register Spilling => GNU Lightning IR => Machine Code
+To support both ARM and x86 processor architectures Hadron uses [Lightening](https://gitlab.com/wingo/lightening), a
+fork of [GNU Lightning](https://www.gnu.org/software/lightning/). These libraries expose a rough "consensus" machine
+code instruction set as a series of C functions that, when called, emit processor-specific machine bytecode to the JIT
+buffer. This allows Hadron to write one machine code generation backend and cover both processor backends.

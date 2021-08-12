@@ -1,27 +1,27 @@
 # Hadron
 
 Hadron is a re-implementation of the [SuperCollider](https://supercollider.github.io/) language interpreter, designed to
-Just-In-Time (JIT) compile SuperCollider code into native machine instructions using [LLVM](https://llvm.org/). It is in
-early development stage and is not ready for use, but will hopefully one day be useful for the SC community.
+Just-In-Time (JIT) compile SuperCollider code into machine code instructions. Hadron is in early development stage and
+is not ready for use, but will hopefully one day be useful for the SuperCollider community.
 
 The goals of Hadron are to make the SuperCollider language a *faster*, more *extensible*, and more *usable* programming
 language than ever before.
 
 ## Execution Speed
 
-The current SuperCollider language compiles programs into a series of bytecodes that are interpreted as individual
-instructions on a virtual machine. Experience in working in JavaScript engines has shown that moving to a JIT
-architecture typically allows for a significant speedup in program execution. It is possible in ideal cases on synthetic
-benchmarks for JIT-compiled code to approach speeds near that of compiled C code.
+Hadron compiles blocks of SuperCollider code into machine code for execution directly on the host microprocessor.
+Balancing against compilation speed, it makes a best effort to pack local variables into processor registers, and to
+deduce types of variables to "narrow down" the possible types of values to inline and optimize code at compile time as
+much as can be done on a dynamically-typed programming language.
 
 However, raw speed on its own may not represent a significant value to the SC community. Typical uses of SuperCollider
 rely on short snippets of code executing in a coordinated fashion to control behavior on the SC audio synthesis server
 via OSC messages. But, having a faster language interpreter opens up several other possibilities for SC development that
 are potentially exciting.
 
-For example, typical SC deployments these days run the language and audio server on the same computer. In this context,
-every CPU cycle taken up by the language represents a CPU cycle not availble for audio synthesis. Having a faster
-language might increase the usability of SC on smaller and more inexpensive hardware platforms.
+For example, typical SC deployments run the language and audio server on the same computer. In this context, every CPU
+cycle taken up by the language represents a CPU cycle not availble for audio synthesis. Having a faster language might
+increase the usability of SC on smaller and more inexpensive hardware platforms.
 
 Furthermore, a faster language means that more of SuperCollider could be implemented in SuperCollider itself. A typical
 SC language development best practice has been to implement speed-critical features as *intrinsics* in the language,
@@ -50,6 +50,6 @@ difficulty learning that first language, it is important that the language be as
 Error messages from the language should provide clear, actionable feedback to the user, and could also be translated
 into other human languages, allowing speakers of languages other than English greater access to the software. Support
 for standards such as [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) allow for a
-richer integration with editing and performance tools. Lastly, interactive debugger and profiling support, enabled in
-part by integration with LLVM's rich toolset, should empower SuperCollider users with insight into the performance and
-behavior of their programs, greatly accelerating learning and development.
+richer integration with editing and performance tools. Lastly, interactive debugger and profiling support should empower
+SuperCollider users with insight into the performance and behavior of their programs, greatly accelerating learning and
+development.
