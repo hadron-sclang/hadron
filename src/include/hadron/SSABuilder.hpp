@@ -36,12 +36,17 @@ struct Block {
     // mapping to themselves.
     std::unordered_map<Value, Value> localValues;
 
+    // Map of local value to its type value.
+    std::unordered_map<Value, Value> types;
+
     // Owning frame of this block.
     Frame* frame;
     // Unique block number.
     int number;
     std::list<Block*> predecessors;
     std::list<Block*> successors;
+
+    std::list<std::unique_ptr<hir::PhiHIR>> phis;
     // Statements in order of execution.
     std::list<std::unique_ptr<hir::HIR>> statements;
 };
@@ -69,6 +74,8 @@ public:
     std::unique_ptr<Frame> buildFrame(const parse::BlockNode* blockNode);
 
 private:
+    std::unique_ptr<Frame> buildSubframe(const parse::BlockNode* blockNode);
+
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not
     // iterate to process the |node->next| pointer. Call buildFinalValue() to do that.
@@ -87,8 +94,9 @@ private:
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
     // tables.
     Value findName(Hash name);
-    // Returns the local value number after insertion.
-    Value findValue(Value v, Block* block);
+    // Returns the local value number after insertion. May insert Phis recursively in all predecessors.
+    Value findValue(Value v);
+    Value findValuePredecessor(Value v, Block* block, std::unordered_map<int, Value>& blockValues);
 
     Lexer* m_lexer;
     std::shared_ptr<ErrorReporter> m_errorReporter;
@@ -96,6 +104,7 @@ private:
     Block* m_block;
     int m_blockSerial; // huh, what happens if blocks and values get same serial numbers?
     uint32_t m_valueSerial;
+    bool m_changeMade;
 };
 
 } // namespace hadron

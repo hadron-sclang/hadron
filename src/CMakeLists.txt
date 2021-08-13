@@ -121,6 +121,7 @@ add_library(hadron STATIC
     include/hadron/JIT.hpp
     include/hadron/JITMemoryArena.hpp
     include/hadron/Lexer.hpp
+    include/hadron/LifetimeAnalyzer.hpp
     include/hadron/LighteningJIT.hpp
     include/hadron/LSBHashTable.hpp
     include/hadron/MachineCodeRenderer.hpp

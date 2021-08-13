@@ -70,8 +70,14 @@ namespace hir {
 
 enum Opcode {
     kLoadArgument,
+    kLoadArgumentType,
     kConstant,
-    kStoreReturn,
+    kStoreReturn,  // TODO: modify to take two arguments, value and type
+
+    kResolveType, // Many other operations (such as binops and dispatch) require runtime knowledge of the type of the
+                  // input value. If it's known at compile time we can replace this with a ConstantHIR opcode.
+                  // If unknown this adds the type as a value (with type kType) that can be manipulated like any other
+                  // value.
 
     // Control flow
     kPhi,
@@ -140,6 +146,9 @@ struct PhiHIR : public HIR {
 
     std::vector<Value> inputs;
     void addInput(Value v);
+    // A phi is *trivial* if it has only one distinct input value that is not self-referential. If this phi is trivial,
+    // return the trivial value. Otherwise return an invalid value.
+    Value getTrivialValue() const;
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;

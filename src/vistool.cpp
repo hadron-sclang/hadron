@@ -763,12 +763,28 @@ std::string printValue(hadron::Value v) {
 void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
     outFile << fmt::format("    block_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n"
         "      <tr><td bgcolor=\"lightGray\"><b>Block {}</b></td></tr>\n", block->number, block->number);
+    for (const auto& phi : block->phis) {
+        outFile << fmt::format("      <tr><td>{} &#8592; &phi;(", printValue(phi->value));
+        if (phi->inputs.size() > 1) {
+            for (size_t i = 0; i < phi->inputs.size() - 1; ++i) {
+                outFile << printValue(phi->inputs[i]) << ", ";
+            }
+        }
+        if (phi->inputs.size() > 0) {
+            outFile << printValue(phi->inputs[phi->inputs.size() - 1]);
+        }
+        outFile << ")</td></tr>" << std::endl;
+    }
+
     for (const auto& hir : block->statements) {
         switch (hir->opcode) {
         case hadron::hir::Opcode::kLoadArgument: {
             const auto loadArg = reinterpret_cast<const hadron::hir::LoadArgumentHIR*>(hir.get());
             outFile << fmt::format("        <tr><td>{} &#8592; LoadArg({})</td></tr>\n",
                 printValue(loadArg->value), loadArg->index);
+        } break;
+
+        case hadron::hir::Opcode::kLoadArgumentType: {
         } break;
 
         case hadron::hir::Opcode::kConstant: {
@@ -782,19 +798,13 @@ void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
             outFile << fmt::format("      <tr><td>StoreReturn({})</td></tr>\n", printValue(storeReturn->returnValue));
         } break;
 
-        case hadron::hir::Opcode::kPhi: {
-            const auto phi = reinterpret_cast<const hadron::hir::PhiHIR*>(hir.get());
-            outFile << fmt::format("      <tr><td>{} &#8592; &phi;(", printValue(phi->value));
-            if (phi->inputs.size() > 1) {
-                for (size_t i = 0; i < phi->inputs.size() - 1; ++i) {
-                    outFile << printValue(phi->inputs[i]) << ", ";
-                }
-            }
-            if (phi->inputs.size() > 0) {
-                outFile << printValue(phi->inputs[phi->inputs.size() - 1]);
-            }
-            outFile << ")</td></tr>" << std::endl;
+        case hadron::hir::Opcode::kResolveType: {
         } break;
+
+        case hadron::hir::Opcode::kPhi:
+            // Phi in statements in an error condition.
+            assert(false);
+            break;
 
         case hadron::hir::Opcode::kIf: {
             const auto ifHIR = reinterpret_cast<const hadron::hir::IfHIR*>(hir.get());

@@ -17,11 +17,23 @@ SSABuilder::SSABuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporte
     m_frame(nullptr),
     m_block(nullptr),
     m_blockSerial(0),
-    m_valueSerial(0) { }
+    m_valueSerial(0),
+    m_changeMade(false) { }
 
 SSABuilder::~SSABuilder() { }
 
 std::unique_ptr<Frame> SSABuilder::buildFrame(const parse::BlockNode* blockNode) {
+    auto frame = buildSubframe(blockNode);
+
+    m_changeMade = false;
+    do {
+
+    } while (m_changeMade);
+
+    return frame;
+}
+
+std::unique_ptr<Frame> SSABuilder::buildSubframe(const parse::BlockNode* blockNode) {
     assert(blockNode);
     auto frame = std::make_unique<Frame>();
     frame->parent = m_frame;
@@ -133,7 +145,7 @@ Value SSABuilder::buildValue(const parse::Node* node) {
         Block* lastBlock = m_block;
 
         // Recursively build the subframe.
-        auto subFrame = buildFrame(blockNode);
+        auto subFrame = buildSubframe(blockNode);
 
         // Wire the entry block in the new frame as a successor in the block graph.
         Block* frameEntryBlock = subFrame->blocks.front().get();
@@ -227,7 +239,7 @@ Value SSABuilder::buildValue(const parse::Node* node) {
 
         // Build the true condition block.
         assert(ifNode->trueBlock);
-        auto trueFrameOwning = buildFrame(ifNode->trueBlock.get());
+        auto trueFrameOwning = buildSubframe(ifNode->trueBlock.get());
         Frame* trueFrame = trueFrameOwning.get();
         parentFrame->subFrames.emplace_back(std::move(trueFrameOwning));
         ifHIR->trueBlock = trueFrame->blocks.front()->number;
@@ -237,7 +249,7 @@ Value SSABuilder::buildValue(const parse::Node* node) {
         // Build the else condition block if present.
         Frame* falseFrame = nullptr;
         if (ifNode->falseBlock) {
-            auto falseFrameOwning = buildFrame(ifNode->falseBlock.get());
+            auto falseFrameOwning = buildSubframe(ifNode->falseBlock.get());
             falseFrame = falseFrameOwning.get();
             parentFrame->subFrames.emplace_back(std::move(falseFrameOwning));
             ifHIR->falseBlock = falseFrame->blocks.front()->number;
@@ -269,7 +281,7 @@ Value SSABuilder::buildValue(const parse::Node* node) {
     } break;
     }
 
-    return findValue(nodeValue, m_block);
+    return findValue(nodeValue);
 }
 
 Value SSABuilder::buildFinalValue(const parse::Node* node) {
@@ -279,7 +291,7 @@ Value SSABuilder::buildFinalValue(const parse::Node* node) {
         node = node->next.get();
     }
 
-    return findValue(finalValue, m_block);
+    return findValue(finalValue);
 }
 
 Value SSABuilder::buildDispatch(const parse::Node* target, Hash selector, const parse::Node* arguments,
@@ -338,6 +350,8 @@ Value SSABuilder::insertLocal(std::unique_ptr<hir::HIR> hir) {
 }
 
 Value SSABuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
+    // Phis should only be inserted by findValuePredecessor().
+    assert(hir->opcode != hir::Opcode::kPhi);
     auto valueNumber = m_valueSerial;
     auto value = hir->proposeValue(valueNumber);
     // We don't bump the value serial for invalid values (meaning read-only operations)
@@ -346,11 +360,7 @@ Value SSABuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
         block->values.emplace(std::make_pair(value, hir.get()));
         block->localValues.emplace(std::make_pair(value, value));
     }
-    if (hir->opcode == hir::Opcode::kPhi) {
-        block->statements.emplace_front(std::move(hir));
-    } else {
-        block->statements.emplace_back(std::move(hir));
-    }
+    block->statements.emplace_back(std::move(hir));
     return value;
 }
 
@@ -363,25 +373,43 @@ Value SSABuilder::findName(Hash name) {
     return rev->second;
 }
 
-Value SSABuilder::findValue(Value v, Block* block) {
+Value SSABuilder::findValue(Value v) {
+    std::unordered_map<int, Value> blockValues;
+    return findValuePredecessor(v, m_block, blockValues);
+}
+
+Value SSABuilder::findValuePredecessor(Value v, Block* block, std::unordered_map<int, Value>& blockValues) {
     // Quick check if value exists in local block lookup already.
     auto localIter = block->localValues.find(v);
     if (localIter != block->localValues.end()) {
         return localIter->second;
     }
 
-    // To prevent back-recursion in an infinite loop, insert an empty Phi value mapped to v.
-    auto phiOwned = std::make_unique<hir::PhiHIR>();
-    auto phi = phiOwned.get();
-    Value localValue = insert(std::move(phiOwned), block);
-    block->localValues.emplace(std::make_pair(v, localValue));
+    // We make a temporary phi with a unique value but we do not put it into the local values map yet. This prevents
+    // infinite recursion loops when traversing backedges in the control flow graph.
+    auto phi = std::make_unique<hir::PhiHIR>();
+    auto phiValue = phi->proposeValue(m_valueSerial);
+    ++m_valueSerial;
+    blockValues.emplace(std::make_pair(block->number, phiValue));
 
     // Recursive search through predecessors for values.
     for (auto pred : block->predecessors) {
-        phi->addInput(findValue(v, pred));
+        phi->addInput(findValuePredecessor(v, pred, blockValues));
     }
 
-    return localValue;
+    // If the phi is trivial we use the trivial value directly. If not, insert it into the phi list.
+    auto trivialValue = phi->getTrivialValue();
+    if (trivialValue.isValid()) {
+        block->localValues.emplace(std::make_pair(v, trivialValue));
+        // Overwrite this block's blockValue with the updated trivial value.
+        blockValues.emplace(std::make_pair(block->number, trivialValue));
+        return trivialValue;
+    }
+
+    // Nontrivial phi, add it to local values, phis, and return.
+    block->localValues.emplace(std::make_pair(v, phiValue));
+    block->phis.emplace_back(std::move(phi));
+    return phiValue;
 }
 
 } // namespace hadron
