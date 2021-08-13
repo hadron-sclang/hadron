@@ -22,6 +22,17 @@ Assignment](https://en.wikipedia.org/wiki/Static_single_assignment_form) (SSA) f
 optimizations that Hadron can perform on input code, and also is very important to the type deduction system, because
 SSA simplifies tracking modifications of variable values across branches in code, which may impact their type.
 
+## Optimization steps using SSA form
+
+Not yet implemented but dead code elimination, constant folding, and phi simplification/elimination can happen
+iteratively multiple times, or not at all, depending on the compilation speed needs. Type deduction is also finalized here.
+
+## Flatten Control Flow Graph to a single block and perform lifetime analysis
+
+Hadron uses a Linear Scan algorithm on SSA form input. This algorithm requires the control flow graph to be in sorted
+topological order (reverse postorder) with all loops in contiguous order. The other input to the Linear Scan algorithm
+are lifetime intervals for each value, which are computed here.
+
 ## CodeGenerator assigns registers and emits Lightening machine code
 
 Processor register allocation is an NP-hard problem. Register allocation is also very important for compiled code speed,
