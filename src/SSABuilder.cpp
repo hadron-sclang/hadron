@@ -116,7 +116,6 @@ Value SSABuilder::buildValue(const parse::Node* node) {
         }
     } break;
 
-
     case parse::NodeType::kArgList:
     case parse::NodeType::kMethod:
     case parse::NodeType::kClassExt:

@@ -140,7 +140,6 @@ struct StoreReturnHIR : public HIR {
     bool isEquivalent(const HIR* hir) const override;
 };
 
-
 struct PhiHIR : public HIR {
     PhiHIR(): HIR(kPhi) {}
 
