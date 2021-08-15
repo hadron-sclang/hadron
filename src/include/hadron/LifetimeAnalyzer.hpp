@@ -3,7 +3,9 @@
 
 #include "hadron/HIR.hpp"
 
+#include <list>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 namespace hadron {
@@ -29,9 +31,14 @@ public:
     LifetimeAnalyzer();
     ~LifetimeAnalyzer();
 
-    bool buildLifetimes(const Frame* baseFrame);
+    // Destructively modify baseFrame to produce a single LinearBlock with 
+    std::unique_ptr<LinearBlock> buildLifetimes(std::unique_ptr<Frame> baseFrame);
 
 private:
+    void orderBlocks(Block* block);
+
+    std::vector<int> m_blockOrder;
+    std::unordered_map<int, Block*> m_blocks;
 };
 
 } // namespace hadron

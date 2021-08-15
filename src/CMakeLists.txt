@@ -142,6 +142,7 @@ add_library(hadron STATIC
     HIR.cpp
     Interpreter.cpp
     JITMemoryArena.cpp
+    LifetimeAnalyzer.cpp
     LighteningJIT.cpp
     MachineCodeRenderer.cpp
 #    Parser.cpp
