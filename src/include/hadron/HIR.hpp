@@ -86,6 +86,7 @@ enum Opcode {
     // Method calling.
     kDispatchCall,  // save all registers, set up calling stack, represents a modification of the target
     kDispatchLoadReturn,  // just like LoadArgument, can get type or value from stack, call before Cleanup
+    kDispatchLoadReturnType,
     kDispatchCleanup, // must be called after a kDispatch
 };
 
@@ -119,6 +120,18 @@ struct LoadArgumentHIR : public HIR {
     bool isEquivalent(const HIR* hir) const override;
 };
 
+// Represents the type associated with the value at |index|.
+struct LoadArgumentTypeHIR : public HIR {
+    LoadArgumentTypeHIR(Frame* f, int argIndex): HIR(kLoadArgumentType), frame(f), index(argIndex) {}
+    virtual ~LoadArgumentTypeHIR() = default;
+    Frame* frame;
+    int index;
+
+    // Forces the kType type for all arguments.
+    Value proposeValue(uint32_t number) override;
+    bool isEquivalent(const HIR* hir) const override;
+};
+
 struct ConstantHIR : public HIR {
     ConstantHIR(const Slot& c): HIR(kConstant), constant(c) {}
     virtual ~ConstantHIR() = default;
@@ -130,12 +143,25 @@ struct ConstantHIR : public HIR {
 };
 
 struct StoreReturnHIR : public HIR {
-    StoreReturnHIR(Frame* f, Value retVal);
+    StoreReturnHIR(Frame* f, std::pair<Value, Value> retVal);
     virtual ~StoreReturnHIR() = default;
     Frame* frame;
-    Value returnValue;
+    std::pair<Value, Value> returnValue;
 
     // Always returns an invalid value, as this is a read-only operation.
+    Value proposeValue(uint32_t number) override;
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+struct ResolveTypeHIR : public HIR {
+    // Note that typeOfValue is not added to |reads|, as this doesn't require read access to the typeOfValue. This HIR
+    // represents a note to the compiler that for dynamic type variables the type must be tracked in a separate register
+    // from the value.
+    ResolveTypeHIR(Value v): HIR(kResolveType), typeOfValue(v) {}
+    virtual ~ResolveTypeHIR() = default;
+
+    // ResolveType returns as a value the type of this value.
+    Value typeOfValue;
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
 };
@@ -156,12 +182,12 @@ struct PhiHIR : public HIR {
 // TODO: inherit from some common BranchHIR terminal instruction? Maybe also a block exit HIR too?
 struct IfHIR : public HIR {
     IfHIR() = delete;
-    IfHIR(Value cond);
+    IfHIR(std::pair<Value, Value> cond);
     virtual ~IfHIR() = default;
 
-    Value condition;
+    std::pair<Value, Value> condition;
     int trueBlock;
-    int falseBlock; // can be -1?
+    int falseBlock;
 
     // Computation of the type of an if is a function of the type of the branching blocks, so for initial value
     // type computation we return kAny because the types of the branch blocks aren't yet known. A subsequent round
@@ -186,8 +212,8 @@ struct DispatchCallHIR : public Dispatch {
     virtual ~DispatchCallHIR() = default;
 
     // Convenience routines that add to respective vectors but also add to the <reads> structure.
-    void addKeywordArgument(Value key, Value keyValue);
-    void addArgument(Value argument);
+    void addKeywordArgument(std::pair<Value, Value> key, std::pair<Value, Value> keyValue);
+    void addArgument(std::pair<Value, Value> argument);
 
     std::vector<Value> keywordArguments;
     std::vector<Value> arguments;
@@ -196,12 +222,20 @@ struct DispatchCallHIR : public Dispatch {
     Value proposeValue(uint32_t number) override;
 };
 
-// TODO: Could make this "read" the return value of the DispatchCall, to make the dependency clear
+// TODO: Could make this "read" the return value of the DispatchCall, to make the dependency clear, although a bit
+// redundant since Dispatches can't ever be culled due to possible side effects.
 struct DispatchLoadReturnHIR : public Dispatch {
     DispatchLoadReturnHIR(): Dispatch(kDispatchLoadReturn) {}
     virtual ~DispatchLoadReturnHIR() = default;
 
     // Forces the kAny type for the return.
+    Value proposeValue(uint32_t number) override;
+};
+
+struct DispatchLoadReturnTypeHIR : public Dispatch {
+    DispatchLoadReturnTypeHIR(): Dispatch(kDispatchLoadReturnType) {}
+    virtual ~DispatchLoadReturnTypeHIR() = default;
+
     Value proposeValue(uint32_t number) override;
 };
 

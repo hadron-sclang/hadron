@@ -11,6 +11,10 @@
 #include <unordered_map>
 #include <vector>
 
+// The Value pair tracks a value number and a flag set that is possible types. The problem is for any situation where
+// the type is unknown we also need a value to track the runtime type. So things like buildValue need to return a
+// pair of <Value, Value> to track value and *type value*. Which is exhausting but there you have it.
+
 namespace hadron {
 
 class ErrorReporter;
@@ -28,16 +32,16 @@ struct Block {
     Block(Frame* owningFrame, int blockNumber): frame(owningFrame), number(blockNumber) {}
 
     // Value numbers are frame-wide but for LVN the value lookups are block-local, because extra-block values
-    // need to go through a Phi function in this Block.
+    // need to go through a Phi function in this Block. For local value numbering we keep a map of the
+    // value to the associated HIR instruction, for possible re-use of instructions.
     std::unordered_map<Value, hir::HIR*> values;
-    // Map of names (variables, arguments) to most recent revision of values.
-    std::unordered_map<Hash, Value> revisions;
+    // Map of names (variables, arguments) to most recent revision of <values, type>
+    std::unordered_map<Hash, std::pair<Value, Value>> revisions;
+
     // Map of values defined extra-locally and their local value. For convenience we also put local values in here,
     // mapping to themselves.
     std::unordered_map<Value, Value> localValues;
 
-    // Map of local value to its type value.
-    std::unordered_map<Value, Value> types;
 
     // Owning frame of this block.
     Frame* frame;
@@ -79,9 +83,9 @@ private:
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not
     // iterate to process the |node->next| pointer. Call buildFinalValue() to do that.
-    Value buildValue(const parse::Node* node);
-    Value buildFinalValue(const parse::Node* node);
-    Value buildDispatch(const parse::Node* target, Hash selector, const parse::Node* arguments,
+    std::pair<Value, Value> buildValue(const parse::Node* node);
+    std::pair<Value, Value> buildFinalValue(const parse::Node* node);
+    std::pair<Value, Value> buildDispatch(const parse::Node* target, Hash selector, const parse::Node* arguments,
         const parse::KeyValueNode* keywordArguments);
 
     // Algorithm is to iterate through all previously defined values *in the block* to see if they have already defined
@@ -93,7 +97,7 @@ private:
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
     // tables.
-    Value findName(Hash name);
+    std::pair<Value, Value> findName(Hash name);
     // Returns the local value number after insertion. May insert Phis recursively in all predecessors.
     Value findValue(Value v);
     Value findValuePredecessor(Value v, Block* block, std::unordered_map<int, Value>& blockValues);
