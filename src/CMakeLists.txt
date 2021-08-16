@@ -202,6 +202,7 @@ add_executable(unittests
     Assembler_unittests.cpp
     ErrorReporter_unittests.cpp
     Lexer_unittests.cpp
+    Lifetime_unittests.cpp
     LSBHashTable_unittests.cpp
     MachineCodeRenderer_unittests.cpp
     Parser_unittests.cpp

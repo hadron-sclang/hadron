@@ -12,7 +12,6 @@ namespace hadron {
 //  c) (optional) modify range start - yeah this makes things much harder, perhaps do algo trickery to avoid
 //  d) "quick" query if a particular number is within the set of live ranges or no - but this is in linear order,
 //      so could support a sort of "cursor" or some sort of caching of last query.
-
 struct Lifetime {
     Lifetime() = default;
     ~Lifetime() = default;
