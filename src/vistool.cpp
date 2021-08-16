@@ -812,8 +812,7 @@ void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
         } break;
 
         case hadron::hir::Opcode::kPhi:
-            // Phi in statements in an error condition.
-            assert(false);
+            assert(false); // TODO
             break;
 
         case hadron::hir::Opcode::kIf: {
@@ -822,6 +821,11 @@ void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
                 printValue(ifHIR->value), printValue(ifHIR->condition.first), printValue(ifHIR->condition.second),
                 ifHIR->trueBlock, ifHIR->falseBlock);
         } break;
+
+        case hadron::hir::Opcode::kLabel: {
+            assert(false); // TODO
+            break;
+        }
 
         case hadron::hir::Opcode::kDispatchCall: {
             const auto dispatchCall = reinterpret_cast<const hadron::hir::DispatchCallHIR*>(hir.get());

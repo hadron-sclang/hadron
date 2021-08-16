@@ -86,7 +86,7 @@ private:
     std::pair<Value, Value> buildValue(const parse::Node* node);
     std::pair<Value, Value> buildFinalValue(const parse::Node* node);
     std::pair<Value, Value> buildDispatch(const parse::Node* target, Hash selector, const parse::Node* arguments,
-        const parse::KeyValueNode* keywordArguments);
+            const parse::KeyValueNode* keywordArguments);
 
     // Algorithm is to iterate through all previously defined values *in the block* to see if they have already defined
     // an identical value. Returns the value either inserted or re-used. Takes ownership of hir.

@@ -14,6 +14,9 @@ include_directories(
     "${INSTALL_EXT}/include"
 )
 
+#############
+# libhadron
+
 # colm dependency to build Ragel
 ExternalProject_add(colm
     PREFIX ext
@@ -81,8 +84,8 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     VERBATIM
 )
 
-# find a version of Bison newer than 3.2
 if (APPLE)
+    # Default installed Bison is 2.x, we need a newer version from homebrew.
     execute_process(
         COMMAND brew --prefix bison
         RESULT_VARIABLE BREW_BISON
@@ -103,8 +106,6 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
     VERBATIM
 )
 
-######
-# libhadron
 add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp"
@@ -121,6 +122,7 @@ add_library(hadron STATIC
     include/hadron/JIT.hpp
     include/hadron/JITMemoryArena.hpp
     include/hadron/Lexer.hpp
+    include/hadron/Lifetime.hpp
     include/hadron/LifetimeAnalyzer.hpp
     include/hadron/LighteningJIT.hpp
     include/hadron/LSBHashTable.hpp
@@ -142,10 +144,10 @@ add_library(hadron STATIC
     HIR.cpp
     Interpreter.cpp
     JITMemoryArena.cpp
+    Lifetime.cpp
     LifetimeAnalyzer.cpp
     LighteningJIT.cpp
     MachineCodeRenderer.cpp
-#    Parser.cpp
     Slot.cpp
     SourceFile.cpp
     SSABuilder.cpp
@@ -194,7 +196,7 @@ install(TARGETS hadron
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hadron
 )
 
-######
+#############
 # unittests
 add_executable(unittests
     Assembler_unittests.cpp
@@ -218,7 +220,7 @@ add_custom_target(run_unittests ALL
     COMMAND "${CMAKE_CURRENT_BINARY_DIR}/unittests"
 )
 
-######
+###########
 # vistool
 add_executable(vistool
     vistool.cpp
@@ -229,7 +231,7 @@ target_link_libraries(vistool
     hadron
 )
 
-######
+###########
 # hadronc
 add_executable(hadronc
     hadronc.cpp
@@ -240,7 +242,7 @@ target_link_libraries(hadronc
     hadron
 )
 
-######
+#########
 # hlang
 add_executable(hlang
     hlang.cpp

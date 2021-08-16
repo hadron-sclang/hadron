@@ -170,6 +170,22 @@ bool IfHIR::isEquivalent(const HIR* /* hir */) const {
 }
 
 ///////////////////////////////
+// LabelHIR
+bool LabelHIR::isEquivalent(const HIR* hir) const {
+    if (hir->opcode != kLabel) {
+        return false;
+    }
+    const auto label = reinterpret_cast<const LabelHIR*>(hir);
+    return blockNumber == label->blockNumber;
+}
+
+Value LabelHIR::proposeValue(uint32_t /* number */) {
+    value.number = 0;
+    value.typeFlags = 0;
+    return value;
+}
+
+///////////////////////////////
 // Dispatch
 bool Dispatch::isEquivalent(const HIR* /* hir */) const {
     return false;

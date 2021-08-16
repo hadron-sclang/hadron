@@ -83,6 +83,9 @@ enum Opcode {
     kPhi,
     kIf,
 
+    // For Linear HIR represents the start of a block as well as a container for any phis at the start of the block.
+    kLabel,
+
     // Method calling.
     kDispatchCall,  // save all registers, set up calling stack, represents a modification of the target
     kDispatchLoadReturn,  // just like LoadArgument, can get type or value from stack, call before Cleanup
@@ -159,9 +162,9 @@ struct ResolveTypeHIR : public HIR {
     // from the value.
     ResolveTypeHIR(Value v): HIR(kResolveType), typeOfValue(v) {}
     virtual ~ResolveTypeHIR() = default;
-
     // ResolveType returns as a value the type of this value.
     Value typeOfValue;
+
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
 };
@@ -194,6 +197,16 @@ struct IfHIR : public HIR {
     // of phi reduction/constant folding/dead code elimination could simplify the type considerably.
     Value proposeValue(uint32_t number) override;
     // Because 'if' statements are terminal blocks, isEquivalent is always false.
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+struct LabelHIR : public HIR {
+    LabelHIR() = delete;
+    LabelHIR(int blockNum): HIR(kLabel), blockNumber(blockNum) {}
+    int blockNumber;
+    std::list<std::unique_ptr<PhiHIR>> phis;
+
+    Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
 };
 
