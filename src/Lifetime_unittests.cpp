@@ -252,7 +252,6 @@ TEST_CASE("Lifetime Ranges") {
         CHECK(lt.intervals.front().from == 0);
         CHECK(lt.intervals.front().to == 5);
     }
-
 }
 
 } // namespace hadron
