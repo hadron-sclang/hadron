@@ -6,6 +6,8 @@
 
 namespace hadron {
 
+// Ranges are currently [from, to) meaning usage is starting at from and up to, but not including, to.
+
 // Requirements for ranges data structure:
 //  a) need to be able to compute next actual usage during the liveness range
 //  b) merging of contiguous/overlapping ranges (or can do in post-process)
