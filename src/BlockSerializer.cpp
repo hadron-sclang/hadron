@@ -7,7 +7,9 @@
 namespace hadron {
 
 std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> baseFrame) {
-    auto linearBlock = std::make_unique<LinearBlock>();
+    auto linearBlock = std::make_unique<LinearBlock>(baseFrame->numberOfBlocks, baseFrame->numberOfValues);
+    m_blocks.resize(baseFrame->numberOfBlocks, nullptr);
+
     // To simplify counting with unsigned values insert an empty instruction at the start of the linear block.
     linearBlock->instructions.emplace_back(nullptr);
 
@@ -17,15 +19,15 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
 
     // Fill linear block in computed order.
     for (auto blockNumber : linearBlock->blockOrder) {
-        auto block = m_blockMap[blockNumber];
+        auto block = m_blocks[blockNumber];
         auto label = std::make_unique<hir::LabelHIR>(block->number);
-        label->phis = std::move(block->phis);
         for (auto pred : block->predecessors) {
             label->predecessors.emplace_back(pred->number);
         }
         for (auto succ : block->successors) {
             label->successors.emplace_back(succ->number);
         }
+        label->phis = std::move(block->phis);
 
         auto blockRange = std::make_pair(linearBlock->instructions.size(), 0);
 
@@ -38,7 +40,7 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
         }
 
         blockRange.second = linearBlock->instructions.size() - 1;
-        linearBlock->blockRanges.emplace(std::make_pair(block->number, blockRange));
+        linearBlock->blockRanges[block->number] = std::move(blockRange);
     }
 
     return linearBlock;
@@ -46,15 +48,13 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
 
 void BlockSerializer::orderBlocks(Block* block, std::vector<int>& blockOrder) {
     // Mark block as visited by updating number to pointer map.
-    m_blockMap.emplace(std::make_pair(block->number, block));
+    m_blocks[block->number] = block;
     for (const auto succ : block->successors) {
-        if (m_blockMap.find(succ->number) == m_blockMap.end()) {
+        if (m_blocks[succ->number] != nullptr) {
             orderBlocks(succ, blockOrder);
         }
     }
     blockOrder.emplace_back(block->number);
 }
-
-
 
 } // namespace hadron

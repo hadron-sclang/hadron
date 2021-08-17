@@ -2,7 +2,6 @@
 #define SRC_INCLUDE_HADRON_BLOCK_SERIALIZER_HPP_
 
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
 #include "hadron/HIR.hpp"
@@ -14,15 +13,24 @@ struct Block;
 struct Frame;
 
 struct LinearBlock {
-    // map of variable number to lifetime interval set.
-    std::unordered_map<size_t, Lifetime> lifetimes;
+    LinearBlock() = delete;
+    LinearBlock(size_t numberOfBlocks, size_t numberOfValues):
+        blockOrder(numberOfBlocks),
+        blockRanges(numberOfBlocks),
+        valueLifetimes(numberOfValues) {}
+    ~LinearBlock() = default;
+
     // Flattened list of all instructions, including Labels at the top of each block.
     std::vector<std::unique_ptr<hir::HIR>> instructions;
-
     // In-order list of each block.
     std::vector<int> blockOrder;
-    // key is block number, value is [start, end] of block instructions.
-    std::unordered_map<int, std::pair<size_t, size_t>> blockRanges;
+    // TODO: refactor to use Lifetime::Interval
+    // index is block number, value is [start, end) of block instructions.
+    std::vector<std::pair<size_t, size_t>> blockRanges;
+    // index is value number
+    std::vector<Lifetime> valueLifetimes;
+    // index is register number
+    std::vector<Lifetime> registerLifetimes;
 };
 
 // Serializes a Frame containing a control flow graph of blocks and HIR instructions into a single LinearBlock struct
@@ -38,7 +46,7 @@ public:
 
 private:
     // Map of block number to Block struct, useful when recursing through control flow graph.
-    std::unordered_map<int, Block*> m_blockMap;
+    std::vector<Block*> m_blocks;
 
     void orderBlocks(Block* block, std::vector<int>& blockOrder);
 };

@@ -11,8 +11,11 @@ struct LinearBlock;
 //   BlockSerializer: flatten to linear block
 //   LifetimeAnalyzer: lifetime analysis (still needs successor info from CFG)
 //   RegisterAllocator: register allocation
-//   MachineCodeGenerator: SSA form desconstruction/HIR -> machine code translation
+//   Resolver: SSA form desconstruction/HIR -> machine code translation, Allocation resolution
 
+
+// This is a literal implementation of the pseudocode described in the BuildIntervals algorithm of "Linear Scan Register
+// Allocation on SSA Form" by Christian Wimmer Michael Franz (see Bibliography).
 class LifetimeAnalyzer {
 public:
     LifetimeAnalyzer() = default;

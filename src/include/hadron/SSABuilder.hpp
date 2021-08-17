@@ -65,6 +65,10 @@ struct Frame {
     Frame* parent;
     std::list<std::unique_ptr<Block>> blocks;
     std::list<std::unique_ptr<Frame>> subFrames;
+
+    // Values only valid for root frames, subFrame values will be 0.
+    size_t numberOfValues = 0;
+    int numberOfBlocks = 0;
 };
 
 // Goes from parse tree to HIR in blocks of HIR in SSA form.
@@ -106,7 +110,6 @@ private:
     Block* m_block;
     int m_blockSerial; // huh, what happens if blocks and values get same serial numbers?
     uint32_t m_valueSerial;
-    bool m_changeMade;
 };
 
 } // namespace hadron

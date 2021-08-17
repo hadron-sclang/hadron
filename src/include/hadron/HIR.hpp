@@ -72,8 +72,7 @@ enum Opcode {
     kLoadArgument,
     kLoadArgumentType,
     kConstant,
-    kStoreReturn,  // TODO: modify to take two arguments, value and type
-
+    kStoreReturn,
     kResolveType, // Many other operations (such as binops and dispatch) require runtime knowledge of the type of the
                   // input value. If it's known at compile time we can replace this with a ConstantHIR opcode.
                   // If unknown this adds the type as a value (with type kType) that can be manipulated like any other
@@ -204,9 +203,9 @@ struct LabelHIR : public HIR {
     LabelHIR() = delete;
     LabelHIR(int blockNum): HIR(kLabel), blockNumber(blockNum) {}
     int blockNumber;
-    std::list<std::unique_ptr<PhiHIR>> phis;
     std::vector<int> predecessors;
     std::vector<int> successors;
+    std::list<std::unique_ptr<PhiHIR>> phis;
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;

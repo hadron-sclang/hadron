@@ -17,19 +17,14 @@ SSABuilder::SSABuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporte
     m_frame(nullptr),
     m_block(nullptr),
     m_blockSerial(0),
-    m_valueSerial(0),
-    m_changeMade(false) { }
+    m_valueSerial(0) { }
 
 SSABuilder::~SSABuilder() { }
 
 std::unique_ptr<Frame> SSABuilder::buildFrame(const parse::BlockNode* blockNode) {
     auto frame = buildSubframe(blockNode);
-
-    m_changeMade = false;
-    do {
-
-    } while (m_changeMade);
-
+    frame->numberOfBlocks = m_blockSerial;
+    frame->numberOfValues = m_valueSerial;
     return frame;
 }
 
