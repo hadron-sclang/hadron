@@ -114,6 +114,7 @@ add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
 
     include/hadron/Assembler.hpp
+    include/hadron/BlockSerializer.hpp
     include/hadron/CodeGenerator.hpp
     include/hadron/ErrorReporter.hpp
     include/hadron/Function.hpp
@@ -136,6 +137,7 @@ add_library(hadron STATIC
     include/hadron/Type.hpp
     include/hadron/VirtualJIT.hpp
 
+    BlockSerializer.cpp
     CodeGenerator.cpp
     ErrorReporter.cpp
     FileSystem.hpp

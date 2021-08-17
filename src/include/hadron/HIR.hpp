@@ -205,6 +205,8 @@ struct LabelHIR : public HIR {
     LabelHIR(int blockNum): HIR(kLabel), blockNumber(blockNum) {}
     int blockNumber;
     std::list<std::unique_ptr<PhiHIR>> phis;
+    std::vector<int> predecessors;
+    std::vector<int> successors;
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;

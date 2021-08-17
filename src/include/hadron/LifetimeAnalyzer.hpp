@@ -1,43 +1,24 @@
 #ifndef SRC_INCLUDE_HADRON_LIFETIME_ANALYZER_HPP_
 #define SRC_INCLUDE_HADRON_LIFETIME_ANALYZER_HPP_
 
-#include "hadron/HIR.hpp"
-#include "hadron/Lifetime.hpp"
-
-#include <list>
-#include <memory>
-#include <unordered_map>
-#include <vector>
-
 namespace hadron {
 
-struct Block;
-struct Frame;
+struct LinearBlock;
 
-// A lifetime for SSA form code consists of a beginning assignment time (where all times are instruction numbers in the
-// linear block), a sorted list of use times, and a set of pairs of [start, end] times where the value is "live"
-struct LinearBlock {
-    // map of variable number to lifetime interval set.
-    std::unordered_map<size_t, Lifetime> lifetimes;
-    // Flattened list of all instructions, including Labels at the top of each block.
-    std::vector<std::unique_ptr<hir::HIR>> instructions;
-
-    // In-order list of each block.
-    std::vector<int> blockOrder;
-    // key is block number, value is [start, end] of block instructions.
-    std::unordered_map<int, std::pair<size_t, size_t>> blockRanges;
-};
+//   Lexer: convert input string into tokens
+//   Parser: build parse tree from input tokens
+//   SSABuilder: convert parse tree to CFG/HIR format
+//   BlockSerializer: flatten to linear block
+//   LifetimeAnalyzer: lifetime analysis (still needs successor info from CFG)
+//   RegisterAllocator: register allocation
+//   MachineCodeGenerator: SSA form desconstruction/HIR -> machine code translation
 
 class LifetimeAnalyzer {
 public:
-    LifetimeAnalyzer();
-    ~LifetimeAnalyzer();
+    LifetimeAnalyzer() = default;
+    ~LifetimeAnalyzer() = default;
 
-    // Destructively modify baseFrame to produce a single LinearBlock with all value Lifetimes computed.
-    std::unique_ptr<LinearBlock> buildLifetimes(std::unique_ptr<Frame> baseFrame);
-
-private:
-    void orderBlocks(Block* block, std::vector<int>& blockOrder, std::unordered_map<int, Block*>& blockMap);
+    void buildLifetimes(LinearBlock* linearBlock);
 };
 
 } // namespace hadron

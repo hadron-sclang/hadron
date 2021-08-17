@@ -40,7 +40,7 @@ struct Block {
 
     // Map of values defined extra-locally and their local value. For convenience we also put local values in here,
     // mapping to themselves.
-    std::unordered_map<Value, Value> localValues; 
+    std::unordered_map<Value, Value> localValues;
     // Owning frame of this block.
     Frame* frame;
     // Unique block number.
