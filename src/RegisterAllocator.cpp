@@ -1,6 +1,18 @@
 #include "hadron/RegisterAllocator.hpp"
 
-#include "BlockSerializer.hpp"
+#include "hadron/BlockSerializer.hpp"
+#include "hadron/Lifetime.hpp"
+
+#include <algorithm>
+
+namespace {
+// Comparison operator for making min heaps in m_unhandled and m_inactive, sorted by start time.
+struct RegIntervalCompare {
+    bool operator()(const hadron::RegInterval& r1, const hadron::RegInterval& r2) const {
+        return (r1.from < r2.from);
+    }
+};
+} // namespace
 
 namespace hadron {
 
@@ -39,6 +51,7 @@ TRYALLOCATEFREEREG
 
     for each interval it in active do
         freeUntilPos[it.reg] = 0
+
     for each interval it in inactive intersecting with current do
         freeUntilPos[it.reg] = next intersection of it with current
 
@@ -50,7 +63,8 @@ TRYALLOCATEFREEREG
         // register available for the whole interval
         current.reg = reg
     else
-        // register available for the first part of the interval current.reg = reg
+        // register available for the first part of the interval
+        current.reg = reg
         split current before freeUntilPos[reg]
 
 ALLOCATEBLOCKEDREG
@@ -58,6 +72,7 @@ ALLOCATEBLOCKEDREG
 
     for each interval it in active do
         nextUsePos[it.reg] = next use of it after start of current
+
     for each interval it in inactive intersecting with current do
         nextUsePos[it.reg] = next use of it after start of current
 
@@ -79,12 +94,38 @@ ALLOCATEBLOCKEDREG
 */
 
 void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
-    linearBlock->registerLifetimes.resize(numberOfRegisters);
+    // Build unhandled as the union of all value lifetimes.
+    for (size_t i = 0; i < linearBlock->valueLifetimes.size(); ++i) {
+        for (const auto& interval : linearBlock->valueLifetimes[i].intervals) {
+            m_unhandled.emplace_back(RegInterval(interval.from, interval.to, i, false));
+        }
+    }
+    std::make_heap(m_unhandled.begin(), m_unhandled.end(), RegIntervalCompare());
 
-    // unhandled needs extract_min on Intervals by start time, but once they come out of unhandled they never come back
-    // handled is not needed, can just be dropped
-    // std::multimap for *unhandled*?
+    // while unhandled =/= { } do
+    while (m_unhandled.size()) {
+        // current = pick and remove first interval from unhandled
+        std::pop_heap(m_unhandled.begin(), m_unhandled.end(), RegIntervalCompare());
+        // RegInterval current = m_unhandled.back();
+        m_unhandled.pop_back();
 
+        // position = start position of current (we just use current.from)
+
+        // for each interval it in active do
+        //     if it ends before position then
+        //         move it from active to handled
+        //     else if it does not cover position then
+        //         move it from active to inactive
+
+        // this is about the real meaning of *inactive* - we're instead keeping a mapping of register->active value
+        // subsequent ranges of value use are just in *unhandled*. We'll clearly want to mark value intervals with
+        // reg assignments and spilling, too, just so we can understand where everything is.
+
+        // algo needs a tweak - what goes on the heap is Lifetimes, and they are sorted by first interval (we don't
+        // even bother putting empty lifetimes on heap)
+        // rename interval to something else (Lifetime?), rename lifetime to interval, to match 
+
+    }
 
 }
 

@@ -8,12 +8,11 @@ namespace hadron {
 
 struct Interval {
     Interval() = delete;
-    Interval(size_t f, size_t t, size_t v = 0): from(f), to(t), valueNumber(v) {}
+    Interval(size_t f, size_t t): from(f), to(t) {}
     ~Interval() = default;
 
     size_t from;
     size_t to;
-    size_t valueNumber;
 };
 
 // Ranges are currently [from, to) meaning usage is starting at from and up to, but not including, to.

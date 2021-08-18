@@ -17,7 +17,7 @@ SSABuilder::SSABuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporte
     m_frame(nullptr),
     m_block(nullptr),
     m_blockSerial(0),
-    m_valueSerial(0) { }
+    m_valueSerial(1) { }
 
 SSABuilder::~SSABuilder() { }
 

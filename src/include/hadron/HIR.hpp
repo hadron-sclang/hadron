@@ -37,11 +37,11 @@ namespace hadron {
 // Represents a pair of value number (for Local Value Numbering during SSA form construction) and Type flags created
 // by ORing the Types of variables together across Phi nodes.
 struct Value {
-    // A typeFlag of 0 represents an invalid Value.
+    // A typeFlag of 0 represents an invalid Value, as does a value number of 0.
     Value(): number(0), typeFlags(0) {}
     Value(uint32_t num, uint32_t flags): number(num), typeFlags(flags) {}
     ~Value() = default;
-    bool isValid() const { return typeFlags != 0; }
+    bool isValid() const { return number != 0 && typeFlags != 0; }
     bool operator==(const Value& v) const { return number == v.number; }
     bool operator!=(const Value& v) const { return number != v.number; }
 
