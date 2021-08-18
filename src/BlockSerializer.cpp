@@ -6,8 +6,9 @@
 
 namespace hadron {
 
-std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> baseFrame) {
-    auto linearBlock = std::make_unique<LinearBlock>(baseFrame->numberOfBlocks, baseFrame->numberOfValues);
+std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> baseFrame, size_t numberOfRegisters) {
+    auto linearBlock = std::make_unique<LinearBlock>(baseFrame->numberOfBlocks, baseFrame->numberOfValues,
+            numberOfRegisters);
     m_blocks.resize(baseFrame->numberOfBlocks, nullptr);
 
     // To simplify counting with unsigned values insert an empty instruction at the start of the linear block.
@@ -35,6 +36,15 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
         linearBlock->instructions.emplace_back(std::move(label));
         linearBlock->instructions.emplace_back(nullptr);
         for (auto& hir : block->statements) {
+            // Mark all registers as in-use for any dispatch, to later force the register allocator to save all active
+            // register values.
+            if (hir->opcode == hir::kDispatchCall) {
+                size_t lineNumber = linearBlock->instructions.size();
+                for (auto& lifetime : linearBlock->registerLifetimes) {
+                    lifetime.addInterval(lineNumber, lineNumber + 1);
+                    lifetime.usages.emplace(lineNumber);
+                }
+            }
             linearBlock->instructions.emplace_back(std::move(hir));
             linearBlock->instructions.emplace_back(nullptr);
         }

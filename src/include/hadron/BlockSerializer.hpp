@@ -14,10 +14,11 @@ struct Frame;
 
 struct LinearBlock {
     LinearBlock() = delete;
-    LinearBlock(size_t numberOfBlocks, size_t numberOfValues):
+    LinearBlock(size_t numberOfBlocks, size_t numberOfValues, size_t numberOfRegisters):
         blockOrder(numberOfBlocks),
         blockRanges(numberOfBlocks),
-        valueLifetimes(numberOfValues) {}
+        valueLifetimes(numberOfValues),
+        registerLifetimes(numberOfRegisters) {}
     ~LinearBlock() = default;
 
     // Flattened list of all instructions, including Labels at the top of each block.
@@ -42,7 +43,7 @@ public:
     ~BlockSerializer() = default;
 
     // Destructively modify baseFrame to produce a single LinearBlock with blocks serialized in the required order.
-    std::unique_ptr<LinearBlock> serialize(std::unique_ptr<Frame> baseFrame);
+    std::unique_ptr<LinearBlock> serialize(std::unique_ptr<Frame> baseFrame, size_t numberOfRegisters);
 
 private:
     // Map of block number to Block struct, useful when recursing through control flow graph.

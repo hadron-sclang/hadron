@@ -10,7 +10,7 @@ public:
     RegisterAllocator() = default;
     ~RegisterAllocator() = default;
 
-    void allocateRegisters(LinearBlock* linearBlock, size_t numberOfRegisters);
+    void allocateRegisters(LinearBlock* linearBlock);
 };
 
 } // namespace hadron

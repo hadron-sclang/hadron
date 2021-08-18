@@ -78,8 +78,13 @@ ALLOCATEBLOCKEDREG
         split current before this intersection
 */
 
-void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock, size_t numberOfRegisters) {
+void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     linearBlock->registerLifetimes.resize(numberOfRegisters);
+
+    // unhandled needs extract_min on Intervals by start time, but once they come out of unhandled they never come back
+    // handled is not needed, can just be dropped
+    // std::multimap for *unhandled*?
+
 
 }
 
