@@ -6,6 +6,7 @@
 
 namespace hadron {
 
+struct LifetimeInterval;
 struct LinearBlock;
 struct RegInterval;
 
@@ -17,7 +18,15 @@ public:
     void allocateRegisters(LinearBlock* linearBlock);
 
 private:
-    std::vector<RegInterval> m_unhandled;
+    struct IntervalCursor {
+        size_t valueNumber;
+        size_t start;
+        size_t end;
+        std::list<LiveRange>::iterator range;
+        std::set<size_t>::iterator usage;
+    };
+
+    std::vector<IntervalCursor> m_unhandled;
     std::vector<std::list<RegInterval>::iterator> m_inactive;
     std::vector<std::list<RegInterval>::iterator> m_active;
 };

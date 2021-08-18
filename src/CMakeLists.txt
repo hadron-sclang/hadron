@@ -123,7 +123,7 @@ add_library(hadron STATIC
     include/hadron/JIT.hpp
     include/hadron/JITMemoryArena.hpp
     include/hadron/Lexer.hpp
-    include/hadron/Lifetime.hpp
+    include/hadron/LifetimeInterval.hpp
     include/hadron/LifetimeAnalyzer.hpp
     include/hadron/LighteningJIT.hpp
     include/hadron/LSBHashTable.hpp
@@ -147,7 +147,7 @@ add_library(hadron STATIC
     HIR.cpp
     Interpreter.cpp
     JITMemoryArena.cpp
-    Lifetime.cpp
+    LifetimeInterval.cpp
     LifetimeAnalyzer.cpp
     LighteningJIT.cpp
     MachineCodeRenderer.cpp
@@ -206,7 +206,7 @@ add_executable(unittests
     Assembler_unittests.cpp
     ErrorReporter_unittests.cpp
     Lexer_unittests.cpp
-    Lifetime_unittests.cpp
+    LifetimeInterval_unittests.cpp
     LSBHashTable_unittests.cpp
     MachineCodeRenderer_unittests.cpp
     Parser_unittests.cpp

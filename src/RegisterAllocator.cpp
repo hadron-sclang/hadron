@@ -1,7 +1,7 @@
 #include "hadron/RegisterAllocator.hpp"
 
 #include "hadron/BlockSerializer.hpp"
-#include "hadron/Lifetime.hpp"
+#include "hadron/LifetimeInterval.hpp"
 
 #include <algorithm>
 
@@ -53,7 +53,7 @@ TRYALLOCATEFREEREG
         freeUntilPos[it.reg] = 0
 
     for each interval it in inactive intersecting with current do
-        freeUntilPos[it.reg] = next intersection of it with current
+        freeUntilPos[it.reg] = next intersection of it with current   *** TODO: find first intersection operation on Lifetimes
 
     reg = register with highest freeUntilPos
     if freeUntilPos[reg] = 0 then
@@ -94,10 +94,16 @@ ALLOCATEBLOCKEDREG
 */
 
 void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
+    // inactive and active are both unordered_maps with registernum as key and a LifetimeInterval as value
+    
+
+
+
+
     // Build unhandled as the union of all value lifetimes.
     for (size_t i = 0; i < linearBlock->valueLifetimes.size(); ++i) {
-        for (const auto& interval : linearBlock->valueLifetimes[i].intervals) {
-            m_unhandled.emplace_back(RegInterval(interval.from, interval.to, i, false));
+        for (const auto& liveRange : linearBlock->valueLifetimes[i].ranges) {
+            m_unhandled.emplace_back(RegInterval(live.from, interval.to, i, false));
         }
     }
     std::make_heap(m_unhandled.begin(), m_unhandled.end(), RegIntervalCompare());
@@ -120,11 +126,6 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         // this is about the real meaning of *inactive* - we're instead keeping a mapping of register->active value
         // subsequent ranges of value use are just in *unhandled*. We'll clearly want to mark value intervals with
         // reg assignments and spilling, too, just so we can understand where everything is.
-
-        // algo needs a tweak - what goes on the heap is Lifetimes, and they are sorted by first interval (we don't
-        // even bother putting empty lifetimes on heap)
-        // rename interval to something else (Lifetime?), rename lifetime to interval, to match 
-
     }
 
 }

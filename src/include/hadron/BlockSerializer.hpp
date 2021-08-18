@@ -6,20 +6,12 @@
 #include <vector>
 
 #include "hadron/HIR.hpp"
-#include "hadron/Lifetime.hpp"
+#include "hadron/LifetimeInterval.hpp"
 
 namespace hadron {
 
 struct Block;
 struct Frame;
-
-struct RegInterval {
-    RegInterval(size_t f, size_t t, size_t v, bool split): from(f), to(t), valueNumber(v), isSplitCurrent(split) {}
-    size_t from;
-    size_t to;
-    size_t valueNumber;
-    bool isSplitCurrent;
-};
 
 struct LinearBlock {
     LinearBlock() = delete;
@@ -38,9 +30,9 @@ struct LinearBlock {
     // index is block number, value is [start, end) of block instructions.
     std::vector<std::pair<size_t, size_t>> blockRanges;
     // index is value number
-    std::vector<Lifetime> valueLifetimes;
+    std::vector<std::vector<LifetimeInterval>> valueLifetimes;
     // index is register number
-    std::vector<std::list<RegInterval>> registerAllocations;
+    std::vector<std::vector<LifetimeInterval>> registerAllocations;
 };
 
 // Serializes a Frame containing a control flow graph of blocks and HIR instructions into a single LinearBlock struct
