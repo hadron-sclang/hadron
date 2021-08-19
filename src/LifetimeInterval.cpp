@@ -47,4 +47,91 @@ void LifetimeInterval::addLiveRange(size_t from, size_t to) {
     }
 }
 
+LifetimeInterval LifetimeInterval::splitAt(size_t splitTime) {
+    LifetimeInterval split;
+    if (isEmpty() || end() <= splitTime) {
+        return split;
+    }
+
+    if (splitTime <= start()) {
+        split.ranges = std::move(ranges);
+        ranges = std::list<LiveRange>();
+        split.usages = std::move(usages);
+        usages = std::set<size_t>();
+        return split;
+    }
+
+    auto firstIter = ranges.begin();
+    bool splitWithin = false;
+    while (firstIter != ranges.end()) {
+        if (firstIter->to <= splitTime) {
+            ++firstIter;
+        } else if (firstIter->from <= splitTime) {
+            splitWithin = true;
+            break;
+        } else {
+            break;
+        }
+    }
+
+    // Transfer rest of list to the split lifetime.
+    split.ranges.splice(split.ranges.end(), ranges, firstIter, ranges.end());
+    if (splitWithin) {
+        ranges.emplace_back(LiveRange(split.start(), splitTime));
+        split.ranges.begin()->from = splitTime;
+    }
+
+    // Divide the usages sets.
+    auto lowerBound = usages.lower_bound(splitTime);
+    while (lowerBound != usages.end()) {
+        split.usages.insert(usages.extract(lowerBound));
+        lowerBound = usages.lower_bound(splitTime);
+    }
+
+    return split;
+}
+
+bool LifetimeInterval::covers(size_t p) const {
+    if (isEmpty() || p < start() || p >= end()) {
+        return false;
+    }
+
+    for (const auto& range : ranges) {
+        if (p >= range.from && p < range.to) {
+            return true;
+        } else if (p < range.from) {
+            return false;
+        }
+    }
+
+    return false;
+}
+
+bool LifetimeInterval::findFirstIntersection(const LifetimeInterval& lt, size_t& first) const {
+    // Early-out for either Interval empty.
+    if (isEmpty() || lt.isEmpty()) {
+        return false;
+    }
+
+    // Early-out for no intersection between the intervals.
+    if (end() <= lt.start() || lt.end() <= start()) {
+        return false;
+    }
+
+    auto a = ranges.begin();
+    auto b = lt.ranges.begin();
+    while (a != ranges.end() && b != lt.ranges.end()) {
+        if (a->to <= b->from) {
+            ++a;
+        } else if (b->to <= a->from) {
+            ++b;
+        } else {
+            first = std::max(a->from, b->from);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 } // namespace hadron

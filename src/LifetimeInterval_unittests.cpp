@@ -254,4 +254,205 @@ TEST_CASE("LifetimeInterval Ranges") {
     }
 }
 
+TEST_CASE("LifetimeInterval splitAt") {
+    SUBCASE("Empty Split") {
+        LifetimeInterval lt;
+        auto split = lt.splitAt(100);
+        CHECK(lt.isEmpty());
+        CHECK(split.isEmpty());
+    }
+
+    SUBCASE("Split Before") {
+        LifetimeInterval lt;
+        lt.addLiveRange(10, 20);
+        lt.usages.emplace(10);
+        lt.addLiveRange(25, 35);
+        lt.usages.emplace(25);
+        lt.addLiveRange(75, 90);
+        lt.usages.emplace(79);
+        auto split = lt.splitAt(5);
+        CHECK(lt.isEmpty());
+        CHECK(lt.usages.empty());
+        CHECK(split.start() == 10);
+        CHECK(split.end() == 90);
+        CHECK(split.ranges.size() == 3);
+        CHECK(split.usages.size() == 3);
+    }
+
+    SUBCASE("Split First Range") {
+        LifetimeInterval lt;
+        lt.addLiveRange(4, 7);
+        lt.usages.emplace(4);
+        lt.usages.emplace(5);
+        lt.addLiveRange(9, 12);
+        lt.usages.emplace(11);
+        lt.addLiveRange(14, 17);
+        auto split = lt.splitAt(5);
+
+        CHECK(lt.start() == 4);
+        CHECK(lt.end() == 5);
+        CHECK(lt.ranges.size() == 1);
+        REQUIRE(lt.usages.size() == 1);
+        CHECK(*lt.usages.begin() == 4);
+
+        CHECK(split.start() == 5);
+        CHECK(split.end() == 17);
+        CHECK(split.ranges.size() == 3);
+        CHECK(split.usages.size() == 2);
+    }
+
+    SUBCASE("Split between ranges") {
+        LifetimeInterval lt;
+        lt.addLiveRange(10, 15);
+        lt.addLiveRange(15, 20);
+        auto split = lt.splitAt(15);
+        CHECK(lt.start() == 10);
+        CHECK(lt.end() == 15);
+        CHECK(split.start() == 15);
+        CHECK(split.end() == 20);
+    }
+
+    SUBCASE("Split After") {
+        LifetimeInterval lt;
+        lt.addLiveRange(75, 85);
+        lt.usages.emplace(80);
+        lt.addLiveRange(65, 71);
+        lt.usages.emplace(70);
+        lt.addLiveRange(35, 37);
+        lt.usages.emplace(35);
+        auto split = lt.splitAt(90);
+        CHECK(split.isEmpty());
+        CHECK(split.usages.empty());
+        CHECK(lt.start() == 35);
+        CHECK(lt.end() == 85);
+        CHECK(lt.ranges.size() == 3);
+        CHECK(lt.usages.size() == 3);
+    }
+}
+
+TEST_CASE("LifetimeInterval Covers") {
+    SUBCASE("Empty lifetime") {
+        LifetimeInterval lt;
+        CHECK(!lt.covers(0));
+        CHECK(!lt.covers(100));
+    }
+
+    SUBCASE("Single lifetime") {
+        LifetimeInterval lt;
+        lt.addLiveRange(25, 35);
+        CHECK(!lt.covers(0));
+        CHECK(!lt.covers(1));
+        CHECK(lt.covers(25));
+        CHECK(lt.covers(30));
+        CHECK(lt.covers(34));
+        CHECK(!lt.covers(35));
+        CHECK(!lt.covers(400));
+    }
+
+    SUBCASE("Lifetime holes") {
+        LifetimeInterval lt;
+        lt.addLiveRange(2, 4);
+        lt.addLiveRange(6, 8);
+        lt.addLiveRange(10, 12);
+        CHECK(!lt.covers(0));
+        CHECK(!lt.covers(1));
+        CHECK(lt.covers(2));
+        CHECK(lt.covers(3));
+        CHECK(!lt.covers(4));
+        CHECK(!lt.covers(5));
+        CHECK(lt.covers(6));
+        CHECK(lt.covers(7));
+        CHECK(!lt.covers(8));
+        CHECK(!lt.covers(9));
+        CHECK(lt.covers(10));
+        CHECK(lt.covers(11));
+        CHECK(!lt.covers(12));
+        CHECK(!lt.covers(13));
+    }
+}
+
+TEST_CASE("LifetimeInterval findFirstIntersection") {
+    SUBCASE("Non-intersecting lifetimes") {
+        LifetimeInterval lt1;
+        LifetimeInterval lt2;
+        size_t first = 67;
+        CHECK(!lt1.findFirstIntersection(lt2, first));
+        CHECK(!lt2.findFirstIntersection(lt1, first));
+
+        lt1.addLiveRange(0, 10);
+        CHECK(!lt1.findFirstIntersection(lt2, first));
+        CHECK(!lt2.findFirstIntersection(lt1, first));
+
+        lt2.addLiveRange(100, 110);
+        CHECK(!lt1.findFirstIntersection(lt2, first));
+        CHECK(!lt2.findFirstIntersection(lt1, first));
+
+        lt1.addLiveRange(50, 60);
+        CHECK(!lt1.findFirstIntersection(lt2, first));
+        CHECK(!lt2.findFirstIntersection(lt1, first));
+
+        lt2.addLiveRange(150, 160);
+        CHECK(!lt1.findFirstIntersection(lt2, first));
+        CHECK(!lt2.findFirstIntersection(lt1, first));
+
+        lt1.addLiveRange(90, 100);
+        CHECK(!lt1.findFirstIntersection(lt2, first));
+        CHECK(!lt2.findFirstIntersection(lt1, first));
+
+        lt2.addLiveRange(190, 200);
+        CHECK(!lt1.findFirstIntersection(lt2, first));
+        CHECK(!lt2.findFirstIntersection(lt1, first));
+
+        // Value should be unchanged.
+        CHECK(first == 67);
+    }
+
+    SUBCASE("Single range vs multi range") {
+        LifetimeInterval single;
+        single.addLiveRange(45, 55);
+
+        LifetimeInterval left;
+        left.addLiveRange(50, 51);
+        left.addLiveRange(52, 53);
+        left.addLiveRange(75, 90);
+        size_t first = 0;
+        CHECK(single.findFirstIntersection(left, first));
+        CHECK(first == 50);
+        first = 0;
+        CHECK(left.findFirstIntersection(single, first));
+        CHECK(first == 50);
+
+        LifetimeInterval middle;
+        middle.addLiveRange(10, 20);
+        middle.addLiveRange(40, 50);
+        middle.addLiveRange(60, 75);
+        first = 0;
+        CHECK(single.findFirstIntersection(middle, first));
+        CHECK(first == 45);
+        first = 0;
+        CHECK(middle.findFirstIntersection(single, first));
+        CHECK(first == 45);
+
+        LifetimeInterval right;
+        right.addLiveRange(5, 10);
+        right.addLiveRange(35, 45);
+        right.addLiveRange(54, 199);
+        first = 0;
+        CHECK(single.findFirstIntersection(right, first));
+        CHECK(first == 54);
+        first = 0;
+        CHECK(right.findFirstIntersection(single, first));
+        CHECK(first == 54);
+
+        LifetimeInterval hole;
+        hole.addLiveRange(0, 45);
+        hole.addLiveRange(55, 100);
+        first = 0;
+        CHECK(!single.findFirstIntersection(hole, first));
+        CHECK(first == 0);
+        CHECK(!hole.findFirstIntersection(single, first));
+        CHECK(first == 0);
+    }
+}
+
 } // namespace hadron

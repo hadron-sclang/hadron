@@ -71,6 +71,7 @@ void BlockSerializer::reserveRegisters(LinearBlock* linearBlock) {
     size_t to = from + 1;
     for (size_t i = 0; i < linearBlock->registerLifetimes.size(); ++i) {
         linearBlock->registerLifetimes[i][0].addLiveRange(from, to);
+        linearBlock->registerLifetimes[i][0].usages.emplace(from);
     }
 }
 

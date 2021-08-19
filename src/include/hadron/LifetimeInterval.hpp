@@ -29,6 +29,17 @@ struct LifetimeInterval {
     // Adds an interval in sorted order to list, possibly merging with other intervals.
     void addLiveRange(size_t from, size_t to);
 
+    // Keeps all ranges before |splitTime|, return a new LifetimeInterval with all ranges after |splitTime|. If
+    // |splitTime| is within a LiveRange it will also be split. Also splits the usages set.
+    LifetimeInterval splitAt(size_t splitTime);
+
+    // Returns true if p is within a LiveRange inside this LifetimeInterval.
+    bool covers(size_t p) const;
+
+    // Returns true if this and |lt| intersect, meaning there is some value |first| contained in a LiveRange for
+    // both objects. Will set |first| to that value if true, will not modify first if false.
+    bool findFirstIntersection(const LifetimeInterval& lt, size_t& first) const;
+
     bool isEmpty() const { return ranges.size() == 0; }
     size_t start() const { assert(!isEmpty()); return ranges.front().from; }
     size_t end() const { assert(!isEmpty()); return ranges.back().to; }
