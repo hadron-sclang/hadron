@@ -4,12 +4,14 @@
 #include "hadron/LifetimeInterval.hpp"
 
 #include <algorithm>
+#include <unordered_map>
+#include <vector>
 
 namespace {
 // Comparison operator for making min heaps in m_unhandled and m_inactive, sorted by start time.
-struct RegIntervalCompare {
-    bool operator()(const hadron::RegInterval& r1, const hadron::RegInterval& r2) const {
-        return (r1.from < r2.from);
+struct IntervalCompare {
+    bool operator()(const hadron::LifetimeInterval& lt1, const hadron::LifetimeInterval& lt2) const {
+        return (lt1.start() < lt2.start());
     }
 };
 } // namespace
@@ -94,28 +96,35 @@ ALLOCATEBLOCKEDREG
 */
 
 void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
-    // inactive and active are both unordered_maps with registernum as key and a LifetimeInterval as value
-    
+    // unhandled = list of intervals sorted by increasing start positions
 
-
-
-
-    // Build unhandled as the union of all value lifetimes.
-    for (size_t i = 0; i < linearBlock->valueLifetimes.size(); ++i) {
-        for (const auto& liveRange : linearBlock->valueLifetimes[i].ranges) {
-            m_unhandled.emplace_back(RegInterval(live.from, interval.to, i, false));
+    // We build a min-heap of nonemtpy value lifetimes, ordered by start time. Higher-number values are likely to start
+    // later in the block, so we add them to the heap in reverse order.
+    std::vector<LifetimeInterval> unhandled;
+    unhandled.reserve(linearBlock->valueLifetimes.size());
+    for (int i = linearBlock->valueLifetimes.size() - 1; i >= 0; --i) {
+        if (!linearBlock->valueLifetimes[i][0].isEmpty()) {
+            unhandled.emplace_back(linearBlock->valueLifetimes[i][0]);
         }
     }
-    std::make_heap(m_unhandled.begin(), m_unhandled.end(), RegIntervalCompare());
+    std::make_heap(unhandled.begin(), unhandled.end(), IntervalCompare());
+
+    // active = { }; inactive = { }; handled = { };
+
+    std::unordered_map<size_t, LifetimeInterval> active;
+    std::unordered_map<size_t, LifetimeInterval> inactive;
+
+    // Seed any register allocations from block construction into the inactive.
 
     // while unhandled =/= { } do
-    while (m_unhandled.size()) {
+    while (unhandled.size()) {
         // current = pick and remove first interval from unhandled
-        std::pop_heap(m_unhandled.begin(), m_unhandled.end(), RegIntervalCompare());
-        // RegInterval current = m_unhandled.back();
-        m_unhandled.pop_back();
+        std::pop_heap(unhandled.begin(), unhandled.end(), IntervalCompare());
+        LifetimeInterval current = unhandled.back();
+        unhandled.pop_back();
 
-        // position = start position of current (we just use current.from)
+        // position = start position of current
+        size_t position = current.start();
 
         // for each interval it in active do
         //     if it ends before position then
@@ -127,7 +136,6 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         // subsequent ranges of value use are just in *unhandled*. We'll clearly want to mark value intervals with
         // reg assignments and spilling, too, just so we can understand where everything is.
     }
-
 }
 
 } // namespace hadron

@@ -94,7 +94,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
             if (hir->value.isValid()) {
                 // intervals[opd].setFrom(op.id)
                 blockVariableRanges[hir->value.number] = std::make_pair(j, blockRange.second);
-                linearBlock->valueLifetimes[hir->value.number].usages.emplace(j);
+                linearBlock->valueLifetimes[hir->value.number][0].usages.emplace(j);
 
                 // live.remove(opd)
                 live.erase(hir->value.number);
@@ -104,7 +104,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
             for (auto opd : hir->reads) {
                 // intervals[opd].addRange(b.from, op.id)
                 blockVariableRanges[opd.number] = std::make_pair(blockRange.first, j + 1);
-                linearBlock->valueLifetimes[opd.number].usages.emplace(j);
+                linearBlock->valueLifetimes[opd.number][0].usages.emplace(j);
                 // live.add(opd)
                 live.insert(opd.number);
             }
@@ -127,7 +127,8 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
 
         // Cleanup step, add the (now final) ranges into the lifetimes.
         for (auto rangePair : blockVariableRanges) {
-            linearBlock->valueLifetimes[rangePair.first].addInterval(rangePair.second.first, rangePair.second.second);
+            linearBlock->valueLifetimes[rangePair.first][0].addLiveRange(rangePair.second.first,
+                rangePair.second.second);
         }
     }
 }

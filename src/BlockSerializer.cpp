@@ -69,8 +69,8 @@ void BlockSerializer::orderBlocks(Block* block, std::vector<int>& blockOrder) {
 void BlockSerializer::reserveRegisters(LinearBlock* linearBlock) {
     size_t from = linearBlock->instructions.size();
     size_t to = from + 1;
-    for (size_t i = 0; i < linearBlock->registerAllocations.size(); ++i) {
-        linearBlock->registerAllocations[i].emplace_back(RegInterval(from, to, 0, false));
+    for (size_t i = 0; i < linearBlock->registerLifetimes.size(); ++i) {
+        linearBlock->registerLifetimes[i][0].addLiveRange(from, to);
     }
 }
 
