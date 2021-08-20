@@ -11,10 +11,6 @@
 #include <unordered_map>
 #include <vector>
 
-// The Value pair tracks a value number and a flag set that is possible types. The problem is for any situation where
-// the type is unknown we also need a value to track the runtime type. So things like buildValue need to return a
-// pair of <Value, Value> to track value and *type value*. Which is exhausting but there you have it.
-
 namespace hadron {
 
 class ErrorReporter;
@@ -71,7 +67,11 @@ struct Frame {
     int numberOfBlocks = 0;
 };
 
-// Goes from parse tree to HIR in blocks of HIR in SSA form.
+// Goes from parse tree to a Control Flow Graph of Blocks of HIR code in SSA form.
+//
+// This is an implementation of the algorithm described in [SSA2] in the Bibliography, "Simple and Efficient
+// Construction of Static Single Assignment Form" by Bruan M. et al, with modifications to support type deduction while
+// building SSA form.
 class SSABuilder {
 public:
     SSABuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);

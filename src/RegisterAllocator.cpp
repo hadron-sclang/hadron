@@ -5,18 +5,10 @@
 
 #include <algorithm>
 
-namespace {
-// Comparison operator for making min heaps in m_unhandled and m_inactive, sorted by start time.
-struct IntervalCompare {
-    bool operator()(const hadron::LifetimeInterval& lt1, const hadron::LifetimeInterval& lt2) const {
-        return (lt1.start() < lt2.start());
-    }
-};
-} // namespace
-
-namespace hadron {
-
 /*
+Pseudocode for the Linear Scan algorithm copied verbatim from [RA4] "Optimized interval splitting in a linear scan
+register allocator", by C. Wimmer and H. Mössenböck.
+
 LINEARSCAN
     unhandled = list of intervals sorted by increasing start positions
     active = { }; inactive = { }; handled = { };
@@ -92,6 +84,18 @@ ALLOCATEBLOCKEDREG
     if current intersects with the fixed interval for reg then
         split current before this intersection
 */
+
+
+namespace {
+// Comparison operator for making min heaps in m_unhandled and m_inactive, sorted by start time.
+struct IntervalCompare {
+    bool operator()(const hadron::LifetimeInterval& lt1, const hadron::LifetimeInterval& lt2) const {
+        return (lt1.start() < lt2.start());
+    }
+};
+} // namespace
+
+namespace hadron {
 
 void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     // We build a min-heap of nonemtpy value lifetimes, ordered by start time. Higher-number values are likely to start
@@ -225,7 +229,7 @@ bool RegisterAllocator::tryAllocateFreeReg(LifetimeInterval& current) {
     return true;
 }
 
-bool RegisterAllocator::allocateBlockedReg(LifetimeInterval& current) {
+void RegisterAllocator::allocateBlockedReg(LifetimeInterval& current) {
     // set nextUsePos of all physical registers to maxInt
     std::vector<size_t> nextUsePos(m_numberOfRegisters, std::numeric_limits<size_t>::max());
 
@@ -267,25 +271,24 @@ bool RegisterAllocator::allocateBlockedReg(LifetimeInterval& current) {
     }
 
     // if first usage of current is after nextUsePos[reg] then
-    if (current.begin() > highestNextUsePos) {
+    if (current.start() > highestNextUsePos) {
         // all other intervals are used before current, so it is best to spill current itself
         // assign spill slot to current
+        // TODO: spilling
         // split current before its first use position that requires a register
+        m_unhandled.push_back(current.splitAt(highestNextUsePos));
+    } else {
+        // else
+        // spill intervals that currently block reg
+        // current.reg = reg
+        // split active interval for reg at position
+        // split any inactive interval for reg at the end of its lifetime hole
     }
 
+    // make sure that current does not intersect with the fixed interval for reg
+    // if current intersects with the fixed interval for reg then
+        // split current before this intersection
 
-/*
-    else
-        // spill intervals that currently block reg
-        current.reg = reg
-        split active interval for reg at position
-        split any inactive interval for reg at the end of its lifetime hole
-
-    // make sure that current does not intersect with
-    // the fixed interval for reg
-    if current intersects with the fixed interval for reg then
-        split current before this intersection
-*/
 }
 
 } // namespace hadron

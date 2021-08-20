@@ -6,6 +6,9 @@
 namespace hadron {
 
 /*
+Pseudocode for the lifetime interval building algorithm taken verbatiim from [RA5] in the Bibliography,  "Linear Scan
+Register Allocation on SSA Form" by C. Wimmer and M. Franz.
+
 BUILDINTERVALS
     for each block b in reverse order do
         live = union of successor.liveIn for each successor of b

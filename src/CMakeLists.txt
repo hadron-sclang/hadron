@@ -130,6 +130,7 @@ add_library(hadron STATIC
     include/hadron/MachineCodeRenderer.hpp
     include/hadron/Parser.hpp
     include/hadron/RegisterAllocator.hpp
+    include/hadron/Resolver.hpp
     include/hadron/Slot.hpp
     include/hadron/SourceFile.hpp
     include/hadron/SSABuilder.hpp
@@ -152,6 +153,7 @@ add_library(hadron STATIC
     LighteningJIT.cpp
     MachineCodeRenderer.cpp
     RegisterAllocator.cpp
+    Resolver.cpp
     Slot.cpp
     SourceFile.cpp
     SSABuilder.cpp

@@ -5,17 +5,8 @@ namespace hadron {
 
 struct LinearBlock;
 
-//   Lexer: convert input string into tokens
-//   Parser: build parse tree from input tokens
-//   SSABuilder: convert parse tree to CFG/HIR format
-//   BlockSerializer: flatten to linear block
-//   LifetimeAnalyzer: lifetime analysis (still needs successor info from CFG)
-//   RegisterAllocator: register allocation
-//   Resolver: SSA form desconstruction/HIR -> machine code translation, Allocation resolution
-
-
-// This is a literal implementation of the pseudocode described in the BuildIntervals algorithm of "Linear Scan Register
-// Allocation on SSA Form" by Christian Wimmer Michael Franz (see Bibliography).
+// This is a literal implementation of the pseudocode described in the BuildIntervals algorithm of [RA5] in the
+// Bibliography,  "Linear Scan Register Allocation on SSA Form" by C. Wimmer and M. Franz.
 class LifetimeAnalyzer {
 public:
     LifetimeAnalyzer() = default;
