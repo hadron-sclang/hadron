@@ -33,13 +33,19 @@ Hadron uses a Linear Scan algorithm on SSA form input. This algorithm requires t
 topological order (reverse postorder) with all loops in contiguous order. The other input to the Linear Scan algorithm
 are lifetime intervals for each value, which are computed here.
 
-## CodeGenerator assigns registers and emits Lightening machine code
+## Register allocation using the Linear Scan algorithm
 
 Processor register allocation is an NP-hard problem. Register allocation is also very important for compiled code speed,
 as registers are by far the fastest form of storage on a computer. Some recent work in compiler research (see
 Bibliography) explores performing register allocation from code in SSA form, instead of first translating code out of
 SSA form and then performing the register allocation. This approach is also attractive to JIT compilers because it saves
 a step in the compilation process, therefore saving on compilation time.
+
+## Resolution from SSA form and machine code generation
+
+To get out of SSA form once register allocation happens the compiler has to insert move instructions between blocks of
+code where register allocations for values may differ. This happens during a final pass through the linear block of HIR,
+while generating machine code at the same time.
 
 To support both ARM and x86 processor architectures Hadron uses [Lightening](https://gitlab.com/wingo/lightening), a
 fork of [GNU Lightning](https://www.gnu.org/software/lightning/). These libraries expose a rough "consensus" machine
