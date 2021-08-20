@@ -12,27 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
-// The literature calls the entire data structure a Control Flow Graph, and the individual nodes are called Blocks.
-// There is also a strict heirarchy of scope, which the LSC parser at least calls a Block. Could be called a Frame,
-// since it will most definitely correspond to a stack frame. Frames are where local (read: stack-based) variables
-// live, and Frames are nestable.
-
-// So the plan is to follow Braun 2013 to build the SSA directly from the parse tree, skipping AST construction.
-// This takes a few passes to clean up and get to minimal pruned SSA form. Type computations follow along for the
-// ride as parallel variables to their named values. We perform LVN and constant folding as we go.
-
-// We can then do a bottoms-up dead code elimination pass. This allows us to be verbose with the type system
-// assignments, I think, as we can treat them like parallel values.
-
-/*
-A good block order leads to short lifetime intervals with few holes. Our block or- der guarantees the following
-properties: First, all predecessors of a block are located before this block, with the exception of back- ward edges of
-loops. This implies that all dominators of a block are located before this block. Secondly, all blocks that are part of
-the same loop are contiguous, i.e., there is no non-loop block between two loop blocks.
-*/
-
 namespace hadron {
-
 
 // Represents a pair of value number (for Local Value Numbering during SSA form construction) and Type flags created
 // by ORing the Types of variables together across Phi nodes.
