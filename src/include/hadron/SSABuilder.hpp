@@ -28,20 +28,23 @@ struct Block {
     Block(Frame* owningFrame, int blockNumber): frame(owningFrame), number(blockNumber) {}
 
     // Value numbers are frame-wide but for LVN the value lookups are block-local, because extra-block values
-    // need to go through a Phi function in this Block.
+    // need to go through a Phi function in this Block. For local value numbering we keep a map of the
+    // value to the associated HIR instruction, for possible re-use of instructions.
     std::unordered_map<Value, hir::HIR*> values;
-    // Map of names (variables, arguments) to most recent revision of values.
-    std::unordered_map<Hash, Value> revisions;
+    // Map of names (variables, arguments) to most recent revision of <values, type>
+    std::unordered_map<Hash, std::pair<Value, Value>> revisions;
+
     // Map of values defined extra-locally and their local value. For convenience we also put local values in here,
     // mapping to themselves.
     std::unordered_map<Value, Value> localValues;
-
     // Owning frame of this block.
     Frame* frame;
     // Unique block number.
     int number;
     std::list<Block*> predecessors;
     std::list<Block*> successors;
+
+    std::list<std::unique_ptr<hir::PhiHIR>> phis;
     // Statements in order of execution.
     std::list<std::unique_ptr<hir::HIR>> statements;
 };
@@ -58,9 +61,17 @@ struct Frame {
     Frame* parent;
     std::list<std::unique_ptr<Block>> blocks;
     std::list<std::unique_ptr<Frame>> subFrames;
+
+    // Values only valid for root frames, subFrame values will be 0.
+    size_t numberOfValues = 0;
+    int numberOfBlocks = 0;
 };
 
-// Goes from parse tree to HIR in blocks of HIR in SSA form.
+// Goes from parse tree to a Control Flow Graph of Blocks of HIR code in SSA form.
+//
+// This is an implementation of the algorithm described in [SSA2] in the Bibliography, "Simple and Efficient
+// Construction of Static Single Assignment Form" by Bruan M. et al, with modifications to support type deduction while
+// building SSA form.
 class SSABuilder {
 public:
     SSABuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);
@@ -69,13 +80,15 @@ public:
     std::unique_ptr<Frame> buildFrame(const parse::BlockNode* blockNode);
 
 private:
+    std::unique_ptr<Frame> buildSubframe(const parse::BlockNode* blockNode);
+
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not
     // iterate to process the |node->next| pointer. Call buildFinalValue() to do that.
-    Value buildValue(const parse::Node* node);
-    Value buildFinalValue(const parse::Node* node);
-    Value buildDispatch(const parse::Node* target, Hash selector, const parse::Node* arguments,
-        const parse::KeyValueNode* keywordArguments);
+    std::pair<Value, Value> buildValue(const parse::Node* node);
+    std::pair<Value, Value> buildFinalValue(const parse::Node* node);
+    std::pair<Value, Value> buildDispatch(const parse::Node* target, Hash selector, const parse::Node* arguments,
+            const parse::KeyValueNode* keywordArguments);
 
     // Algorithm is to iterate through all previously defined values *in the block* to see if they have already defined
     // an identical value. Returns the value either inserted or re-used. Takes ownership of hir.
@@ -86,9 +99,10 @@ private:
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
     // tables.
-    Value findName(Hash name);
-    // Returns the local value number after insertion.
-    Value findValue(Value v, Block* block);
+    std::pair<Value, Value> findName(Hash name);
+    // Returns the local value number after insertion. May insert Phis recursively in all predecessors.
+    Value findValue(Value v);
+    Value findValuePredecessor(Value v, Block* block, std::unordered_map<int, Value>& blockValues);
 
     Lexer* m_lexer;
     std::shared_ptr<ErrorReporter> m_errorReporter;

@@ -12,28 +12,16 @@
 #include <unordered_set>
 #include <vector>
 
-// The literature calls the entire data structure a Control Flow Graph, and the individual nodes are called Blocks.
-// There is also a strict heirarchy of scope, which the LSC parser at least calls a Block. Could be called a Frame,
-// since it will most definitely correspond to a stack frame. Frames are where local (read: stack-based) variables
-// live, and Frames are nestable.
-
-// So the plan is to follow Braun 2013 to build the SSA directly from the parse tree, skipping AST construction.
-// This takes a few passes to clean up and get to minimal pruned SSA form. Type computations follow along for the
-// ride as parallel variables to their named values. We perform LVN and constant folding as we go.
-
-// We can then do a bottoms-up dead code elimination pass. This allows us to be verbose with the type system
-// assignments, I think, as we can treat them like parallel values.
 namespace hadron {
-
 
 // Represents a pair of value number (for Local Value Numbering during SSA form construction) and Type flags created
 // by ORing the Types of variables together across Phi nodes.
 struct Value {
-    // A typeFlag of 0 represents an invalid Value.
+    // A typeFlag of 0 represents an invalid Value, as does a value number of 0.
     Value(): number(0), typeFlags(0) {}
     Value(uint32_t num, uint32_t flags): number(num), typeFlags(flags) {}
     ~Value() = default;
-    bool isValid() const { return typeFlags != 0; }
+    bool isValid() const { return number != 0 && typeFlags != 0; }
     bool operator==(const Value& v) const { return number == v.number; }
     bool operator!=(const Value& v) const { return number != v.number; }
 
@@ -62,16 +50,25 @@ namespace hir {
 
 enum Opcode {
     kLoadArgument,
+    kLoadArgumentType,
     kConstant,
     kStoreReturn,
+    kResolveType, // Many other operations (such as binops and dispatch) require runtime knowledge of the type of the
+                  // input value. If it's known at compile time we can replace this with a ConstantHIR opcode.
+                  // If unknown this adds the type as a value (with type kType) that can be manipulated like any other
+                  // value.
 
     // Control flow
     kPhi,
     kIf,
 
+    // For Linear HIR represents the start of a block as well as a container for any phis at the start of the block.
+    kLabel,
+
     // Method calling.
     kDispatchCall,  // save all registers, set up calling stack, represents a modification of the target
     kDispatchLoadReturn,  // just like LoadArgument, can get type or value from stack, call before Cleanup
+    kDispatchLoadReturnType,
     kDispatchCleanup, // must be called after a kDispatch
 };
 
@@ -105,6 +102,18 @@ struct LoadArgumentHIR : public HIR {
     bool isEquivalent(const HIR* hir) const override;
 };
 
+// Represents the type associated with the value at |index|.
+struct LoadArgumentTypeHIR : public HIR {
+    LoadArgumentTypeHIR(Frame* f, int argIndex): HIR(kLoadArgumentType), frame(f), index(argIndex) {}
+    virtual ~LoadArgumentTypeHIR() = default;
+    Frame* frame;
+    int index;
+
+    // Forces the kType type for all arguments.
+    Value proposeValue(uint32_t number) override;
+    bool isEquivalent(const HIR* hir) const override;
+};
+
 struct ConstantHIR : public HIR {
     ConstantHIR(const Slot& c): HIR(kConstant), constant(c) {}
     virtual ~ConstantHIR() = default;
@@ -116,22 +125,37 @@ struct ConstantHIR : public HIR {
 };
 
 struct StoreReturnHIR : public HIR {
-    StoreReturnHIR(Frame* f, Value retVal);
+    StoreReturnHIR(Frame* f, std::pair<Value, Value> retVal);
     virtual ~StoreReturnHIR() = default;
     Frame* frame;
-    Value returnValue;
+    std::pair<Value, Value> returnValue;
 
     // Always returns an invalid value, as this is a read-only operation.
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
 };
 
+struct ResolveTypeHIR : public HIR {
+    // Note that typeOfValue is not added to |reads|, as this doesn't require read access to the typeOfValue. This HIR
+    // represents a note to the compiler that for dynamic type variables the type must be tracked in a separate register
+    // from the value.
+    ResolveTypeHIR(Value v): HIR(kResolveType), typeOfValue(v) {}
+    virtual ~ResolveTypeHIR() = default;
+    // ResolveType returns as a value the type of this value.
+    Value typeOfValue;
+
+    Value proposeValue(uint32_t number) override;
+    bool isEquivalent(const HIR* hir) const override;
+};
 
 struct PhiHIR : public HIR {
     PhiHIR(): HIR(kPhi) {}
 
     std::vector<Value> inputs;
     void addInput(Value v);
+    // A phi is *trivial* if it has only one distinct input value that is not self-referential. If this phi is trivial,
+    // return the trivial value. Otherwise return an invalid value.
+    Value getTrivialValue() const;
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
@@ -140,18 +164,30 @@ struct PhiHIR : public HIR {
 // TODO: inherit from some common BranchHIR terminal instruction? Maybe also a block exit HIR too?
 struct IfHIR : public HIR {
     IfHIR() = delete;
-    IfHIR(Value cond);
+    IfHIR(std::pair<Value, Value> cond);
     virtual ~IfHIR() = default;
 
-    Value condition;
+    std::pair<Value, Value> condition;
     int trueBlock;
-    int falseBlock; // can be -1?
+    int falseBlock;
 
     // Computation of the type of an if is a function of the type of the branching blocks, so for initial value
     // type computation we return kAny because the types of the branch blocks aren't yet known. A subsequent round
     // of phi reduction/constant folding/dead code elimination could simplify the type considerably.
     Value proposeValue(uint32_t number) override;
     // Because 'if' statements are terminal blocks, isEquivalent is always false.
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+struct LabelHIR : public HIR {
+    LabelHIR() = delete;
+    LabelHIR(int blockNum): HIR(kLabel), blockNumber(blockNum) {}
+    int blockNumber;
+    std::vector<int> predecessors;
+    std::vector<int> successors;
+    std::list<std::unique_ptr<PhiHIR>> phis;
+
+    Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
 };
 
@@ -170,8 +206,8 @@ struct DispatchCallHIR : public Dispatch {
     virtual ~DispatchCallHIR() = default;
 
     // Convenience routines that add to respective vectors but also add to the <reads> structure.
-    void addKeywordArgument(Value key, Value keyValue);
-    void addArgument(Value argument);
+    void addKeywordArgument(std::pair<Value, Value> key, std::pair<Value, Value> keyValue);
+    void addArgument(std::pair<Value, Value> argument);
 
     std::vector<Value> keywordArguments;
     std::vector<Value> arguments;
@@ -180,12 +216,20 @@ struct DispatchCallHIR : public Dispatch {
     Value proposeValue(uint32_t number) override;
 };
 
-// TODO: Could make this "read" the return value of the DispatchCall, to make the dependency clear
+// TODO: Could make this "read" the return value of the DispatchCall, to make the dependency clear, although a bit
+// redundant since Dispatches can't ever be culled due to possible side effects.
 struct DispatchLoadReturnHIR : public Dispatch {
     DispatchLoadReturnHIR(): Dispatch(kDispatchLoadReturn) {}
     virtual ~DispatchLoadReturnHIR() = default;
 
     // Forces the kAny type for the return.
+    Value proposeValue(uint32_t number) override;
+};
+
+struct DispatchLoadReturnTypeHIR : public Dispatch {
+    DispatchLoadReturnTypeHIR(): Dispatch(kDispatchLoadReturnType) {}
+    virtual ~DispatchLoadReturnTypeHIR() = default;
+
     Value proposeValue(uint32_t number) override;
 };
 

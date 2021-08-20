@@ -126,7 +126,6 @@ std::string printType(const uint32_t type) {
 }
 
 std::string printSlot(const hadron::Slot& literal) {
-    std::string type = printType(literal.type);
     switch (literal.type) {
     case hadron::Type::kInteger:
         return fmt::format("(int) {}", literal.value.intValue);
@@ -137,10 +136,14 @@ std::string printSlot(const hadron::Slot& literal) {
     case hadron::Type::kBoolean:
         return fmt::format("(bool) {}", trueFalse(literal.value.boolValue));
 
+    case hadron::Type::kType:
+        return fmt::format("(type) {}", printType(literal.value.typeValue));
+
     default:
         break;
     }
 
+    std::string type = printType(literal.type);
     return type;
 }
 
@@ -763,12 +766,31 @@ std::string printValue(hadron::Value v) {
 void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
     outFile << fmt::format("    block_{} [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n"
         "      <tr><td bgcolor=\"lightGray\"><b>Block {}</b></td></tr>\n", block->number, block->number);
+    for (const auto& phi : block->phis) {
+        outFile << fmt::format("      <tr><td>{} &#8592; &phi;(", printValue(phi->value));
+        if (phi->inputs.size() > 1) {
+            for (size_t i = 0; i < phi->inputs.size() - 1; ++i) {
+                outFile << printValue(phi->inputs[i]) << ", ";
+            }
+        }
+        if (phi->inputs.size() > 0) {
+            outFile << printValue(phi->inputs[phi->inputs.size() - 1]);
+        }
+        outFile << ")</td></tr>" << std::endl;
+    }
+
     for (const auto& hir : block->statements) {
         switch (hir->opcode) {
         case hadron::hir::Opcode::kLoadArgument: {
             const auto loadArg = reinterpret_cast<const hadron::hir::LoadArgumentHIR*>(hir.get());
             outFile << fmt::format("        <tr><td>{} &#8592; LoadArg({})</td></tr>\n",
                 printValue(loadArg->value), loadArg->index);
+        } break;
+
+        case hadron::hir::Opcode::kLoadArgumentType: {
+            const auto loadArgType = reinterpret_cast<const hadron::hir::LoadArgumentTypeHIR*>(hir.get());
+            outFile << fmt::format("        <tr><td>{} &#8592; LoadArgType({})</td></tr>\n",
+                printValue(loadArgType->value), loadArgType->index);
         } break;
 
         case hadron::hir::Opcode::kConstant: {
@@ -779,28 +801,31 @@ void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
 
         case hadron::hir::Opcode::kStoreReturn: {
             const auto storeReturn = reinterpret_cast<const hadron::hir::StoreReturnHIR*>(hir.get());
-            outFile << fmt::format("      <tr><td>StoreReturn({})</td></tr>\n", printValue(storeReturn->returnValue));
+            outFile << fmt::format("      <tr><td>StoreReturn({},{})</td></tr>\n",
+                printValue(storeReturn->returnValue.first), printValue(storeReturn->returnValue.second));
         } break;
 
-        case hadron::hir::Opcode::kPhi: {
-            const auto phi = reinterpret_cast<const hadron::hir::PhiHIR*>(hir.get());
-            outFile << fmt::format("      <tr><td>{} &#8592; &phi;(", printValue(phi->value));
-            if (phi->inputs.size() > 1) {
-                for (size_t i = 0; i < phi->inputs.size() - 1; ++i) {
-                    outFile << printValue(phi->inputs[i]) << ", ";
-                }
-            }
-            if (phi->inputs.size() > 0) {
-                outFile << printValue(phi->inputs[phi->inputs.size() - 1]);
-            }
-            outFile << ")</td></tr>" << std::endl;
+        case hadron::hir::Opcode::kResolveType: {
+            const auto resolveType = reinterpret_cast<const hadron::hir::ResolveTypeHIR*>(hir.get());
+            outFile << fmt::format("      <tr><td>{} &#8592; ResolveType({})</td></tr>\n",
+                printValue(resolveType->value), printValue(resolveType->typeOfValue));
         } break;
+
+        case hadron::hir::Opcode::kPhi:
+            assert(false); // TODO
+            break;
 
         case hadron::hir::Opcode::kIf: {
             const auto ifHIR = reinterpret_cast<const hadron::hir::IfHIR*>(hir.get());
-            outFile << fmt::format("      <tr><td>{} &#8592; if {} then goto {} else goto {}</td></tr>\n",
-                printValue(ifHIR->value), printValue(ifHIR->condition), ifHIR->trueBlock, ifHIR->falseBlock);
+            outFile << fmt::format("      <tr><td>{} &#8592; if {},{} then goto {} else goto {}</td></tr>\n",
+                printValue(ifHIR->value), printValue(ifHIR->condition.first), printValue(ifHIR->condition.second),
+                ifHIR->trueBlock, ifHIR->falseBlock);
         } break;
+
+        case hadron::hir::Opcode::kLabel: {
+            assert(false); // TODO
+            break;
+        }
 
         case hadron::hir::Opcode::kDispatchCall: {
             const auto dispatchCall = reinterpret_cast<const hadron::hir::DispatchCallHIR*>(hir.get());
@@ -821,6 +846,12 @@ void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
         case hadron::hir::Opcode::kDispatchLoadReturn: {
             const auto dispatchRet = reinterpret_cast<const hadron::hir::DispatchLoadReturnHIR*>(hir.get());
             outFile << fmt::format("      <tr><td>{} &#8592; LoadReturn()</td></tr>\n", printValue(dispatchRet->value));
+        } break;
+
+        case hadron::hir::Opcode::kDispatchLoadReturnType: {
+            const auto dispatchRetType = reinterpret_cast<const hadron::hir::DispatchLoadReturnTypeHIR*>(hir.get());
+            outFile << fmt::format("      <tr><td>{} &#8592; LoadReturnType()</td></tr>\n",
+                printValue(dispatchRetType->value));
         } break;
 
         case hadron::hir::Opcode::kDispatchCleanup: {
