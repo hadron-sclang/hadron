@@ -7,8 +7,19 @@
 namespace hadron {
 
 std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> baseFrame, size_t numberOfRegisters) {
-    auto linearBlock = std::make_unique<LinearBlock>(baseFrame->numberOfBlocks, baseFrame->numberOfValues,
-            numberOfRegisters);
+    // Prepare the LinearBlock for recording of lifetimes in both values and registers.
+    auto linearBlock = std::make_unique<LinearBlock>();
+    linearBlock->blockOrder.reserve(baseFrame->numberOfBlocks);
+    linearBlock->blockRanges.reserve(baseFrame->numberOfBlocks);
+    linearBlock->valueLifetimes.resize(baseFrame->numberOfValues, std::vector<LifetimeInterval>(1));
+    linearBlock->registerLifetimes.resize(numberOfRegisters, std::vector<LifetimeInterval>(1));
+    for (size_t i = 0; i < baseFrame->numberOfValues; ++i) {
+        linearBlock->valueLifetimes[i][0].valueNumber = i;
+    }
+    for (size_t i = 0; i < numberOfRegisters; ++i) {
+        linearBlock->registerLifetimes[i][0].registerNumber = i;
+    }
+
     m_blocks.resize(baseFrame->numberOfBlocks, nullptr);
 
     // To simplify counting with unsigned values insert an empty instruction at the start of the linear block.

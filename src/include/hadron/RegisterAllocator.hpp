@@ -2,6 +2,7 @@
 #define SRC_INCLUDE_HADRON_REGISTER_ALLOCATOR_HPP_
 
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace hadron {
@@ -24,12 +25,16 @@ public:
 
 private:
     bool tryAllocateFreeReg(LifetimeInterval& current);
-    void allocateBlockedReg(LifetimeInterval& current);
+    void allocateBlockedReg(LifetimeInterval& current, LinearBlock* linearBlock);
+    void spill(LifetimeInterval& interval, LinearBlock* linearBlock);
 
     std::vector<LifetimeInterval> m_unhandled;
     std::unordered_map<size_t, LifetimeInterval> m_active;
     std::unordered_map<size_t, LifetimeInterval> m_inactive;
+    std::unordered_map<size_t, LifetimeInterval> m_activeSpills;
+    std::unordered_set<size_t> m_freeSpills;
     size_t m_numberOfRegisters = 0;
+    size_t m_numberOfSpillSlots = 0;
 };
 
 } // namespace hadron
