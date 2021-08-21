@@ -60,7 +60,8 @@ enum Opcode {
 
     // Control flow
     kPhi,
-    kIf,
+    kBranch,
+    kBranchIfZero,
 
     // For Linear HIR represents the start of a block as well as a container for any phis at the start of the block.
     kLabel,
@@ -161,21 +162,25 @@ struct PhiHIR : public HIR {
     bool isEquivalent(const HIR* hir) const override;
 };
 
-// TODO: inherit from some common BranchHIR terminal instruction? Maybe also a block exit HIR too?
-struct IfHIR : public HIR {
-    IfHIR() = delete;
-    IfHIR(std::pair<Value, Value> cond);
-    virtual ~IfHIR() = default;
+struct BranchHIR : public HIR {
+    BranchHIR() = delete;
+    BranchHIR(int blockNum): HIR(kBranch) {}
+    virtual ~BranchHIR() = default;
+
+    int blockNumber;
+    Value proposeValue(uint32_t number) override;
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+struct BranchIfZeroHIR : public HIR {
+    BranchIfZeroHIR() = delete;
+    BranchIfZeroHIR(std::pair<Value, Value> cond);
+    virtual ~BranchIfZeroHIR() = default;
 
     std::pair<Value, Value> condition;
-    int trueBlock;
-    int falseBlock;
+    int blockNumber;
 
-    // Computation of the type of an if is a function of the type of the branching blocks, so for initial value
-    // type computation we return kAny because the types of the branch blocks aren't yet known. A subsequent round
-    // of phi reduction/constant folding/dead code elimination could simplify the type considerably.
     Value proposeValue(uint32_t number) override;
-    // Because 'if' statements are terminal blocks, isEquivalent is always false.
     bool isEquivalent(const HIR* hir) const override;
 };
 
@@ -193,6 +198,7 @@ struct LabelHIR : public HIR {
 
 // Private struct to provide the overrides around equivalence, which are all the same for the Dispatch HIR objects.
 struct Dispatch : public HIR {
+    Dispatch() = delete;
     virtual ~Dispatch() = default;
 
     bool isEquivalent(const HIR* hir) const override;

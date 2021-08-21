@@ -229,21 +229,26 @@ std::pair<Value, Value> SSABuilder::buildValue(const parse::Node* node) {
     case parse::NodeType::kIf: {
         const auto ifNode = reinterpret_cast<const parse::IfNode*>(node);
         auto condition = buildFinalValue(ifNode->condition.get());
-        auto ifHIROwning = std::make_unique<hir::IfHIR>(condition);
-        // Insert the if HIR but keep a copy of the pointer around to connect it to the true and false blocks.
-        hir::IfHIR* ifHIR = ifHIROwning.get();
-        nodeValue.first = insertLocal(std::move(ifHIROwning));
+        auto condBranchOwning = std::make_unique<hir::BranchIfZeroHIR>(condition);
+        // Insert the if HIR but keep a copy of the pointer around to connect it to the continuation or else blocks
+        hir::BranchIfZeroHIR* condBranch = condBranchOwning.get();
+        nodeValue.first = insertLocal(std::move(condBranchOwning));
         nodeValue.second = insertLocal(std::make_unique<hir::ResolveTypeHIR>(nodeValue.first));
+        auto branchOwning = std::make_unique<hir::BranchHIR>();
+        hir::BranchHIR* branch = branchOwning.get();
+        insertLocal(std::move(branchOwning));
+
         // Preserve the current block and frame for insertLocalion of the new subframes as children.
         Frame* parentFrame = m_frame;
         Block* ifBlock = m_block;
 
-        // Build the true condition block.
+        // Build the true condition block. We unconditionally branch to this with the expectation that it will be
+        // serialized after the if block, meaning we can delete the branch.
         assert(ifNode->trueBlock);
         auto trueFrameOwning = buildSubframe(ifNode->trueBlock.get());
         Frame* trueFrame = trueFrameOwning.get();
         parentFrame->subFrames.emplace_back(std::move(trueFrameOwning));
-        ifHIR->trueBlock = trueFrame->blocks.front()->number;
+        branch->blockNumber = trueFrame->blocks.front()->number;
         ifBlock->successors.emplace_back(trueFrame->blocks.front().get());
         trueFrame->blocks.front()->predecessors.emplace_back(ifBlock);
 

@@ -29,7 +29,7 @@ for each control flow edge from predecessor to successor do
 namespace hadron {
 
 void Resolver::resolve(LinearBlock* /* linearBlock */, JIT* /* jit */) {
-// TODO
+
 }
 
 } // namespace hadron
