@@ -252,13 +252,13 @@ std::pair<Value, Value> SSABuilder::buildValue(const parse::Node* node) {
         ifBlock->successors.emplace_back(trueFrame->blocks.front().get());
         trueFrame->blocks.front()->predecessors.emplace_back(ifBlock);
 
-        // Build the else condition block if present.
+        // Build the else condition block if present. The BranchIfZero will target branching here.
         Frame* falseFrame = nullptr;
         if (ifNode->falseBlock) {
             auto falseFrameOwning = buildSubframe(ifNode->falseBlock.get());
             falseFrame = falseFrameOwning.get();
             parentFrame->subFrames.emplace_back(std::move(falseFrameOwning));
-            ifHIR->falseBlock = falseFrame->blocks.front()->number;
+            condBranch->blockNumber = falseFrame->blocks.front()->number;
             ifBlock->successors.emplace_back(falseFrame->blocks.front().get());
             falseFrame->blocks.front()->predecessors.emplace_back(ifBlock);
         }
@@ -277,10 +277,13 @@ std::pair<Value, Value> SSABuilder::buildValue(const parse::Node* node) {
         // Either wire the else condition to the continue block, or wire the if false condition directly here if no
         // else condition specified.
         if (falseFrame) {
+            auto falseBranch = std::make_unique<hir::BranchHIR>();
+            falseBranch->blockNumber = m_block->number;
+            insert(std::move(falseBranch), falseFrame->blocks.back().get());
             falseFrame->blocks.back()->successors.emplace_back(m_block);
             m_block->predecessors.emplace_back(falseFrame->blocks.back().get());
         } else {
-            ifHIR->falseBlock = m_block->number;
+            condBranch->blockNumber = m_block->number;
             ifBlock->successors.emplace_back(m_block);
             m_block->predecessors.emplace_back(ifBlock);
         }

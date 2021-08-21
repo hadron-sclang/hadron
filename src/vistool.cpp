@@ -811,17 +811,20 @@ void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
                 printValue(resolveType->value), printValue(resolveType->typeOfValue));
         } break;
 
+        case hadron::hir::Opcode::kScheduleMoves:
+        case hadron::hir::Opcode::kBranch:
+        case hadron::hir::Opcode::kBranchIfZero:
         case hadron::hir::Opcode::kPhi:
             assert(false); // TODO
             break;
-
+/*
         case hadron::hir::Opcode::kIf: {
             const auto ifHIR = reinterpret_cast<const hadron::hir::IfHIR*>(hir.get());
             outFile << fmt::format("      <tr><td>{} &#8592; if {},{} then goto {} else goto {}</td></tr>\n",
                 printValue(ifHIR->value), printValue(ifHIR->condition.first), printValue(ifHIR->condition.second),
                 ifHIR->trueBlock, ifHIR->falseBlock);
         } break;
-
+*/
         case hadron::hir::Opcode::kLabel: {
             assert(false); // TODO
             break;

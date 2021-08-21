@@ -85,7 +85,6 @@ ALLOCATEBLOCKEDREG
         split current before this intersection
 */
 
-
 namespace {
 // Comparison operator for making min heaps in m_unhandled and m_inactive, sorted by start time.
 struct IntervalCompare {

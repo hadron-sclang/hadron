@@ -65,6 +65,8 @@ enum Opcode {
 
     // For Linear HIR represents the start of a block as well as a container for any phis at the start of the block.
     kLabel,
+    // For shifting of values between blocks or in and out of spill storage.
+    kScheduleMoves,
 
     // Method calling.
     kDispatchCall,  // save all registers, set up calling stack, represents a modification of the target
@@ -163,8 +165,7 @@ struct PhiHIR : public HIR {
 };
 
 struct BranchHIR : public HIR {
-    BranchHIR() = delete;
-    BranchHIR(int blockNum): HIR(kBranch) {}
+    BranchHIR(): HIR(kBranch) {}
     virtual ~BranchHIR() = default;
 
     int blockNumber;
@@ -191,6 +192,21 @@ struct LabelHIR : public HIR {
     std::vector<int> predecessors;
     std::vector<int> successors;
     std::list<std::unique_ptr<PhiHIR>> phis;
+
+    Value proposeValue(uint32_t number) override;
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+// If isSpill is false number is a register number, if true it is a spill slot number.
+struct MoveOperand {
+    int number;
+    bool isSpill;
+};
+
+struct ScheduleMovesHIR : public HIR {
+    ScheduleMovesHIR() : HIR(kScheduleMoves) {}
+
+    std::vector<std::pair<MoveOperand, MoveOperand>> moves;
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;

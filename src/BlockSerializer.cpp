@@ -45,17 +45,18 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
 
         // Start the block with a label and then append all contained instructions.
         linearBlock->instructions.emplace_back(std::move(label));
-        linearBlock->instructions.emplace_back(nullptr);
         for (auto& hir : block->statements) {
             // Mark all registers as in-use for any dispatch, to later force the register allocator to save all active
             // register values.
             if (hir->opcode == hir::kDispatchCall) {
                 reserveRegisters(linearBlock.get());
             }
-            linearBlock->instructions.emplace_back(std::move(hir));
             linearBlock->instructions.emplace_back(nullptr);
+            linearBlock->instructions.emplace_back(std::move(hir));
         }
 
+        // Leave room at end of the block for a possible ScheduleMoveHIR if needed.
+        linearBlock->instructions.emplace_back(nullptr);
         blockRange.second = linearBlock->instructions.size() - 1;
         linearBlock->blockRanges[block->number] = std::move(blockRange);
     }
