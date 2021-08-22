@@ -29,6 +29,8 @@ struct Value {
     uint32_t typeFlags;
 };
 
+
+
 } // namespace hadron
 
 // Inject a hash template specialization for Value into the std namespace, so we can use Values as keys in STL
@@ -60,16 +62,25 @@ enum Opcode {
 
     // Control flow
     kPhi,
-    kIf,
+    kBranch,
+    kBranchIfZero,
 
     // For Linear HIR represents the start of a block as well as a container for any phis at the start of the block.
     kLabel,
+    // For shifting of values between blocks or in and out of spill storage.
+    kScheduleMoves,
 
     // Method calling.
     kDispatchCall,  // save all registers, set up calling stack, represents a modification of the target
     kDispatchLoadReturn,  // just like LoadArgument, can get type or value from stack, call before Cleanup
     kDispatchLoadReturnType,
     kDispatchCleanup, // must be called after a kDispatch
+};
+
+// If isSpill is false number is a register number, if true it is a spill slot number.
+struct MoveOperand {
+    size_t number;
+    bool isSpill;
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in
@@ -81,6 +92,9 @@ struct HIR {
     Opcode opcode;
     Value value;
     std::unordered_set<Value> reads;
+    // Due to register allocation and SSA form deconstrucdtion every HIR operand may have a series of moves to and from
+    // physical registers and/or spill storage. Record them here for scheduling later during machine code generation.
+    std::vector<std::pair<hir::MoveOperand, hir::MoveOperand>> moves;
 
     // Recommended way to set the |value| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
@@ -161,21 +175,24 @@ struct PhiHIR : public HIR {
     bool isEquivalent(const HIR* hir) const override;
 };
 
-// TODO: inherit from some common BranchHIR terminal instruction? Maybe also a block exit HIR too?
-struct IfHIR : public HIR {
-    IfHIR() = delete;
-    IfHIR(std::pair<Value, Value> cond);
-    virtual ~IfHIR() = default;
+struct BranchHIR : public HIR {
+    BranchHIR(): HIR(kBranch) {}
+    virtual ~BranchHIR() = default;
+
+    int blockNumber;
+    Value proposeValue(uint32_t number) override;
+    bool isEquivalent(const HIR* hir) const override;
+};
+
+struct BranchIfZeroHIR : public HIR {
+    BranchIfZeroHIR() = delete;
+    BranchIfZeroHIR(std::pair<Value, Value> cond);
+    virtual ~BranchIfZeroHIR() = default;
 
     std::pair<Value, Value> condition;
-    int trueBlock;
-    int falseBlock;
+    int blockNumber;
 
-    // Computation of the type of an if is a function of the type of the branching blocks, so for initial value
-    // type computation we return kAny because the types of the branch blocks aren't yet known. A subsequent round
-    // of phi reduction/constant folding/dead code elimination could simplify the type considerably.
     Value proposeValue(uint32_t number) override;
-    // Because 'if' statements are terminal blocks, isEquivalent is always false.
     bool isEquivalent(const HIR* hir) const override;
 };
 
@@ -186,6 +203,7 @@ struct LabelHIR : public HIR {
     std::vector<int> predecessors;
     std::vector<int> successors;
     std::list<std::unique_ptr<PhiHIR>> phis;
+    std::unordered_set<size_t> liveIns;
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
@@ -193,6 +211,7 @@ struct LabelHIR : public HIR {
 
 // Private struct to provide the overrides around equivalence, which are all the same for the Dispatch HIR objects.
 struct Dispatch : public HIR {
+    Dispatch() = delete;
     virtual ~Dispatch() = default;
 
     bool isEquivalent(const HIR* hir) const override;

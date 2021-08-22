@@ -14,13 +14,7 @@ struct Block;
 struct Frame;
 
 struct LinearBlock {
-    LinearBlock() = delete;
-    LinearBlock(size_t numberOfBlocks, size_t numberOfValues, size_t numberOfRegisters):
-        blockOrder(numberOfBlocks),
-        blockRanges(numberOfBlocks),
-        valueLifetimes(numberOfValues, std::vector<LifetimeInterval>(1)),
-        registerLifetimes(numberOfRegisters, std::vector<LifetimeInterval>(1)) { }
-
+    LinearBlock() = default;
     ~LinearBlock() = default;
 
     // Flattened list of all instructions, including Labels at the top of each block.
@@ -34,6 +28,8 @@ struct LinearBlock {
     std::vector<std::vector<LifetimeInterval>> valueLifetimes;
     // index is register number
     std::vector<std::vector<LifetimeInterval>> registerLifetimes;
+    // index is spill slot number
+    std::vector<std::vector<LifetimeInterval>> spillLifetimes;
 };
 
 // Serializes a Frame containing a control flow graph of blocks and HIR instructions into a single LinearBlock struct

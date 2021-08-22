@@ -47,9 +47,11 @@ struct LifetimeInterval {
     std::list<LiveRange> ranges;
     std::set<size_t> usages;
 
-    size_t valueNumber;
-    size_t registerNumber;
-    bool isSplit;
+    size_t valueNumber = 0;
+    size_t registerNumber = 0;
+    bool isSplit = false;
+    bool isSpill = false;
+    size_t spillSlot = 0;
 };
 
 } // namespace hadron

@@ -49,6 +49,9 @@ void LifetimeInterval::addLiveRange(size_t from, size_t to) {
 
 LifetimeInterval LifetimeInterval::splitAt(size_t splitTime) {
     LifetimeInterval split;
+    split.valueNumber = valueNumber;
+    split.isSplit = true;
+
     if (isEmpty() || end() <= splitTime) {
         return split;
     }

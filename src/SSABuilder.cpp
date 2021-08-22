@@ -229,31 +229,36 @@ std::pair<Value, Value> SSABuilder::buildValue(const parse::Node* node) {
     case parse::NodeType::kIf: {
         const auto ifNode = reinterpret_cast<const parse::IfNode*>(node);
         auto condition = buildFinalValue(ifNode->condition.get());
-        auto ifHIROwning = std::make_unique<hir::IfHIR>(condition);
-        // Insert the if HIR but keep a copy of the pointer around to connect it to the true and false blocks.
-        hir::IfHIR* ifHIR = ifHIROwning.get();
-        nodeValue.first = insertLocal(std::move(ifHIROwning));
+        auto condBranchOwning = std::make_unique<hir::BranchIfZeroHIR>(condition);
+        // Insert the if HIR but keep a copy of the pointer around to connect it to the continuation or else blocks
+        hir::BranchIfZeroHIR* condBranch = condBranchOwning.get();
+        nodeValue.first = insertLocal(std::move(condBranchOwning));
         nodeValue.second = insertLocal(std::make_unique<hir::ResolveTypeHIR>(nodeValue.first));
+        auto branchOwning = std::make_unique<hir::BranchHIR>();
+        hir::BranchHIR* branch = branchOwning.get();
+        insertLocal(std::move(branchOwning));
+
         // Preserve the current block and frame for insertLocalion of the new subframes as children.
         Frame* parentFrame = m_frame;
         Block* ifBlock = m_block;
 
-        // Build the true condition block.
+        // Build the true condition block. We unconditionally branch to this with the expectation that it will be
+        // serialized after the if block, meaning we can delete the branch.
         assert(ifNode->trueBlock);
         auto trueFrameOwning = buildSubframe(ifNode->trueBlock.get());
         Frame* trueFrame = trueFrameOwning.get();
         parentFrame->subFrames.emplace_back(std::move(trueFrameOwning));
-        ifHIR->trueBlock = trueFrame->blocks.front()->number;
+        branch->blockNumber = trueFrame->blocks.front()->number;
         ifBlock->successors.emplace_back(trueFrame->blocks.front().get());
         trueFrame->blocks.front()->predecessors.emplace_back(ifBlock);
 
-        // Build the else condition block if present.
+        // Build the else condition block if present. The BranchIfZero will target branching here.
         Frame* falseFrame = nullptr;
         if (ifNode->falseBlock) {
             auto falseFrameOwning = buildSubframe(ifNode->falseBlock.get());
             falseFrame = falseFrameOwning.get();
             parentFrame->subFrames.emplace_back(std::move(falseFrameOwning));
-            ifHIR->falseBlock = falseFrame->blocks.front()->number;
+            condBranch->blockNumber = falseFrame->blocks.front()->number;
             ifBlock->successors.emplace_back(falseFrame->blocks.front().get());
             falseFrame->blocks.front()->predecessors.emplace_back(ifBlock);
         }
@@ -272,10 +277,13 @@ std::pair<Value, Value> SSABuilder::buildValue(const parse::Node* node) {
         // Either wire the else condition to the continue block, or wire the if false condition directly here if no
         // else condition specified.
         if (falseFrame) {
+            auto falseBranch = std::make_unique<hir::BranchHIR>();
+            falseBranch->blockNumber = m_block->number;
+            insert(std::move(falseBranch), falseFrame->blocks.back().get());
             falseFrame->blocks.back()->successors.emplace_back(m_block);
             m_block->predecessors.emplace_back(falseFrame->blocks.back().get());
         } else {
-            ifHIR->falseBlock = m_block->number;
+            condBranch->blockNumber = m_block->number;
             ifBlock->successors.emplace_back(m_block);
             m_block->predecessors.emplace_back(ifBlock);
         }

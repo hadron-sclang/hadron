@@ -153,19 +153,31 @@ bool PhiHIR::isEquivalent(const HIR* hir) const {
 }
 
 ///////////////////////////////
-// IfHIR
-IfHIR::IfHIR(std::pair<Value, Value> cond): HIR(kIf), condition(cond) {
+// BranchHIR
+Value BranchHIR::proposeValue(uint32_t /* number */) {
+    value.number = 0;
+    value.typeFlags = 0;
+    return value;
+}
+
+bool BranchHIR::isEquivalent(const HIR* /* hir */) const {
+    return false;
+}
+
+///////////////////////////////
+// BranchIfZeroHIR
+BranchIfZeroHIR::BranchIfZeroHIR(std::pair<Value, Value> cond): HIR(kBranchIfZero), condition(cond) {
     reads.emplace(cond.first);
     reads.emplace(cond.second);
 }
 
-Value IfHIR::proposeValue(uint32_t number) {
+Value BranchIfZeroHIR::proposeValue(uint32_t number) {
     value.number = number;
     value.typeFlags = Type::kAny;
     return value;
 }
 
-bool IfHIR::isEquivalent(const HIR* /* hir */) const {
+bool BranchIfZeroHIR::isEquivalent(const HIR* /* hir */) const {
     return false;
 }
 

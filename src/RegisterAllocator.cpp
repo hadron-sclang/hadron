@@ -85,7 +85,6 @@ ALLOCATEBLOCKEDREG
         split current before this intersection
 */
 
-
 namespace {
 // Comparison operator for making min heaps in m_unhandled and m_inactive, sorted by start time.
 struct IntervalCompare {
@@ -103,7 +102,8 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     m_unhandled.reserve(linearBlock->valueLifetimes.size());
     for (int i = linearBlock->valueLifetimes.size() - 1; i >= 0; --i) {
         if (!linearBlock->valueLifetimes[i][0].isEmpty()) {
-            m_unhandled.emplace_back(linearBlock->valueLifetimes[i][0]);
+            m_unhandled.emplace_back(std::move(linearBlock->valueLifetimes[i][0]));
+            linearBlock->valueLifetimes[i].clear();
         }
     }
     std::make_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
@@ -111,11 +111,12 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     // unhandled = list of intervals sorted by increasing start positions
     // active = { }; inactive = { }; handled = { };
 
-    // Seed any register allocations from block construction into the inactive map.
+    // Move any register allocations from block construction into the inactive map.
     m_numberOfRegisters = linearBlock->registerLifetimes.size();
     for (size_t i = 0; i < m_numberOfRegisters; ++i) {
         assert(!linearBlock->registerLifetimes[i][0].isEmpty());
-        m_inactive.emplace(std::make_pair(i, linearBlock->registerLifetimes[i][0]));
+        m_inactive.emplace(std::make_pair(i, std::move(linearBlock->registerLifetimes[i][0])));
+        linearBlock->registerLifetimes[i].clear();
     }
 
     // while unhandled =/= { } do
@@ -135,6 +136,8 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
             // if it ends before position then
             if (iter->second.end() <= position) {
                 // move it from active to handled
+                linearBlock->registerLifetimes[iter->first].emplace_back(iter->second);
+                linearBlock->valueLifetimes[iter->second.valueNumber].emplace_back(iter->second);
                 // TODO: "handled" for us could be the completed registerLifetimes structure within linearBlock. So
                 // some sort of sorted insertion?
                 iter = m_active.erase(iter);
@@ -157,7 +160,8 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
             // if it ends before position then
             if (iter->second.end() <= position) {
                 // move it from inactive to handled
-                // TODO: handled
+                linearBlock->registerLifetimes[iter->first].emplace_back(iter->second);
+                linearBlock->valueLifetimes[iter->second.valueNumber].emplace_back(iter->second);
                 iter = m_active.erase(iter);
             } else {
                 // else if it covers position then
@@ -173,8 +177,22 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         // TRYALLOCATEFREEREG
         if (!tryAllocateFreeReg(current)) {
             // if allocation failed then ALLOCATEBLOCKEDREG
-            allocateBlockedReg(current);
+            allocateBlockedReg(current, linearBlock);
         }
+    }
+
+    // Append any final lifetimes to the linearBlock.
+    for (auto iter : m_active) {
+        linearBlock->registerLifetimes[iter.first].emplace_back(iter.second);
+        linearBlock->valueLifetimes[iter.second.valueNumber].emplace_back(iter.second);
+    }
+    for (auto iter : m_inactive) {
+        linearBlock->registerLifetimes[iter.first].emplace_back(iter.second);
+        linearBlock->valueLifetimes[iter.second.valueNumber].emplace_back(iter.second);
+    }
+    for (auto iter : m_activeSpills) {
+        linearBlock->spillLifetimes[iter.first].emplace_back(iter.second);
+        linearBlock->valueLifetimes[iter.second.valueNumber].emplace_back(iter.second);
     }
 }
 
@@ -223,13 +241,14 @@ bool RegisterAllocator::tryAllocateFreeReg(LifetimeInterval& current) {
         //   current.reg = reg
         current.registerNumber = reg;
         // split current before freeUntilPos[reg]
-        m_unhandled.push_back(current.splitAt(highestFreeUntilPos));
+        m_unhandled.emplace_back(current.splitAt(highestFreeUntilPos));
+        std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
     }
 
     return true;
 }
 
-void RegisterAllocator::allocateBlockedReg(LifetimeInterval& current) {
+void RegisterAllocator::allocateBlockedReg(LifetimeInterval& current, LinearBlock* linearBlock) {
     // set nextUsePos of all physical registers to maxInt
     std::vector<size_t> nextUsePos(m_numberOfRegisters, std::numeric_limits<size_t>::max());
 
@@ -241,7 +260,7 @@ void RegisterAllocator::allocateBlockedReg(LifetimeInterval& current) {
             nextUsePos[it.first] = *nextUse;
         } else {
             // If there's not a usage but the register is marked as active, use the end of the active interval to
-            // approximate the next use. This should be a rare error condition?
+            // approximate the next use. Could happen at the end of a loop block, for instance.
             nextUsePos[it.first] = it.second.end();
         }
     }
@@ -271,24 +290,84 @@ void RegisterAllocator::allocateBlockedReg(LifetimeInterval& current) {
     }
 
     // if first usage of current is after nextUsePos[reg] then
-    if (current.start() > highestNextUsePos) {
+    size_t currentFirstUsage = *current.usages.begin();
+    if (currentFirstUsage > highestNextUsePos) {
         // all other intervals are used before current, so it is best to spill current itself
         // assign spill slot to current
-        // TODO: spilling
         // split current before its first use position that requires a register
-        m_unhandled.push_back(current.splitAt(highestNextUsePos));
+        m_unhandled.emplace_back(current.splitAt(currentFirstUsage));
+        std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
+        spill(current, linearBlock);
     } else {
         // else
         // spill intervals that currently block reg
         // current.reg = reg
-        // split active interval for reg at position
-        // split any inactive interval for reg at the end of its lifetime hole
+        current.registerNumber = reg;
+        auto iter = m_active.find(reg);
+        if (iter != m_active.end()) {
+            // split active interval for reg at position
+            auto activeSpill = iter->second.splitAt(current.start());
+            linearBlock->registerLifetimes[reg].emplace_back(iter->second);
+            linearBlock->valueLifetimes[iter->second.valueNumber].emplace_back(iter->second);
+            m_unhandled.emplace_back(activeSpill.splitAt(highestNextUsePos));
+            std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
+            spill(activeSpill, linearBlock);
+            iter->second = current;
+        } else {
+            iter = m_inactive.find(reg);
+            assert(iter != m_inactive.end());
+            // split any inactive interval for reg at the end of its lifetime hole
+            auto inactiveSpill = iter->second.splitAt(current.start());
+            linearBlock->registerLifetimes[reg].emplace_back(iter->second);
+            linearBlock->valueLifetimes[iter->second.valueNumber].emplace_back(iter->second);
+            // TODO: any harm in splitting here instead of at the start of the lifetime hole?
+            m_unhandled.emplace_back(inactiveSpill.splitAt(highestNextUsePos));
+            std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
+            spill(inactiveSpill, linearBlock);
+            m_active.emplace(std::make_pair(reg, current));
+            m_inactive.erase(iter);
+        }
+
+        // TODO: This below pseudocode fixes up a register assignment to current in the event that it collides with a
+        // future blocked use of the register, such as in the event that the register is blocked for a function call.
+        // Right now Hadron reserves *all* registers for the callee, saving everything in memory for each dispatch. It
+        // may make more sense to adopt a calling convention later that reserves some registers for the caller, in which
+        // case this implementation will need to be refactored to support blocking some registers only during function
+        // calls. For now the blocks in inactive will get moved to unhandled, and may get assigned to another register,
+        // but because there is a block for every register it is assumed the allocator will always preserve all
+        // registers across calls.
+
+        // make sure that current does not intersect with the fixed interval for reg
+        // if current intersects with the fixed interval for reg then
+        //   split current before this intersection
+    }
+}
+
+void RegisterAllocator::spill(LifetimeInterval& interval, LinearBlock* linearBlock) {
+    // Update our active spill map in case we can re-use any spill slot no longer needed.
+    auto iter = m_activeSpills.begin();
+    while (iter != m_activeSpills.end()) {
+        if (iter->second.end() <= interval.start()) {
+            m_freeSpills.emplace(iter->first);
+            linearBlock->spillLifetimes[iter->first].emplace_back(iter->second);
+            linearBlock->valueLifetimes[iter->second.valueNumber].emplace_back(iter->second);
+            iter = m_activeSpills.erase(iter);
+        }
+    }
+    // TODO: insertion of spill/unspill schedulemoves
+    size_t spillSlot;
+    if (m_freeSpills.size()) {
+        spillSlot = *m_freeSpills.begin();
+        m_freeSpills.erase(m_freeSpills.begin());
+    } else {
+        spillSlot = m_numberOfSpillSlots;
+        ++m_numberOfSpillSlots;
+        linearBlock->spillLifetimes.emplace_back(std::vector<LifetimeInterval>());
     }
 
-    // make sure that current does not intersect with the fixed interval for reg
-    // if current intersects with the fixed interval for reg then
-        // split current before this intersection
-
+    interval.isSpill = true;
+    interval.spillSlot = spillSlot;
+    m_activeSpills.emplace(std::make_pair(spillSlot, interval));
 }
 
 } // namespace hadron

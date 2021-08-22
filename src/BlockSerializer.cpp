@@ -7,12 +7,20 @@
 namespace hadron {
 
 std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> baseFrame, size_t numberOfRegisters) {
-    auto linearBlock = std::make_unique<LinearBlock>(baseFrame->numberOfBlocks, baseFrame->numberOfValues,
-            numberOfRegisters);
-    m_blocks.resize(baseFrame->numberOfBlocks, nullptr);
+    // Prepare the LinearBlock for recording of lifetimes in both values and registers.
+    auto linearBlock = std::make_unique<LinearBlock>();
+    linearBlock->blockOrder.reserve(baseFrame->numberOfBlocks);
+    linearBlock->blockRanges.reserve(baseFrame->numberOfBlocks);
+    linearBlock->valueLifetimes.resize(baseFrame->numberOfValues, std::vector<LifetimeInterval>(1));
+    linearBlock->registerLifetimes.resize(numberOfRegisters, std::vector<LifetimeInterval>(1));
+    for (size_t i = 0; i < baseFrame->numberOfValues; ++i) {
+        linearBlock->valueLifetimes[i][0].valueNumber = i;
+    }
+    for (size_t i = 0; i < numberOfRegisters; ++i) {
+        linearBlock->registerLifetimes[i][0].registerNumber = i;
+    }
 
-    // To simplify counting with unsigned values insert an empty instruction at the start of the linear block.
-    linearBlock->instructions.emplace_back(nullptr);
+    m_blocks.resize(baseFrame->numberOfBlocks, nullptr);
 
     // Determine linear block order from reverse postorder traversal.
     orderBlocks(baseFrame->blocks.front().get(), linearBlock->blockOrder);
@@ -34,7 +42,6 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
 
         // Start the block with a label and then append all contained instructions.
         linearBlock->instructions.emplace_back(std::move(label));
-        linearBlock->instructions.emplace_back(nullptr);
         for (auto& hir : block->statements) {
             // Mark all registers as in-use for any dispatch, to later force the register allocator to save all active
             // register values.
@@ -42,7 +49,6 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
                 reserveRegisters(linearBlock.get());
             }
             linearBlock->instructions.emplace_back(std::move(hir));
-            linearBlock->instructions.emplace_back(nullptr);
         }
 
         blockRange.second = linearBlock->instructions.size() - 1;
