@@ -128,6 +128,7 @@ add_library(hadron STATIC
     include/hadron/LighteningJIT.hpp
     include/hadron/LSBHashTable.hpp
     include/hadron/MachineCodeRenderer.hpp
+    include/hadron/MoveScheduler.hpp
     include/hadron/Parser.hpp
     include/hadron/RegisterAllocator.hpp
     include/hadron/Resolver.hpp
@@ -152,6 +153,7 @@ add_library(hadron STATIC
     LifetimeAnalyzer.cpp
     LighteningJIT.cpp
     MachineCodeRenderer.cpp
+    MoveScheduler.cpp
     RegisterAllocator.cpp
     Resolver.cpp
     Slot.cpp
