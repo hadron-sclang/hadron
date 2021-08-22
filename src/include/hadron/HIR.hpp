@@ -29,6 +29,8 @@ struct Value {
     uint32_t typeFlags;
 };
 
+
+
 } // namespace hadron
 
 // Inject a hash template specialization for Value into the std namespace, so we can use Values as keys in STL
@@ -75,6 +77,12 @@ enum Opcode {
     kDispatchCleanup, // must be called after a kDispatch
 };
 
+// If isSpill is false number is a register number, if true it is a spill slot number.
+struct MoveOperand {
+    size_t number;
+    bool isSpill;
+};
+
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in
 // the reads member.
 struct HIR {
@@ -84,6 +92,9 @@ struct HIR {
     Opcode opcode;
     Value value;
     std::unordered_set<Value> reads;
+    // Due to register allocation and SSA form deconstrucdtion every HIR operand may have a series of moves to and from
+    // physical registers and/or spill storage. Record them here for scheduling later during machine code generation.
+    std::vector<std::pair<hir::MoveOperand, hir::MoveOperand>> moves;
 
     // Recommended way to set the |value| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
@@ -193,21 +204,6 @@ struct LabelHIR : public HIR {
     std::vector<int> successors;
     std::list<std::unique_ptr<PhiHIR>> phis;
     std::unordered_set<size_t> liveIns;
-
-    Value proposeValue(uint32_t number) override;
-    bool isEquivalent(const HIR* hir) const override;
-};
-
-// If isSpill is false number is a register number, if true it is a spill slot number.
-struct MoveOperand {
-    size_t number;
-    bool isSpill;
-};
-
-struct ScheduleMovesHIR : public HIR {
-    ScheduleMovesHIR() : HIR(kScheduleMoves) {}
-
-    std::vector<std::pair<MoveOperand, MoveOperand>> moves;
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;

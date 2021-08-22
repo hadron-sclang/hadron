@@ -198,18 +198,6 @@ Value LabelHIR::proposeValue(uint32_t /* number */) {
 }
 
 ///////////////////////////////
-// ScheduleMovesHIR
-Value ScheduleMovesHIR::proposeValue(uint32_t /* number */) {
-    value.number = 0;
-    value.typeFlags = 0;
-    return value;
-}
-
-bool ScheduleMovesHIR::isEquivalent(const HIR* /* hir */) const {
-    return false;
-}
-
-///////////////////////////////
 // Dispatch
 bool Dispatch::isEquivalent(const HIR* /* hir */) const {
     return false;

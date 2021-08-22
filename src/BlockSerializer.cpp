@@ -22,9 +22,6 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
 
     m_blocks.resize(baseFrame->numberOfBlocks, nullptr);
 
-    // To simplify counting with unsigned values insert an empty instruction at the start of the linear block.
-    linearBlock->instructions.emplace_back(nullptr);
-
     // Determine linear block order from reverse postorder traversal.
     orderBlocks(baseFrame->blocks.front().get(), linearBlock->blockOrder);
     std::reverse(linearBlock->blockOrder.begin(), linearBlock->blockOrder.end());
@@ -51,12 +48,9 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
             if (hir->opcode == hir::kDispatchCall) {
                 reserveRegisters(linearBlock.get());
             }
-            linearBlock->instructions.emplace_back(nullptr);
             linearBlock->instructions.emplace_back(std::move(hir));
         }
 
-        // Leave room at end of the block for a possible ScheduleMoveHIR if needed.
-        linearBlock->instructions.emplace_back(nullptr);
         blockRange.second = linearBlock->instructions.size() - 1;
         linearBlock->blockRanges[block->number] = std::move(blockRange);
     }

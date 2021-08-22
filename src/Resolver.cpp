@@ -31,19 +31,20 @@ for each control flow edge from predecessor to successor do
 
 namespace hadron {
 
-void Resolver::resolve(LinearBlock* linearBlock, JIT* /* jit */) {
+void Resolver::resolve(LinearBlock* linearBlock) {
     // for each control flow edge from predecessor to successor do
     for (auto blockNumber : linearBlock->blockOrder) {
         auto blockRange = linearBlock->blockRanges[blockNumber];
         assert(linearBlock->instructions[blockRange.first]->opcode == hir::kLabel);
         const auto blockLabel = reinterpret_cast<const hir::LabelHIR*>(
                 linearBlock->instructions[blockRange.first].get());
-        std::vector<std::pair<hir::MoveOperand, hir::MoveOperand>> moves;
         for (auto successorNumber : blockLabel->successors) {
+            std::vector<std::pair<hir::MoveOperand, hir::MoveOperand>> moves;
+
             // for each interval it live at begin of successor do
             auto successorRange = linearBlock->blockRanges[successorNumber];
             assert(linearBlock->instructions[successorRange.first]->opcode == hir::kLabel);
-            const auto successorLabel = reinterpret_cast<const hir::LabelHIR*>(
+            auto successorLabel = reinterpret_cast<hir::LabelHIR*>(
                 linearBlock->instructions[successorRange.first].get());
             size_t blockIndex = 0;
             for (; blockIndex < successorLabel->predecessors.size(); ++blockIndex) {
@@ -67,9 +68,8 @@ void Resolver::resolve(LinearBlock* linearBlock, JIT* /* jit */) {
                     // phi = phi function defining it
                     // opd = phi.inputOf(predecessor)
                     size_t opd = livePhi->inputs[blockIndex].number;
-                    // if opd is a constant then
+                    // if opd is a constant then TODO
                     //   moveFrom = opd
-                    // TODO
                     // else
                     //  moveFrom = location of intervals[opd] at end of predecessor
                     bool found = findAt(opd, linearBlock, blockRange.second - 1, moveFrom);
@@ -87,9 +87,25 @@ void Resolver::resolve(LinearBlock* linearBlock, JIT* /* jit */) {
                     moves.emplace_back(std::make_pair(moveFrom, moveTo));
                 }
             }
-        }
-        if (moves.size()) {
-            // TODO: big question is where to put the move instructions?
+            if (moves.size()) {
+                // If the block has only one successor, or this is the last successor, we can simply prepend the move
+                // instructions to the outbound branch.
+                if (blockLabel->successors.size() == 1 || successorNumber == blockLabel->successors.back()) {
+                    // Last instruction should always be a branch.
+                    assert(linearBlock->instructions[blockRange.second - 1]->opcode == hir::kBranch);
+                    auto branch = reinterpret_cast<hir::BranchHIR*>(
+                            linearBlock->instructions[blockRange.second -1].get());
+                    branch->moves.insert(branch->moves.begin(), moves.begin(), moves.end());
+                } else if (successorLabel->predecessors.size() == 1) {
+                    // If the successor has only the predecessor we can prepend the move instructions in the successor
+                    // label.
+                    successorLabel->moves.insert(successorLabel->moves.begin(), moves.begin(), moves.end());
+                } else {
+                    // TODO: probably need to insert an additional block with the move instructions before successor,
+                    // and have everything else jump over that.
+                    assert(false);
+                }
+            }
         }
     }
 }

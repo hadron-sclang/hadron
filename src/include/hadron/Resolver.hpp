@@ -5,22 +5,22 @@
 
 namespace hadron {
 
-class JIT;
 struct LinearBlock;
 
 namespace hir {
 struct MoveOperand;
 }
 
-// The Resolver takes a LinearBlock that has completed register allocation and generates ouptut machine code to the
-// provided JIT object. This class implements the RESOLVE algorithm described in [RA5], "Linear Scan Register
-// Allocation on SSA Form." by C. Wimmer and M. Franz.
+// The Resolver takes a LinearBlock that has completed register allocation, and schedules the various register transfers
+// required both to keep values consistent across register allocation changes as well as between different blocks across
+// control flow. This class implements the RESOLVE algorithm described in [RA5], "Linear Scan Register Allocation on SSA
+// Form." by C. Wimmer and M. Franz.
 class Resolver {
 public:
     Resolver() = default;
     ~Resolver() = default;
 
-    void resolve(LinearBlock* linearBlock, JIT* jit);
+    void resolve(LinearBlock* linearBlock);
 
 private:
     bool findAt(size_t valueNumber, LinearBlock* linearBlock, size_t line, hir::MoveOperand& operand);
