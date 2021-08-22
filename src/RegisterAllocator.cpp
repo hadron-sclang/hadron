@@ -354,7 +354,7 @@ void RegisterAllocator::spill(LifetimeInterval& interval, LinearBlock* linearBlo
             iter = m_activeSpills.erase(iter);
         }
     }
-
+    // TODO: insertion of spill/unspill schedulemoves
     size_t spillSlot;
     if (m_freeSpills.size()) {
         spillSlot = *m_freeSpills.begin();

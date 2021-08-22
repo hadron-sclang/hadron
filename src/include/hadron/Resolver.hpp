@@ -1,10 +1,16 @@
 #ifndef SRC_INCLUDE_HADRON_RESOLVER_HPP_
 #define SRC_INCLUDE_HADRON_RESOLVER_HPP_
 
+#include <cstddef>
+
 namespace hadron {
 
 class JIT;
-class LinearBlock;
+struct LinearBlock;
+
+namespace hir {
+struct MoveOperand;
+}
 
 // The Resolver takes a LinearBlock that has completed register allocation and generates ouptut machine code to the
 // provided JIT object. This class implements the RESOLVE algorithm described in [RA5], "Linear Scan Register
@@ -15,6 +21,9 @@ public:
     ~Resolver() = default;
 
     void resolve(LinearBlock* linearBlock, JIT* jit);
+
+private:
+    bool findAt(size_t valueNumber, LinearBlock* linearBlock, size_t line, hir::MoveOperand& operand);
 };
 
 } // namespace hadron
