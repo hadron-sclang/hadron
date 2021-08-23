@@ -105,12 +105,6 @@
         optlabel 'patch_there' start labelnum ws labelnum optcomment {
             m_jit->patchThere(arg[0], arg[1]);
         };
-        optlabel 'alias' start reg optcomment {
-            m_jit->alias(arg[0]);
-        };
-        optlabel 'unalias' start reg optcomment {
-            m_jit->unalias(arg[0]);
-        };
         space { /* ignore whitespace */ };
         any {
             size_t lineNumber = m_errorReporter->getLineNumber(ts);

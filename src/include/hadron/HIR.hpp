@@ -87,9 +87,9 @@ struct HIR {
     // Due to register allocation and SSA form deconstruction every HIR operand may have a series of moves to and from
     // physical registers and/or spill storage. Record them here for scheduling later during machine code generation.
     // The keys are origins and values are destinations. Positive integers (and 0) indicate register numbers, and
-    // negative values indicate spill slot indices offset by 1 (meaning -1 means spill slot 0, -2 means 1, etc).
-    // Move scheduling requires origins be copied only once, so enforcing unique keys means trying to insert a move from
-    // an origin already scheduled for a move is an error.
+    // negative values indicate spill slot indices, with spill slot 0 reserved for register move cycles. Move scheduling
+    // requires origins be copied only once, so enforcing unique keys means trying to insert a move from an origin
+    // already scheduled for a move is an error.
     std::unordered_map<int, int> moves;
 
     // Recommended way to set the |value| member. Allows the HIR object to modify the proposed value type. For

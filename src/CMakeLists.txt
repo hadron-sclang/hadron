@@ -115,7 +115,6 @@ add_library(hadron STATIC
 
     include/hadron/Assembler.hpp
     include/hadron/BlockSerializer.hpp
-    include/hadron/CodeGenerator.hpp
     include/hadron/ErrorReporter.hpp
     include/hadron/Function.hpp
     include/hadron/Hash.hpp
@@ -127,7 +126,6 @@ add_library(hadron STATIC
     include/hadron/LifetimeAnalyzer.hpp
     include/hadron/LighteningJIT.hpp
     include/hadron/LSBHashTable.hpp
-    include/hadron/MachineCodeRenderer.hpp
     include/hadron/MoveScheduler.hpp
     include/hadron/Parser.hpp
     include/hadron/RegisterAllocator.hpp
@@ -135,16 +133,13 @@ add_library(hadron STATIC
     include/hadron/Slot.hpp
     include/hadron/SourceFile.hpp
     include/hadron/SSABuilder.hpp
-    include/hadron/SyntaxAnalyzer.hpp
     include/hadron/ThreadContext.hpp
     include/hadron/Type.hpp
     include/hadron/VirtualJIT.hpp
 
     BlockSerializer.cpp
-    CodeGenerator.cpp
     ErrorReporter.cpp
     FileSystem.hpp
-    Function.cpp
     Hash.cpp
     HIR.cpp
     Interpreter.cpp
@@ -152,14 +147,12 @@ add_library(hadron STATIC
     LifetimeInterval.cpp
     LifetimeAnalyzer.cpp
     LighteningJIT.cpp
-    MachineCodeRenderer.cpp
     MoveScheduler.cpp
     RegisterAllocator.cpp
     Resolver.cpp
     Slot.cpp
     SourceFile.cpp
     SSABuilder.cpp
-    SyntaxAnalyzer.cpp
     ThreadContext.cpp
     VirtualJIT.cpp
 )
@@ -212,9 +205,8 @@ add_executable(unittests
     Lexer_unittests.cpp
     LifetimeInterval_unittests.cpp
     LSBHashTable_unittests.cpp
-    MachineCodeRenderer_unittests.cpp
+    MoveScheduler_unittests.cpp
     Parser_unittests.cpp
-    SyntaxAnalyzer_unittests.cpp
 
     unittests.cpp
 )
@@ -236,28 +228,6 @@ add_executable(vistool
 )
 
 target_link_libraries(vistool
-    gflags
-    hadron
-)
-
-###########
-# hadronc
-add_executable(hadronc
-    hadronc.cpp
-)
-
-target_link_libraries(hadronc
-    gflags
-    hadron
-)
-
-#########
-# hlang
-add_executable(hlang
-    hlang.cpp
-)
-
-target_link_libraries(hlang
     gflags
     hadron
 )
