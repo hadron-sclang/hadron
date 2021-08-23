@@ -162,6 +162,10 @@ void LighteningJIT::addi(Reg target, Reg a, int b) {
     jit_addi(m_state, reg(target), reg(a), b);
 }
 
+void LighteningJIT::xorr(Reg target, Reg a, Reg b) {
+    jit_xorr(m_state, reg(target), reg(a), reg(b));
+}
+
 void LighteningJIT::movr(Reg target, Reg value) {
     if (target != value) {
         jit_movr(m_state, reg(target), reg(value));

@@ -22,10 +22,9 @@ public:
     bool scheduleMoves(const std::unordered_map<int, int>& moves, JIT* jit);
 
 private:
-    std::unordered_map<int, int>::iterator processMove(const std::unordered_map<int, int>& moves, JIT* jit,
-        std::unordered_map<int, int>::iterator iter);
     void move(int origin, int destination, JIT* jit);
 
+    // TODO: probably doesn't need to be a member variable.
     std::unordered_map<int, int> m_reverseMoves;
 };
 

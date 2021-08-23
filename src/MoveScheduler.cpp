@@ -20,7 +20,49 @@ bool MoveScheduler::scheduleMoves(const std::unordered_map<int, int>& moves, JIT
 
     auto iter = m_reverseMoves.begin();
     while (iter != m_reverseMoves.end()) {
-        iter = processMove(moves, jit, iter);
+        // Look for the destination in the origins map.
+        std::unordered_map<int, int>::const_iterator moveIter = moves.find(iter->first);
+        // Base case is that this destination is not the origin for any other move, so it can be safely scheduled.
+        if (moveIter == moves.end()) {
+            move(iter->second, iter->first, jit);
+            iter = m_reverseMoves.erase(iter);
+        } else {
+            // We can resolve a simple cycle (x1 -> x2, x2 -> x1) with the register swap function from [BK1] Hacker's
+            // Delight 2.d Ed by Henry S. Warren, Jr.
+            if (moveIter->second == iter->second) {
+                jit->xorr(iter->first, iter->first, iter->second);
+                jit->xorr(iter->second, iter->second, iter->first);
+                jit->xorr(iter->first, iter->first, iter->second);
+                m_reverseMoves.erase(iter->second);
+                iter = m_reverseMoves.erase(iter);
+            } else {
+                auto backIter = m_reverseMoves.find(iter->second);
+                assert(backIter != m_reverseMoves.end());
+                // This is either a chain of copies or a cycle. Extract all the copies into a separate map.
+                int chainEnd = moveIter->second;
+                bool isCycle = false;
+                std::unordered_map<int, int> chain;
+                chain.emplace(m_reverseMoves.extract(iter));
+                chain.emplace(m_reverseMoves.extract(moveIter->second));
+                // Find next link in the chain, if applicable.
+                moveIter = moves.find(moveIter->second);
+                while (moveIter != moves.end() && !isCycle) {
+                    if (chain.find(moveIter->second) != chain.end()) {
+                        isCycle = true;
+                    } else {
+                        chainEnd = moveIter->second;
+                        chain.emplace(m_reverseMoves.extract(moveIter->second));
+                        moveIter = moves.find(moveIter->second);
+                    }
+                }
+                if (!isCycle) {
+                } else {
+                }
+
+                // Continue at the start of the map.
+                iter = m_reverseMoves.begin();
+            }
+        }
     }
 
     return true;
@@ -47,19 +89,5 @@ void MoveScheduler::move(int origin, int destination, JIT* jit) {
         }
     }
 }
-
-std::unordered_map<int, int>::iterator MoveScheduler::processMove(const std::unordered_map<int, int>& moves, JIT* jit,
-        std::unordered_map<int, int>::iterator iter) {
-    // Look for the destination in the origins map.
-    const auto& moveIter = moves.find(iter->first);
-    // Base case is that this destination is not the origin for any other move, so it can be safely scheduled.
-    if (moveIter == moves.end()) {
-        move(iter->second, iter->first, jit);
-        return m_reverseMoves.erase(iter);
-    } else {
-        // We can resolve a simple cycle (x1 -> x2, x2 -> x1) with the register swap function
-    }
-}
-
 
 } // namespace hadron

@@ -34,6 +34,18 @@ TEST_CASE("Assembler Base Cases") {
         CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 10});
         CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kAddi, 4, 10, -128});
     }
+    SUBCASE("xorr") {
+        Assembler assembler("alias %vr2\n"
+                            "alias %vr1\n"
+                            "alias %vr0\n"
+                            "xorr %vr2 %vr0 %vr1");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 4);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kAlias, 2});
+        CHECK(assembler.virtualJIT()->instructions()[1] == VirtualJIT::Inst{VirtualJIT::kAlias, 1});
+        CHECK(assembler.virtualJIT()->instructions()[2] == VirtualJIT::Inst{VirtualJIT::kAlias, 0});
+        CHECK(assembler.virtualJIT()->instructions()[3] == VirtualJIT::Inst{VirtualJIT::kXorr, 2, 0, 1});
+    }
     SUBCASE("movr") {
         Assembler assembler("alias %vr0\n"
                             "alias %vr1\n"

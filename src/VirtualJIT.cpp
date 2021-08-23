@@ -40,6 +40,10 @@ void VirtualJIT::addi(Reg target, Reg a, int b) {
     m_instructions.emplace_back(Inst{Opcodes::kAddi, use(target), use(a), b});
 }
 
+void VirtualJIT::xorr(Reg target, Reg a, Reg b) {
+    m_instructions.emplace_back(Inst{Opcodes::kXorr, use(target), use(a), use(b)});
+}
+
 void VirtualJIT::movr(Reg target, Reg value) {
     if (target != value) {
         m_instructions.emplace_back(Inst{Opcodes::kMovr, use(target), use(value)});
@@ -179,6 +183,10 @@ bool VirtualJIT::toString(std::string& codeString) const {
 
         case kAddi:
             code << fmt::format("{} addi %vr{}, %vr{}, {}\n", label, inst[1], inst[2], inst[3]);
+            break;
+
+        case kXorr:
+            code << fmt::format("{} xorr %vr{}, %vr{}, {}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kMovr:
