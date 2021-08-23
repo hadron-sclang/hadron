@@ -4,6 +4,7 @@
 #include "hadron/VirtualJIT.hpp"
 
 #include "doctest/doctest.h"
+#include "spdlog/spdlog.h"
 
 #include <unordered_map>
 
@@ -45,6 +46,19 @@ TEST_CASE("MoveScheduler simple") {
         REQUIRE(jit.instructions().size() == 1);
         CHECK(jit.instructions()[0] ==
             VirtualJIT::Inst{ VirtualJIT::Opcodes::kLdxiW, 5, JIT::kStackPointerReg, Slot::slotValueOffset(-24) });
+    }
+}
+
+TEST_CASE("MoveScheduler Chains") {
+    SUBCASE("Shortest Chain") {
+        VirtualJIT jit;
+        std::unordered_map<int, int> moves({{3, 2}, {2, 1}});
+        MoveScheduler ms;
+        REQUIRE(ms.scheduleMoves(moves, &jit));
+        REQUIRE(jit.instructions().size() == 2);
+        // The 1 <- 2 move needs to happen before the 2 <- 3 move.
+        CHECK(jit.instructions()[0] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 1, 2 });
+        CHECK(jit.instructions()[1] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 2, 3 });
     }
 }
 

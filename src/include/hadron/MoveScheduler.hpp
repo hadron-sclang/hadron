@@ -22,10 +22,7 @@ public:
     bool scheduleMoves(const std::unordered_map<int, int>& moves, JIT* jit);
 
 private:
-    void move(int origin, int destination, JIT* jit);
-
-    // TODO: probably doesn't need to be a member variable.
-    std::unordered_map<int, int> m_reverseMoves;
+    void move(int destination, int origin, JIT* jit);
 };
 
 } // namespace hadron
