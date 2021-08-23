@@ -72,7 +72,7 @@ bool MoveScheduler::scheduleMoves(const std::unordered_map<int, int>& moves, JIT
 
                     // First emit a move to slot 0, the temporary slot, to save one end of the chain.
                     int registerSaved = cycleIter->first;
-                    jit->stxi_w(offsetof(Slot, value), JIT::kStackPointerReg, registerSaved);
+                    jit->stxi_w(Slot::slotValueOffset(0), JIT::kStackPointerReg, registerSaved);
                     // Then emit the rest of the copy chain back until the saved register is the source.
                     do {
                         move(cycleIter->second, cycleIter->first, jit);
@@ -95,15 +95,15 @@ void MoveScheduler::move(int origin, int destination, JIT* jit) {
     if (origin >= 0) {
         if (destination >= 0) {
             // Moving from a register to a register.
-            jit->movr(origin, destination);
+            jit->movr(destination, origin);
         } else {
             // Moving from a register to a spill slot location.
-            jit->stxi_w((destination * sizeof(Slot)) + offsetof(Slot, value), JIT::kStackPointerReg, origin);
+            jit->stxi_w(Slot::slotValueOffset(destination), JIT::kStackPointerReg, origin);
         }
     } else {
         if (destination >= 0) {
             // Moving from spill slot location to a register.
-            jit->ldxi_w(destination, JIT::kStackPointerReg, (origin * sizeof(Slot)) + offsetof(Slot, value));
+            jit->ldxi_w(destination, JIT::kStackPointerReg, Slot::slotValueOffset(origin));
         } else {
             // Moving from spill to spill. Hard to do without a temporary register.
             assert(false);
