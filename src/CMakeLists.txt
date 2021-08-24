@@ -115,6 +115,7 @@ add_library(hadron STATIC
 
     include/hadron/Assembler.hpp
     include/hadron/BlockSerializer.hpp
+    include/hadron/Emitter.hpp
     include/hadron/ErrorReporter.hpp
     include/hadron/Function.hpp
     include/hadron/Hash.hpp
@@ -138,6 +139,7 @@ add_library(hadron STATIC
     include/hadron/VirtualJIT.hpp
 
     BlockSerializer.cpp
+    Emitter.cpp
     ErrorReporter.cpp
     FileSystem.hpp
     Hash.cpp
