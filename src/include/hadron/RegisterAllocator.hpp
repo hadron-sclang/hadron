@@ -27,6 +27,7 @@ private:
     bool tryAllocateFreeReg(LifetimeInterval& current);
     void allocateBlockedReg(LifetimeInterval& current, LinearBlock* linearBlock);
     void spill(LifetimeInterval& interval, LinearBlock* linearBlock);
+    void handled(LifetimeInterval& interval, LinearBlock* linearBlock);
 
     std::vector<LifetimeInterval> m_unhandled;
     std::unordered_map<size_t, LifetimeInterval> m_active;

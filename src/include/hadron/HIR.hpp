@@ -65,8 +65,6 @@ enum Opcode {
 
     // For Linear HIR represents the start of a block as well as a container for any phis at the start of the block.
     kLabel,
-    // For shifting of values between blocks or in and out of spill storage.
-    kScheduleMoves,
 
     // Method calling.
     kDispatchCall,  // save all registers, set up calling stack, represents a modification of the target
@@ -84,13 +82,17 @@ struct HIR {
     Opcode opcode;
     Value value;
     std::unordered_set<Value> reads;
-    // Due to register allocation and SSA form deconstruction every HIR operand may have a series of moves to and from
+
+    // Due to register allocation and SSA form deconstruction any HIR operand may have a series of moves to and from
     // physical registers and/or spill storage. Record them here for scheduling later during machine code generation.
     // The keys are origins and values are destinations. Positive integers (and 0) indicate register numbers, and
     // negative values indicate spill slot indices, with spill slot 0 reserved for register move cycles. Move scheduling
     // requires origins be copied only once, so enforcing unique keys means trying to insert a move from an origin
-    // already scheduled for a move is an error.
+    // already scheduled for a move is an error. These are *predicate* moves, meaning they are executed before the HIR.
     std::unordered_map<int, int> moves;
+
+    // Built during register allocation, a map of all Values numbers in |reads| and in |value| to registers.
+    std::unordered_map<size_t, int> valueLocations;
 
     // Recommended way to set the |value| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
@@ -102,9 +104,8 @@ struct HIR {
 
 // Loads the argument at |index| from the stack.
 struct LoadArgumentHIR : public HIR {
-    LoadArgumentHIR(Frame* f, int argIndex): HIR(kLoadArgument), frame(f), index(argIndex) {}
+    LoadArgumentHIR(int argIndex): HIR(kLoadArgument), index(argIndex) {}
     virtual ~LoadArgumentHIR() = default;
-    Frame* frame;
     int index;
 
     // Forces the kAny type for all arguments.
@@ -114,9 +115,8 @@ struct LoadArgumentHIR : public HIR {
 
 // Represents the type associated with the value at |index|.
 struct LoadArgumentTypeHIR : public HIR {
-    LoadArgumentTypeHIR(Frame* f, int argIndex): HIR(kLoadArgumentType), frame(f), index(argIndex) {}
+    LoadArgumentTypeHIR(int argIndex): HIR(kLoadArgumentType), index(argIndex) {}
     virtual ~LoadArgumentTypeHIR() = default;
-    Frame* frame;
     int index;
 
     // Forces the kType type for all arguments.
@@ -135,9 +135,8 @@ struct ConstantHIR : public HIR {
 };
 
 struct StoreReturnHIR : public HIR {
-    StoreReturnHIR(Frame* f, std::pair<Value, Value> retVal);
+    StoreReturnHIR(std::pair<Value, Value> retVal);
     virtual ~StoreReturnHIR() = default;
-    Frame* frame;
     std::pair<Value, Value> returnValue;
 
     // Always returns an invalid value, as this is a read-only operation.

@@ -63,8 +63,8 @@ std::unique_ptr<Frame> SSABuilder::buildSubframe(const parse::BlockNode* blockNo
                 // something like `if variable missing then do init expr` which just seems terrible.
                 // For now we just do assignments with the LoadArgument opcode.
                 m_block->revisions[name] = std::make_pair(
-                    insertLocal(std::make_unique<hir::LoadArgumentHIR>(m_frame, argIndex)),
-                    insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(m_frame, argIndex)));
+                    insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
+                    insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
                 ++argIndex;
                 varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
             }
@@ -126,7 +126,7 @@ std::pair<Value, Value> SSABuilder::buildValue(const parse::Node* node) {
         const auto returnNode = reinterpret_cast<const parse::ReturnNode*>(node);
         assert(returnNode->valueExpr);
         nodeValue = buildFinalValue(returnNode->valueExpr.get());
-        findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(m_frame, nodeValue));
+        findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(nodeValue));
     } break;
 
     case parse::NodeType::kDynList: {

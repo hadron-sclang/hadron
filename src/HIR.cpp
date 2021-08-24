@@ -11,7 +11,7 @@ bool LoadArgumentHIR::isEquivalent(const HIR* hir) const {
         return false;
     }
     const auto loadArg = reinterpret_cast<const LoadArgumentHIR*>(hir);
-    return (frame == loadArg->frame) && (index == loadArg->index);
+    return index == loadArg->index;
 }
 
 Value LoadArgumentHIR::proposeValue(uint32_t number) {
@@ -27,7 +27,7 @@ bool LoadArgumentTypeHIR::isEquivalent(const HIR* hir) const {
         return false;
     }
     const auto loadArgType = reinterpret_cast<const LoadArgumentTypeHIR*>(hir);
-    return (frame == loadArgType->frame) && (index == loadArgType->index);
+    return index == loadArgType->index;
 }
 
 Value LoadArgumentTypeHIR::proposeValue(uint32_t number) {
@@ -54,8 +54,8 @@ Value ConstantHIR::proposeValue(uint32_t number) {
 
 ///////////////////////////////
 // StoreReturnHIR
-StoreReturnHIR::StoreReturnHIR(Frame* f, std::pair<Value, Value> retVal):
-    HIR(kStoreReturn), frame(f), returnValue(retVal) {
+StoreReturnHIR::StoreReturnHIR(std::pair<Value, Value> retVal):
+    HIR(kStoreReturn), returnValue(retVal) {
     reads.emplace(retVal.first);
     reads.emplace(retVal.second);
 }
@@ -65,7 +65,7 @@ bool StoreReturnHIR::isEquivalent(const HIR* hir) const {
         return false;
     }
     const auto storeReturn = reinterpret_cast<const StoreReturnHIR*>(hir);
-    return (frame == storeReturn->frame) && (returnValue == storeReturn->returnValue);
+    return returnValue == storeReturn->returnValue;
 }
 
 Value StoreReturnHIR::proposeValue(uint32_t /* number */) {

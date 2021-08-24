@@ -68,6 +68,8 @@ public:
     virtual Label jmp() = 0;
     // jump to register
     virtual void jmpr(Reg r) = 0;
+    // jump to address
+    virtual void jmpi(Address location) = 0;
 
     // * loads
     // %target = *(%address + offset)

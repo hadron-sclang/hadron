@@ -658,7 +658,6 @@ void visualizeBlock(std::ofstream& outFile, const hadron::Block* block) {
                 printValue(resolveType->value), printValue(resolveType->typeOfValue));
         } break;
 
-        case hadron::hir::Opcode::kScheduleMoves:
         case hadron::hir::Opcode::kBranch:
         case hadron::hir::Opcode::kBranchIfZero:
         case hadron::hir::Opcode::kPhi:
