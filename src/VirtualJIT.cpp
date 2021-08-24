@@ -10,6 +10,12 @@
 
 namespace hadron {
 
+VirtualJIT::VirtualJIT():
+    JIT(std::make_shared<ErrorReporter>()),
+    m_maxRegisters(64),
+    m_maxFloatRegisters(64),
+    m_addressCount(0) {}
+
 VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter):
     JIT(errorReporter),
     m_maxRegisters(std::numeric_limits<int32_t>::max()),
@@ -33,27 +39,31 @@ int VirtualJIT::getFloatRegisterCount() const {
 }
 
 void VirtualJIT::addr(Reg target, Reg a, Reg b) {
-    m_instructions.emplace_back(Inst{Opcodes::kAddr, use(target), use(a), use(b)});
+    m_instructions.emplace_back(Inst{Opcodes::kAddr, target, a, b});
 }
 
 void VirtualJIT::addi(Reg target, Reg a, int b) {
-    m_instructions.emplace_back(Inst{Opcodes::kAddi, use(target), use(a), b});
+    m_instructions.emplace_back(Inst{Opcodes::kAddi, target, a, b});
+}
+
+void VirtualJIT::xorr(Reg target, Reg a, Reg b) {
+    m_instructions.emplace_back(Inst{Opcodes::kXorr, target, a, b});
 }
 
 void VirtualJIT::movr(Reg target, Reg value) {
     if (target != value) {
-        m_instructions.emplace_back(Inst{Opcodes::kMovr, use(target), use(value)});
+        m_instructions.emplace_back(Inst{Opcodes::kMovr, target, value});
     }
 }
 
 void VirtualJIT::movi(Reg target, int value) {
-    m_instructions.emplace_back(Inst{Opcodes::kMovi, use(target), value});
+    m_instructions.emplace_back(Inst{Opcodes::kMovi, target, value});
 }
 
 JIT::Label VirtualJIT::bgei(Reg a, int b) {
     JIT::Label label = m_labels.size();
     m_labels.emplace_back(m_instructions.size());
-    m_instructions.emplace_back(Inst{Opcodes::kBgei, use(a), b, label});
+    m_instructions.emplace_back(Inst{Opcodes::kBgei, a, b, label});
     return label;
 }
 
@@ -65,35 +75,35 @@ JIT::Label VirtualJIT::jmp() {
 }
 
 void VirtualJIT::jmpr(Reg r) {
-    m_instructions.emplace_back(Inst{Opcodes::kJmpR, use(r)});
+    m_instructions.emplace_back(Inst{Opcodes::kJmpR, r});
 }
 
 void VirtualJIT::ldxi_w(Reg target, Reg address, int offset) {
-    m_instructions.emplace_back(Inst{Opcodes::kLdxiW, use(target), use(address), offset});
+    m_instructions.emplace_back(Inst{Opcodes::kLdxiW, target, address, offset});
 }
 
 void VirtualJIT::ldxi_i(Reg target, Reg address, int offset) {
-    m_instructions.emplace_back(Inst{Opcodes::kLdxiI, use(target), use(address), offset});
+    m_instructions.emplace_back(Inst{Opcodes::kLdxiI, target, address, offset});
 }
 
 void VirtualJIT::ldxi_l(Reg target, Reg address, int offset) {
-    m_instructions.emplace_back(Inst{Opcodes::kLdxiL, use(target), use(address), offset});
+    m_instructions.emplace_back(Inst{Opcodes::kLdxiL, target, address, offset});
 }
 
 void VirtualJIT::str_i(Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStrI, use(address), use(value)});
+    m_instructions.emplace_back(Inst{Opcodes::kStrI, address, value});
 }
 
 void VirtualJIT::stxi_w(int offset, Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStxiW, offset, use(address), use(value)});
+    m_instructions.emplace_back(Inst{Opcodes::kStxiW, offset, address, value});
 }
 
 void VirtualJIT::stxi_i(int offset, Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStxiI, offset, use(address), use(value)});
+    m_instructions.emplace_back(Inst{Opcodes::kStxiI, offset, address, value});
 }
 
 void VirtualJIT::stxi_l(int offset, Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStxiL, offset, use(address), use(value)});
+    m_instructions.emplace_back(Inst{Opcodes::kStxiL, offset, address, value});
 }
 
 void VirtualJIT::ret() {
@@ -101,7 +111,7 @@ void VirtualJIT::ret() {
 }
 
 void VirtualJIT::retr(Reg r) {
-    m_instructions.emplace_back(Inst{Opcodes::kRetr, use(r)});
+    m_instructions.emplace_back(Inst{Opcodes::kRetr, r});
 }
 
 void VirtualJIT::reti(int value) {
@@ -140,17 +150,6 @@ void VirtualJIT::patchThere(Label target, Address location) {
     }
 }
 
-void VirtualJIT::alias(Reg r) {
-    if (r >= static_cast<int>(m_registerUses.size())) {
-        m_registerUses.resize(r + 1);
-    }
-    m_instructions.emplace_back(Inst{Opcodes::kAlias, r});
-}
-
-void VirtualJIT::unalias(Reg r) {
-    m_instructions.emplace_back(Inst{Opcodes::kUnalias, r});
-}
-
 bool VirtualJIT::toString(std::string& codeString) const {
     std::stringstream code;
 
@@ -179,6 +178,10 @@ bool VirtualJIT::toString(std::string& codeString) const {
 
         case kAddi:
             code << fmt::format("{} addi %vr{}, %vr{}, {}\n", label, inst[1], inst[2], inst[3]);
+            break;
+
+        case kXorr:
+            code << fmt::format("{} xorr %vr{}, %vr{}, {}\n", label, inst[1], inst[2], inst[3]);
             break;
 
         case kMovr:
@@ -213,6 +216,10 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} str_i %vr{}, %vr{}\n", label, inst[1], inst[2]);
             break;
 
+        case kStxiW:
+            code << fmt::format("{} stxi_w 0x{:x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
+            break;
+
         case kStxiI:
             code << fmt::format("{} stxi_i 0x{:x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
             break;
@@ -241,14 +248,6 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} patchat label_{}, label_{}\n", label, inst[1], inst[2]);
             break;
 
-        case kAlias:
-            code << fmt::format("{} alias %vr{}\n", label, inst[1]);
-            break;
-
-        case kUnalias:
-            code << fmt::format("{} unalias %vr{}\n", label, inst[1]);
-            break;
-
         default:
             m_errorReporter->addInternalError(fmt::format("VirtualJIT toString() encountered unknown opcode enum "
                 "0x{:x}.", inst[0]));
@@ -259,15 +258,6 @@ bool VirtualJIT::toString(std::string& codeString) const {
     code.flush();
     codeString = code.str();
     return true;
-}
-
-JIT::Reg VirtualJIT::use(JIT::Reg reg) {
-    if (reg < 0) {
-        return reg;
-    }
-    assert(reg < static_cast<int>(m_registerUses.size()));
-    m_registerUses[reg].emplace_back(m_instructions.size());
-    return reg;
 }
 
 } // namespace hadron

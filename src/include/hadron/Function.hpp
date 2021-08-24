@@ -13,14 +13,9 @@ namespace hadron {
 class LighteningJIT;
 struct ThreadContext;
 
-namespace ast {
-struct BlockAST;
-}
-
 // Represents a unit of executable SuperCollider code.
 struct Function {
-    Function() = delete;
-    Function(const ast::BlockAST* block);
+    Function() = default;
     ~Function() = default;
 
     int numberOfArgs;
@@ -39,7 +34,7 @@ struct Function {
     };
     NameTable nameIndices;
 
-    const uint8_t* machineCode;
+    const uint8_t* machineCode = nullptr;
     JITMemoryArena::MCodePtr machineCodeOwned;
 };
 

@@ -32,3 +32,5 @@ TODO: normalize citation style.
 ## Garbage Collection
 
 ## Reference Textbooks
+
+  * *[BK1]* Henry S. Warren, Jr. Hacker's Delight Second Edition, Addison-Wesley Professional 2013.

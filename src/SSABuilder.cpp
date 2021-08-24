@@ -56,7 +56,7 @@ std::unique_ptr<Frame> SSABuilder::buildSubframe(const parse::BlockNode* blockNo
                 // TODO: for the ARG keyword the initial value can be *any* valid expr parse. For the | pair argument
                 // delimiters valid syntax is any slotliteral, so basically anything that can be trivially packed
                 // into a Slot. This seems a much more tractable way to describe initial values, so investigate
-                // locking the parser down to only accept those for both argument styles. My suspcision is that
+                // locking the parser down to only accept those for both argument styles. My suspicion is that
                 // complex expressions using the `arg` syntax may parse but probably won't survive later compilation
                 // stages in LSC anyway, so this may just represent making a de-facto LSC error into an explicit
                 // parse error. Or, there's going to have to be an *if* block added to each variable in turn with

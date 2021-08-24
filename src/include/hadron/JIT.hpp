@@ -52,6 +52,8 @@ public:
     virtual void addr(Reg target, Reg a, Reg b) = 0;
     // %target = %a + b
     virtual void addi(Reg target, Reg a, int b) = 0;
+    // %target = %a ^ %b
+    virtual void xorr(Reg target, Reg a, Reg b) = 0;
 
     // * register setting
     // %target <- %value

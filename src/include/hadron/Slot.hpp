@@ -60,6 +60,14 @@ public:
     Type type;
     int32_t size;
     Value value;
+
+    // Offset in bytes given a slotNumber (which can be negative)
+    static inline int slotTypeOffset(int slotNumber) {
+        return (slotNumber * sizeof(Slot)) + static_cast<int>(offsetof(Slot, type));
+    }
+    static inline int slotValueOffset(int slotNumber) {
+        return (slotNumber * sizeof(Slot)) + static_cast<int>(offsetof(Slot, value));
+    }
 };
 
 static_assert(sizeof(Slot) == 16);

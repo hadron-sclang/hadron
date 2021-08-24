@@ -5,6 +5,7 @@
 #include "hadron/SSABuilder.hpp"
 
 #include <cassert>
+#include <unordered_map>
 
 /*
 Pseudocode taken from [RA5] in the Bibliography, "Linear Scan Register Allocation on SSA Form." by C. Wimmer and M.
@@ -39,7 +40,7 @@ void Resolver::resolve(LinearBlock* linearBlock) {
         const auto blockLabel = reinterpret_cast<const hir::LabelHIR*>(
                 linearBlock->instructions[blockRange.first].get());
         for (auto successorNumber : blockLabel->successors) {
-            std::vector<std::pair<hir::MoveOperand, hir::MoveOperand>> moves;
+            std::unordered_map<int, int> moves;
 
             // for each interval it live at begin of successor do
             auto successorRange = linearBlock->blockRanges[successorNumber];
@@ -54,7 +55,7 @@ void Resolver::resolve(LinearBlock* linearBlock) {
             }
             assert(blockIndex < successorLabel->predecessors.size());
             for (auto live : successorLabel->liveIns) {
-                hir::MoveOperand moveFrom, moveTo;
+                int moveFrom, moveTo;
 
                 // if it starts at begin of successor then
                 const hir::PhiHIR* livePhi = nullptr;
@@ -83,8 +84,12 @@ void Resolver::resolve(LinearBlock* linearBlock) {
                 // moveTo = location of it at begin of successor
                 bool found = findAt(live, linearBlock, blockRange.first, moveTo);
                 assert(found);
-                if (moveFrom.number != moveTo.number || moveFrom.isSpill != moveTo.isSpill) {
-                    moves.emplace_back(std::make_pair(moveFrom, moveTo));
+                if (moveFrom != moveTo) {
+                    auto emplace = moves.emplace(std::make_pair(moveFrom, moveTo));
+                    if (!emplace.second) {
+                        // Redundant moves are OK as long as they are to same destination.
+                        assert(emplace.first->second == moveTo);
+                    }
                 }
             }
             if (moves.size()) {
@@ -95,14 +100,14 @@ void Resolver::resolve(LinearBlock* linearBlock) {
                     assert(linearBlock->instructions[blockRange.second - 1]->opcode == hir::kBranch);
                     auto branch = reinterpret_cast<hir::BranchHIR*>(
                             linearBlock->instructions[blockRange.second -1].get());
-                    branch->moves.insert(branch->moves.begin(), moves.begin(), moves.end());
+                    branch->moves.merge(std::move(moves));
                 } else if (successorLabel->predecessors.size() == 1) {
                     // If the successor has only the predecessor we can prepend the move instructions in the successor
                     // label.
-                    successorLabel->moves.insert(successorLabel->moves.begin(), moves.begin(), moves.end());
+                    successorLabel->moves.merge(std::move(moves));
                 } else {
                     // TODO: probably need to insert an additional block with the move instructions before successor,
-                    // and have everything else jump over that.
+                    // and have every other incoming edge jump past that.
                     assert(false);
                 }
             }
@@ -110,15 +115,13 @@ void Resolver::resolve(LinearBlock* linearBlock) {
     }
 }
 
-bool Resolver::findAt(size_t valueNumber, LinearBlock* linearBlock, size_t line, hir::MoveOperand& operand) {
+bool Resolver::findAt(size_t valueNumber, LinearBlock* linearBlock, size_t line, int& location) {
     for (const auto& lifetime : linearBlock->valueLifetimes[valueNumber]) {
         if (lifetime.start() <= line && line < lifetime.end()) {
             if (!lifetime.isSpill) {
-                operand.isSpill = false;
-                operand.number = lifetime.registerNumber;
+                location = static_cast<int>(lifetime.registerNumber);
             } else {
-                operand.isSpill = true;
-                operand.number = lifetime.spillSlot;
+                location = -1 - static_cast<int>(lifetime.spillSlot);
             }
             return true;
         }

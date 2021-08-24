@@ -48,6 +48,9 @@
         optlabel 'addi' start reg ws reg ws integer optcomment {
             m_jit->addi(arg[0], arg[1], arg[2]);
         };
+        optlabel 'xorr' start reg ws reg ws reg optcomment {
+            m_jit->xorr(arg[0], arg[1], arg[2]);
+        };
         optlabel 'movr' start reg ws reg optcomment {
             m_jit->movr(arg[0], arg[1]);
         };
@@ -101,12 +104,6 @@
         };
         optlabel 'patch_there' start labelnum ws labelnum optcomment {
             m_jit->patchThere(arg[0], arg[1]);
-        };
-        optlabel 'alias' start reg optcomment {
-            m_jit->alias(arg[0]);
-        };
-        optlabel 'unalias' start reg optcomment {
-            m_jit->unalias(arg[0]);
         };
         space { /* ignore whitespace */ };
         any {

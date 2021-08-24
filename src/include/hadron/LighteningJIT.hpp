@@ -55,6 +55,7 @@ public:
 
     void addr(Reg target, Reg a, Reg b) override;
     void addi(Reg target, Reg a, int b) override;
+    void xorr(Reg target, Reg a, Reg b) override;
     void movr(Reg target, Reg value) override;
     void movi(Reg target, int value) override;
     Label bgei(Reg a, int b) override;

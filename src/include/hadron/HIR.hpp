@@ -29,8 +29,6 @@ struct Value {
     uint32_t typeFlags;
 };
 
-
-
 } // namespace hadron
 
 // Inject a hash template specialization for Value into the std namespace, so we can use Values as keys in STL
@@ -77,12 +75,6 @@ enum Opcode {
     kDispatchCleanup, // must be called after a kDispatch
 };
 
-// If isSpill is false number is a register number, if true it is a spill slot number.
-struct MoveOperand {
-    size_t number;
-    bool isSpill;
-};
-
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in
 // the reads member.
 struct HIR {
@@ -92,9 +84,13 @@ struct HIR {
     Opcode opcode;
     Value value;
     std::unordered_set<Value> reads;
-    // Due to register allocation and SSA form deconstrucdtion every HIR operand may have a series of moves to and from
+    // Due to register allocation and SSA form deconstruction every HIR operand may have a series of moves to and from
     // physical registers and/or spill storage. Record them here for scheduling later during machine code generation.
-    std::vector<std::pair<hir::MoveOperand, hir::MoveOperand>> moves;
+    // The keys are origins and values are destinations. Positive integers (and 0) indicate register numbers, and
+    // negative values indicate spill slot indices, with spill slot 0 reserved for register move cycles. Move scheduling
+    // requires origins be copied only once, so enforcing unique keys means trying to insert a move from an origin
+    // already scheduled for a move is an error.
+    std::unordered_map<int, int> moves;
 
     // Recommended way to set the |value| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates

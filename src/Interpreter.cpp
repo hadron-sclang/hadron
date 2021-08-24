@@ -1,16 +1,13 @@
 #include "hadron/Interpreter.hpp"
 
 #include "FileSystem.hpp"
-#include "hadron/CodeGenerator.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Function.hpp"
 #include "hadron/JITMemoryArena.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LighteningJIT.hpp"
-#include "hadron/MachineCodeRenderer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/SourceFile.hpp"
-#include "hadron/SyntaxAnalyzer.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "hadron/VirtualJIT.hpp"
 
@@ -95,13 +92,14 @@ std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
         return nullptr;
     }
 
+/* TODO: new compilation flow
     SyntaxAnalyzer analyzer(&parser, m_errorReporter);
     if (!analyzer.buildAST() || !m_errorReporter->ok()) {
         SPDLOG_DEBUG("Analysis failed");
         return nullptr;
     }
 
-    //**  check that root AST is a block type.
+    // check that root AST is a block type.
     if (analyzer.ast()->astType != ast::ASTType::kBlock) {
         // This is an errorReporter error instead of SPDLOG because the error is a problem with user input.
         m_errorReporter->addError("Not a block!");
@@ -159,6 +157,9 @@ std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
     }
 
     return function;
+*/
+
+    return nullptr;
 }
 
 std::unique_ptr<Function> Interpreter::compileFile(std::string path) {

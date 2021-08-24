@@ -23,7 +23,7 @@ public:
     void resolve(LinearBlock* linearBlock);
 
 private:
-    bool findAt(size_t valueNumber, LinearBlock* linearBlock, size_t line, hir::MoveOperand& operand);
+    bool findAt(size_t valueNumber, LinearBlock* linearBlock, size_t line, int& location);
 };
 
 } // namespace hadron
