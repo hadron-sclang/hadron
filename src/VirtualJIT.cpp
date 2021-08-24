@@ -216,6 +216,10 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} str_i %vr{}, %vr{}\n", label, inst[1], inst[2]);
             break;
 
+        case kStxiW:
+            code << fmt::format("{} stxi_w 0x{:x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
+            break;
+
         case kStxiI:
             code << fmt::format("{} stxi_i 0x{:x}, %vr{}, %vr{}\n", label, inst[1], inst[2], inst[3]);
             break;
