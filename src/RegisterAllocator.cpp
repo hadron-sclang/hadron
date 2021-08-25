@@ -1,7 +1,8 @@
 #include "hadron/RegisterAllocator.hpp"
 
-#include "hadron/BlockSerializer.hpp"
+#include "hadron/HIR.hpp"
 #include "hadron/LifetimeInterval.hpp"
+#include "hadron/LinearBlock.hpp"
 
 #include <algorithm>
 
@@ -128,6 +129,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
 
         // position = start position of current
         size_t position = current.start();
+        std::unordered_map<size_t, LifetimeInterval> activeToInactive;
 
         // check for intervals in active that are handled or inactive
         // for each interval it in active do
@@ -136,18 +138,13 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
             // if it ends before position then
             if (iter->second.end() <= position) {
                 // move it from active to handled
-                linearBlock->registerLifetimes[iter->first].emplace_back(iter->second);
-                linearBlock->valueLifetimes[iter->second.valueNumber].emplace_back(iter->second);
-                // TODO: "handled" for us could be the completed registerLifetimes structure within linearBlock. So
-                // some sort of sorted insertion?
+                handled(iter->second, linearBlock);
                 iter = m_active.erase(iter);
             } else {
                 // else if it does not cover position then
                 if (!iter->second.covers(position)) {
-                    // TODO: remove redundant second check, maybe extract into temp vector or something then
-                    // insert after?
                     // move it from active to inactive
-                    m_inactive.insert(m_active.extract(iter));
+                    activeToInactive.insert(m_active.extract(iter));
                 }
                 ++iter;
             }
@@ -160,8 +157,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
             // if it ends before position then
             if (iter->second.end() <= position) {
                 // move it from inactive to handled
-                linearBlock->registerLifetimes[iter->first].emplace_back(iter->second);
-                linearBlock->valueLifetimes[iter->second.valueNumber].emplace_back(iter->second);
+                handled(iter->second, linearBlock);
                 iter = m_active.erase(iter);
             } else {
                 // else if it covers position then
@@ -173,6 +169,10 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
             }
         }
 
+        // We save the intervals moving from active to inactive to a temporary map, to avoid a redundant check on those
+        // intervals while going through the inactive map. Now move them back to the inactive map.
+        m_inactive.merge(std::move(activeToInactive));
+
         // find a register for current
         // TRYALLOCATEFREEREG
         if (!tryAllocateFreeReg(current)) {
@@ -183,12 +183,10 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
 
     // Append any final lifetimes to the linearBlock.
     for (auto iter : m_active) {
-        linearBlock->registerLifetimes[iter.first].emplace_back(iter.second);
-        linearBlock->valueLifetimes[iter.second.valueNumber].emplace_back(iter.second);
+        handled(iter.second, linearBlock);
     }
     for (auto iter : m_inactive) {
-        linearBlock->registerLifetimes[iter.first].emplace_back(iter.second);
-        linearBlock->valueLifetimes[iter.second.valueNumber].emplace_back(iter.second);
+        handled(iter.second, linearBlock);
     }
     for (auto iter : m_activeSpills) {
         linearBlock->spillLifetimes[iter.first].emplace_back(iter.second);
@@ -307,8 +305,7 @@ void RegisterAllocator::allocateBlockedReg(LifetimeInterval& current, LinearBloc
         if (iter != m_active.end()) {
             // split active interval for reg at position
             auto activeSpill = iter->second.splitAt(current.start());
-            linearBlock->registerLifetimes[reg].emplace_back(iter->second);
-            linearBlock->valueLifetimes[iter->second.valueNumber].emplace_back(iter->second);
+            handled(iter->second, linearBlock);
             m_unhandled.emplace_back(activeSpill.splitAt(highestNextUsePos));
             std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
             spill(activeSpill, linearBlock);
@@ -318,8 +315,7 @@ void RegisterAllocator::allocateBlockedReg(LifetimeInterval& current, LinearBloc
             assert(iter != m_inactive.end());
             // split any inactive interval for reg at the end of its lifetime hole
             auto inactiveSpill = iter->second.splitAt(current.start());
-            linearBlock->registerLifetimes[reg].emplace_back(iter->second);
-            linearBlock->valueLifetimes[iter->second.valueNumber].emplace_back(iter->second);
+            handled(iter->second, linearBlock);
             // TODO: any harm in splitting here instead of at the start of the lifetime hole?
             m_unhandled.emplace_back(inactiveSpill.splitAt(highestNextUsePos));
             std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
@@ -354,20 +350,46 @@ void RegisterAllocator::spill(LifetimeInterval& interval, LinearBlock* linearBlo
             iter = m_activeSpills.erase(iter);
         }
     }
-    // TODO: insertion of spill/unspill schedulemoves
     size_t spillSlot;
     if (m_freeSpills.size()) {
         spillSlot = *m_freeSpills.begin();
         m_freeSpills.erase(m_freeSpills.begin());
     } else {
-        spillSlot = m_numberOfSpillSlots;
-        ++m_numberOfSpillSlots;
+        spillSlot = linearBlock->numberOfSpillSlots;
+        ++linearBlock->numberOfSpillSlots;
         linearBlock->spillLifetimes.emplace_back(std::vector<LifetimeInterval>());
     }
+    // Ensure we are reserving spill slot 0 for move cycles.
+    assert(spillSlot > 0);
+
+    // Add spill instruction to moves list.
+    linearBlock->instructions[interval.start()]->moves.emplace(std::make_pair(interval.registerNumber,
+        -static_cast<int>(spillSlot)));
 
     interval.isSpill = true;
     interval.spillSlot = spillSlot;
     m_activeSpills.emplace(std::make_pair(spillSlot, interval));
+}
+
+void RegisterAllocator::handled(LifetimeInterval& interval, LinearBlock* linearBlock) {
+    assert(!interval.isSpill);
+    linearBlock->registerLifetimes[interval.registerNumber].emplace_back(interval);
+    // Check if previous lifetime was a spill, to issue unspill commands if needed.
+    if (linearBlock->valueLifetimes[interval.valueNumber].size() &&
+            linearBlock->valueLifetimes[interval.valueNumber].back().isSpill) {
+        linearBlock->instructions[interval.start()]->moves.emplace(std::make_pair(
+            -static_cast<int>(linearBlock->valueLifetimes[interval.valueNumber].back().spillSlot),
+            interval.registerNumber));
+    }
+    linearBlock->valueLifetimes[interval.valueNumber].emplace_back(interval);
+    // Update map at every hir for this value number.
+    for (size_t i = interval.start(); i < interval.end(); ++i) {
+        // TODO: do we need this covers check? Is it harmless to cache reg assignments during lifetime holes?
+        if (interval.covers(i)) {
+            linearBlock->instructions[i]->valueLocations.emplace(std::make_pair(interval.valueNumber,
+                static_cast<int>(interval.registerNumber)));
+        }
+    }
 }
 
 } // namespace hadron

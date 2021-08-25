@@ -2,7 +2,7 @@
 
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/HIR.hpp"
-#include "hadron/SSABuilder.hpp"
+#include "hadron/LinearBlock.hpp"
 
 #include <cassert>
 #include <unordered_map>

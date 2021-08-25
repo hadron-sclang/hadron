@@ -1,5 +1,5 @@
-#ifndef SRC_INCLUDE_HADRON_SSA_BUILDER_HPP_
-#define SRC_INCLUDE_HADRON_SSA_BUILDER_HPP_
+#ifndef SRC_INCLUDE_HADRON_BLOCK_BUILDER_HPP_
+#define SRC_INCLUDE_HADRON_BLOCK_BUILDER_HPP_
 
 #include "hadron/Hash.hpp"
 #include "hadron/HIR.hpp"
@@ -72,10 +72,10 @@ struct Frame {
 // This is an implementation of the algorithm described in [SSA2] in the Bibliography, "Simple and Efficient
 // Construction of Static Single Assignment Form" by Bruan M. et al, with modifications to support type deduction while
 // building SSA form.
-class SSABuilder {
+class BlockBuilder {
 public:
-    SSABuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);
-    ~SSABuilder();
+    BlockBuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);
+    ~BlockBuilder();
 
     std::unique_ptr<Frame> buildFrame(const parse::BlockNode* blockNode);
 
@@ -114,4 +114,4 @@ private:
 
 } // namespace hadron
 
-#endif // SRC_INCLUDE_HADRON_SSA_BUILDER_HPP_
+#endif // SRC_INCLUDE_HADRON_BLOCK_BUILDER_HPP_

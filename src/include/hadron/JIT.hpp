@@ -64,10 +64,14 @@ public:
     // * branches
     // if a >= b goto Label
     virtual Label bgei(Reg a, int b) = 0;
+    // if a == b goto Label
+    virtual Label beqi(Reg a, int b) = 0;
     // unconditionally jump to Label
     virtual Label jmp() = 0;
     // jump to register
     virtual void jmpr(Reg r) = 0;
+    // jump to address
+    virtual void jmpi(Address location) = 0;
 
     // * loads
     // %target = *(%address + offset)

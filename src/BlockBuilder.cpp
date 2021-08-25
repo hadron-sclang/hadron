@@ -1,7 +1,8 @@
-#include "hadron/SSABuilder.hpp"
+#include "hadron/BlockBuilder.hpp"
 
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Lexer.hpp"
+#include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Slot.hpp"
 
@@ -11,7 +12,7 @@
 
 namespace hadron {
 
-SSABuilder::SSABuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter):
+BlockBuilder::BlockBuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter):
     m_lexer(lexer),
     m_errorReporter(errorReporter),
     m_frame(nullptr),
@@ -19,16 +20,16 @@ SSABuilder::SSABuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporte
     m_blockSerial(0),
     m_valueSerial(1) { }
 
-SSABuilder::~SSABuilder() { }
+BlockBuilder::~BlockBuilder() { }
 
-std::unique_ptr<Frame> SSABuilder::buildFrame(const parse::BlockNode* blockNode) {
+std::unique_ptr<Frame> BlockBuilder::buildFrame(const parse::BlockNode* blockNode) {
     auto frame = buildSubframe(blockNode);
     frame->numberOfBlocks = m_blockSerial;
     frame->numberOfValues = m_valueSerial;
     return frame;
 }
 
-std::unique_ptr<Frame> SSABuilder::buildSubframe(const parse::BlockNode* blockNode) {
+std::unique_ptr<Frame> BlockBuilder::buildSubframe(const parse::BlockNode* blockNode) {
     assert(blockNode);
     auto frame = std::make_unique<Frame>();
     frame->parent = m_frame;
@@ -63,8 +64,8 @@ std::unique_ptr<Frame> SSABuilder::buildSubframe(const parse::BlockNode* blockNo
                 // something like `if variable missing then do init expr` which just seems terrible.
                 // For now we just do assignments with the LoadArgument opcode.
                 m_block->revisions[name] = std::make_pair(
-                    insertLocal(std::make_unique<hir::LoadArgumentHIR>(m_frame, argIndex)),
-                    insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(m_frame, argIndex)));
+                    insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
+                    insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
                 ++argIndex;
                 varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
             }
@@ -85,7 +86,7 @@ std::unique_ptr<Frame> SSABuilder::buildSubframe(const parse::BlockNode* blockNo
     return frame;
 }
 
-std::pair<Value, Value> SSABuilder::buildValue(const parse::Node* node) {
+std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
     std::pair<Value, Value> nodeValue;
 
     switch(node->nodeType) {
@@ -126,7 +127,7 @@ std::pair<Value, Value> SSABuilder::buildValue(const parse::Node* node) {
         const auto returnNode = reinterpret_cast<const parse::ReturnNode*>(node);
         assert(returnNode->valueExpr);
         nodeValue = buildFinalValue(returnNode->valueExpr.get());
-        findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(m_frame, nodeValue));
+        findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(nodeValue));
     } break;
 
     case parse::NodeType::kDynList: {
@@ -295,7 +296,7 @@ std::pair<Value, Value> SSABuilder::buildValue(const parse::Node* node) {
     return nodeValue;
 }
 
-std::pair<Value, Value> SSABuilder::buildFinalValue(const parse::Node* node) {
+std::pair<Value, Value> BlockBuilder::buildFinalValue(const parse::Node* node) {
     std::pair<Value, Value> finalValue;
     while (node) {
         finalValue = buildValue(node);
@@ -304,7 +305,7 @@ std::pair<Value, Value> SSABuilder::buildFinalValue(const parse::Node* node) {
     return finalValue;
 }
 
-std::pair<Value, Value> SSABuilder::buildDispatch(const parse::Node* target, Hash selector,
+std::pair<Value, Value> BlockBuilder::buildDispatch(const parse::Node* target, Hash selector,
         const parse::Node* arguments, const parse::KeyValueNode* keywordArguments) {
     auto dispatch = std::make_unique<hir::DispatchCallHIR>();
     auto targetValue = buildFinalValue(target);
@@ -352,7 +353,7 @@ std::pair<Value, Value> SSABuilder::buildDispatch(const parse::Node* target, Has
     return std::make_pair(returnValue, returnValueType);
 }
 
-Value SSABuilder::findOrInsertLocal(std::unique_ptr<hir::HIR> hir) {
+Value BlockBuilder::findOrInsertLocal(std::unique_ptr<hir::HIR> hir) {
     // Walk through block looking for equivalent exising HIR.
     for (const auto hirPair : m_block->values) {
         if (hirPair.second->isEquivalent(hir.get())) {
@@ -362,11 +363,11 @@ Value SSABuilder::findOrInsertLocal(std::unique_ptr<hir::HIR> hir) {
     return insertLocal(std::move(hir));
 }
 
-Value SSABuilder::insertLocal(std::unique_ptr<hir::HIR> hir) {
+Value BlockBuilder::insertLocal(std::unique_ptr<hir::HIR> hir) {
     return insert(std::move(hir), m_block);
 }
 
-Value SSABuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
+Value BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
     // Phis should only be inserted by findValuePredecessor().
     assert(hir->opcode != hir::Opcode::kPhi);
     auto valueNumber = m_valueSerial;
@@ -381,7 +382,7 @@ Value SSABuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
     return value;
 }
 
-std::pair<Value, Value> SSABuilder::findName(Hash name) {
+std::pair<Value, Value> BlockBuilder::findName(Hash name) {
     // TODO: out-of-block searches.
     auto rev = m_block->revisions.find(name);
     if (rev == m_block->revisions.end()) {
@@ -390,12 +391,12 @@ std::pair<Value, Value> SSABuilder::findName(Hash name) {
     return rev->second;
 }
 
-Value SSABuilder::findValue(Value v) {
+Value BlockBuilder::findValue(Value v) {
     std::unordered_map<int, Value> blockValues;
     return findValuePredecessor(v, m_block, blockValues);
 }
 
-Value SSABuilder::findValuePredecessor(Value v, Block* block, std::unordered_map<int, Value>& blockValues) {
+Value BlockBuilder::findValuePredecessor(Value v, Block* block, std::unordered_map<int, Value>& blockValues) {
     // Quick check if value exists in local block lookup already.
     auto localIter = block->localValues.find(v);
     if (localIter != block->localValues.end()) {
