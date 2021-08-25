@@ -10,7 +10,6 @@
 #include "hadron/Parser.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/Type.hpp"
-#include "Keywords.hpp"
 
 #include "gflags/gflags.h"
 #include "spdlog/spdlog.h"
@@ -531,69 +530,6 @@ void visualizeParseNode(std::ofstream& outFile, hadron::Parser& parser, int& ser
         outFile << fmt::format("    node_{}:next -> node_{}\n", nodeSerial, serial);
         visualizeParseNode(outFile, parser, serial, node->next.get());
     }
-}
-
-std::string printHash(hadron::Hash hash) {
-    switch (hash) {
-    case hadron::kAddHash:
-        return "+";
-
-    case hadron::kAssignHash:
-        return "=";
-
-    case hadron::kDivideHash:
-        return "/";
-
-    case hadron::kEqualToHash:
-        return "==";
-
-    case hadron::kExactlyEqualToHash:
-        return "===";
-
-    case hadron::kGreaterThanHash:
-        return ">";
-
-    case hadron::kGreaterThanOrEqualToHash:
-        return ">=";
-
-    case hadron::kIfHash:
-        return "if";
-
-    case hadron::kLeftArrowHash:
-        return "<-";
-
-    case hadron::kLessThanHash:
-        return "<";
-
-    case hadron::kLessThanOrEqualToHash:
-        return "<=";
-
-    case hadron::kModuloHash:
-        return "%";
-
-    case hadron::kMultiplyHash:
-        return "*";
-
-    case hadron::kNotEqualToHash:
-        return "!=";
-
-    case hadron::kNotExactlyEqualToHash:
-        return "!==";
-
-    case hadron::kPipeHash:
-        return "|";
-
-    case hadron::kReadWriteHash:
-        return "<>";
-
-    case hadron::kSubtractHash:
-        return "-";
-
-    case hadron::kWhileHash:
-        return "while";
-    }
-
-    return fmt::format("hash {:16x} not found!", hash);
 }
 
 std::string findSymbol(hadron::Hash hash, const std::map<hadron::Hash, std::string>& symbols) {
