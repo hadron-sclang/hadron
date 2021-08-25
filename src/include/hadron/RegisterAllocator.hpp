@@ -35,8 +35,6 @@ private:
     std::unordered_map<size_t, LifetimeInterval> m_activeSpills;
     std::unordered_set<size_t> m_freeSpills;
     size_t m_numberOfRegisters = 0;
-    // We reserve spill slot 0 for temporary storage when breaking copy cycles.
-    size_t m_numberOfSpillSlots = 1;
 };
 
 } // namespace hadron

@@ -1,6 +1,7 @@
 #include "hadron/BlockSerializer.hpp"
 
-#include "hadron/SSABuilder.hpp"
+#include "hadron/BlockBuilder.hpp"
+#include "hadron/LinearBlock.hpp"
 
 #include <algorithm>
 

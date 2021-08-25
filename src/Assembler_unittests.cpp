@@ -48,6 +48,12 @@ TEST_CASE("Assembler Base Cases") {
         REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
         CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kBgei, 7, 42});
     }
+    SUBCASE("beqi") {
+        Assembler assembler("beqi %vr2 0 label_1");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kBeqi, 2, 0});
+    }
     SUBCASE("jmp") {
         Assembler assembler("jmp");
         REQUIRE(assembler.assemble());
@@ -58,7 +64,13 @@ TEST_CASE("Assembler Base Cases") {
         Assembler assembler("jmpr %vr2");
         REQUIRE(assembler.assemble());
         REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
-        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kJmpR, 2});
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kJmpr, 2});
+    }
+    SUBCASE("jmpi") {
+        Assembler assembler("jmpi 12");
+        REQUIRE(assembler.assemble());
+        REQUIRE(assembler.virtualJIT()->instructions().size() == 1);
+        CHECK(assembler.virtualJIT()->instructions()[0] == VirtualJIT::Inst{VirtualJIT::kJmpi, 12});
     }
     SUBCASE("ldxi_w") {
         Assembler assembler("ldxi_w %vr2 %vr1 0xaf");

@@ -1,13 +1,14 @@
 // vistool generates dot files, suitable for consumption with graphviz, of different outputs of the Hadron compiler
 // processess. It currently can generate parse tree and Control Flow Graph (CFG) block tree visualizations.
 #include "FileSystem.hpp"
+#include "hadron/BlockBuilder.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/HIR.hpp"
 #include "hadron/Lexer.hpp"
+#include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Slot.hpp"
-#include "hadron/SSABuilder.hpp"
 #include "hadron/Type.hpp"
 #include "Keywords.hpp"
 
@@ -818,7 +819,7 @@ int main(int argc, char* argv[]) {
         visualizeParseNode(outFile, parser, serial, parser.root());
         outFile << "}" << std::endl;
     } else if (FLAGS_ssa) {
-        hadron::SSABuilder builder(&lexer, errorReporter);
+        hadron::BlockBuilder builder(&lexer, errorReporter);
         // For now we only support Blocks at the top level.
         if (parser.root()->nodeType != hadron::parse::NodeType::kBlock) {
             spdlog::error("nonblock root, not building ssa");

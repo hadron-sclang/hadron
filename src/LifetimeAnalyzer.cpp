@@ -1,7 +1,7 @@
 #include "hadron/LifetimeAnalyzer.hpp"
 
 #include "hadron/BlockSerializer.hpp"
-#include "hadron/SSABuilder.hpp"
+#include "hadron/LinearBlock.hpp"
 
 namespace hadron {
 

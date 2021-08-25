@@ -181,6 +181,11 @@ JIT::Label LighteningJIT::bgei(Reg a, int b) {
     return m_labels.size() - 1;
 }
 
+JIT::Label LighteningJIT::beqi(Reg a, int b) {
+    m_labels.emplace_back(jit_beqi(m_state, reg(a), b));
+    return m_labels.size() - 1;
+}
+
 JIT::Label LighteningJIT::jmp() {
     m_labels.emplace_back(jit_jmp(m_state));
     return m_labels.size() - 1;
@@ -188,6 +193,10 @@ JIT::Label LighteningJIT::jmp() {
 
 void LighteningJIT::jmpr(Reg r) {
     jit_jmpr(m_state, reg(r));
+}
+
+void LighteningJIT::jmpi(Address location) {
+    jit_jmpi(m_state, m_addresses[location]);
 }
 
 void LighteningJIT::ldxi_w(Reg target, Reg address, int offset) {

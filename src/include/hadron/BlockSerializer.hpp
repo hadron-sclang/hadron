@@ -12,25 +12,7 @@ namespace hadron {
 
 struct Block;
 struct Frame;
-
-struct LinearBlock {
-    LinearBlock() = default;
-    ~LinearBlock() = default;
-
-    // Flattened list of all instructions, including Labels at the top of each block.
-    std::vector<std::unique_ptr<hir::HIR>> instructions;
-    // In-order list of each block.
-    std::vector<int> blockOrder;
-    // TODO: refactor to use Lifetime::Interval
-    // index is block number, value is [start, end) of block instructions.
-    std::vector<std::pair<size_t, size_t>> blockRanges;
-    // index is value number
-    std::vector<std::vector<LifetimeInterval>> valueLifetimes;
-    // index is register number
-    std::vector<std::vector<LifetimeInterval>> registerLifetimes;
-    // index is spill slot number
-    std::vector<std::vector<LifetimeInterval>> spillLifetimes;
-};
+struct LinearBlock;
 
 // Serializes a Frame containing a control flow graph of blocks and HIR instructions into a single LinearBlock struct
 // with LabelHIR instructions at the top of each block. Serialization order is in reverse postorder traversal, with

@@ -67,6 +67,13 @@ JIT::Label VirtualJIT::bgei(Reg a, int b) {
     return label;
 }
 
+JIT::Label VirtualJIT::beqi(Reg a, int b) {
+    JIT::Label label = m_labels.size();
+    m_labels.emplace_back(m_instructions.size());
+    m_instructions.emplace_back(Inst{Opcodes::kBeqi, a, b, label});
+    return label;
+}
+
 JIT::Label VirtualJIT::jmp() {
     JIT::Label label = m_labels.size();
     m_labels.emplace_back(m_instructions.size());
@@ -75,7 +82,11 @@ JIT::Label VirtualJIT::jmp() {
 }
 
 void VirtualJIT::jmpr(Reg r) {
-    m_instructions.emplace_back(Inst{Opcodes::kJmpR, r});
+    m_instructions.emplace_back(Inst{Opcodes::kJmpr, r});
+}
+
+void VirtualJIT::jmpi(Address location) {
+    m_instructions.emplace_back(Inst{Opcodes::kJmpi, location});
 }
 
 void VirtualJIT::ldxi_w(Reg target, Reg address, int offset) {
@@ -200,8 +211,12 @@ bool VirtualJIT::toString(std::string& codeString) const {
             code << fmt::format("{} jmp label_{}\n", label, inst[1]);
             break;
 
-        case kJmpR:
+        case kJmpr:
             code << fmt::format("{} jmpr %vr{}\n", label, inst[1]);
+            break;
+
+        case kJmpi:
+            code << fmt::format("{} jmpi addr_{}", label, inst[1]);
             break;
 
         case kLdxiW:

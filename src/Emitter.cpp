@@ -1,8 +1,10 @@
 #include "hadron/Emitter.hpp"
 
-#include "hadron/BlockSerializer.hpp"
+#include "hadron/BlockBuilder.hpp"
 #include "hadron/HIR.hpp"
 #include "hadron/JIT.hpp"
+#include "hadron/LifetimeAnalyzer.hpp"
+#include "hadron/LinearBlock.hpp"
 #include "hadron/MoveScheduler.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
@@ -27,7 +29,6 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             const auto label = reinterpret_cast<const hir::LabelHIR*>(hir);
             JIT::Address address = jit->address();
             labelAddresses.emplace(std::make_pair(label->blockNumber, address));
-
         }
 
         // Emit any predicate moves if required.
@@ -84,33 +85,37 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             // If the block is before line this is a backwards jump, the address is already known, jump immediately
             // there.
             if (line > targetRange.first) {
-
+                jit->jmpi(labelAddresses.at(branch->blockNumber));
             } else if (line + 1 < targetRange.first) {
                 // If the branch is to the first instruction in the next consecutive block, and this branch is the
                 // instruction directly before that block, we can omit the branch. So we only take action if the forward
                 // jump is for greater than the next HIR instruction.
+                jmpPatchNeeded.emplace_back(std::make_pair(branch->blockNumber, jit->jmp()));
             }
-
         } break;
 
-        case hir::Opcode::kBranchIfZero:
-            break;
+        case hir::Opcode::kBranchIfZero: {
+            const auto branchIfZero = reinterpret_cast<const hir::BranchIfZeroHIR*>(hir);
+            jmpPatchNeeded.emplace_back(std::make_pair(branchIfZero->blockNumber,
+                    jit->beqi(branchIfZero->valueLocations.at(branchIfZero->condition.first.number), 0)));
+        } break;
 
         case hir::Opcode::kLabel:
             // Should handle labels before move predicates, making them no-ops here.
             break;
 
-        case hir::Opcode::kDispatchCall:
-            break;
+        case hir::Opcode::kDispatchCall: {
+            // TODO: dispatch code.
+        } break;
 
-        case hir::Opcode::kDispatchLoadReturn:
-            break;
+        case hir::Opcode::kDispatchLoadReturn: {
+        } break;
 
-        case hir::Opcode::kDispatchLoadReturnType:
-            break;
+        case hir::Opcode::kDispatchLoadReturnType: {
+        } break;
 
-        case hir::Opcode::kDispatchCleanup:
-            break;
+        case hir::Opcode::kDispatchCleanup: {
+        } break;
         }
     }
 }

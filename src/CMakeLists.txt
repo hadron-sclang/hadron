@@ -114,6 +114,7 @@ add_library(hadron STATIC
     "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
 
     include/hadron/Assembler.hpp
+    include/hadron/BlockBuilder.hpp
     include/hadron/BlockSerializer.hpp
     include/hadron/Emitter.hpp
     include/hadron/ErrorReporter.hpp
@@ -123,9 +124,10 @@ add_library(hadron STATIC
     include/hadron/JIT.hpp
     include/hadron/JITMemoryArena.hpp
     include/hadron/Lexer.hpp
-    include/hadron/LifetimeInterval.hpp
     include/hadron/LifetimeAnalyzer.hpp
+    include/hadron/LifetimeInterval.hpp
     include/hadron/LighteningJIT.hpp
+    include/hadron/LinearBlock.hpp
     include/hadron/LSBHashTable.hpp
     include/hadron/MoveScheduler.hpp
     include/hadron/Parser.hpp
@@ -133,11 +135,11 @@ add_library(hadron STATIC
     include/hadron/Resolver.hpp
     include/hadron/Slot.hpp
     include/hadron/SourceFile.hpp
-    include/hadron/SSABuilder.hpp
     include/hadron/ThreadContext.hpp
     include/hadron/Type.hpp
     include/hadron/VirtualJIT.hpp
 
+    BlockBuilder.cpp
     BlockSerializer.cpp
     Emitter.cpp
     ErrorReporter.cpp
@@ -146,15 +148,14 @@ add_library(hadron STATIC
     HIR.cpp
     Interpreter.cpp
     JITMemoryArena.cpp
-    LifetimeInterval.cpp
     LifetimeAnalyzer.cpp
+    LifetimeInterval.cpp
     LighteningJIT.cpp
     MoveScheduler.cpp
     RegisterAllocator.cpp
     Resolver.cpp
     Slot.cpp
     SourceFile.cpp
-    SSABuilder.cpp
     ThreadContext.cpp
     VirtualJIT.cpp
 )

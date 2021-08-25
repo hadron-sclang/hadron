@@ -1,7 +1,8 @@
 #include "hadron/RegisterAllocator.hpp"
 
-#include "hadron/BlockSerializer.hpp"
+#include "hadron/HIR.hpp"
 #include "hadron/LifetimeInterval.hpp"
+#include "hadron/LinearBlock.hpp"
 
 #include <algorithm>
 
@@ -354,8 +355,8 @@ void RegisterAllocator::spill(LifetimeInterval& interval, LinearBlock* linearBlo
         spillSlot = *m_freeSpills.begin();
         m_freeSpills.erase(m_freeSpills.begin());
     } else {
-        spillSlot = m_numberOfSpillSlots;
-        ++m_numberOfSpillSlots;
+        spillSlot = linearBlock->numberOfSpillSlots;
+        ++linearBlock->numberOfSpillSlots;
         linearBlock->spillLifetimes.emplace_back(std::vector<LifetimeInterval>());
     }
     // Ensure we are reserving spill slot 0 for move cycles.
