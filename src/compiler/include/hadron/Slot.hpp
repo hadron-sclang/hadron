@@ -1,5 +1,5 @@
-#ifndef SRC_RUNTIME_SLOT_HPP_
-#define SRC_RUNTIME_SLOT_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_SLOT_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_SLOT_HPP_
 
 #include "hadron/Hash.hpp"
 #include "hadron/Type.hpp"
@@ -74,4 +74,4 @@ static_assert(sizeof(Slot) == 16);
 
 } // namespace hadron
 
-#endif // SRC_RUNTIME_SLOT_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_SLOT_HPP_

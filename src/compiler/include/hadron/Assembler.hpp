@@ -1,5 +1,5 @@
-#ifndef SRC_INCLUDE_HADRON_ASSEMBLER_HPP_
-#define SRC_INCLUDE_HADRON_ASSEMBLER_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_ASSEMBLER_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_ASSEMBLER_HPP_
 
 #include <memory>
 #include <string_view>
@@ -29,4 +29,4 @@ private:
 
 } // namespace hadron
 
-#endif // SRC_INCLUDE_HADRON_ASSEMBLER_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_ASSEMBLER_HPP_

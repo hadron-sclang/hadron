@@ -1,5 +1,5 @@
-#ifndef SRC_INCLUDE_HADRON_JIT_HPP_
-#define SRC_INCLUDE_HADRON_JIT_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_JIT_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_JIT_HPP_
 
 #include <cstddef>
 #include <memory>
@@ -111,4 +111,4 @@ protected:
 
 } // namespace hadron
 
-#endif // SRC_INCLUDE_HADRON_JIT_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_JIT_HPP_

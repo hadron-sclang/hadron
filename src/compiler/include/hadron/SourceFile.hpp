@@ -1,5 +1,5 @@
-#ifndef SRC_INCLUDE_HADRON_SOURCE_FILE_HPP_
-#define SRC_INCLUDE_HADRON_SOURCE_FILE_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_SOURCE_FILE_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_SOURCE_FILE_HPP_
 
 #include <string>
 #include <string_view>
@@ -28,4 +28,4 @@ private:
 
 } // namespace hadron
 
-#endif  // SRC_INCLUDE_HADRON_SOURCE_FILE_HPP_
+#endif  // SRC_COMPILER_INCLUDE_HADRON_SOURCE_FILE_HPP_

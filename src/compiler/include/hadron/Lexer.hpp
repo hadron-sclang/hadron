@@ -1,5 +1,5 @@
-#ifndef SRC_INCLUDE_HADRON_LEXER_HPP_
-#define SRC_INCLUDE_HADRON_LEXER_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_LEXER_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_LEXER_HPP_
 
 #include "hadron/Token.hpp"
 
@@ -36,4 +36,4 @@ private:
 
 } // namespace hadron
 
-#endif // SRC_INCLUDE_HADRON_LEXER_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_LEXER_HPP_

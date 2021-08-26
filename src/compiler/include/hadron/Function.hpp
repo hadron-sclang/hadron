@@ -1,5 +1,5 @@
-#ifndef SRC_HADRON_INCLUDE_FUNCTION_HPP_
-#define SRC_HADRON_INCLUDE_FUNCTION_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_FUNCTION_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_FUNCTION_HPP_
 
 #include "hadron/Hash.hpp"
 #include "hadron/JITMemoryArena.hpp"
@@ -40,4 +40,4 @@ struct Function {
 
 }
 
-#endif // SRC_HADRON_INCLUDE_FUNCTION_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_FUNCTION_HPP_

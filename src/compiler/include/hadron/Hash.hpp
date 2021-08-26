@@ -1,5 +1,5 @@
-#ifndef SRC_INCLUDE_HADRON_HASH_HPP_
-#define SRC_INCLUDE_HADRON_HASH_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_HASH_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_HASH_HPP_
 
 #include <functional>
 #include <string_view>
@@ -15,4 +15,4 @@ Hash hash(const char* symbol, size_t length);
 
 }  // namespace hadron
 
-#endif // SRC_INCLUDE_HADRON_HASH_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_HASH_HPP_

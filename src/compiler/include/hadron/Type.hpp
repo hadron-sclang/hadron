@@ -1,5 +1,5 @@
-#ifndef SRC_TYPE_HPP_
-#define SRC_TYPE_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_TYPE_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_TYPE_HPP_
 
 #include <cstdint>
 
@@ -29,4 +29,4 @@ enum Type : std::uint32_t {
 
 } // namespace hadron
 
-#endif // SRC_TYPE_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_TYPE_HPP_

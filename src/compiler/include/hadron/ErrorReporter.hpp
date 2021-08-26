@@ -1,5 +1,5 @@
-#ifndef SRC_ERROR_REPORTER_HPP_
-#define SRC_ERROR_REPORTER_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_ERROR_REPORTER_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_ERROR_REPORTER_HPP_
 
 #include <string>
 #include <vector>
@@ -45,4 +45,4 @@ private:
 
 } // namespace hadron
 
-#endif // SRC_ERROR_REPORTER_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_ERROR_REPORTER_HPP_

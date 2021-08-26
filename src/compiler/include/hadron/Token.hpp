@@ -1,5 +1,5 @@
-#ifndef SRC_INCLUDE_HADRON_TOKEN_HPP_
-#define SRC_INCLUDE_HADRON_TOKEN_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_TOKEN_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_TOKEN_HPP_
 
 #include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
@@ -99,4 +99,4 @@ struct Token {
 
 } // namespace hadron
 
-#endif // SRC_INCLUDE_HADRON_TOKEN_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_TOKEN_HPP_

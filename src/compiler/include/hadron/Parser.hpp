@@ -1,5 +1,5 @@
-#ifndef SRC_INCLUDE_HADRON_PARSER_HPP_
-#define SRC_INCLUDE_HADRON_PARSER_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_PARSER_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_PARSER_HPP_
 
 #include "hadron/Slot.hpp"
 #include "hadron/Token.hpp"
@@ -275,4 +275,4 @@ private:
 
 } // namespace hadron
 
-#endif // SRC_INCLUDE_HADRON_PARSER_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_PARSER_HPP_
