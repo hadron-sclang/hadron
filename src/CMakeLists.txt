@@ -13,6 +13,7 @@ string(TIMESTAMP TIMEZ UTC HADRON_BUILD_TIMESTAMP)
 configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp")
 
 add_subdirectory(compiler)
+add_subdirectory(server)
 
 #############
 # unittests
@@ -40,4 +41,15 @@ add_executable(vistool
 target_link_libraries(vistool
     gflags
     hadron
+)
+
+#############
+# hlangd
+add_executable(hlangd
+    hlangd.cpp
+)
+
+target_link_libraries(hlangd
+    gflags
+    server
 )
