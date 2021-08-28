@@ -11,8 +11,8 @@ following:
  * GNU Autotools, specifically automake and autoconf
  * GNU Libtool
  * GNU Bison newer than 3.2
+ * gperf (server dependency)
 
 All of which can be installed with the command:
 
-`brew install cmake automake autoconf libtool bison`
-
+`brew install cmake automake autoconf libtool bison gperf`

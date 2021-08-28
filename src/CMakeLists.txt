@@ -7,6 +7,7 @@ include(ExternalProject)
 include_directories(
     "internal"
     "${INSTALL_EXT}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 string(TIMESTAMP TIMEZ UTC HADRON_BUILD_TIMESTAMP)
