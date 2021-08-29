@@ -1,5 +1,6 @@
 #include "server/JSONTransport.hpp"
 
+#include "server/HadronServer.hpp"
 #include "server/LSPMethods.hpp"
 
 #include "fmt/format.h"
@@ -11,102 +12,53 @@
 #include <array>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
-
-namespace {
-
-// Parses the HTTP-style headers used in JSON-RPC. Ignores all but 'Content-Length:', which it returns the value of.
-size_t readHeaders(FILE* inputStream) {
-    std::array<char, 256> headerBuf;
-    size_t contentLength = 0;
-
-    while (!feof(inputStream)) {
-        if (int fileError = ferror(inputStream)) {
-            SPDLOG_ERROR("File error on input stream while reading headers.");
-            return 0;
-        }
-
-        fgets(headerBuf.data(), 256, inputStream);
-        std::string headerLine(headerBuf.data());
-
-        if (headerLine.size() == 0) {
-            continue;
-        }
-
-        // Header lines longer than 256 characters are parse errors for now.
-        if (headerLine.size() == 256 && headerLine.back() != '\n') {
-            SPDLOG_ERROR("Received a header line longer than 256 characters.");
-            return 0;
-        }
-
-        static const std::string lengthHeader("Content-Length:");
-        if (headerLine.substr(0, lengthHeader.size()) == lengthHeader) {
-            contentLength = strtoll(headerLine.data() + lengthHeader.size(), nullptr, 10);
-        } else if (headerLine.size() == 2 && headerLine.front() == '\r') {
-            // empty line with only \r\n indicates end of headers
-            return contentLength;
-        }
-        // some other header here, don't bother parsing
-    }
-
-    SPDLOG_INFO("Encountered EOF during header parsing.");
-    return 0;
-}
-
-// Serialize and send a JSON-RPC message to the client.
-void sendMessage(rapidjson::Document& document, FILE* outputStream) {
-    // Serialize the document to memory to compute its length, needed for the JSON-RPC header.
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    document.Accept(writer);
-    std::string output = fmt::format("Content-Length: {}\r\n\r\n{}", buffer.GetSize(), buffer.GetString());
-    fwrite(output.data(), 1, output.size(), outputStream);
-}
-
-bool handleMethod(const std::string& methodName, std::optional<server::lsp::ID> /* id */,
-        rapidjson::Document& /* document */) {
-    auto method = server::lsp::getMethodNamed(methodName.data(), methodName.size());
-
-    switch(method) {
-    case server::lsp::Method::kNotFound:
-        SPDLOG_ERROR("Failed to match method '{}' to supported name.", methodName);
-        return false;
-
-    case server::lsp::Method::kInitialize: {
-    } break;
-
-    case server::lsp::Method::kInitialized:
-        break;
-    case server::lsp::Method::kShutdown:
-        break;
-    case server::lsp::Method::kExit:
-        break;
-    case server::lsp::Method::kLogTrace:
-        break;
-    case server::lsp::Method::kSetTrace:
-        break;
-    }
-
-    return true;
-}
-
-bool handleResponse(server::lsp::ID /* id */, rapidjson::Document& /* document */) {
-    return true;
-}
-
-}
 
 namespace server {
 
-JSONTransport::JSONTransport(FILE* inputStream, FILE* outputStream):
-    m_inputStream(inputStream),
-    m_outputStream(outputStream) {}
+class JSONTransport::JSONTransportImpl {
+public:
+    JSONTransportImpl() = delete;
+    JSONTransportImpl(FILE* inputStream, FILE* outputStream);
+    ~JSONTransportImpl() = default;
 
-int JSONTransport::runLoop() {
+    void setServer(HadronServer* server) { m_server = server; }
+    int runLoop();
+
+    enum ErrorCode : int {
+        kParseError = -32700,
+        kInvalidRequest = -32600,
+        kMethodNotFound = -32601,
+        kInvalidParams = -32602,
+        kInternalError = -32603,
+        kServerNotInitialized = -32002,
+        kUnknownErrorCode = -32001,
+        kContentModified = -32801,
+        kRequestCanceled = -32800
+    };
+    void sendErrorResponse(std::optional<lsp::ID> id, ErrorCode errorCode, std::string errorMessage);
+
+private:
+    size_t readHeaders();
+    void sendMessage(rapidjson::Document& document);
+    bool handleMethod(const std::string& methodName, std::optional<lsp::ID> id, rapidjson::Document& document);
+    bool handleResponse(lsp::ID id, rapidjson::Document& document);
+    void encodeId(std::optional<lsp::ID> id, rapidjson::Document& document);
+
+    FILE* m_inputStream;
+    FILE* m_outputStream;
+    HadronServer* m_server;
+};
+
+JSONTransport::JSONTransportImpl::JSONTransportImpl(FILE* inputStream, FILE* outputStream):
+        m_inputStream(inputStream), m_outputStream(outputStream), m_server(nullptr) {}
+
+int JSONTransport::JSONTransportImpl::runLoop() {
     std::vector<char> json;
 
     while (!feof(m_inputStream)) {
-        size_t contentLength = readHeaders(m_inputStream);
+        size_t contentLength = readHeaders();
         if (contentLength == 0) {
             continue;
         }
@@ -127,7 +79,8 @@ int JSONTransport::runLoop() {
         rapidjson::Document document;
         rapidjson::ParseResult parseResult = document.Parse(json.data());
         if (!parseResult) {
-            SPDLOG_ERROR("Failed to parse input JSON.");
+            SPDLOG_WARN("Failed to parse input JSON.");
+
             continue;
         }
 
@@ -175,12 +128,145 @@ int JSONTransport::runLoop() {
         } else {
             handleMethod(method.value(), id, document);
         }
-
-        sendMessage(document, m_outputStream);
     }
 
     SPDLOG_INFO("Normal exit from processing loop.");
     return 0;
+}
+
+void JSONTransport::JSONTransportImpl::sendErrorResponse(std::optional<lsp::ID> id, ErrorCode errorCode,
+        std::string errorMessage) {
+    rapidjson::Document document;
+    document.SetObject();
+    document.AddMember("jsonrpc", rapidjson::Value("2.0"), document.GetAllocator());
+    encodeId(id, document);
+    rapidjson::Value responseError;
+    responseError.SetObject();
+    responseError.AddMember("code", rapidjson::Value(static_cast<int>(errorCode)), document.GetAllocator());
+    rapidjson::Value messageString;
+    messageString.SetString(errorMessage.data(), document.GetAllocator());
+    responseError.AddMember("message", messageString, document.GetAllocator());
+    document.AddMember("error", responseError, document.GetAllocator());
+    sendMessage(document);
+}
+
+// Parses the HTTP-style headers used in JSON-RPC. Ignores all but 'Content-Length:', which it returns the value of.
+size_t JSONTransport::JSONTransportImpl::readHeaders() {
+    std::array<char, 256> headerBuf;
+    size_t contentLength = 0;
+
+    while (!feof(m_inputStream)) {
+        if (int fileError = ferror(m_inputStream)) {
+            SPDLOG_ERROR("File error on input stream while reading headers.");
+            return 0;
+        }
+
+        fgets(headerBuf.data(), 256, m_inputStream);
+        std::string headerLine(headerBuf.data());
+
+        if (headerLine.size() == 0) {
+            continue;
+        }
+
+        // Header lines longer than 256 characters are parse errors for now.
+        if (headerLine.size() == 256 && headerLine.back() != '\n') {
+            SPDLOG_ERROR("Received a header line longer than 256 characters.");
+            return 0;
+        }
+
+        static const std::string lengthHeader("Content-Length:");
+        if (headerLine.substr(0, lengthHeader.size()) == lengthHeader) {
+            contentLength = strtoll(headerLine.data() + lengthHeader.size(), nullptr, 10);
+        } else if (headerLine.size() == 2 && headerLine.front() == '\r') {
+            // empty line with only \r\n indicates end of headers
+            return contentLength;
+        }
+        // some other header here, don't bother parsing
+    }
+
+    SPDLOG_INFO("Encountered EOF during header parsing.");
+    return 0;
+}
+
+
+// Serialize and send a JSON-RPC message to the client.
+void JSONTransport::JSONTransportImpl::sendMessage(rapidjson::Document& document) {
+    // Serialize the document to memory to compute its length, needed for the JSON-RPC header.
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    document.Accept(writer);
+    std::string output = fmt::format("Content-Length: {}\r\n\r\n{}", buffer.GetSize(), buffer.GetString());
+    fwrite(output.data(), 1, output.size(), m_outputStream);
+}
+
+
+bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodName, std::optional<lsp::ID> id,
+        rapidjson::Document& /* document */) {
+    auto method = server::lsp::getMethodNamed(methodName.data(), methodName.size());
+
+    // Spec calls to reject all messages sent to server before kInitialize
+    if (m_server->state() == HadronServer::ServerState::kUninitialized && method != lsp::Method::kInitialize) {
+        SPDLOG_WARN("Rejecting method {}, server not initialized.", methodName);
+        sendErrorResponse(id, ErrorCode::kServerNotInitialized, "server not initialized");
+    }
+
+    switch(method) {
+    case server::lsp::Method::kNotFound:
+        SPDLOG_ERROR("Failed to match method '{}' to supported name.", methodName);
+        return false;
+
+    case server::lsp::Method::kInitialize: {
+    } break;
+
+    case server::lsp::Method::kInitialized:
+        break;
+    case server::lsp::Method::kShutdown:
+        break;
+    case server::lsp::Method::kExit:
+        break;
+    case server::lsp::Method::kLogTrace:
+        break;
+    case server::lsp::Method::kSetTrace:
+        break;
+    }
+
+    return true;
+}
+
+bool JSONTransport::JSONTransportImpl::handleResponse(server::lsp::ID /* id */, rapidjson::Document& /* document */) {
+    return true;
+}
+
+void JSONTransport::JSONTransportImpl::encodeId(std::optional<lsp::ID> id, rapidjson::Document& document) {
+    if (id) {
+        if (std::holds_alternative<int64_t>(*id)) {
+            document.AddMember("id", rapidjson::Value(std::get<int64_t>(*id)), document.GetAllocator());
+        } else {
+            assert(std::holds_alternative<std::string>(*id));
+            rapidjson::Value idString;
+            idString.SetString(std::get<std::string>(*id).data(), document.GetAllocator());
+            document.AddMember("id", idString, document.GetAllocator());
+        }
+    } else {
+        // Encode id with a value of null.
+        document.AddMember("id", rapidjson::Value(), document.GetAllocator());
+    }
+}
+
+//////////////////
+// JSONTransport
+JSONTransport::JSONTransport(FILE* inputStream, FILE* outputStream):
+    m_impl(std::make_unique<JSONTransportImpl>(inputStream, outputStream)) {}
+
+// Default destructor in header complains about incomplete Impl type so declare it here and explicity delete the Impl.
+JSONTransport::~JSONTransport() { m_impl.reset(); }
+
+void JSONTransport::setServer(HadronServer* server) {
+    m_impl->setServer(server);
+}
+
+int JSONTransport::runLoop() {
+    return m_impl->runLoop();
 }
 
 } // namespace server

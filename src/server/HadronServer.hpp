@@ -14,10 +14,16 @@ public:
 
     int runLoop();
 
-    // call
+    enum ServerState {
+        kUninitialized,
+        kRunning,
+        kShutdownRequested,
+    };
+    ServerState state() const { return m_state; }
 
 private:
     std::unique_ptr<JSONTransport> m_jsonTransport;
+    ServerState m_state;
 };
 
 } // namespace server
