@@ -8,10 +8,11 @@ include_directories(
     "internal"
     "${INSTALL_EXT}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
-string(TIMESTAMP TIMEZ UTC HADRON_BUILD_TIMESTAMP)
-configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.hpp")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
+configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
 
 add_subdirectory(compiler)
 add_subdirectory(server)

@@ -6,6 +6,7 @@
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
+#include "spdlog/spdlog.h"
 
 #include <array>
 #include <optional>
@@ -20,8 +21,8 @@ size_t readHeaders(FILE* inputStream) {
     size_t contentLength = 0;
 
     while (!feof(inputStream)) {
-        if (ferror(inputStream)) {
-            // LOGGING
+        if (int fileError = ferror(inputStream)) {
+            SPDLOG_ERROR("File error on input stream while reading headers.");
             return 0;
         }
 
@@ -33,8 +34,8 @@ size_t readHeaders(FILE* inputStream) {
         }
 
         // Header lines longer than 256 characters are parse errors for now.
-        if (headerLine.back() != '\n') {
-            // LOGGING
+        if (headerLine.size() == 256 && headerLine.back() != '\n') {
+            SPDLOG_ERROR("Received a header line longer than 256 characters.");
             return 0;
         }
 
@@ -48,7 +49,7 @@ size_t readHeaders(FILE* inputStream) {
         // some other header here, don't bother parsing
     }
 
-    // LOGGING - EOF encountered during header parsing, this is an error condition
+    SPDLOG_INFO("Encountered EOF during header parsing.");
     return 0;
 }
 
@@ -62,14 +63,18 @@ void sendMessage(rapidjson::Document& document, FILE* outputStream) {
     fwrite(output.data(), 1, output.size(), outputStream);
 }
 
-bool handleMethod(const std::string& methodName, std::optional<server::lsp::ID> id, rapidjson::Document& document) {
+bool handleMethod(const std::string& methodName, std::optional<server::lsp::ID> /* id */,
+        rapidjson::Document& /* document */) {
     auto method = server::lsp::getMethodNamed(methodName.data(), methodName.size());
 
     switch(method) {
     case server::lsp::Method::kNotFound:
+        SPDLOG_ERROR("Failed to match method '{}' to supported name.", methodName);
         return false;
-    case server::lsp::Method::kInitialize:
-        break;
+
+    case server::lsp::Method::kInitialize: {
+    } break;
+
     case server::lsp::Method::kInitialized:
         break;
     case server::lsp::Method::kShutdown:
@@ -81,10 +86,12 @@ bool handleMethod(const std::string& methodName, std::optional<server::lsp::ID> 
     case server::lsp::Method::kSetTrace:
         break;
     }
+
+    return true;
 }
 
-bool handleResponse(lsp::ID /* id */, rapidjson::Document& document) {
-
+bool handleResponse(server::lsp::ID /* id */, rapidjson::Document& /* document */) {
+    return true;
 }
 
 }
@@ -101,25 +108,26 @@ int JSONTransport::runLoop() {
     while (!feof(m_inputStream)) {
         size_t contentLength = readHeaders(m_inputStream);
         if (contentLength == 0) {
-            return -1;
+            continue;
         }
+
         // JSON objects longer than a megabyte fail to parse.
         if (contentLength > 1024 * 1024) {
-            // LOGGING
+            SPDLOG_ERROR("Rejecting Content-Length: {} > 1 MB.", contentLength);
             return -1;
         }
 
         json.resize(contentLength + 1);
         size_t bytesRead = fread(json.data(), 1, contentLength, m_inputStream);
         if (bytesRead == 0 || ferror(m_inputStream)) {
-            // LOGGING
+            SPDLOG_ERROR("Input read failure.");
             return -1;
         }
 
         rapidjson::Document document;
         rapidjson::ParseResult parseResult = document.Parse(json.data());
         if (!parseResult) {
-            // LOGGING
+            SPDLOG_ERROR("Failed to parse input JSON.");
             continue;
         }
 
@@ -128,7 +136,7 @@ int JSONTransport::runLoop() {
             !document.HasMember("jsonrpc") ||
             !document["jsonrpc"].IsString() ||
             std::strcmp(document["jsonprc"].GetString(), "2.0") != 0) {
-            // LOGGING
+            SPDLOG_WARN("Input JSON not object or missing 'jsonrpc' key.");
             continue;
         }
 
@@ -139,7 +147,7 @@ int JSONTransport::runLoop() {
             } else if (document["id"].IsNumber()) {
                 id = document["id"].GetInt64();
             } else {
-                // malformed ID
+                SPDLOG_WARN("Input JSON has invalid type for 'id' key.");
                 continue;
             }
         }
@@ -148,7 +156,7 @@ int JSONTransport::runLoop() {
             if (document["method"].IsString()) {
                 method = std::string(document["method"].GetString());
             } else {
-                // malformed method
+                SPDLOG_WARN("Invalid tgpe for 'method' key.");
                 continue;
             }
         }
@@ -159,9 +167,10 @@ int JSONTransport::runLoop() {
         // method    | notification | request  |
         if (!method) {
             if (!id) {
-                // LOGGING invalid block
+                SPDLOG_WARN("Received message with neither 'method' or 'id' keys.");
                 continue;
             }
+
             handleResponse(id.value(), document);
         } else {
             handleMethod(method.value(), id, document);
@@ -170,7 +179,7 @@ int JSONTransport::runLoop() {
         sendMessage(document, m_outputStream);
     }
 
-    // EOF means normal exit of loop, return.
+    SPDLOG_INFO("Normal exit from processing loop.");
     return 0;
 }
 

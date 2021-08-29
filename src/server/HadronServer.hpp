@@ -9,7 +9,10 @@ class JSONTransport;
 
 class HadronServer {
 public:
+    HadronServer() = delete;
     HadronServer(std::unique_ptr<JSONTransport> jsonTransport);
+
+    int runLoop();
 
     // call
 

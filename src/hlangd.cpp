@@ -1,16 +1,30 @@
 // hlangd is the Hadron Language Server, which communicates via JSON-RPCv2 via stdin/stdout.
 #include "hadron/Interpreter.hpp"
+#include "internal/BuildInfo.hpp"
+#include "server/HadronServer.hpp"
 #include "server/JSONTransport.hpp"
 
 #include "gflags/gflags.h"
+#include "spdlog/sinks/basic_file_sink.h"
+#include "spdlog/spdlog.h"
 
+#include <memory>
 #include <stdio.h>
+
+DEFINE_string(logFile, "hlangdLog.txt", "Path and file name of log file.");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
+    auto logger = spdlog::basic_logger_mt("file", FLAGS_logFile);
+    spdlog::set_default_logger(logger);
+    SPDLOG_INFO("hlangd startup. Hadron version {}, git branch {}@{}, compiled by {} version {}.",
+        hadron::kHadronVersion, hadron::kHadronBranch, hadron::kHadronCommitHash, hadron::kHadronCompilerName,
+        hadron::kHadronCompilerVersion);
 
-    server::JSONTransport jsonTransport(stdin, stdout);
-    int returnCode = jsonTransport.runLoop();
+    auto transport = std::make_unique<server::JSONTransport>(stdin, stdout);
+    server::HadronServer server(std::move(transport));
+
+    int returnCode = server.runLoop();
 
     return returnCode;
 }

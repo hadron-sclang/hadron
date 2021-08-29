@@ -1,6 +1,8 @@
 #############
 # libserver
-include_directories(../)
+include_directories(
+    ../
+)
 
 find_program(gperf_program gperf)
 if (NOT gperf_program)
