@@ -17,9 +17,8 @@ int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
     auto logger = spdlog::basic_logger_mt("file", FLAGS_logFile);
     spdlog::set_default_logger(logger);
-    SPDLOG_INFO("hlangd startup. Hadron version {}, git branch {}@{}, compiled by {} version {}.",
-        hadron::kHadronVersion, hadron::kHadronBranch, hadron::kHadronCommitHash, hadron::kHadronCompilerName,
-        hadron::kHadronCompilerVersion);
+    SPDLOG_INFO("Hadron version {}, git branch {}@{}, compiled by {} version {}.", hadron::kHadronVersion,
+        hadron::kHadronBranch, hadron::kHadronCommitHash, hadron::kHadronCompilerName, hadron::kHadronCompilerVersion);
 
     auto transport = std::make_unique<server::JSONTransport>(stdin, stdout);
     server::HadronServer server(std::move(transport));
