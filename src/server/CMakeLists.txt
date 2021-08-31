@@ -2,6 +2,7 @@
 # libserver
 include_directories(
     ../
+    "${CMAKE_CURRENT_BINARY_DIR}/../"
 )
 
 find_program(gperf_program gperf)

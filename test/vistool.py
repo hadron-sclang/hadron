@@ -3,16 +3,20 @@
 import argparse
 import json
 import subprocess
+import time
 
 class HLangDClient:
     """Wrapper class around the hlangd server process."""
     def __init__(self):
         self.hlangd = None
         self.receiveBuffer = ""
+        self.serverName = None
+        self.serverVersion = None
 
     def _sendMessage(self, jsonString):
-        input = "Content-Length: {}\r\n\r\n{}".format(len(jsonString), jsonString).encode('utf-8')
+        input = "Content-Length: {}\r\n\r\n{}\n".format(len(jsonString), jsonString).encode('utf-8')
         self.hlangd.stdin.write(input)
+        self.hlangd.stdin.flush()
 
     # Lowest level receive function, returns string data received from stdout.
     def _receiveData(self):
@@ -29,19 +33,17 @@ class HLangDClient:
         data = self._receiveData()
         offset = 0
         contentLength = 0
-        print(data)
         while True:
             nextOffset = data.find("\r\n", offset)
-            print(nextOffset)
             while nextOffset == -1:
                 data += self._receiveData()
                 nextOffset = data.find("\r\n", offset)
-            line = data[offset:nextOffset + 2]
-            if line.startswith('Content-Length:'):
-                contentLength = int(line[len('Content-Length:'):])
-            elif len(line) == 2 and data[nextOffset + 2:nextOffset + 4] == "\r\n":
-                offset = nextOffset + 4
+            line = data[offset:nextOffset + 2].strip()
+            if len(line) == 0:
+                offset = nextOffset + 2
                 break
+            elif line.startswith('Content-Length:'):
+                contentLength = int(line[len('Content-Length:'):])
             offset = nextOffset + 2
 
         if contentLength == 0:
@@ -60,17 +62,31 @@ class HLangDClient:
 
         return json.loads(data)
 
+    # returns True if connection established and server initialized, False otherwise.
     def connect(self, hlangdPath):
         self.hlangd = subprocess.Popen([hlangdPath], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-
+        # TODO: find a better way to wait for hlangd to open. Without this sleep there's a race where the python can
+        # send the initialize message too early, so it is never received by hlangd, which means that the script
+        # deadlocks waiting for a response to the lost init message.
+        time.sleep(1)
         initialize = json.dumps({'jsonrpc': '2.0', 'id': 0, 'method': 'initialize', 'params': {}})
         self._sendMessage(initialize)
         result = self._receiveMessage()
-        print(result)
+        if not result or 'result' not in result:
+            print("recevied bad result from initalize response")
+            return False
+        serverInfo = result['result']['serverInfo']
+        self.serverName = serverInfo['name']
+        self.serverVersion = serverInfo['version']
+        self._sendMessage(json.dumps({'jsonrpc': '2.0', 'method': 'initialized'}))
+        return True
 
 def main(args):
     client = HLangDClient()
-    client.connect(args.hlangdPath)
+    if not client.connect(args.hlangdPath):
+        return -1
+    print('connected to {} version {}'.format(client.serverName, client.serverVersion))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hadron visualization tool.')

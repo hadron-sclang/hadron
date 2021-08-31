@@ -1,5 +1,6 @@
 #include "server/JSONTransport.hpp"
 
+#include "internal/BuildInfo.hpp"
 #include "server/HadronServer.hpp"
 #include "server/LSPMethods.hpp"
 
@@ -61,7 +62,7 @@ int JSONTransport::JSONTransportImpl::runLoop() {
 
         json.resize(contentLength + 1);
         size_t bytesRead = 0;
-        while (bytesRead != contentLength) {
+        while (bytesRead < contentLength) {
             size_t read = fread(json.data() + bytesRead, 1, contentLength - bytesRead, m_inputStream);
             if (read == 0 || ferror(m_inputStream)) {
                 SPDLOG_CRITICAL("Input read failure.");
@@ -69,6 +70,7 @@ int JSONTransport::JSONTransportImpl::runLoop() {
             }
             bytesRead += read;
         }
+        json[contentLength] = '\0';
         SPDLOG_TRACE("Read {} JSON bytes", contentLength);
 
         rapidjson::Document document;
@@ -172,7 +174,8 @@ void JSONTransport::JSONTransportImpl::sendInitializeResult(std::optional<lsp::I
     rapidjson::Value serverInfo;
     serverInfo.SetObject();
     serverInfo.AddMember("name", rapidjson::Value("hlangd"), document.GetAllocator());
-    serverInfo.AddMember("version", rapidjson::Value("0.0.1"), document.GetAllocator());
+    serverInfo.AddMember("version", rapidjson::Value(hadron::kHadronVersion, document.GetAllocator()),
+            document.GetAllocator());
     result.AddMember("serverInfo", serverInfo, document.GetAllocator());
     document.AddMember("result", result, document.GetAllocator());
     sendMessage(document);
@@ -224,8 +227,9 @@ void JSONTransport::JSONTransportImpl::sendMessage(rapidjson::Document& document
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     document.Accept(writer);
-    std::string output = fmt::format("Content-Length: {}\r\n\r\n{}", buffer.GetSize(), buffer.GetString());
-    fwrite(output.data(), 1, output.size(), m_outputStream);
+    std::string output = fmt::format("Content-Length: {}\r\n\r\n{}\n", buffer.GetSize(), buffer.GetString());
+    std::fwrite(output.data(), 1, output.size(), m_outputStream);
+    std::fflush(m_outputStream);
 }
 
 bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodName, std::optional<lsp::ID> id,
@@ -246,6 +250,7 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
         return false;
 
     case server::lsp::Method::kInitialize: {
+        SPDLOG_TRACE("handleInitialize");
         if (!document.HasMember("params") || !document["params"].IsObject()) {
             sendErrorResponse(id, ErrorCode::kInvalidParams, "Absent or malformed params key in 'initialize' method.");
             return false;
@@ -254,9 +259,12 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
     } break;
 
     case server::lsp::Method::kInitialized:
+        SPDLOG_TRACE("initalized");
         break;
+
     case server::lsp::Method::kShutdown:
         break;
+
     case server::lsp::Method::kExit:
         break;
     case server::lsp::Method::kLogTrace:

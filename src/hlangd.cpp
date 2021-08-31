@@ -18,6 +18,7 @@ DEFINE_bool(traceLogs, true, "Set log output level to trace (very verbose).");
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
     auto logger = spdlog::basic_logger_mt("file", FLAGS_logFile);
+    logger->flush_on(spdlog::level::info);
     if (FLAGS_debugLogs) {
         logger->set_level(spdlog::level::level_enum::debug);
     }
