@@ -45,6 +45,7 @@ JSONTransport::JSONTransportImpl::JSONTransportImpl(FILE* inputStream, FILE* out
 
 int JSONTransport::JSONTransportImpl::runLoop() {
     std::vector<char> json;
+    SPDLOG_INFO("runLoop entry");
 
     while (!feof(m_inputStream)) {
         size_t contentLength = readHeaders();
@@ -59,11 +60,16 @@ int JSONTransport::JSONTransportImpl::runLoop() {
         }
 
         json.resize(contentLength + 1);
-        size_t bytesRead = fread(json.data(), 1, contentLength, m_inputStream);
-        if (bytesRead == 0 || ferror(m_inputStream)) {
-            SPDLOG_CRITICAL("Input read failure.");
-            return -1;
+        size_t bytesRead = 0;
+        while (bytesRead != contentLength) {
+            size_t read = fread(json.data() + bytesRead, 1, contentLength - bytesRead, m_inputStream);
+            if (read == 0 || ferror(m_inputStream)) {
+                SPDLOG_CRITICAL("Input read failure.");
+                return -1;
+            }
+            bytesRead += read;
         }
+        SPDLOG_TRACE("Read {} JSON bytes", contentLength);
 
         rapidjson::Document document;
         rapidjson::ParseResult parseResult = document.Parse(json.data());
@@ -71,16 +77,28 @@ int JSONTransport::JSONTransportImpl::runLoop() {
             sendErrorResponse(std::nullopt, ErrorCode::kParseError, "Failed to parse input JSON.");
             continue;
         }
+        SPDLOG_TRACE("Parsed input JSON.");
 
         // Validate some basic properties of the received JSON-RPC object
-        if (!document.IsObject() ||
-            !document.HasMember("jsonrpc") ||
-            !document["jsonrpc"].IsString() ||
-            std::strcmp(document["jsonprc"].GetString(), "2.0") != 0) {
-            sendErrorResponse(std::nullopt, ErrorCode::kInvalidRequest,
-                    "Input JSON not object or missing 'jsonrpc' key.");
+        if (!document.IsObject()) {
+            sendErrorResponse(std::nullopt, ErrorCode::kInvalidRequest, "Input JSON is not a JSON object.");
             continue;
         }
+        if (!document.HasMember("jsonrpc")) {
+            sendErrorResponse(std::nullopt, ErrorCode::kInvalidRequest, "Input JSON missing 'jsonrpc' key.");
+            continue;
+        }
+        if (!document["jsonrpc"].IsString()) {
+            sendErrorResponse(std::nullopt, ErrorCode::kInvalidRequest, "Input 'jsonrpc' key is not a string.");
+            continue;
+        }
+        rapidjson::Value& jsonrpc = document["jsonrpc"];
+        if (std::strcmp(jsonrpc.GetString(), "2.0") != 0) {
+            sendErrorResponse(std::nullopt, ErrorCode::kInvalidRequest, fmt::format(
+                    "Unsupported 'jsonrpc' value of '{}'.", jsonrpc.GetString()));
+            continue;
+        }
+        SPDLOG_TRACE("Got valid JSONRPC.");
 
         std::optional<lsp::ID> id;
         if (document.HasMember("id")) {
@@ -187,8 +205,10 @@ size_t JSONTransport::JSONTransportImpl::readHeaders() {
         static const std::string lengthHeader("Content-Length:");
         if (headerLine.substr(0, lengthHeader.size()) == lengthHeader) {
             contentLength = strtoll(headerLine.data() + lengthHeader.size(), nullptr, 10);
+            SPDLOG_TRACE("Parsed Content-Length header with {} bytes", contentLength);
         } else if (headerLine.size() == 2 && headerLine.front() == '\r') {
             // empty line with only \r\n indicates end of headers
+            SPDLOG_TRACE("Parsed end of headers.");
             return contentLength;
         }
         // some other header here, don't bother parsing

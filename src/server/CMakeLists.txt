@@ -32,3 +32,16 @@ target_link_libraries(server
 target_include_directories(server PUBLIC
     ${RAPIDJSON_INCLUDE_DIR}
 )
+
+target_compile_options(server PUBLIC
+    -g
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Werror
+)
+
+target_compile_definitions(server PUBLIC
+    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
+    HADRON_64_BIT
+)

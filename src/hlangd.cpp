@@ -12,10 +12,18 @@
 #include <stdio.h>
 
 DEFINE_string(logFile, "hlangdLog.txt", "Path and file name of log file.");
+DEFINE_bool(debugLogs, false, "Set log output level to debug (verbose).");
+DEFINE_bool(traceLogs, true, "Set log output level to trace (very verbose).");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
     auto logger = spdlog::basic_logger_mt("file", FLAGS_logFile);
+    if (FLAGS_debugLogs) {
+        logger->set_level(spdlog::level::level_enum::debug);
+    }
+    if (FLAGS_traceLogs) {
+        logger->set_level(spdlog::level::level_enum::trace);
+    }
     spdlog::set_default_logger(logger);
     SPDLOG_INFO("Hadron version {}, git branch {}@{}, compiled by {} version {}.", hadron::kHadronVersion,
         hadron::kHadronBranch, hadron::kHadronCommitHash, hadron::kHadronCompilerName, hadron::kHadronCompilerVersion);

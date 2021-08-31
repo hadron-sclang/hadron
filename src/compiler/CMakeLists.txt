@@ -171,7 +171,7 @@ target_compile_options(hadron PUBLIC
 )
 
 target_compile_definitions(hadron PUBLIC
-    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG
+    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
     HADRON_64_BIT
 )
 
