@@ -13,7 +13,13 @@ enum Method {
     kShutdown,
     kExit,
     kLogTrace,
-    kSetTrace
+    kSetTrace,
+
+    // Hadron-specific extensions in the 'hadron/' method namespace
+    kHadronParseTree,
+    kHadronBlockFlow,
+    kHadronLinearBlock,
+    kHadronMachineCode
 };
 
 Method getMethodNamed(const char* name, size_t length);
