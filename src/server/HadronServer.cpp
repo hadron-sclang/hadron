@@ -1,6 +1,7 @@
 #include "server/HadronServer.hpp"
 
 #include "hadron/Interpreter.hpp"
+#include "hadron/SourceFile.hpp"
 #include "server/JSONTransport.hpp"
 
 namespace server {
@@ -24,6 +25,11 @@ void HadronServer::initialize(std::optional<lsp::ID> id) {
     }
     m_state = kRunning;
     m_jsonTransport->sendInitializeResult(id);
+}
+
+void HadronServer::hadronParseTree(const std::string& filePath) {
+    hadron::SourceFile sourceFile(filePath);
+    auto errorReporter = std::make_shared<hadron::ErrorReporter> errorReporter;
 }
 
 } // namespace server

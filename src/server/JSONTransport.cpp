@@ -6,6 +6,7 @@
 
 #include "fmt/format.h"
 #include "rapidjson/document.h"
+#include "rapidjson/pointer.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 #include "spdlog/spdlog.h"
@@ -243,6 +244,12 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
         return false;
     }
 
+    // Look for a params object if present, as many methods call for that.
+    rapidjson::Value* params = rapidjson::Pointer("/params").Get(document);
+    if (params && !params->IsObject()) {
+        params = nullptr;
+    }
+
     switch(method) {
     case server::lsp::Method::kNotFound:
         sendErrorResponse(id, ErrorCode::kMethodNotFound, fmt::format("Failed to match method '{}' to supported name.",
@@ -251,11 +258,11 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
 
     case server::lsp::Method::kInitialize: {
         SPDLOG_TRACE("handleInitialize");
-        if (!document.HasMember("params") || !document["params"].IsObject()) {
+        if (!params) {
             sendErrorResponse(id, ErrorCode::kInvalidParams, "Absent or malformed params key in 'initialize' method.");
             return false;
         }
-        handleInitialize(id, document["params"].GetObject());
+        handleInitialize(id, params->GetObject());
     } break;
 
     case server::lsp::Method::kInitialized:
@@ -264,12 +271,27 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
 
     case server::lsp::Method::kShutdown:
         break;
-
     case server::lsp::Method::kExit:
         break;
     case server::lsp::Method::kLogTrace:
         break;
     case server::lsp::Method::kSetTrace:
+        break;
+
+    case server::lsp::Method::kHadronParseTree: {
+        if (!params || !params->HasMember("uri") || !(*params)["uri"].IsString()) {
+            sendErrorResponse(id, ErrorCode::kInvalidParams, "Absent or malformed params key in 'hadron/parseTree' "
+                    "method.");
+            return false;
+        }
+        m_server->hadronParseTree((*params)["uri"].GetString());
+    } break;
+
+    case server::lsp::Method::kHadronBlockFlow:
+        break;
+    case server::lsp::Method::kHadronLinearBlock:
+        break;
+    case server::lsp::Method::kHadronMachineCode:
         break;
     }
 

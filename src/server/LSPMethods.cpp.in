@@ -28,6 +28,10 @@ shutdown,           server::lsp::Method::kShutdown
 exit,               server::lsp::Method::kExit
 $/logTrace,         server::lsp::Method::kLogTrace
 $/setTrace,         server::lsp::Method::kSetTrace
+hadron/parseTree,   server::lsp::Method::kHadronParseTree
+hadron/blockFlow,   server::lsp::Method::kHadronBlockFlow
+hadron/linearBlock, server::lsp::Method::kHadronLinearBlock
+hadron/machineCode, server::lsp::Method::kHadronMachineCode
 %%
 
 } // namespace
