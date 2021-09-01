@@ -16,3 +16,22 @@ export interface HadronParseTreeParams {
 	uri: DocumentUri;
 }
 ```
+
+response:
+
+```
+export interface HadronParseTreeResponse {
+	/**
+	 * The request id.
+	 */
+	id: integer;
+
+	/**
+	 * The root of the parse tree.
+	 */
+	parseTree: HadronParseTreeNode;
+}
+```
+
+Where `HadronParseTreeNode` is a recursive JSON object that contains a literal transcription of the contents of each
+node in the parse tree.

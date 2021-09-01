@@ -8,6 +8,12 @@
 #include <stdio.h>
 #include <string>
 
+namespace hadron {
+namespace parse {
+struct Node;
+}
+}
+
 namespace server {
 
 class HadronServer;
@@ -29,6 +35,7 @@ public:
 
     // Communication back from the server.
     enum ErrorCode : int {
+        // Standardized LSP Error Codes
         kParseError = -32700,
         kInvalidRequest = -32600,
         kMethodNotFound = -32601,
@@ -37,10 +44,18 @@ public:
         kServerNotInitialized = -32002,
         kUnknownErrorCode = -32001,
         kContentModified = -32801,
-        kRequestCanceled = -32800
+        kRequestCanceled = -32800,
+
+        // Hadron-specific error codes
+        kFileReadError = -1,
     };
     void sendErrorResponse(std::optional<lsp::ID> id, ErrorCode errorCode, std::string errorMessage);
+
+    // Responses from the server for LSP messages
     void sendInitializeResult(std::optional<lsp::ID> id);
+
+    // Responses from the server for Hadron messages
+    void sendParseTree(lsp::ID id, const hadron::parse::Node* node);
 
 private:
     // pIMPL pattern to keep JSON headers from leaking into rest of server namespace.

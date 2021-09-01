@@ -1,8 +1,13 @@
 #include "server/HadronServer.hpp"
 
+#include "hadron/ErrorReporter.hpp"
 #include "hadron/Interpreter.hpp"
+#include "hadron/Lexer.hpp"
+#include "hadron/Parser.hpp"
 #include "hadron/SourceFile.hpp"
 #include "server/JSONTransport.hpp"
+
+#include "fmt/format.h"
 
 namespace server {
 
@@ -27,9 +32,29 @@ void HadronServer::initialize(std::optional<lsp::ID> id) {
     m_jsonTransport->sendInitializeResult(id);
 }
 
-void HadronServer::hadronParseTree(const std::string& filePath) {
+void HadronServer::hadronParseTree(lsp::ID id, const std::string& filePath) {
     hadron::SourceFile sourceFile(filePath);
-    auto errorReporter = std::make_shared<hadron::ErrorReporter> errorReporter;
+    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
+    if (!sourceFile.read(errorReporter)) {
+        m_jsonTransport->sendErrorResponse(std::nullopt, JSONTransport::ErrorCode::kFileReadError,
+                fmt::format("Failed to read file {} for parsing.", filePath));
+        return;
+    }
+
+    auto code = sourceFile.codeView();
+    hadron::Lexer lexer(code, errorReporter);
+    if (!lexer.lex() || !errorReporter->ok()) {
+        // TODO: errorReporter starts reporting problems itself
+        return;
+    }
+
+    hadron::Parser parser(&lexer, errorReporter);
+    if (!parser.parse() || !errorReporter->ok()) {
+        // TODO: errors
+        return;
+    }
+
+    m_jsonTransport->sendParseTree(id, parser.root());
 }
 
 } // namespace server

@@ -26,7 +26,7 @@ public:
     void initialize(std::optional<lsp::ID> id);
 
     // Hadron commands
-    void hadronParseTree(const std::string& filePath);
+    void hadronParseTree(lsp::ID id, const std::string& filePath);
 
     enum ServerState {
         kUninitialized,

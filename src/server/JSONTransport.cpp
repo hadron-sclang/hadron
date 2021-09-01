@@ -1,5 +1,6 @@
 #include "server/JSONTransport.hpp"
 
+#include "hadron/Parser.hpp"
 #include "internal/BuildInfo.hpp"
 #include "server/HadronServer.hpp"
 #include "server/LSPMethods.hpp"
@@ -27,6 +28,7 @@ public:
     int runLoop();
     void sendErrorResponse(std::optional<lsp::ID> id, ErrorCode errorCode, std::string errorMessage);
     void sendInitializeResult(std::optional<lsp::ID> id);
+    void sendParseTree(lsp::ID id, const hadron::parse::Node* rootNode);
 
 private:
     size_t readHeaders();
@@ -182,6 +184,62 @@ void JSONTransport::JSONTransportImpl::sendInitializeResult(std::optional<lsp::I
     sendMessage(document);
 }
 
+void serializeParseNode(const hadron::parse::Node* node, rapidjson::Document& document,
+        std::vector<rapidjson::Pointer::Token>& path) {
+    rapidjson::Value& jsonNode = rapidjson::CreateValueByPointer(document,
+            rapidjson::Pointer(path.data(), path.size()), document.GetAllocator());
+    if (!node) {
+        return;
+    }
+    jsonNode.SetObject();
+    jsonNode.AddMember("tokenIndex", rapidjson::Value(static_cast<uint64_t>(node->tokenIndex)),
+            document.GetAllocator());
+    switch(node->nodeType) {
+    case hadron::parse::NodeType::kEmpty:
+        jsonNode.AddMember("nodeType", rapidjson::Value("Empty"), document.GetAllocator());
+        break;
+    case hadron::parse::NodeType::kVarDef: {
+        const auto varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(node);
+        jsonNode.AddMember("nodeType", rapidjson::Value("VarDef"), document.GetAllocator());
+        jsonNode.AddMember("hasReadAccessor", rapidjson::Value(varDef->hasReadAccessor), document.GetAllocator());
+        jsonNode.AddMember("hasWriteAccessor", rapidjson::Value(varDef->hasWriteAccessor), document.GetAllocator());
+        path.emplace_back(rapidjson::Pointer::Token{"initialValue", sizeof("initialValue") - 1,
+                rapidjson::kPointerInvalidIndex});
+        serializeParseNode(varDef->initialValue.get(), document, path);
+        path.pop_back();
+    } break;
+    case hadron::parse::NodeType::kVarList: {
+        const auto varList = reinterpret_cast<const hadron::parse::VarListNode*>(node);
+        path.emplace_back(rapidjson::Pointer::Token{"definitions", sizeof("definitions") - 1,
+                rapidjson::kPointerInvalidIndex});
+        serializeParseNode(varList->definitions.get(), document, path);
+    } break;
+    case hadron::parse::NodeType::kArgList: {
+        const auto argList = reinterpret_cast<const hadron::parse::ArgListNode*>(node);
+        
+    } break;
+    default:
+        break;
+    }
+
+    if (node->next) {
+        path.emplace_back(rapidjson::Pointer::Token{"next", sizeof("next") - 1, rapidjson::kPointerInvalidIndex});
+        serializeParseNode(node->next.get(), document, path);
+        path.pop_back();
+    }
+}
+
+void JSONTransport::JSONTransportImpl::sendParseTree(lsp::ID id, const hadron::parse::Node* rootNode) {
+    rapidjson::Document document;
+    document.SetObject();
+    document.AddMember("jsonrpc", rapidjson::Value("2.0"), document.GetAllocator());
+    encodeId(id, document);
+    std::vector<rapidjson::Pointer::Token> path({{"parseTree", sizeof("parseTree") - 1,
+            rapidjson::kPointerInvalidIndex}});
+    serializeParseNode(rootNode, document, path);
+    sendMessage(document);
+}
+
 // Parses the HTTP-style headers used in JSON-RPC. Ignores all but 'Content-Length:', which it returns the value of.
 size_t JSONTransport::JSONTransportImpl::readHeaders() {
     std::array<char, 256> headerBuf;
@@ -284,7 +342,7 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
                     "method.");
             return false;
         }
-        m_server->hadronParseTree((*params)["uri"].GetString());
+        m_server->hadronParseTree(*id, (*params)["uri"].GetString());
     } break;
 
     case server::lsp::Method::kHadronBlockFlow:
@@ -347,5 +405,8 @@ void JSONTransport::sendInitializeResult(std::optional<lsp::ID> id) {
     m_impl->sendInitializeResult(id);
 }
 
+void JSONTransport::sendParseTree(lsp::ID id, const hadron::parse::Node* node) {
+    m_impl->sendParseTree(id, node);
+}
 
 } // namespace server
