@@ -11,6 +11,7 @@ class HLangDClient:
         self.receiveBuffer = ""
         self.serverName = None
         self.serverVersion = None
+        self.idSerial = 0
 
     def _sendMessage(self, jsonString):
         input = "Content-Length: {}\r\n\r\n{}\n".format(len(jsonString), jsonString).encode('utf-8')
@@ -68,8 +69,8 @@ class HLangDClient:
         # send the initialize message too early, so it is never received by hlangd, which means that the script
         # deadlocks waiting for a response to the lost init message.
         time.sleep(1)
-        initialize = json.dumps({'jsonrpc': '2.0', 'id': 0, 'method': 'initialize', 'params': {}})
-        self._sendMessage(initialize)
+        self._sendMessage(json.dumps({'jsonrpc': '2.0', 'id': self.idSerial, 'method': 'initialize', 'params': {}}))
+        self.idSerial += 1
         result = self._receiveMessage()
         if not result or 'result' not in result:
             print("recevied bad result from initalize response")
@@ -79,3 +80,10 @@ class HLangDClient:
         self.serverVersion = serverInfo['version']
         self._sendMessage(json.dumps({'jsonrpc': '2.0', 'method': 'initialized'}))
         return True
+
+    def getParseTree(self, filePath):
+        self._sendMessage(json.dumps({'jsonrpc': '2.0', 'id': self.idSerial, 'method': 'hadron/parseTree',
+            'params': {'uri': filePath}}))
+        self.idSerial += 1
+        parseTree = self._receiveMessage()
+        return parseTree

@@ -9,6 +9,7 @@ def main(args):
     if not client.connect(args.hlangdPath):
         return -1
     print('connected to {} version {}'.format(client.serverName, client.serverVersion))
+    print(client.getParseTree(args.inputFile))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hadron visualization tool.')
