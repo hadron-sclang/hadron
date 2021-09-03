@@ -32,6 +32,23 @@ void HadronServer::initialize(std::optional<lsp::ID> id) {
     m_jsonTransport->sendInitializeResult(id);
 }
 
+void HadronServer::semanticTokensFull(lsp::ID id, const std::string& filePath) {
+    hadron::SourceFile sourceFile(filePath);
+    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
+    if (!sourceFile.read(errorReporter)) {
+        m_jsonTransport->sendErrorResponse(std::nullopt, JSONTransport::ErrorCode::kFileReadError,
+                fmt::format("Failed to read file {} for parsing.", filePath));
+        return;
+    }
+
+    auto code = sourceFile.codeView();
+    hadron::Lexer lexer(code, errorReporter);
+    if (!lexer.lex() || !errorReporter->ok()) {
+        // TODO: error reporting
+        return;
+    }
+}
+
 void HadronServer::hadronParseTree(lsp::ID id, const std::string& filePath) {
     hadron::SourceFile sourceFile(filePath);
     auto errorReporter = std::make_shared<hadron::ErrorReporter>();

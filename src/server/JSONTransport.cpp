@@ -184,7 +184,51 @@ void JSONTransport::JSONTransportImpl::sendInitializeResult(std::optional<lsp::I
     semanticTokensProvider.AddMember("full", rapidjson::Value(true), document.GetAllocator());
     rapidjson::Value semanticTokensLegend;
     semanticTokensLegend.SetObject();
-    
+    rapidjson::Value tokenTypes;
+    tokenTypes.SetArray();
+    tokenTypes.PushBack(rapidjson::Value("empty"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("interpret"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("literal"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("primitive"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("plus"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("minus"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("asterisk"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("assign"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("lessThan"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("greaterThan"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("pipe"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("readWriteVar"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("leftArrow"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("binop"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("keyword"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("openParen"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("closeParen"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("openCurly"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("closeCurly"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("openSquare"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("closeSquare"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("comma"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("semicolon"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("colon"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("caret"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("tilde"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("hash"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("grave"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("var"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("arg"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("const"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("classVar"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("identifier"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("className"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("dot"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("dotdot"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("ellipses"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("curryArgument"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("if"), document.GetAllocator());
+    semanticTokensLegend.AddMember("tokenTypes", tokenTypes, document.GetAllocator());
+    rapidjson::Value tokenModifiers;
+    tokenModifiers.SetArray();
+    semanticTokensLegend.AddMember("tokenModifiers", tokenModifiers, document.GetAllocator());
     semanticTokensProvider.AddMember("legend", semanticTokensLegend, document.GetAllocator());
     capabilities.AddMember("semanticTokensProvider", semanticTokensProvider, document.GetAllocator());
     result.AddMember("capabilities", capabilities, document.GetAllocator());
@@ -282,7 +326,6 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
         sendErrorResponse(id, ErrorCode::kMethodNotFound, fmt::format("Failed to match method '{}' to supported name.",
             methodName));
         return false;
-
     case server::lsp::Method::kInitialize: {
         SPDLOG_TRACE("handleInitialize");
         if (!params) {
@@ -291,11 +334,9 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
         }
         handleInitialize(id, params->GetObject());
     } break;
-
     case server::lsp::Method::kInitialized:
         SPDLOG_TRACE("initalized");
         break;
-
     case server::lsp::Method::kShutdown:
         break;
     case server::lsp::Method::kExit:
@@ -304,7 +345,10 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
         break;
     case server::lsp::Method::kSetTrace:
         break;
-
+    case server::lsp::Method::kSemanticTokensFull: {
+        // params->textDocument->uri
+        m_server->semanticTokensFull(*id, (*params)["uri"]["textDocument"]["uri"].GetString());
+    } break;
     case server::lsp::Method::kHadronParseTree: {
         if (!params || !params->HasMember("uri") || !(*params)["uri"].IsString()) {
             sendErrorResponse(id, ErrorCode::kInvalidParams, "Absent or malformed params key in 'hadron/parseTree' "
@@ -313,7 +357,6 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
         }
         m_server->hadronParseTree(*id, (*params)["uri"].GetString());
     } break;
-
     case server::lsp::Method::kHadronBlockFlow:
         break;
     case server::lsp::Method::kHadronLinearBlock:
@@ -321,7 +364,6 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
     case server::lsp::Method::kHadronMachineCode:
         break;
     }
-
     return true;
 }
 

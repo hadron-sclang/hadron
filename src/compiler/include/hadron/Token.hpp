@@ -11,55 +11,57 @@ namespace hadron {
 // Lexer lexes source to produce Tokens, Parser consumes Tokens to produce Parse Tree.
 struct Token {
     enum Name {
-        kEmpty,      // represents no token
-        kInterpret,  // The LSC grammar is ambiguous as written without the insertion of a special token informing the
-                     // parser that the input text is interpreted code. Without this the grammar cannot determine if
-                     // a classname input is a class definition or a reference to a class as part of an expression.
-                     // To fix we inject this token at the beginning of interpreted code. There may be other ways to
-                     // resolve this ambiguity but they will likely require some changes to the grammar.
-        kLiteral,
-        kPrimitive,
+        // Modifying the numeric values for these? Make sure to update server/JSONTransport.cpp too!
+        kEmpty = 0,     // represents no token
+        kInterpret = 1, // The LSC grammar is ambiguous as written without the insertion of a special token informing
+                        // the parser that the input text is interpreted code. Without this the grammar cannot determine
+                        // if aclassname input is a class definition or a reference to a class as part of an
+                        // expression. To fix we inject this token at the beginning of interpreted code. There may be
+                        // other ways to resolve this ambiguity but they will likely require some changes to the
+                        // grammar.
+        kLiteral = 2,
+        kPrimitive = 3,
 
         // <<< all below could also be binops >>>
-        kPlus,         // so named because it could be an addition or a class extension
-        kMinus,        // Could be unary negation so handled separately
-        kAsterisk,     // so named because it could be a multiply or a class method
-        kAssign,
-        kLessThan,
-        kGreaterThan,
-        kPipe,
-        kReadWriteVar,
-        kLeftArrow,
-        kBinop,  // TODO: rename kGenericBinop, this is some arbitrary collection of the valid binop characters.
-        kKeyword,      // Any identifier with a colon after it.
+        kPlus = 4,         // so named because it could be an addition or a class extension
+        kMinus = 5,        // Could be unary negation so handled separately
+        kAsterisk = 6,     // so named because it could be a multiply or a class method
+        kAssign = 7,
+        kLessThan = 8,
+        kGreaterThan = 9,
+        kPipe = 10,
+        kReadWriteVar = 11,
+        kLeftArrow = 12,
+        kBinop = 13,  // TODO: rename kGenericBinop, this is some arbitrary collection of the valid binop characters.
+        kKeyword = 14,      // Any identifier with a colon after it.
         // <<< all above could also be binops >>>
 
-        kOpenParen,
-        kCloseParen,
-        kOpenCurly,
-        kCloseCurly,
-        kOpenSquare,
-        kCloseSquare,
-        kComma,
-        kSemicolon,
-        kColon,
-        kCaret,
-        kTilde,
-        kHash,
-        kGrave,
-        kVar,
-        kArg,
-        kConst,
-        kClassVar,
-        kIdentifier,
-        kClassName,
-        kDot,
-        kDotDot,
-        kEllipses,
-        kCurryArgument,
+        kOpenParen = 15,
+        kCloseParen = 16,
+        kOpenCurly = 17,
+        kCloseCurly = 18,
+        kOpenSquare = 19,
+        kCloseSquare =  20,
+        kComma = 21,
+        kSemicolon = 22,
+        kColon = 23,
+        kCaret = 24,
+        kTilde = 25,
+        kHash = 26,
+        kGrave = 27,
+        kVar = 28,
+        kArg = 29,
+        kConst = 30,
+        kClassVar = 31,
+        kIdentifier = 32,
+        kClassName = 33,
+        kDot = 34,
+        kDotDot = 35,
+        kEllipses = 36,
+        kCurryArgument = 37,
 
         // Control Flow
-        kIf
+        kIf = 38
     };
 
     Name name;

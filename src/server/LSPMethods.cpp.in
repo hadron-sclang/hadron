@@ -22,16 +22,17 @@ namespace {
 %struct-type
 struct MethodPair { const char* name; server::lsp::Method method; };
 %%
-initialize,         server::lsp::Method::kInitialize
-initialized,        server::lsp::Method::kInitialized
-shutdown,           server::lsp::Method::kShutdown
-exit,               server::lsp::Method::kExit
-$/logTrace,         server::lsp::Method::kLogTrace
-$/setTrace,         server::lsp::Method::kSetTrace
-hadron/parseTree,   server::lsp::Method::kHadronParseTree
-hadron/blockFlow,   server::lsp::Method::kHadronBlockFlow
-hadron/linearBlock, server::lsp::Method::kHadronLinearBlock
-hadron/machineCode, server::lsp::Method::kHadronMachineCode
+initialize,                         server::lsp::Method::kInitialize
+initialized,                        server::lsp::Method::kInitialized
+shutdown,                           server::lsp::Method::kShutdown
+exit,                               server::lsp::Method::kExit
+$/logTrace,                         server::lsp::Method::kLogTrace
+$/setTrace,                         server::lsp::Method::kSetTrace
+textDocument/semanticTokens/full,   server::lsp::Method::kSemanticTokensFull
+hadron/parseTree,                   server::lsp::Method::kHadronParseTree
+hadron/blockFlow,                   server::lsp::Method::kHadronBlockFlow
+hadron/linearBlock,                 server::lsp::Method::kHadronLinearBlock
+hadron/machineCode,                 server::lsp::Method::kHadronMachineCode
 %%
 
 } // namespace

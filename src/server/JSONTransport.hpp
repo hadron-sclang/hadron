@@ -1,12 +1,14 @@
 #ifndef SRC_SERVER_JSON_TRANSPORT_HPP_
 #define SRC_SERVER_JSON_TRANSPORT_HPP_
 
+#include "hadron/Token.hpp"
 #include "server/LSPTypes.hpp"
 
 #include <memory>
 #include <optional>
 #include <stdio.h>
 #include <string>
+#include <vector>
 
 namespace hadron {
 namespace parse {
@@ -53,6 +55,7 @@ public:
 
     // Responses from the server for LSP messages
     void sendInitializeResult(std::optional<lsp::ID> id);
+    void sendSemanticTokens(lsp::ID id, const std::vector<hadron::Token>& tokens);
 
     // Responses from the server for Hadron messages
     void sendParseTree(lsp::ID id, const hadron::parse::Node* node);

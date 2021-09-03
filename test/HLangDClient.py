@@ -12,6 +12,7 @@ class HLangDClient:
         self.serverName = None
         self.serverVersion = None
         self.idSerial = 0
+        self.tokenTypes = []
 
     def _sendMessage(self, jsonString):
         input = "Content-Length: {}\r\n\r\n{}\n".format(len(jsonString), jsonString).encode('utf-8')
@@ -76,6 +77,7 @@ class HLangDClient:
             print("recevied bad result from initalize response")
             return False
         serverInfo = result['result']['serverInfo']
+        self.tokenTypes = result['result']['capabilities']['semanticTokensProvider']['legend']['tokenTypes']
         self.serverName = serverInfo['name']
         self.serverVersion = serverInfo['version']
         self._sendMessage(json.dumps({'jsonrpc': '2.0', 'method': 'initialized'}))

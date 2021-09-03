@@ -14,6 +14,7 @@ enum Method {
     kExit,
     kLogTrace,
     kSetTrace,
+    kSemanticTokensFull,
 
     // Hadron-specific extensions in the 'hadron/' method namespace
     kHadronParseTree,
