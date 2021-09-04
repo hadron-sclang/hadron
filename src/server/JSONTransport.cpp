@@ -252,21 +252,20 @@ void JSONTransport::JSONTransportImpl::sendSemanticTokens(const std::vector<hadr
     size_t lineNumber = 0;
     size_t characterNumber = 0;
     for (auto token : tokens) {
-        SPDLOG_INFO("line: {}, char: {}", token.location.lineNumber, token.location.characterNumber);
-        // first element is deltaLine, line number relative to previous token
+        // First element is deltaLine, line number relative to previous token.
         data.PushBack(static_cast<unsigned>(token.location.lineNumber - lineNumber), document.GetAllocator());
         if (token.location.lineNumber != lineNumber) {
             lineNumber = token.location.lineNumber;
             characterNumber = 0;
         }
-        // second element is deltaStart, character number relative to previous token (if on same line) or 0
+        // Second element is deltaStart, character number relative to previous token (if on same line) or 0.
         data.PushBack(static_cast<unsigned>(token.location.characterNumber - characterNumber), document.GetAllocator());
         characterNumber = token.location.characterNumber;
-        // third element is length, length of the token
+        // Third element is length, length of the token.
         data.PushBack(static_cast<unsigned>(token.range.size()), document.GetAllocator());
-        // fourth element is the token type, a raw encoding of the enum value.
+        // Fourth element is the token type, a raw encoding of the enum value.
         data.PushBack(token.name, document.GetAllocator());
-        // fifth element is the token modifiers, zero for now
+        // Fifth element is the token modifiers, zero for now.
         data.PushBack(0U, document.GetAllocator());
     }
     rapidjson::Value result;

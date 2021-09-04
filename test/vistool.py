@@ -5,6 +5,48 @@ import HLangDClient
 import argparse
 import os
 
+def styleForTokenType(typeIndex):
+    tokenTypeStyles = [
+        "color: lightgrey;",        # kEmpty
+        "color: red;",              # kInterpret
+        "color: blue;",             # kLiteral
+        "color: green;",            # kPrimitive
+        "color: orange;",           # kPlus
+        "color: orange;",           # kMinus
+        "color: orange;",           # kAsterisk
+        "color: red;",              # kAssign
+        "color: orange;",           # kLessThan
+        "color: orange;",           # kGreaterThan
+        "color: orange;",           # kPipe
+        "color: orange;",           # kReadWriteVar
+        "color: orange;",           # kLeftArrow
+        "color: orange;",           # kBinop
+        "color: black;",            # kKeyword
+        "color: grey;",             # kOpenParen
+        "color: grey;",             # kCloseParen
+        "color: grey;",             # kOpenCurly
+        "color: grey;",             # kCloseCurly
+        "color: grey;",             # kOpenSquare
+        "color: grey;",             # kCloseSquare
+        "color: grey;",             # kComma
+        "color: grey;",             # kSemicolon
+        "color: grey;",             # kColon
+        "color: grey;",             # kCaret
+        "color: grey;",             # kTilde
+        "color: grey;",             # kHash
+        "color: grey;",             # kGrave
+        "color: grey;",             # kVar
+        "color: grey;",             # kArg
+        "color: grey;",             # kConst
+        "color: black;",            # kClassVar
+        "color: grey;",             # kDot
+        "color: grey;",             # kDotDot
+        "color: grey;",             # kEllipses
+        "color: grey;",             # kCurryArgument
+        "color: yellow;",           # kIf
+    ]
+    return tokenTypeStyles[typeIndex]
+
 def buildListing(outFile, tokens, source):
     lineNumber = 0
     outFile.write(
@@ -13,15 +55,19 @@ def buildListing(outFile, tokens, source):
 <div style="font-family: monospace">
 """)
     lineNumber = 0
+    tokenIndex = 0
+    tokenStyle = styleForTokenType(0)
     for line in source:
-        outFile.write("{}: {}<br>\n".format(lineNumber, line))
+        outFile.write('<span style="color: black;">{}:</span> '.format(lineNumber))
+        if lineNumber < tokens[tokenIndex]:
+            outFile.write('<span style="{}">{}</span><br>\n'.format(tokenStyle, line))
+        else:
+            
         lineNumber += 1
     outFile.write(
 """</div>
 """
     )
-
-
 
 def main(args):
     client = HLangDClient.HLangDClient()
