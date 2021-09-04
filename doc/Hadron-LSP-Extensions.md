@@ -13,7 +13,7 @@ export interface HadronParseTreeParams {
 	/**
 	 * Path to the file to parse.
 	 */
-	uri: DocumentUri;
+	textDocument: TextDocumentIdentifier;
 }
 ```
 

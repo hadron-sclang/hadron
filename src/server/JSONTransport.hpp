@@ -55,7 +55,7 @@ public:
 
     // Responses from the server for LSP messages
     void sendInitializeResult(std::optional<lsp::ID> id);
-    void sendSemanticTokens(lsp::ID id, const std::vector<hadron::Token>& tokens);
+    void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
 
     // Responses from the server for Hadron messages
     void sendParseTree(lsp::ID id, const hadron::parse::Node* node);

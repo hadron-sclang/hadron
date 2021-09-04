@@ -11,7 +11,7 @@ namespace hadron {
 // Lexer lexes source to produce Tokens, Parser consumes Tokens to produce Parse Tree.
 struct Token {
     enum Name {
-        // Modifying the numeric values for these? Make sure to update server/JSONTransport.cpp too!
+        // ** Modifying these? Please make sure to update server/JSONTransport.cpp too!
         kEmpty = 0,     // represents no token
         kInterpret = 1, // The LSC grammar is ambiguous as written without the insertion of a special token informing
                         // the parser that the input text is interpreted code. Without this the grammar cannot determine
@@ -64,8 +64,15 @@ struct Token {
         kIf = 38
     };
 
+    // Both are zero-based.
+    struct Location {
+        size_t lineNumber;
+        size_t characterNumber;
+    };
+
     Name name;
     std::string_view range;
+    Location location;
     Slot value;
     bool couldBeBinop;
     Hash hash = 0;

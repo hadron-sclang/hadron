@@ -24,7 +24,7 @@ public:
 
     // LSP commands
     void initialize(std::optional<lsp::ID> id);
-    void semanticTokensFull(lsp::ID id, const std::string& filePath);
+    void semanticTokensFull(const std::string& filePath);
 
     // Hadron commands
     void hadronParseTree(lsp::ID id, const std::string& filePath);

@@ -83,9 +83,20 @@ class HLangDClient:
         self._sendMessage(json.dumps({'jsonrpc': '2.0', 'method': 'initialized'}))
         return True
 
+    def getSemanticTokens(self, filePath):
+        self._sendMessage(json.dumps({'jsonrpc': '2.0', 'method': 'textDocument/semanticTokens/full',
+                'params': {'textDocument': {'uri': filePath}}}))
+        self.idSerial += 1
+        result = self._receiveMessage()
+        if not result or 'result' not in result:
+            print("received bad result from semanticTokens response")
+            return None
+        data = result['result']['data']
+        return data
+
     def getParseTree(self, filePath):
         self._sendMessage(json.dumps({'jsonrpc': '2.0', 'id': self.idSerial, 'method': 'hadron/parseTree',
-            'params': {'uri': filePath}}))
+            'params': {'textDocument': {'uri': filePath}}}))
         self.idSerial += 1
         parseTree = self._receiveMessage()
         return parseTree

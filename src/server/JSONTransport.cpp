@@ -29,6 +29,7 @@ public:
     void sendErrorResponse(std::optional<lsp::ID> id, ErrorCode errorCode, std::string errorMessage);
     // Fills out the ServerCapabilities structure before sending to client.
     void sendInitializeResult(std::optional<lsp::ID> id);
+    void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
     void sendParseTree(lsp::ID id, const hadron::parse::Node* rootNode);
 
 private:
@@ -242,6 +243,39 @@ void JSONTransport::JSONTransportImpl::sendInitializeResult(std::optional<lsp::I
     sendMessage(document);
 }
 
+void JSONTransport::JSONTransportImpl::sendSemanticTokens(const std::vector<hadron::Token>& tokens) {
+    rapidjson::Document document;
+    document.SetObject();
+    document.AddMember("jsonrpc", rapidjson::Value("2.0"), document.GetAllocator());
+    rapidjson::Value data;
+    data.SetArray();
+    size_t lineNumber = 0;
+    size_t characterNumber = 0;
+    for (auto token : tokens) {
+        SPDLOG_INFO("line: {}, char: {}", token.location.lineNumber, token.location.characterNumber);
+        // first element is deltaLine, line number relative to previous token
+        data.PushBack(static_cast<unsigned>(token.location.lineNumber - lineNumber), document.GetAllocator());
+        if (token.location.lineNumber != lineNumber) {
+            lineNumber = token.location.lineNumber;
+            characterNumber = 0;
+        }
+        // second element is deltaStart, character number relative to previous token (if on same line) or 0
+        data.PushBack(static_cast<unsigned>(token.location.characterNumber - characterNumber), document.GetAllocator());
+        characterNumber = token.location.characterNumber;
+        // third element is length, length of the token
+        data.PushBack(static_cast<unsigned>(token.range.size()), document.GetAllocator());
+        // fourth element is the token type, a raw encoding of the enum value.
+        data.PushBack(token.name, document.GetAllocator());
+        // fifth element is the token modifiers, zero for now
+        data.PushBack(0U, document.GetAllocator());
+    }
+    rapidjson::Value result;
+    result.SetObject();
+    result.AddMember("data", data, document.GetAllocator());
+    document.AddMember("result", result, document.GetAllocator());
+    sendMessage(document);
+}
+
 void JSONTransport::JSONTransportImpl::sendParseTree(lsp::ID id, const hadron::parse::Node* rootNode) {
     rapidjson::Document document;
     document.SetObject();
@@ -346,16 +380,13 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
     case server::lsp::Method::kSetTrace:
         break;
     case server::lsp::Method::kSemanticTokensFull: {
-        // params->textDocument->uri
-        m_server->semanticTokensFull(*id, (*params)["uri"]["textDocument"]["uri"].GetString());
+        // Assumes params->textDocument->uri exists and is valid.
+        SPDLOG_TRACE("semanticTokensFull on file: {}", (*params)["textDocument"]["uri"].GetString());
+        m_server->semanticTokensFull((*params)["textDocument"]["uri"].GetString());
     } break;
     case server::lsp::Method::kHadronParseTree: {
-        if (!params || !params->HasMember("uri") || !(*params)["uri"].IsString()) {
-            sendErrorResponse(id, ErrorCode::kInvalidParams, "Absent or malformed params key in 'hadron/parseTree' "
-                    "method.");
-            return false;
-        }
-        m_server->hadronParseTree(*id, (*params)["uri"].GetString());
+        // Assumes params->textDocument->uri exists and is valid.
+        m_server->hadronParseTree(*id, (*params)["textDocument"]["uri"].GetString());
     } break;
     case server::lsp::Method::kHadronBlockFlow:
         break;
@@ -685,6 +716,10 @@ void JSONTransport::sendErrorResponse(std::optional<lsp::ID> id, ErrorCode error
 
 void JSONTransport::sendInitializeResult(std::optional<lsp::ID> id) {
     m_impl->sendInitializeResult(id);
+}
+
+void JSONTransport::sendSemanticTokens(const std::vector<hadron::Token>& tokens) {
+    m_impl->sendSemanticTokens(tokens);
 }
 
 void JSONTransport::sendParseTree(lsp::ID id, const hadron::parse::Node* node) {
