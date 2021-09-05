@@ -34,4 +34,4 @@ export interface HadronParseTreeResponse {
 ```
 
 Where `HadronParseTreeNode` is a recursive JSON object that contains a literal transcription of the contents of each
-node in the parse tree.
+node in the parse tree, plus the addition of a unique serial number that identifies each node, for ease of use.

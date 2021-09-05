@@ -3,7 +3,14 @@
 import HLangDClient
 
 import argparse
+import html
 import os
+
+def buildParseTree(outFile, parseTree, tokens, outputDir):
+    parseDotFile = open(os.path.join(outputDir, 'parseTree.dot'), 'w')
+    parseDotFile.write('digraph HadronParseTree {\n')
+
+    parseDotFile.write('}\n')
 
 def styleForTokenType(typeIndex):
     tokenTypeStyles = [
@@ -48,22 +55,60 @@ def styleForTokenType(typeIndex):
     return tokenTypeStyles[typeIndex]
 
 def buildListing(outFile, tokens, source):
-    lineNumber = 0
     outFile.write(
 """
 <h3>source</h3>
 <div style="font-family: monospace">
 """)
     lineNumber = 0
-    tokenIndex = 0
-    tokenStyle = styleForTokenType(0)
-    for line in source:
-        outFile.write('<span style="color: black;">{}:</span> '.format(lineNumber))
-        if lineNumber < tokens[tokenIndex]:
-            outFile.write('<span style="{}">{}</span><br>\n'.format(tokenStyle, line))
+    lineStart = '<span style="color: black;">{}:</span> <span style="{}">'
+    charNumber = 0
+    for token in tokens:
+        # process any source lines before token as text outside of any token
+        while lineNumber < token['lineNumber']:
+            outFile.write('{}{}</span></br>\n'.format(lineStart.format(lineNumber, styleForTokenType(0)),
+                html.escape(source[lineNumber])))
+            lineNumber += 1
+            charNumber = 0
+
+        # process any characters before token starts they are also outside, append them.
+        line = ''
+        if (charNumber == 0):
+            if token['charNumber'] > 0:
+                line = lineStart.format(lineNumber, styleForTokenType(0))
+                line += html.escape(source[lineNumber][0:token['charNumber']])
+                line += '</span><span style="{}">'.format(styleForTokenType(token['tokenType']))
+            else:
+                line = lineStart.format(lineNumber, styleForTokenType(token['tokenType']))
         else:
-            
-        lineNumber += 1
+            line = '<span style="{}">'.format(styleForTokenType(token['tokenType']))
+
+        tokenLength = 0
+        charNumber = token['charNumber']
+        tokenSource = ''
+        while tokenLength < token['length']:
+            lineRemain = min(len(source[lineNumber]) - charNumber, token['length'] - tokenLength)
+            sourceLine = html.escape(source[lineNumber][charNumber : charNumber + lineRemain])
+            tokenSource += sourceLine
+            line += sourceLine
+            tokenLength += lineRemain
+            charNumber += lineRemain
+            # Did we finish the line?
+            print('charNumber: {}, lenLine: {}'.format(charNumber, len(source[lineNumber])))
+            if charNumber == len(source[lineNumber]) - 1:
+                line += '</span><br>\n'
+                tokenLength += 1
+                charNumber = 0
+                lineNumber += 1
+                # Is there still token left over?
+                if tokenLength < token['length']:
+                    line += lineStart.format(lineNumber, styleForTokenType(token['tokenType']))
+
+        if charNumber > 0:
+            line += '</span>'
+        outFile.write(line)
+        token['source'] = tokenSource
+
     outFile.write(
 """</div>
 """
@@ -74,7 +119,6 @@ def main(args):
     if not client.connect(args.hlangdPath):
         return -1
     print('connected to {} version {}'.format(client.serverName, client.serverVersion))
-    parseTree = client.getParseTree(args.inputFile)
     outFile = open(os.path.join(args.outputDir, 'index.html'), 'w')
     outFile.write(
 """<html>
@@ -89,8 +133,21 @@ def main(args):
     # read raw file
     with open(args.inputFile, 'r') as inFile:
         source = inFile.readlines()
-    tokens = client.getSemanticTokens(args.inputFile)
+    deltaTokens = client.getSemanticTokens(args.inputFile)
+    lineNumber = 0
+    charNumber = 0
+    tokens = []
+    for i in range(int(len(deltaTokens) / 5)):
+        if deltaTokens[i * 5] > 0:
+            lineNumber += deltaTokens[i * 5]
+            charNumber = deltaTokens[(i * 5) + 1]
+        else:
+            charNumber += deltaTokens[(i * 5) + 1]
+        tokens.append({'lineNumber': lineNumber, 'charNumber': charNumber, 'length': deltaTokens[(i * 5) + 2],
+            'tokenType': deltaTokens[(i * 5) + 3]})
     buildListing(outFile, tokens, source)
+    parseTree = client.getParseTree(args.inputFile)
+    buildParseTree(outFile, parseTree, tokens, args.outputDir)
     outFile.write(
 """</body>
 </html>

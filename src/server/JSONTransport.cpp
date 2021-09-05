@@ -41,7 +41,7 @@ private:
 
     void handleInitialize(std::optional<lsp::ID> id, const rapidjson::GenericObject<false, rapidjson::Value>& params);
     void serializeParseNode(const hadron::parse::Node* node, rapidjson::Document& document,
-            std::vector<rapidjson::Pointer::Token>& path);
+            std::vector<rapidjson::Pointer::Token>& path, int& serial);
     void serializeSlot(hadron::Slot slot, rapidjson::Value& target, rapidjson::Document& document);
 
     FILE* m_inputStream;
@@ -282,7 +282,8 @@ void JSONTransport::JSONTransportImpl::sendParseTree(lsp::ID id, const hadron::p
     encodeId(id, document);
     std::vector<rapidjson::Pointer::Token> path({{"parseTree", sizeof("parseTree") - 1,
             rapidjson::kPointerInvalidIndex}});
-    serializeParseNode(rootNode, document, path);
+    int serial = 0;
+    serializeParseNode(rootNode, document, path, serial);
     sendMessage(document);
 }
 
@@ -423,7 +424,7 @@ void JSONTransport::JSONTransportImpl::handleInitialize(std::optional<lsp::ID> i
 }
 
 void JSONTransport::JSONTransportImpl::serializeParseNode(const hadron::parse::Node* node,
-        rapidjson::Document& document, std::vector<rapidjson::Pointer::Token>& path) {
+        rapidjson::Document& document, std::vector<rapidjson::Pointer::Token>& path, int& serial) {
     rapidjson::Value& jsonNode = rapidjson::CreateValueByPointer(document,
             rapidjson::Pointer(path.data(), path.size()), document.GetAllocator());
     if (!node) {
@@ -432,6 +433,9 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(const hadron::parse::N
     jsonNode.SetObject();
     jsonNode.AddMember("tokenIndex", rapidjson::Value(static_cast<uint64_t>(node->tokenIndex)),
             document.GetAllocator());
+    int nodeSerial = serial;
+    ++serial;
+    jsonNode.AddMember("serial", rapidjson::Value(nodeSerial), document.GetAllocator());
     switch(node->nodeType) {
     case hadron::parse::NodeType::kEmpty:
         jsonNode.AddMember("nodeType", rapidjson::Value("Empty"), document.GetAllocator());

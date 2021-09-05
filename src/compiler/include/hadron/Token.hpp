@@ -15,7 +15,7 @@ struct Token {
         kEmpty = 0,     // represents no token
         kInterpret = 1, // The LSC grammar is ambiguous as written without the insertion of a special token informing
                         // the parser that the input text is interpreted code. Without this the grammar cannot determine
-                        // if aclassname input is a class definition or a reference to a class as part of an
+                        // if a classname input is a class definition or a reference to a class as part of an
                         // expression. To fix we inject this token at the beginning of interpreted code. There may be
                         // other ways to resolve this ambiguity but they will likely require some changes to the
                         // grammar.
