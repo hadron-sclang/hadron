@@ -6,11 +6,75 @@ import argparse
 import html
 import os
 
-def buildParseTree(outFile, parseTree, tokens, outputDir):
-    parseDotFile = open(os.path.join(outputDir, 'parseTree.dot'), 'w')
-    parseDotFile.write('digraph HadronParseTree {\n')
+def saveNode(node, dotFile):
+    dotFile.write("""  node_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
+    <tr><td bgcolor="lightGray"><b>{}</b></td></tr>
+    <tr><td port="next">next</td></tr>
+""".format(node['serial'], node['nodeType']))
 
-    parseDotFile.write('}\n')
+    if node['nodeType'] == 'Empty':
+        dotFile.write('    </table>>]\n')
+    elif node['nodeType'] == 'VarDef':
+        dotFile.write("""    <tr><td>hasReadAccessor: {}</td></tr>
+    <tr><td>hasWriteAccessor: {}</td></tr>
+    <tr><td port="initialValue">initialValue</td</tr></table>>]
+""".format(node['hasReadAccessor'], node['hasWriteAccessor']))
+        if node['initialValue']:
+            dotFile.write('  node_{}:initialValue -> node_{}\n'.format(node['serial'], node['initialValue']['serial']))
+            saveNode(node['initialValue'], dotFile)
+    elif node['nodeType'] == 'VarList':
+        dotFile.write('    <tr><td port="definitions">definitions</td></tr></table>>]\n')
+        if node['definitions']:
+            dotFile.write('  node_{}:definitions -> node_{}\n'.format(node['serial'], node['definitions']['serial']))
+            saveNode(node['definitions'], dotFile)
+    elif node['nodeType'] == 'ArgList':
+        dotFile.write('    <tr><td port="varList">varList</td></tr></table>>]\n')
+        if node['varList']:
+            dotFile.write('  node_{}:varList -> node_{}\n'.format(node['serial'], node['varList']['serial']))
+            saveNode(node['varList'], dotFile)
+    elif node['nodeType'] == 'Method':
+        dotFile.write("""    <tr><td>isClassMethod: {}</td></tr>
+    <tr><td port="body">body</td></tr></table>>]
+""".format(node['isClassMethod']))
+        if node['body']:
+            dotFile.write('  node_{}:body -> node_{}'.format(node['serial'], node['body']['serial']))
+            saveNode(node['body'], dotFile)
+    elif node['nodeType'] == 'ClassExt':
+        pass
+    elif node['nodeType'] == 'Class':
+        pass
+    elif node['nodeType'] == 'ReturnNode':
+        pass
+    elif node['nodeType'] == 'DynList':
+        pass
+    elif node['nodeType'] == 'Block':
+        pass
+    elif node['nodeType'] == 'Literal':
+        pass
+    elif node['nodeType'] == 'Name':
+        pass
+    elif node['nodeType'] == 'ExprSeq':
+        pass
+    elif node['nodeType'] == 'Assign':
+        pass
+    elif node['nodeType'] == 'Setter':
+        pass
+    elif node['nodeType'] == 'Call':
+        pass
+    elif node['nodeType'] == 'BinopCall':
+        pass
+    elif node['nodeType'] == 'If':
+        pass
+
+    if node['next']:
+        dotFile.write('  node_{}:next -> node_{}\n'.format(node['serial'], node['next']['serial']))
+        saveNode(node['next'], dotFile)
+
+def buildParseTree(outFile, parseTree, tokens, outputDir):
+    dotFile = open(os.path.join(outputDir, 'parseTree.dot'), 'w')
+    dotFile.write('digraph HadronParseTree {\n')
+    saveNode(parseTree, dotFile)
+    dotFile.write('}\n')
 
 def styleForTokenType(typeIndex):
     tokenTypeStyles = [
@@ -94,7 +158,6 @@ def buildListing(outFile, tokens, source):
             tokenLength += lineRemain
             charNumber += lineRemain
             # Did we finish the line?
-            print('charNumber: {}, lenLine: {}'.format(charNumber, len(source[lineNumber])))
             if charNumber == len(source[lineNumber]) - 1:
                 line += '</span><br>\n'
                 tokenLength += 1

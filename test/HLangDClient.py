@@ -98,5 +98,9 @@ class HLangDClient:
         self._sendMessage(json.dumps({'jsonrpc': '2.0', 'id': self.idSerial, 'method': 'hadron/parseTree',
             'params': {'textDocument': {'uri': filePath}}}))
         self.idSerial += 1
-        parseTree = self._receiveMessage()
+        result = self._receiveMessage()
+        if not result or 'result' not in result:
+            print('received bad result from parseTree response')
+            return None
+        parseTree = result['result']['parseTree']
         return parseTree
