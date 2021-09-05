@@ -28,6 +28,7 @@ public:
 
     // Hadron commands
     void hadronParseTree(lsp::ID id, const std::string& filePath);
+    void hadronControlFlow(lsp::ID id, const std::string& filePath);
 
     enum ServerState {
         kUninitialized,

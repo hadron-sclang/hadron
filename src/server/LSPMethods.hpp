@@ -18,7 +18,7 @@ enum Method {
 
     // Hadron-specific extensions in the 'hadron/' method namespace
     kHadronParseTree,
-    kHadronBlockFlow,
+    kHadronControlFlow,
     kHadronLinearBlock,
     kHadronMachineCode
 };

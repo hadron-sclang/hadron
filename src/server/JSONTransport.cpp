@@ -1,5 +1,7 @@
 #include "server/JSONTransport.hpp"
 
+#include "hadron/BlockBuilder.hpp"
+#include "hadron/HIR.hpp"
 #include "hadron/Parser.hpp"
 #include "internal/BuildInfo.hpp"
 #include "server/HadronServer.hpp"
@@ -31,6 +33,7 @@ public:
     void sendInitializeResult(std::optional<lsp::ID> id);
     void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
     void sendParseTree(lsp::ID id, const hadron::parse::Node* rootNode);
+    void sendControlFlow(lsp::ID id, const hadron::Frame* frame);
 
 private:
     size_t readHeaders();
@@ -43,6 +46,9 @@ private:
     void serializeParseNode(const hadron::parse::Node* node, rapidjson::Document& document,
             std::vector<rapidjson::Pointer::Token>& path, int& serial);
     void serializeSlot(hadron::Slot slot, rapidjson::Value& target, rapidjson::Document& document);
+    void serializeFrame(const hadron::Frame* frame, rapidjson::Value& jsonFrame, rapidjson::Document& document);
+    void serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR, rapidjson::Document& document);
+    void serializeValue(hadron::Value value, rapidjson::Value& jsonValue, rapidjson::Document& document);
 
     FILE* m_inputStream;
     FILE* m_outputStream;
@@ -287,6 +293,20 @@ void JSONTransport::JSONTransportImpl::sendParseTree(lsp::ID id, const hadron::p
     sendMessage(document);
 }
 
+void JSONTransport::JSONTransportImpl::sendControlFlow(lsp::ID id, const hadron::Frame* frame) {
+    rapidjson::Document document;
+    document.SetObject();
+    document.AddMember("jsonrpc", rapidjson::Value("2.0"), document.GetAllocator());
+    encodeId(id, document);
+    rapidjson::Value rootFrame;
+    serializeFrame(frame, rootFrame, document);
+    rapidjson::Value result;
+    result.SetObject();
+    result.AddMember("rootFrame", rootFrame, document.GetAllocator());
+    document.AddMember("result", result, document.GetAllocator());
+    sendMessage(document);
+}
+
 // Parses the HTTP-style headers used in JSON-RPC. Ignores all but 'Content-Length:', which it returns the value of.
 size_t JSONTransport::JSONTransportImpl::readHeaders() {
     std::array<char, 256> headerBuf;
@@ -388,8 +408,9 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
         // Assumes params->textDocument->uri exists and is valid.
         m_server->hadronParseTree(*id, (*params)["textDocument"]["uri"].GetString());
     } break;
-    case server::lsp::Method::kHadronBlockFlow:
-        break;
+    case server::lsp::Method::kHadronControlFlow: {
+        m_server->hadronControlFlow(*id, (*params)["textDocument"]["uri"].GetString());
+    } break;
     case server::lsp::Method::kHadronLinearBlock:
         break;
     case server::lsp::Method::kHadronMachineCode:
@@ -695,6 +716,106 @@ void JSONTransport::JSONTransportImpl::serializeSlot(hadron::Slot slot, rapidjso
     }
 }
 
+void JSONTransport::JSONTransportImpl::serializeFrame(const hadron::Frame* frame, rapidjson::Value& jsonFrame,
+        rapidjson::Document& document) {
+    jsonFrame.SetObject();
+    // TODO: argumentOrder
+    rapidjson::Value blocks;
+    blocks.SetArray();
+    for (const auto& block : frame->blocks) {
+        rapidjson::Value jsonBlock;
+        jsonBlock.SetObject();
+        jsonBlock.AddMember("number", rapidjson::Value(block->number), document.GetAllocator());
+        rapidjson::Value predecessors;
+        predecessors.SetArray();
+        for (const auto pred : block->predecessors) {
+            predecessors.PushBack(rapidjson::Value(pred->number), document.GetAllocator());
+        }
+        jsonBlock.AddMember("predecessors", predecessors, document.GetAllocator());
+        rapidjson::Value successors;
+        successors.SetArray();
+        for (const auto succ : block->successors) {
+            successors.PushBack(rapidjson::Value(succ->number), document.GetAllocator());
+        }
+        jsonBlock.AddMember("successors", successors, document.GetAllocator());
+        rapidjson::Value phis;
+        phis.SetArray();
+        for (const auto& phi : block->phis) {
+            rapidjson::Value jsonPhi;
+            serializeHIR(phi.get(), jsonPhi, document);
+            phis.PushBack(jsonPhi, document.GetAllocator());
+        }
+        jsonBlock.AddMember("phis", phis, document.GetAllocator());
+        rapidjson::Value statements;
+        for (const auto& hir : block->statements) {
+            rapidjson::Value jsonHIR;
+            serializeHIR(hir.get(), jsonHIR, document);
+            statements.PushBack(jsonHIR, document.GetAllocator());
+        }
+        jsonBlock.AddMember("statements", statements, document.GetAllocator());
+        blocks.PushBack(jsonBlock, document.GetAllocator());
+    }
+    jsonFrame.AddMember("blocks", blocks, document.GetAllocator());
+    jsonFrame.AddMember("numberOfValues", rapidjson::Value(static_cast<uint64_t>(frame->numberOfValues)),
+            document.GetAllocator());
+    jsonFrame.AddMember("numberOfBlocks", rapidjson::Value(frame->numberOfBlocks), document.GetAllocator());
+}
+
+void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR,
+        rapidjson::Document& document) {
+    jsonHIR.SetObject();
+    rapidjson::Value value;
+    serializeValue(hir->value, value, document);
+    jsonHIR.AddMember("value", value, document.GetAllocator());
+    rapidjson::Value reads;
+    reads.SetArray();
+    for (auto read : hir->reads) {
+        rapidjson::Value jsonRead;
+        serializeValue(read, jsonRead, document);
+        reads.PushBack(jsonRead, document.GetAllocator());
+    }
+    jsonHIR.AddMember("reads", reads, document.GetAllocator());
+}
+
+void JSONTransport::JSONTransportImpl::serializeValue(hadron::Value value, rapidjson::Value& jsonValue,
+        rapidjson::Document& document) {
+    jsonValue.SetObject();
+    jsonValue.AddMember("number", rapidjson::Value(static_cast<uint64_t>(value.number)), document.GetAllocator());
+    rapidjson::Value typeFlags;
+    typeFlags.SetArray();
+    if (value.typeFlags & hadron::Type::kNil) {
+        typeFlags.PushBack(rapidjson::Value("nil"), document.GetAllocator());
+    }
+    if (value.typeFlags & hadron::Type::kInteger) {
+        typeFlags.PushBack(rapidjson::Value("integer"), document.GetAllocator());
+    }
+    if (value.typeFlags & hadron::Type::kFloat) {
+        typeFlags.PushBack(rapidjson::Value("float"), document.GetAllocator());
+    }
+    if (value.typeFlags & hadron::Type::kBoolean) {
+        typeFlags.PushBack(rapidjson::Value("boolean"), document.GetAllocator());
+    }
+    if (value.typeFlags & hadron::Type::kString) {
+        typeFlags.PushBack(rapidjson::Value("string"), document.GetAllocator());
+    }
+    if (value.typeFlags & hadron::Type::kSymbol) {
+        typeFlags.PushBack(rapidjson::Value("symbol"), document.GetAllocator());
+    }
+    if (value.typeFlags & hadron::Type::kClass) {
+        typeFlags.PushBack(rapidjson::Value("class"), document.GetAllocator());
+    }
+    if (value.typeFlags & hadron::Type::kObject) {
+        typeFlags.PushBack(rapidjson::Value("object"), document.GetAllocator());
+    }
+    if (value.typeFlags & hadron::Type::kArray) {
+        typeFlags.PushBack(rapidjson::Value("array"), document.GetAllocator());
+    }
+    if (value.typeFlags & hadron::Type::kType) {
+        typeFlags.PushBack(rapidjson::Value("type"), document.GetAllocator());
+    }
+    jsonValue.AddMember("typeFlags", typeFlags, document.GetAllocator());
+}
+
 //////////////////
 // JSONTransport
 JSONTransport::JSONTransport(FILE* inputStream, FILE* outputStream):
@@ -725,6 +846,10 @@ void JSONTransport::sendSemanticTokens(const std::vector<hadron::Token>& tokens)
 
 void JSONTransport::sendParseTree(lsp::ID id, const hadron::parse::Node* node) {
     m_impl->sendParseTree(id, node);
+}
+
+void JSONTransport::sendControlFlow(lsp::ID id, const hadron::Frame* frame) {
+    m_impl->sendControlFlow(id, frame);
 }
 
 } // namespace server

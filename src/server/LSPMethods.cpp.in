@@ -30,7 +30,7 @@ $/logTrace,                         server::lsp::Method::kLogTrace
 $/setTrace,                         server::lsp::Method::kSetTrace
 textDocument/semanticTokens/full,   server::lsp::Method::kSemanticTokensFull
 hadron/parseTree,                   server::lsp::Method::kHadronParseTree
-hadron/blockFlow,                   server::lsp::Method::kHadronBlockFlow
+hadron/controlFlow,                 server::lsp::Method::kHadronControlFlow
 hadron/linearBlock,                 server::lsp::Method::kHadronLinearBlock
 hadron/machineCode,                 server::lsp::Method::kHadronMachineCode
 %%

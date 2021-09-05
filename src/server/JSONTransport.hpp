@@ -11,6 +11,7 @@
 #include <vector>
 
 namespace hadron {
+struct Frame;
 namespace parse {
 struct Node;
 }
@@ -59,6 +60,7 @@ public:
 
     // Responses from the server for Hadron messages
     void sendParseTree(lsp::ID id, const hadron::parse::Node* node);
+    void sendControlFlow(lsp::ID id, const hadron::Frame* frame);
 
 private:
     // pIMPL pattern to keep JSON headers from leaking into rest of server namespace.
