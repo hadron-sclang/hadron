@@ -774,6 +774,12 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
         serializeValue(read, jsonRead, document);
         reads.PushBack(jsonRead, document.GetAllocator());
     }
+    rapidjson::Value moves;
+    moves.SetArray();
+    for (auto move : hir->moves) {
+        rapidjson::Value jsonMove;
+        FIXME
+    }
     jsonHIR.AddMember("reads", reads, document.GetAllocator());
 }
 
