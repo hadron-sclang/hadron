@@ -333,6 +333,9 @@ def main(args):
     buildListing(outFile, tokens, source)
     parseTree = client.getParseTree(args.inputFile)
     buildParseTree(outFile, parseTree, tokens, args.outputDir)
+    controlFlow = client.getControlFlow(args.inputFile)
+    print(controlFlow)
+    # buildControlFlow(outFile, controlFlow, args.outputDir)
     outFile.write("""
 </body>
 </html>

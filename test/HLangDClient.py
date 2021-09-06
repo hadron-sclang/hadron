@@ -104,3 +104,15 @@ class HLangDClient:
             return None
         parseTree = result['result']['parseTree']
         return parseTree
+
+    def getControlFlow(self, filePath):
+        self._sendMessage(json.dumps({'jsonrpc': '2.0', 'id': self.idSerial, 'method': 'hadron/controlFlow',
+            'params': {'textDocument': {'uri': filePath}}}))
+        self.idSerial += 1
+        result = self._receiveMessage()
+        print(result)
+        if not result or 'result' not in result:
+            print('received bad result from controlFlow response')
+            return None
+        rootFrame = result['result']['rootFrame']
+        return rootFrame
