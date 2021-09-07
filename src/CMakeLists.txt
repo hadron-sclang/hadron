@@ -34,17 +34,6 @@ add_custom_target(run_unittests ALL
     COMMAND "${CMAKE_CURRENT_BINARY_DIR}/unittests"
 )
 
-###########
-# vistool
-add_executable(vistool
-    vistool.cpp
-)
-
-target_link_libraries(vistool
-    gflags
-    hadron
-)
-
 #############
 # hlangd
 add_executable(hlangd
