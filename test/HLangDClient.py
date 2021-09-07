@@ -110,7 +110,6 @@ class HLangDClient:
             'params': {'textDocument': {'uri': filePath}}}))
         self.idSerial += 1
         result = self._receiveMessage()
-        print(result)
         if not result or 'result' not in result:
             print('received bad result from controlFlow response')
             return None

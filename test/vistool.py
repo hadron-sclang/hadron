@@ -7,6 +7,80 @@ import html
 import os
 import subprocess
 
+def slotToString(slot):
+    if 'value' in slot:
+        return str(slot['value'])
+    return slot['type']
+
+def valueToString(value):
+    return '({}) v<sub>{}</sub>'.format('|'.join(value['typeFlags']), value['number'])
+
+def hirToString(hir):
+    if hir['opcode'] == 'LoadArgument':
+        return '{} &#8592; LoadArgument({})'.format(valueToString(hir['value']), hir['index'])
+    elif hir['opcode'] == 'LoadArgumentType':
+        return '{} &#8592; LoadArgumentType({})'.format(valueToString(hir['value']), hir['index'])
+    elif hir['opcode'] == 'Constant':
+        return '{} &#8592; {}'.format(valueToString(hir['value']), slotToString(hir['constant']))
+    elif hir['opcode'] == 'StoreReturn':
+        return 'StoreReturn({}, {})'.format(valueToString(hir['returnValue'][0], hir['returnValue'][1]))
+    elif hir['opcode'] == 'ResolveType':
+        return '{} &#8592; ResolveType({})'.format(valueToString(hir['value']), valueToString(hir['typeOfValue']))
+    elif hir['opcode'] == 'Phi':
+        phi = '{} &#8592; &phi;('.format(valueToString(hir['value']))
+        phi += ','.join([x['number'] for x in hir['inputs']])
+        phi += ')'
+        return phi
+    elif hir['opcode'] == 'Branch':
+        return 'Branch {}'.format(hir['blockNumber'])
+    elif hir['opcode'] == 'BranchIfZero':
+        return '{} &#8592; BranchIfZero {},{}'.format(valueToString(hir['value']),
+            valueToString(hir['condition']), hir['blockNumber'])
+    elif hir['opcode'] == 'Label':
+        return 'Label {}:'.format(hir['blockNumber'])
+    elif hir['opcode'] == 'DispatchCall':
+        return ''
+    elif hir['opcode'] == 'DispatchLoadReturn':
+        return ''
+    elif hir['opcode'] == 'DispatchLoadReturnType':
+        return ''
+    elif hir['opcode'] == 'DispatchCleanup':
+        return ''
+    return ''
+
+def saveFrame(frame, dotFile):
+    dotFile.write('  subgraph cluster_{} {{\n'.format(frame['frameSerial']))
+    for block in frame['blocks']:
+        dotFile.write("""    block_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
+      <tr><td bgcolor="lightGray"><b>Block {}</b></td></tr>
+""".format(block['number'], block['number']))
+        for phi in block['phis']:
+            dotFile.write('      <tr><td>{}</td></tr>\n'.format(hirToString(phi)))
+        for hir in block['statements']:
+            dotFile.write('      <tr><td>{}</td></tr>\n'.format(hirToString(hir)))
+        dotFile.write('      </table>>]\n')
+    for subFrame in frame['subFrames']:
+        saveFrame(subFrame, dotFile)
+    dotFile.write('  }} // end of cluster_{}\n'.format(frame['frameSerial']))
+
+def buildControlFlow(outFile, rootFrame, outputDir):
+    # Build dotfile from parse tree nodes.
+    dotPath = os.path.join(outputDir, 'controlFlow.dot')
+    dotFile = open(dotPath, 'w')
+    dotFile.write('digraph HadronControlFlow {\n')
+    saveFrame(rootFrame, dotFile)
+    dotFile.write('}\n')
+    dotFile.close()
+    # Execute command to generate svg image.
+    svgPath = os.path.join(outputDir, 'controlFlow.svg')
+    svgFile = open(svgPath, 'w')
+    subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
+    outFile.write(
+"""
+<h3>control flow graph</h3>
+<img src="controlFlow.svg">
+""")
+
 def saveNode(node, tokens, dotFile):
     dotFile.write("""  node_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
     <tr><td bgcolor="lightGray"><b>{}</b></td></tr>
@@ -333,9 +407,8 @@ def main(args):
     buildListing(outFile, tokens, source)
     parseTree = client.getParseTree(args.inputFile)
     buildParseTree(outFile, parseTree, tokens, args.outputDir)
-    controlFlow = client.getControlFlow(args.inputFile)
-    print(controlFlow)
-    # buildControlFlow(outFile, controlFlow, args.outputDir)
+    rootFrame = client.getControlFlow(args.inputFile)
+    buildControlFlow(outFile, rootFrame, args.outputDir)
     outFile.write("""
 </body>
 </html>

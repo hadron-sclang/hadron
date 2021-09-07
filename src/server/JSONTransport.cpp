@@ -46,7 +46,8 @@ private:
     void serializeParseNode(const hadron::parse::Node* node, rapidjson::Document& document,
             std::vector<rapidjson::Pointer::Token>& path, int& serial);
     void serializeSlot(hadron::Slot slot, rapidjson::Value& target, rapidjson::Document& document);
-    void serializeFrame(const hadron::Frame* frame, rapidjson::Value& jsonFrame, rapidjson::Document& document);
+    void serializeFrame(const hadron::Frame* frame, int& frameSerial, rapidjson::Value& jsonFrame,
+            rapidjson::Document& document);
     void serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR, rapidjson::Document& document);
     void serializeValue(hadron::Value value, rapidjson::Value& jsonValue, rapidjson::Document& document);
 
@@ -299,7 +300,8 @@ void JSONTransport::JSONTransportImpl::sendControlFlow(lsp::ID id, const hadron:
     document.AddMember("jsonrpc", rapidjson::Value("2.0"), document.GetAllocator());
     encodeId(id, document);
     rapidjson::Value rootFrame;
-    serializeFrame(frame, rootFrame, document);
+    int serial = 0;
+    serializeFrame(frame, serial, rootFrame, document);
     rapidjson::Value result;
     result.SetObject();
     result.AddMember("rootFrame", rootFrame, document.GetAllocator());
@@ -710,15 +712,21 @@ void JSONTransport::JSONTransportImpl::serializeSlot(hadron::Slot slot, rapidjso
     case hadron::Type::kArray:
         target.AddMember("type", rapidjson::Value("array"), document.GetAllocator());
         break;
+    case hadron::Type::kType:
+        target.AddMember("type", rapidjson::Value("type"), document.GetAllocator());
+        break;
     default:
         target.AddMember("type", rapidjson::Value("unknown"), document.GetAllocator());
         break;
     }
 }
 
-void JSONTransport::JSONTransportImpl::serializeFrame(const hadron::Frame* frame, rapidjson::Value& jsonFrame,
-        rapidjson::Document& document) {
+void JSONTransport::JSONTransportImpl::serializeFrame(const hadron::Frame* frame, int& frameSerial,
+        rapidjson::Value& jsonFrame, rapidjson::Document& document) {
     jsonFrame.SetObject();
+    int serial = frameSerial;
+    ++frameSerial;
+    jsonFrame.AddMember("frameSerial", rapidjson::Value(serial), document.GetAllocator());
     // TODO: argumentOrder
     rapidjson::Value blocks;
     blocks.SetArray();
@@ -761,7 +769,7 @@ void JSONTransport::JSONTransportImpl::serializeFrame(const hadron::Frame* frame
     subFrames.SetArray();
     for (const auto& subFrame : frame->subFrames) {
         rapidjson::Value jsonSubFrame;
-        serializeFrame(subFrame.get(), jsonSubFrame, document);
+        serializeFrame(subFrame.get(), frameSerial, jsonSubFrame, document);
         subFrames.PushBack(jsonSubFrame, document.GetAllocator());
     }
     jsonFrame.AddMember("subFrames", subFrames, document.GetAllocator());
@@ -876,6 +884,7 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
     case hadron::hir::Opcode::kLabel: {
         const auto label = reinterpret_cast<const hadron::hir::LabelHIR*>(hir);
         jsonHIR.AddMember("opcode", "Label", document.GetAllocator());
+        jsonHIR.AddMember("blockNumber", rapidjson::Value(label->blockNumber), document.GetAllocator());
         rapidjson::Value predecessors;
         predecessors.SetArray();
         for (auto pred : label->predecessors) {
