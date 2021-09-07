@@ -33,7 +33,7 @@ if(APPLE)
     )
 endif()
 
-### jemalloc
+#### jemalloc
 ExternalProject_add(jemalloc
     PREFIX ext
     STEP_TARGETS install
@@ -49,13 +49,24 @@ ExternalProject_add(jemalloc
     BUILD_BYPRODUCTS ${INSTALL_EXT}/lib/libjemalloc.a
 )
 
-### lightening
+#### lightening
 add_library(lightening STATIC
     lightening/lightening/lightening.c
     lightening/lightening/endian.h
     lightening/lightening.h
 )
 target_include_directories(lightening PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/lightening)
+
+
+#### rapidjson
+set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "skip building rapidjson docs")
+set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "skip building rapidjson examples")
+set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "skip building rapidjson googletest tests")
+set(RAPIDJSON_BUILD_CXX11 OFF CACHE BOOL "prefer cxx17 for rapidjson")
+set(RAPIDJSON_BUILD_CXX17 ON CACHE BOOL "prefer cxx17 for rapidjson")
+set(RAPIDJSON_ENABLE_INSTRUMENTATION_OPT OFF CACHE BOOL "clang compiler doesn't like -march")
+add_subdirectory(rapidjson)
+set(RAPIDJSON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rapidjson/include CACHE STRING "rapidjson header include path")
 
 #### spdlog
 set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "require spdlog to use our external fmt")

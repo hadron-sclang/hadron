@@ -1,0 +1,14 @@
+#ifndef SRC_INTERNAL_BUILD_INFO_HPP_
+#define SRC_INTERNAL_BUILD_INFO_HPP_
+
+namespace hadron {
+
+constexpr const char* kHadronVersion = "@PROJECT_VERSION@";
+constexpr const char* kHadronBranch = "@GIT_BRANCH@";
+constexpr const char* kHadronCommitHash = "@GIT_COMMIT_HASH@";
+constexpr const char* kHadronCompilerName = "@CMAKE_CXX_COMPILER_ID@";
+constexpr const char* kHadronCompilerVersion = "@CMAKE_CXX_COMPILER_VERSION@";
+
+} // namespace hadron
+
+#endif // SRC_INTERNAL_BUILD_INFO_HPP_
