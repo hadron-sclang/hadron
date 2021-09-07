@@ -39,19 +39,26 @@ def hirToString(hir):
     elif hir['opcode'] == 'Label':
         return 'Label {}:'.format(hir['blockNumber'])
     elif hir['opcode'] == 'DispatchCall':
-        return ''
+        dispatch = '{} &#8592; DispatchCall({}'.format(valueToString(hir['value'], valueToString(hir['arguments'][0])))
+        for i in range(1, len(hir['arguments'])):
+            dispatch += ', {}'.format(valueToString(hir['arguments'][i]))
+        for i in range(0, len(hir['keywordArguments']), step=2):
+            dispatch += ', {}: {}'.format(valueToString(hir['keywordArguments'][i]),
+                    valueToString(hir['keywordArguments'][i + 1]))
+        return dispatch + ')'
     elif hir['opcode'] == 'DispatchLoadReturn':
-        return ''
+        return '{} &#8592; LoadReturn()'.format(valueToString(hir['value']))
     elif hir['opcode'] == 'DispatchLoadReturnType':
-        return ''
+        return '{} &#8592; LoadReturnType()'.format(valueToString(hir['value']))
     elif hir['opcode'] == 'DispatchCleanup':
-        return ''
-    return ''
+        return 'DispatchCleanup()'
+    return '<unsupported hir opcode "{}">'.format(hir['opcode'])
 
 def saveFrame(frame, dotFile):
     dotFile.write('  subgraph cluster_{} {{\n'.format(frame['frameSerial']))
     for block in frame['blocks']:
-        dotFile.write("""    block_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
+        dotFile.write(
+"""   block_{} [shape=plain label=<<table border="0" cellpadding="6" cellborder="1" cellspacing="0">
       <tr><td bgcolor="lightGray"><b>Block {}</b></td></tr>
 """.format(block['number'], block['number']))
         for phi in block['phis']:
