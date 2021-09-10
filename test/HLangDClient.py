@@ -64,12 +64,15 @@ class HLangDClient:
         return json.loads(data)
 
     # returns True if connection established and server initialized, False otherwise.
-    def connect(self, hlangdPath):
+    def connect(self, hlangdPath, waitForDebugger):
         self.hlangd = subprocess.Popen([hlangdPath], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        # TODO: find a better way to wait for hlangd to open. Without this sleep there's a race where the python can
-        # send the initialize message too early, so it is never received by hlangd, which means that the script
-        # deadlocks waiting for a response to the lost init message.
-        time.sleep(1)
+        if waitForDebugger:
+            input('hlangd running on pid {}, press enter to continue..'.format(self.hlangd.pid))
+        else:
+            # TODO: find a better way to wait for hlangd to open. Without this sleep there's a race where the python can
+            # send the initialize message too early, so it is never received by hlangd, which means that the script
+            # deadlocks waiting for a response to the lost init message.
+            time.sleep(1)
         self._sendMessage(json.dumps({'jsonrpc': '2.0', 'id': self.idSerial, 'method': 'initialize', 'params': {}}))
         self.idSerial += 1
         result = self._receiveMessage()
@@ -94,24 +97,12 @@ class HLangDClient:
         data = result['result']['data']
         return data
 
-    def getParseTree(self, filePath):
-        self._sendMessage(json.dumps({'jsonrpc': '2.0', 'id': self.idSerial, 'method': 'hadron/parseTree',
+    def getDiagnostics(self, filePath):
+        self._sendMessage(json.dumps({'jsonrpc': '2.0', 'id': self.idSerial, 'method': 'hadron/compilationDiagnostics',
             'params': {'textDocument': {'uri': filePath}}}))
         self.idSerial += 1
         result = self._receiveMessage()
         if not result or 'result' not in result:
             print('received bad result from parseTree response')
             return None
-        parseTree = result['result']['parseTree']
-        return parseTree
-
-    def getControlFlow(self, filePath):
-        self._sendMessage(json.dumps({'jsonrpc': '2.0', 'id': self.idSerial, 'method': 'hadron/controlFlow',
-            'params': {'textDocument': {'uri': filePath}}}))
-        self.idSerial += 1
-        result = self._receiveMessage()
-        if not result or 'result' not in result:
-            print('received bad result from controlFlow response')
-            return None
-        rootFrame = result['result']['rootFrame']
-        return rootFrame
+        return result['result']

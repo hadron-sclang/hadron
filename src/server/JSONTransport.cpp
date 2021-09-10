@@ -17,6 +17,8 @@
 #include "spdlog/spdlog.h"
 
 #include <array>
+#include <cerrno>
+#include <string.h>
 #include <variant>
 #include <vector>
 
@@ -54,6 +56,8 @@ private:
             rapidjson::Document& document);
     void serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR, rapidjson::Document& document);
     void serializeValue(hadron::Value value, rapidjson::Value& jsonValue, rapidjson::Document& document);
+    void serializeLifetimeIntervals(const std::vector<std::vector<hadron::LifetimeInterval>>& lifetimeIntervals,
+            rapidjson::Value& jsonIntervals, rapidjson::Document& document);
 
     FILE* m_inputStream;
     FILE* m_outputStream;
@@ -287,7 +291,8 @@ void JSONTransport::JSONTransportImpl::sendSemanticTokens(const std::vector<hadr
 }
 
 void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
-        const hadron::Frame* frame, const hadron::LinearBlock* linearBlock, const hadron::VirtualJIT* virtualJIT) {
+        const hadron::Frame* frame, const hadron::LinearBlock* linearBlock,
+        const hadron::VirtualJIT* /* virtualJIT */) {
     rapidjson::Document document;
     document.SetObject();
     document.AddMember("jsonrpc", rapidjson::Value("2.0"), document.GetAllocator());
@@ -313,8 +318,12 @@ size_t JSONTransport::JSONTransportImpl::readHeaders() {
 
     while (!feof(m_inputStream)) {
         if (int fileError = ferror(m_inputStream)) {
-            SPDLOG_ERROR("File error on input stream while reading headers.");
-            return 0;
+            if (fileError == EINTR) {
+                errno = 0;
+            } else {
+                SPDLOG_ERROR("File error on input stream while reading headers: {}.", strerror(fileError));
+                return 0;
+            }
         }
 
         fgets(headerBuf.data(), 256, m_inputStream);
@@ -405,6 +414,7 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
     } break;
     case server::lsp::Method::kHadronCompilationDiagnostics: {
         // Assumes params->textDocument->uri exists and is valid.
+        SPDLOG_TRACE("compilationDiagnostics on file: {}", (*params)["textDocument"]["uri"].GetString());
         m_server->hadronCompilationDiagnostics(*id, (*params)["textDocument"]["uri"].GetString());
     } break;
     }
@@ -796,8 +806,22 @@ void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::Linear
         blockRanges.PushBack(jsonRange, document.GetAllocator());
     }
     jsonBlock.AddMember("blockRanges", blockRanges, document.GetAllocator());
-}
 
+    rapidjson::Value valueLifetimes;
+    serializeLifetimeIntervals(linearBlock->valueLifetimes, valueLifetimes, document);
+    jsonBlock.AddMember("valueLifetimes", valueLifetimes, document.GetAllocator());
+
+    rapidjson::Value registerLifetimes;
+    serializeLifetimeIntervals(linearBlock->registerLifetimes, registerLifetimes, document);
+    jsonBlock.AddMember("registerLifetimes", registerLifetimes, document.GetAllocator());
+
+    rapidjson::Value spillLifetimes;
+    serializeLifetimeIntervals(linearBlock->spillLifetimes, spillLifetimes, document);
+    jsonBlock.AddMember("spillLifetimes", spillLifetimes, document.GetAllocator());
+
+    jsonBlock.AddMember("numberOfSpillSlots", rapidjson::Value(static_cast<uint64_t>(linearBlock->numberOfSpillSlots)),
+            document.GetAllocator());
+}
 
 void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR,
         rapidjson::Document& document) {
@@ -1002,6 +1026,49 @@ void JSONTransport::JSONTransportImpl::serializeValue(hadron::Value value, rapid
         typeFlags.PushBack(rapidjson::Value("type"), document.GetAllocator());
     }
     jsonValue.AddMember("typeFlags", typeFlags, document.GetAllocator());
+}
+
+void JSONTransport::JSONTransportImpl::serializeLifetimeIntervals(
+        const std::vector<std::vector<hadron::LifetimeInterval>>&lifetimeIntervals,
+        rapidjson::Value& jsonIntervals, rapidjson::Document& document) {
+    jsonIntervals.SetArray();
+    for (const auto& value : lifetimeIntervals) {
+        rapidjson::Value valueIntervals;
+        valueIntervals.SetArray();
+        for (const auto& lifetimeInterval : value) {
+            rapidjson::Value interval;
+            interval.SetObject();
+            rapidjson::Value ranges;
+            ranges.SetArray();
+            for (const auto& range : lifetimeInterval.ranges) {
+                rapidjson::Value jsonRange;
+                jsonRange.SetObject();
+                jsonRange.AddMember("from", rapidjson::Value(static_cast<uint64_t>(range.from)),
+                        document.GetAllocator());
+                jsonRange.AddMember("to", rapidjson::Value(static_cast<uint64_t>(range.to)), document.GetAllocator());
+                ranges.PushBack(jsonRange, document.GetAllocator());
+            }
+            interval.AddMember("ranges", ranges, document.GetAllocator());
+
+            rapidjson::Value usages;
+            usages.SetArray();
+            for (auto usage : lifetimeInterval.usages) {
+                usages.PushBack(rapidjson::Value(static_cast<uint64_t>(usage)), document.GetAllocator());
+            }
+            interval.AddMember("usages", usages, document.GetAllocator());
+
+            interval.AddMember("valueNumber", static_cast<uint64_t>(lifetimeInterval.valueNumber),
+                    document.GetAllocator());
+            interval.AddMember("registerNumber", static_cast<uint64_t>(lifetimeInterval.registerNumber),
+                    document.GetAllocator());
+            interval.AddMember("isSplit", rapidjson::Value(lifetimeInterval.isSplit), document.GetAllocator());
+            interval.AddMember("isSpill", rapidjson::Value(lifetimeInterval.isSpill), document.GetAllocator());
+            interval.AddMember("spillSlot", rapidjson::Value(static_cast<uint64_t>(lifetimeInterval.spillSlot)),
+                    document.GetAllocator());
+            valueIntervals.PushBack(interval, document.GetAllocator());
+        }
+        jsonIntervals.PushBack(valueIntervals, document.GetAllocator());
+    }
 }
 
 //////////////////

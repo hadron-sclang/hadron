@@ -382,7 +382,7 @@ def buildListing(outFile, tokens, source):
 
 def main(args):
     client = HLangDClient.HLangDClient()
-    if not client.connect(args.hlangdPath):
+    if not client.connect(args.hlangdPath, args.waitForDebugger):
         return -1
     print('connected to {} version {}'.format(client.serverName, client.serverVersion))
     outFile = open(os.path.join(args.outputDir, 'index.html'), 'w')
@@ -412,10 +412,9 @@ def main(args):
         tokens.append({'lineNumber': lineNumber, 'charNumber': charNumber, 'length': deltaTokens[(i * 5) + 2],
             'tokenType': deltaTokens[(i * 5) + 3]})
     buildListing(outFile, tokens, source)
-    parseTree = client.getParseTree(args.inputFile)
-    buildParseTree(outFile, parseTree, tokens, args.outputDir)
-    rootFrame = client.getControlFlow(args.inputFile)
-    buildControlFlow(outFile, rootFrame, args.outputDir)
+    diagnostics = client.getDiagnostics(args.inputFile)
+    buildParseTree(outFile, diagnostics['parseTree'], tokens, args.outputDir)
+    buildControlFlow(outFile, diagnostics['rootFrame'], args.outputDir)
     outFile.write("""
 </body>
 </html>
@@ -426,5 +425,7 @@ if __name__ == '__main__':
     parser.add_argument('--inputFile', help='input SuperCollider file to visualize', required=True)
     parser.add_argument('--outputDir', help='output directory for visualization report', required=True)
     parser.add_argument('--hlangdPath', help='path to hlangd binary', default='build/src/hlangd')
+    parser.add_argument('--waitForDebugger', help='wait to attach debugger to hlangd process before continuing',
+        default=False)
     args = parser.parse_args()
     main(args)

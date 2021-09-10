@@ -108,6 +108,10 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
                 // live.add(opd)
                 live.insert(opd.number);
             }
+
+            if (j == 0) {
+                break;
+            }
         }
 
         // for each phi function phi of b do

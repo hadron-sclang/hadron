@@ -17,6 +17,7 @@
 #include "server/JSONTransport.hpp"
 
 #include "fmt/format.h"
+#include "spdlog/spdlog.h"
 
 namespace server {
 
@@ -82,16 +83,27 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
         return;
     }
 
+    SPDLOG_TRACE("Compile Diagnostics Block Builder");
     hadron::BlockBuilder blockBuilder(&lexer, errorReporter);
     auto frame = blockBuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
+
+    SPDLOG_TRACE("Compile Diagnostics Block Serializer");
     hadron::BlockSerializer blockSerializer;
     auto linearBlock = blockSerializer.serialize(std::move(frame), hadron::LighteningJIT::physicalFloatRegisterCount());
+
+    SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer");
     hadron::LifetimeAnalyzer lifetimeAnalyzer;
     lifetimeAnalyzer.buildLifetimes(linearBlock.get());
+
+    SPDLOG_TRACE("Compile Diagnostics Register Allocator");
     hadron::RegisterAllocator registerAllocator;
     registerAllocator.allocateRegisters(linearBlock.get());
+
+    SPDLOG_TRACE("Compile Diagnostics Resolver");
     hadron::Resolver resolver;
     resolver.resolve(linearBlock.get());
+
+    SPDLOG_TRACE("Compile Diagnostics Emitter");
     hadron::Emitter emitter;
     hadron::VirtualJIT virtualJIT;
     emitter.emit(linearBlock.get(), &virtualJIT);

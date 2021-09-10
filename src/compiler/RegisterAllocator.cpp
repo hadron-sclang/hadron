@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "spdlog/spdlog.h"
+
 /*
 Pseudocode for the Linear Scan algorithm copied verbatim from [RA4] "Optimized interval splitting in a linear scan
 register allocator", by C. Wimmer and H. Mössenböck.
@@ -141,12 +143,14 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
                 handled(iter->second, linearBlock);
                 iter = m_active.erase(iter);
             } else {
+                auto nextIter = iter;
+                ++nextIter;
                 // else if it does not cover position then
                 if (!iter->second.covers(position)) {
                     // move it from active to inactive
                     activeToInactive.insert(m_active.extract(iter));
                 }
-                ++iter;
+                iter = nextIter;
             }
         }
 
@@ -160,12 +164,14 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
                 handled(iter->second, linearBlock);
                 iter = m_active.erase(iter);
             } else {
+                auto nextIter = iter;
+                ++nextIter;
                 // else if it covers position then
                 if (iter->second.covers(position)) {
                     // move it from inactive to active
                     m_active.insert(m_inactive.extract(iter));
                 }
-                ++iter;
+                iter = nextIter;
             }
         }
 
@@ -216,7 +222,7 @@ bool RegisterAllocator::tryAllocateFreeReg(LifetimeInterval& current) {
     // reg = register with highest freeUntilPos
     size_t reg = 0;
     size_t highestFreeUntilPos = 0;
-    for (size_t i = 0; reg < freeUntilPos.size(); ++reg) {
+    for (size_t i = 0; i < freeUntilPos.size(); ++i) {
         if (freeUntilPos[i] > highestFreeUntilPos) {
             reg = i;
             highestFreeUntilPos = freeUntilPos[i];
