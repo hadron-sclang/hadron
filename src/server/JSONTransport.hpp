@@ -12,6 +12,8 @@
 
 namespace hadron {
 struct Frame;
+struct LinearBlock;
+class VirtualJIT;
 namespace parse {
 struct Node;
 }
@@ -59,6 +61,8 @@ public:
     void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
 
     // Responses from the server for Hadron messages
+    void sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node, const hadron::Frame* frame,
+            const hadron::LinearBlock* linearBlock, const hadron::VirtualJIT* virtualJIT);
     void sendParseTree(lsp::ID id, const hadron::parse::Node* node);
     void sendControlFlow(lsp::ID id, const hadron::Frame* frame);
 

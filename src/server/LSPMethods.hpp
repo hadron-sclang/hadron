@@ -17,10 +17,7 @@ enum Method {
     kSemanticTokensFull,
 
     // Hadron-specific extensions in the 'hadron/' method namespace
-    kHadronParseTree,
-    kHadronControlFlow,
-    kHadronLinearBlock,
-    kHadronMachineCode
+    kHadronCompilationDiagnostics
 };
 
 Method getMethodNamed(const char* name, size_t length);

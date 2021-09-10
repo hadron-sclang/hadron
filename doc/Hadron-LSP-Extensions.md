@@ -3,15 +3,15 @@
 Hadron extends the [Language Server Protocol](https://microsoft.github.io/language-server-protocol) for its own
 automation and testing purposes.
 
-## Get Parse Tree
+## Compilation Diagnostics
 
-method: `hadron/parseTree`
-params: `HadronParseTreeParams` defined as follows:
+method: `hadron/compilationDiagnostics`
+params: `HadronCompilationDiagnosticParams` defined as follows:
 
 ```
-export interface HadronParseTreeParams {
+export interface HadronCompilationDiagnosticParams {
 	/**
-	 * Path to the file to parse.
+	 * Path to the source code file to return compilation diagnostic information about.
 	 */
 	textDocument: TextDocumentIdentifier;
 }
@@ -20,48 +20,30 @@ export interface HadronParseTreeParams {
 response:
 
 ```
-export interface HadronParseTreeResponse {
+export interface HadronCompilationDiagnosticsResponse {
 	/**
 	 * The request id.
 	 */
 	id: integer;
 
 	/**
-	 * The root of the parse tree.
+	 * The parse tree.
 	 */
 	parseTree: HadronParseTreeNode;
-}
-```
-
-Where `HadronParseTreeNode` is a recursive JSON object that contains a literal transcription of the contents of each
-node in the parse tree, plus the addition of a unique serial number that identifies each node, for ease of use.
-
-## Get Control Flow Graph
-
-method: `hadron/controlFlow`
-params: `HadronControlFlowParams` defined as follows:
-
-```
-export interface HadronControlFlowParams {
-	/**
-	 * Path to the file to build the control flow graph for.
-	 */
-	textDocument: TextDocumentIdentifier;
-}
-```
-
-response:
-
-```
-export interface HadronControlFlowResponse {
-	/**
-	 * The request id.
-	 */
-	id: integer;
 
 	/**
-	 * The root of the parse tree.
+	 * The root frame of the control flow graph.
 	 */
-	rootFrame: HadronFrame
+	rootFrame: HadronFrame;
+
+	/**
+	 * The Linear Block, taken through to SSA resolution.
+	 */
+	 linearBlock: HadronLinearBlock;
+
+	 /**
+	  * JIT-compiled generic machine code.
+	  */
+	machineCode: HadronGenericMachineCode;
 }
 ```

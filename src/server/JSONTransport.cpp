@@ -32,8 +32,8 @@ public:
     // Fills out the ServerCapabilities structure before sending to client.
     void sendInitializeResult(std::optional<lsp::ID> id);
     void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
-    void sendParseTree(lsp::ID id, const hadron::parse::Node* rootNode);
-    void sendControlFlow(lsp::ID id, const hadron::Frame* frame);
+    void sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node, const hadron::Frame* frame,
+            const hadron::LinearBlock* linearBlock, const hadron::VirtualJIT* virtualJIT);
 
 private:
     size_t readHeaders();
@@ -406,17 +406,10 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
         SPDLOG_TRACE("semanticTokensFull on file: {}", (*params)["textDocument"]["uri"].GetString());
         m_server->semanticTokensFull((*params)["textDocument"]["uri"].GetString());
     } break;
-    case server::lsp::Method::kHadronParseTree: {
+    case server::lsp::Method::kHadronCompilationDiagnostics: {
         // Assumes params->textDocument->uri exists and is valid.
-        m_server->hadronParseTree(*id, (*params)["textDocument"]["uri"].GetString());
+        m_server->hadronCompilationDiagnostics(*id, (*params)["textDocument"]["uri"].GetString());
     } break;
-    case server::lsp::Method::kHadronControlFlow: {
-        m_server->hadronControlFlow(*id, (*params)["textDocument"]["uri"].GetString());
-    } break;
-    case server::lsp::Method::kHadronLinearBlock:
-        break;
-    case server::lsp::Method::kHadronMachineCode:
-        break;
     }
     return true;
 }
@@ -1011,12 +1004,9 @@ void JSONTransport::sendSemanticTokens(const std::vector<hadron::Token>& tokens)
     m_impl->sendSemanticTokens(tokens);
 }
 
-void JSONTransport::sendParseTree(lsp::ID id, const hadron::parse::Node* node) {
-    m_impl->sendParseTree(id, node);
-}
-
-void JSONTransport::sendControlFlow(lsp::ID id, const hadron::Frame* frame) {
-    m_impl->sendControlFlow(id, frame);
+void JSONTransport::sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node, const hadron::Frame* frame,
+        const hadron::LinearBlock* linearBlock, const hadron::VirtualJIT* virtualJIT) {
+    m_impl->sendCompilationDiagnostics(id, node, frame, linearBlock, virtualJIT);
 }
 
 } // namespace server
