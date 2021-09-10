@@ -26,6 +26,8 @@ public:
 
     static bool markThreadForJITCompilation();
     static void markThreadForJITExecution();
+    static int physicalRegisterCount();
+    static int physicalFloatRegisterCount();
 
     // Call this stuff from Compiler, which knows it has a LighteningJIT.
     // Begin recording jit bytecode into the provideed buffer, of maximum size.
