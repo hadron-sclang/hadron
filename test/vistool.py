@@ -382,7 +382,7 @@ def buildListing(outFile, tokens, source):
 
 def main(args):
     client = HLangDClient.HLangDClient()
-    if not client.connect(args.hlangdPath, args.waitForDebugger):
+    if not client.connect(args.hlangdPath):
         return -1
     print('connected to {} version {}'.format(client.serverName, client.serverVersion))
     outFile = open(os.path.join(args.outputDir, 'index.html'), 'w')
@@ -425,7 +425,5 @@ if __name__ == '__main__':
     parser.add_argument('--inputFile', help='input SuperCollider file to visualize', required=True)
     parser.add_argument('--outputDir', help='output directory for visualization report', required=True)
     parser.add_argument('--hlangdPath', help='path to hlangd binary', default='build/src/hlangd')
-    parser.add_argument('--waitForDebugger', help='wait to attach debugger to hlangd process before continuing',
-        default=False)
     args = parser.parse_args()
     main(args)

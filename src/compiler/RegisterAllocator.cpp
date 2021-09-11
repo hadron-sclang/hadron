@@ -162,7 +162,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
             if (iter->second.end() <= position) {
                 // move it from inactive to handled
                 handled(iter->second, linearBlock);
-                iter = m_active.erase(iter);
+                iter = m_inactive.erase(iter);
             } else {
                 auto nextIter = iter;
                 ++nextIter;
@@ -249,6 +249,7 @@ bool RegisterAllocator::tryAllocateFreeReg(LifetimeInterval& current) {
         std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
     }
 
+    m_active.emplace(std::make_pair(reg, current));
     return true;
 }
 
