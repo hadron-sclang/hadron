@@ -7,6 +7,66 @@ import html
 import os
 import subprocess
 
+def findContainingLifetime(i, lifetimeList):
+    for lifetime in lifetimeList:
+        for range in lifetime['ranges']:
+            # these are assumed to be in sorted order, so if we enouncter something starting after i we have a miss
+            if i < range['from']:
+                return None
+            if i < range['to']:
+                return lifetime
+    return None
+
+def buildLinearBlock(outFile, linearBlock):
+    # we want 1 col for line numbers, 1 for labels, 1 for HIR, then one for each value, register, and spill lifetime.
+    outFile.write('\n<h3>linear block</h3>\n\n<table>\n<tr><th>line</th><th>label</th><th>hir</th>')
+    for i in range(1, len(linearBlock['valueLifetimes'])):
+        outFile.write('<th>v<sub>{}</sub></th>'.format(i))
+    for i in range(0, len(linearBlock['registerLifetimes'])):
+        if len(linearBlock['registerLifetimes'][i]) > 1:
+            outFile.write('<th>GPR{}</th>'.format(i))
+    for i in range(0, len(linearBlock['spillLifetimes'])):
+        outFile.write('<th>spill {}</th>'.format(i))
+    outFile.write('</tr>\n')
+    for i in range(0, len(linearBlock['instructions'])):
+        outFile.write('<tr><td>{}</td>'.format(i))
+        inst = linearBlock['instructions'][i]
+        if inst['opcode'] == 'Label':
+            outFile.write('<td>label_{}:</td><td></td>'.format(inst['blockNumber']))
+        else:
+            outFile.write('<td></td><td>{}</td>'.format(hirToString(inst)))
+        # want to visualize "ranges" and "usages" for each of the lifetime intervals. In value lifetimes also useful
+        # to see what register they are associated with, and in register lifetimes what value, and in spill what value.
+        for j in range(1, len(linearBlock['valueLifetimes'])):
+            lifetime = findContainingLifetime(i, linearBlock['valueLifetimes'][j])
+            if lifetime:
+                tdClass = 'live'
+                if i in lifetime['usages']:
+                    tdClass = 'used'
+                outFile.write('<td class="{}">GPR{}</td>'.format(tdClass, lifetime['registerNumber']))
+            else:
+                outFile.write('<td></td>')
+        for j in range(0, len(linearBlock['registerLifetimes'])):
+            lifetime = findContainingLifetime(i, linearBlock['registerLifetimes'][j])
+            if lifetime:
+                tdClass = 'live'
+                if i in lifetime['usages']:
+                    tdClass = 'used'
+                outFile.write('<td class="{}">v<sub>{}</sub></td>'.format(tdClass, lifetime['valueNumber']))
+            else:
+                outFile.write('<td></td>')
+        for j in range(0, len(linearBlock['spillLifetimes'])):
+            lifetime = findContainingLifetime(i, linearBlock['spillLifetimes'][j])
+            if lifetime:
+                tdClass = 'live'
+                if i in lifetime['usages']:
+                    tdClass = 'used'
+                outFile.write('<td class="{}">v<sub>{}</sub></td>'.format(tdClass, lifetime['valueNumber']))
+            else:
+                outFile.write('<td></td>')
+        outFile.write('</tr>')
+    outFile.write('\n</table>\n')
+
 def slotToString(slot):
     if 'value' in slot:
         return str(slot['value'])
@@ -23,7 +83,7 @@ def hirToString(hir):
     elif hir['opcode'] == 'Constant':
         return '{} &#8592; {}'.format(valueToString(hir['value']), slotToString(hir['constant']))
     elif hir['opcode'] == 'StoreReturn':
-        return 'StoreReturn({}, {})'.format(valueToString(hir['returnValue'][0], hir['returnValue'][1]))
+        return 'StoreReturn({}, {})'.format(valueToString(hir['returnValue'][0]), valueToString(hir['returnValue'][1]))
     elif hir['opcode'] == 'ResolveType':
         return '{} &#8592; ResolveType({})'.format(valueToString(hir['value']), valueToString(hir['typeOfValue']))
     elif hir['opcode'] == 'Phi':
@@ -74,7 +134,7 @@ def buildControlFlow(outFile, rootFrame, outputDir):
     # Build dotfile from parse tree nodes.
     dotPath = os.path.join(outputDir, 'controlFlow.dot')
     dotFile = open(dotPath, 'w')
-    dotFile.write('digraph HadronControlFlow {\n')
+    dotFile.write('digraph HadronControlFlow {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveFrame(rootFrame, dotFile)
     dotFile.write('}\n')
     dotFile.close()
@@ -268,7 +328,7 @@ def buildParseTree(outFile, parseTree, tokens, outputDir):
     # Build dotfile from parse tree nodes.
     dotPath = os.path.join(outputDir, 'parseTree.dot')
     dotFile = open(dotPath, 'w')
-    dotFile.write('digraph HadronParseTree {\n')
+    dotFile.write('digraph HadronParseTree {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveNode(parseTree, tokens, dotFile)
     dotFile.write('}\n')
     dotFile.close()
@@ -392,6 +452,8 @@ def main(args):
   <title>hadron vis report for {}</title></head>
   <style>
   body {{ font-family: Verdana }}
+  td.used {{ background-color: black; color: white }}
+  td.live {{ background-color: lightGrey; color: black }}
   </style>
 <body>
   <h2>hadron vis report for '{}'</h2>
@@ -415,6 +477,7 @@ def main(args):
     diagnostics = client.getDiagnostics(args.inputFile)
     buildParseTree(outFile, diagnostics['parseTree'], tokens, args.outputDir)
     buildControlFlow(outFile, diagnostics['rootFrame'], args.outputDir)
+    buildLinearBlock(outFile, diagnostics['linearBlock'])
     outFile.write("""
 </body>
 </html>

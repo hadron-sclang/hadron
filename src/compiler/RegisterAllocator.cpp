@@ -92,7 +92,7 @@ namespace {
 // Comparison operator for making min heaps in m_unhandled and m_inactive, sorted by start time.
 struct IntervalCompare {
     bool operator()(const hadron::LifetimeInterval& lt1, const hadron::LifetimeInterval& lt2) const {
-        return (lt1.start() < lt2.start());
+        return (lt1.start() > lt2.start());
     }
 };
 } // namespace
@@ -391,6 +391,10 @@ void RegisterAllocator::handled(LifetimeInterval& interval, LinearBlock* linearB
     linearBlock->valueLifetimes[interval.valueNumber].emplace_back(interval);
     // Update map at every hir for this value number.
     for (size_t i = interval.start(); i < interval.end(); ++i) {
+        // No need to add register locations for the guard intervals at the end of the program.
+        if (i >= linearBlock->instructions.size()) {
+            break;
+        }
         // TODO: do we need this covers check? Is it harmless to cache reg assignments during lifetime holes?
         if (interval.covers(i)) {
             linearBlock->instructions[i]->valueLocations.emplace(std::make_pair(interval.valueNumber,

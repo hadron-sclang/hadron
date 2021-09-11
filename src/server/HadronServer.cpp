@@ -89,7 +89,7 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
 
     SPDLOG_TRACE("Compile Diagnostics Block Serializer");
     hadron::BlockSerializer blockSerializer;
-    auto linearBlock = blockSerializer.serialize(std::move(frame), hadron::LighteningJIT::physicalFloatRegisterCount());
+    auto linearBlock = blockSerializer.serialize(std::move(frame), hadron::LighteningJIT::physicalRegisterCount());
 
     SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer");
     hadron::LifetimeAnalyzer lifetimeAnalyzer;
@@ -103,13 +103,14 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
     hadron::Resolver resolver;
     resolver.resolve(linearBlock.get());
 
-    SPDLOG_TRACE("Compile Diagnostics Emitter");
-    hadron::Emitter emitter;
+//    SPDLOG_TRACE("Compile Diagnostics Emitter");
+//    hadron::Emitter emitter;
     hadron::VirtualJIT virtualJIT;
-    emitter.emit(linearBlock.get(), &virtualJIT);
+//    emitter.emit(linearBlock.get(), &virtualJIT);
 
     // Rebuid frame to include in diagnostics.
-    frame = blockBuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
+    hadron::BlockBuilder blockRebuilder(&lexer, errorReporter);
+    frame = blockRebuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
     m_jsonTransport->sendCompilationDiagnostics(id, parser.root(), frame.get(), linearBlock.get(), &virtualJIT);
 }
 

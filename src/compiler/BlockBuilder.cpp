@@ -76,11 +76,17 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(const parse::BlockNode* block
 
     // Variable definitions are allowed inline in Hadron, so we process variable definitions just like expression
     // sequences in the main body.
+    std::pair<Value, Value> finalValue;
     if (blockNode->variables) {
-        buildFinalValue(blockNode->variables.get());
+        finalValue = buildFinalValue(blockNode->variables.get());
     }
     if (blockNode->body) {
-        buildFinalValue(blockNode->body.get());
+        finalValue = buildFinalValue(blockNode->body.get());
+    }
+
+    // If this is the root Frame we insert a return value.
+    if (frame->parent == nullptr) {
+        findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(finalValue));
     }
 
     return frame;

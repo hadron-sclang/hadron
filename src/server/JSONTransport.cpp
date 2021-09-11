@@ -780,6 +780,7 @@ void JSONTransport::JSONTransportImpl::serializeFrame(const hadron::Frame* frame
 
 void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::LinearBlock* linearBlock,
         rapidjson::Value& jsonBlock, rapidjson::Document& document) {
+    jsonBlock.SetObject();
     rapidjson::Value instructions;
     instructions.SetArray();
     for (const auto& hir : linearBlock->instructions) {
