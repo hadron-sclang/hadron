@@ -103,10 +103,10 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
     hadron::Resolver resolver;
     resolver.resolve(linearBlock.get());
 
-//    SPDLOG_TRACE("Compile Diagnostics Emitter");
-//    hadron::Emitter emitter;
+    SPDLOG_TRACE("Compile Diagnostics Emitter");
+    hadron::Emitter emitter;
     hadron::VirtualJIT virtualJIT;
-//    emitter.emit(linearBlock.get(), &virtualJIT);
+    emitter.emit(linearBlock.get(), &virtualJIT);
 
     // Rebuid frame to include in diagnostics.
     hadron::BlockBuilder blockRebuilder(&lexer, errorReporter);

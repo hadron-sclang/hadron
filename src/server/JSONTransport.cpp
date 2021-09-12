@@ -5,6 +5,7 @@
 #include "hadron/LifetimeInterval.hpp"
 #include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
+#include "hadron/VirtualJIT.hpp"
 #include "internal/BuildInfo.hpp"
 #include "server/HadronServer.hpp"
 #include "server/LSPMethods.hpp"
@@ -54,6 +55,7 @@ private:
             rapidjson::Document& document);
     void serializeLinearBlock(const hadron::LinearBlock* linearBlock, rapidjson::Value& jsonBlock,
             rapidjson::Document& document);
+    void serializeJIT(const hadron::VirtualJIT* virtualJIT, rapidjson::Value& jsonJIT, rapidjson::Document& document);
     void serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR, rapidjson::Document& document);
     void serializeValue(hadron::Value value, rapidjson::Value& jsonValue, rapidjson::Document& document);
     void serializeLifetimeIntervals(const std::vector<std::vector<hadron::LifetimeInterval>>& lifetimeIntervals,
@@ -291,8 +293,7 @@ void JSONTransport::JSONTransportImpl::sendSemanticTokens(const std::vector<hadr
 }
 
 void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
-        const hadron::Frame* frame, const hadron::LinearBlock* linearBlock,
-        const hadron::VirtualJIT* /* virtualJIT */) {
+        const hadron::Frame* frame, const hadron::LinearBlock* linearBlock, const hadron::VirtualJIT* virtualJIT) {
     rapidjson::Document document;
     document.SetObject();
     document.AddMember("jsonrpc", rapidjson::Value("2.0"), document.GetAllocator());
@@ -308,6 +309,9 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id, co
     rapidjson::Value jsonBlock;
     serializeLinearBlock(linearBlock, jsonBlock, document);
     document["result"].AddMember("linearBlock", jsonBlock, document.GetAllocator());
+    rapidjson::Value jsonJIT;
+    serializeJIT(virtualJIT, jsonJIT, document);
+    document["result"].AddMember("machineCode", jsonJIT, document.GetAllocator());
     sendMessage(document);
 }
 
@@ -823,6 +827,104 @@ void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::Linear
     jsonBlock.AddMember("numberOfSpillSlots", rapidjson::Value(static_cast<uint64_t>(linearBlock->numberOfSpillSlots)),
             document.GetAllocator());
 }
+
+void JSONTransport::JSONTransportImpl::serializeJIT(const hadron::VirtualJIT* virtualJIT, rapidjson::Value& jsonJIT,
+        rapidjson::Document& document) {
+    jsonJIT.SetObject();
+    rapidjson::Value instructions;
+    instructions.SetArray();
+    for (const auto& inst : virtualJIT->instructions()) {
+        rapidjson::Value opcode;
+        opcode.SetArray();
+        switch(inst[0]) {
+        case hadron::VirtualJIT::Opcodes::kAddr:
+            opcode.PushBack("addr", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kAddi:
+            opcode.PushBack("addi", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kXorr:
+            opcode.PushBack("xorr", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kMovr:
+            opcode.PushBack("movr", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kMovi:
+            opcode.PushBack("movi", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kBgei:
+            opcode.PushBack("bgei", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kBeqi:
+            opcode.PushBack("beqi", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kJmp:
+            opcode.PushBack("jmp", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kJmpr:
+            opcode.PushBack("jmpr", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kJmpi:
+            opcode.PushBack("jmpi", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kLdxiW:
+            opcode.PushBack("ldxi_w", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kLdxiI:
+            opcode.PushBack("ldxi_i", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kLdxiL:
+            opcode.PushBack("ldxi_l", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kStrI:
+            opcode.PushBack("str_i", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kStxiW:
+            opcode.PushBack("stxi_w", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kStxiI:
+            opcode.PushBack("stxi_i", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kStxiL:
+            opcode.PushBack("stxi_l", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kRet:
+            opcode.PushBack("ret", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kRetr:
+            opcode.PushBack("retr", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kReti:
+            opcode.PushBack("reti", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kLabel:
+            opcode.PushBack("label", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kAddress:
+            opcode.PushBack("address", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kPatchHere:
+            opcode.PushBack("patch_here", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kPatchThere:
+            opcode.PushBack("patch_there", document.GetAllocator());
+            break;
+        }
+        opcode.PushBack(rapidjson::Value(inst[1]), document.GetAllocator());
+        opcode.PushBack(rapidjson::Value(inst[2]), document.GetAllocator());
+        opcode.PushBack(rapidjson::Value(inst[3]), document.GetAllocator());
+        instructions.PushBack(opcode, document.GetAllocator());
+    }
+    jsonJIT.AddMember("instructions", instructions, document.GetAllocator());
+
+    rapidjson::Value labels;
+    labels.SetArray();
+    for (auto label : virtualJIT->labels()) {
+        labels.PushBack(static_cast<uint64_t>(label), document.GetAllocator());
+    }
+    jsonJIT.AddMember("labels", labels, document.GetAllocator());
+}
+
 
 void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR,
         rapidjson::Document& document) {

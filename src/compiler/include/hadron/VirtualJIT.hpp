@@ -69,7 +69,6 @@ public:
         kRet        = 0x1000,
         kRetr       = 0x1100,
         kReti       = 0x1200,
-        kEpilog     = 0x1300,
         kLabel      = 0x1400,
         kAddress    = 0x1500,
         kPatchHere  = 0x1600,
@@ -80,6 +79,7 @@ public:
 
     using Inst = std::array<int32_t, 4>;
     const std::vector<Inst>& instructions() const { return m_instructions; }
+    const std::vector<size_t>& labels() const { return m_labels; }
 
 private:
     int m_maxRegisters;

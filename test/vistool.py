@@ -7,6 +7,71 @@ import html
 import os
 import subprocess
 
+def reg(reg):
+    if reg == -1:
+        return 'SP'
+    elif reg == -2:
+        return 'CONTEXT'
+    return 'GPR{}'.format(reg)
+
+def buildMachineCode(outFile, machineCode):
+    outFile.write('\n<h3>machine code</h3>\n<span style="font-family: monospace">')
+    lineNumber = 0
+    for inst in machineCode['instructions']:
+        outFile.write('{}: '.format(lineNumber))
+        lineNumber += 1
+        if inst[0] == 'addr':
+            outFile.write('addr {}, {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2]), reg(inst[3])))
+        elif inst[0] == 'addi':
+            outFile.write('addi {}, {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
+        elif inst[0] == 'xorr':
+            outFile.write('xorr {}, {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2]), reg(inst[3])))
+        elif inst[0] == 'movr':
+            outFile.write('movr {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2])))
+        elif inst[0] == 'movi':
+            outFile.write('movi {}, {}<br>\n'.format(reg(inst[1]), inst[2]))
+        elif inst[0] == 'bgei':
+            outFile.write('bgei {}, {}<br>\n'.format(reg(inst[1]), machineCode['labels'][inst[2]]))
+        elif inst[0] == 'beqi':
+            outFile.write('beqi {}, {}<br>\n'.format(reg(inst[1]), machineCode['labels'][inst[2]]))
+        elif inst[0] == 'jmp':
+            outFile.write('jmp {}<br>\n'.format(machineCode['labels'][inst[1]]))
+        elif inst[0] == 'jmpr':
+            outFile.write('jmpr {}<br>\n'.format(machineCode['labels'][inst[1]]))
+        elif inst[0] == 'jmpi':
+            outFile.write('jmpi {}<br>\n'.format(inst[1]))
+        elif inst[0] == 'ldxi_w':
+            outFile.write('ldxi_w {} {} {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
+        elif inst[0] == 'ldxi_i':
+            outFile.write('ldxi_i {} {} {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
+        elif inst[0] == 'ldxi_l':
+            outFile.write('ldxi_l {} {} {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
+        elif inst[0] == 'str_i':
+            outFile.write('str_i {} {}<br>\n'.format(reg(inst[1]), inst[2]))
+        elif inst[0] == 'stxi_w':
+            outFile.write('stxi_w {} {} {}<br>\n'.format(inst[1], reg(inst[2]), reg(inst[3])))
+        elif inst[0] == 'stxi_i':
+            outFile.write('stxi_i {} {} {}<br>\n'.format(inst[1], reg(inst[2]), reg(inst[3])))
+        elif inst[0] == 'stxi_l':
+            outFile.write('stxi_l {} {} {}<br>\n'.format(inst[1], reg(inst[2]), reg(inst[3])))
+        elif inst[0] == 'ret':
+            outFile.write('ret<br>\n')
+        elif inst[0] == 'retr':
+            outFile.write('retr {}<br>\n'.format(reg(inst[1])))
+        elif inst[0] == 'reti':
+            outFile.write('reti {}<br>\n'.format(inst[1]))
+        elif inst[0] == 'label':
+            outFile.write('label<br>\n')
+        elif inst[0] == 'address':
+            outFile.write('address<br>\n')
+        elif inst[0] == 'patch_here':
+            outFile.write('patch_here {}<br>\n'.format(inst[1]))
+        elif inst[0] == 'patch_there':
+            outFile.write('patch_there {} {}<br>\n'.format(inst[1], inst[2]))
+        else:
+            outFile.write('unknown opcode: {}<br>\n'.format(inst[0]))
+    outFile.write('\n</span>\n')
+
 def findContainingLifetime(i, lifetimeList):
     for lifetime in lifetimeList:
         for range in lifetime['ranges']:
@@ -478,6 +543,7 @@ def main(args):
     buildParseTree(outFile, diagnostics['parseTree'], tokens, args.outputDir)
     buildControlFlow(outFile, diagnostics['rootFrame'], args.outputDir)
     buildLinearBlock(outFile, diagnostics['linearBlock'])
+    buildMachineCode(outFile, diagnostics['machineCode'])
     outFile.write("""
 </body>
 </html>
