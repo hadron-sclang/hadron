@@ -37,7 +37,7 @@ def buildMachineCode(outFile, machineCode):
         elif inst[0] == 'jmp':
             outFile.write('jmp {}<br>\n'.format(machineCode['labels'][inst[1]]))
         elif inst[0] == 'jmpr':
-            outFile.write('jmpr {}<br>\n'.format(machineCode['labels'][inst[1]]))
+            outFile.write('jmpr {}<br>\n'.format(reg(inst[1])))
         elif inst[0] == 'jmpi':
             outFile.write('jmpi {}<br>\n'.format(inst[1]))
         elif inst[0] == 'ldxi_w':
