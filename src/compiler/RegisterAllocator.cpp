@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "spdlog/spdlog.h"
+
 /*
 Pseudocode for the Linear Scan algorithm copied verbatim from [RA4] "Optimized interval splitting in a linear scan
 register allocator", by C. Wimmer and H. Mössenböck.
@@ -90,7 +92,7 @@ namespace {
 // Comparison operator for making min heaps in m_unhandled and m_inactive, sorted by start time.
 struct IntervalCompare {
     bool operator()(const hadron::LifetimeInterval& lt1, const hadron::LifetimeInterval& lt2) const {
-        return (lt1.start() < lt2.start());
+        return (lt1.start() > lt2.start());
     }
 };
 } // namespace
@@ -141,12 +143,14 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
                 handled(iter->second, linearBlock);
                 iter = m_active.erase(iter);
             } else {
+                auto nextIter = iter;
+                ++nextIter;
                 // else if it does not cover position then
                 if (!iter->second.covers(position)) {
                     // move it from active to inactive
                     activeToInactive.insert(m_active.extract(iter));
                 }
-                ++iter;
+                iter = nextIter;
             }
         }
 
@@ -158,14 +162,16 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
             if (iter->second.end() <= position) {
                 // move it from inactive to handled
                 handled(iter->second, linearBlock);
-                iter = m_active.erase(iter);
+                iter = m_inactive.erase(iter);
             } else {
+                auto nextIter = iter;
+                ++nextIter;
                 // else if it covers position then
                 if (iter->second.covers(position)) {
                     // move it from inactive to active
                     m_active.insert(m_inactive.extract(iter));
                 }
-                ++iter;
+                iter = nextIter;
             }
         }
 
@@ -216,7 +222,7 @@ bool RegisterAllocator::tryAllocateFreeReg(LifetimeInterval& current) {
     // reg = register with highest freeUntilPos
     size_t reg = 0;
     size_t highestFreeUntilPos = 0;
-    for (size_t i = 0; reg < freeUntilPos.size(); ++reg) {
+    for (size_t i = 0; i < freeUntilPos.size(); ++i) {
         if (freeUntilPos[i] > highestFreeUntilPos) {
             reg = i;
             highestFreeUntilPos = freeUntilPos[i];
@@ -243,6 +249,7 @@ bool RegisterAllocator::tryAllocateFreeReg(LifetimeInterval& current) {
         std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
     }
 
+    m_active.emplace(std::make_pair(reg, current));
     return true;
 }
 
@@ -384,6 +391,10 @@ void RegisterAllocator::handled(LifetimeInterval& interval, LinearBlock* linearB
     linearBlock->valueLifetimes[interval.valueNumber].emplace_back(interval);
     // Update map at every hir for this value number.
     for (size_t i = interval.start(); i < interval.end(); ++i) {
+        // No need to add register locations for the guard intervals at the end of the program.
+        if (i >= linearBlock->instructions.size()) {
+            break;
+        }
         // TODO: do we need this covers check? Is it harmless to cache reg assignments during lifetime holes?
         if (interval.covers(i)) {
             linearBlock->instructions[i]->valueLocations.emplace(std::make_pair(interval.valueNumber,

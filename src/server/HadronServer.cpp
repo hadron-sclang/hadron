@@ -1,14 +1,23 @@
 #include "server/HadronServer.hpp"
 
 #include "hadron/BlockBuilder.hpp"
+#include "hadron/BlockSerializer.hpp"
+#include "hadron/Emitter.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Interpreter.hpp"
 #include "hadron/Lexer.hpp"
+#include "hadron/LinearBlock.hpp"
+#include "hadron/LifetimeAnalyzer.hpp"
+#include "hadron/LighteningJIT.hpp"
 #include "hadron/Parser.hpp"
+#include "hadron/RegisterAllocator.hpp"
+#include "hadron/Resolver.hpp"
 #include "hadron/SourceFile.hpp"
+#include "hadron/VirtualJIT.hpp"
 #include "server/JSONTransport.hpp"
 
 #include "fmt/format.h"
+#include "spdlog/spdlog.h"
 
 namespace server {
 
@@ -52,7 +61,7 @@ void HadronServer::semanticTokensFull(const std::string& filePath) {
     m_jsonTransport->sendSemanticTokens(lexer.tokens());
 }
 
-void HadronServer::hadronParseTree(lsp::ID id, const std::string& filePath) {
+void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& filePath) {
     hadron::SourceFile sourceFile(filePath);
     auto errorReporter = std::make_shared<hadron::ErrorReporter>();
     if (!sourceFile.read(errorReporter)) {
@@ -74,34 +83,37 @@ void HadronServer::hadronParseTree(lsp::ID id, const std::string& filePath) {
         return;
     }
 
-    m_jsonTransport->sendParseTree(id, parser.root());
-}
-
-void HadronServer::hadronControlFlow(lsp::ID id, const std::string& filePath) {
-    hadron::SourceFile sourceFile(filePath);
-    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
-    if (!sourceFile.read(errorReporter)) {
-        m_jsonTransport->sendErrorResponse(std::nullopt, JSONTransport::ErrorCode::kFileReadError,
-                fmt::format("Failed to read file {} for parsing.", filePath));
-        return;
-    }
-
-    auto code = sourceFile.codeView();
-    hadron::Lexer lexer(code, errorReporter);
-    if (!lexer.lex() || !errorReporter->ok()) {
-        // TODO: errorReporter starts reporting problems itself
-        return;
-    }
-
-    hadron::Parser parser(&lexer, errorReporter);
-    if (!parser.parse() || !errorReporter->ok()) {
-        // TODO: errors
-        return;
-    }
-
+    SPDLOG_TRACE("Compile Diagnostics Block Builder");
     hadron::BlockBuilder blockBuilder(&lexer, errorReporter);
     auto frame = blockBuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
-    m_jsonTransport->sendControlFlow(id, frame.get());
+
+    SPDLOG_TRACE("Compile Diagnostics Block Serializer");
+    hadron::BlockSerializer blockSerializer;
+    auto linearBlock = blockSerializer.serialize(std::move(frame), hadron::LighteningJIT::physicalRegisterCount());
+
+    SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer");
+    hadron::LifetimeAnalyzer lifetimeAnalyzer;
+    lifetimeAnalyzer.buildLifetimes(linearBlock.get());
+
+    SPDLOG_TRACE("Compile Diagnostics Register Allocator");
+    hadron::RegisterAllocator registerAllocator;
+    registerAllocator.allocateRegisters(linearBlock.get());
+
+    SPDLOG_TRACE("Compile Diagnostics Resolver");
+    hadron::Resolver resolver;
+    resolver.resolve(linearBlock.get());
+
+    SPDLOG_TRACE("Compile Diagnostics Emitter");
+    hadron::Emitter emitter;
+    hadron::VirtualJIT virtualJIT;
+    emitter.emit(linearBlock.get(), &virtualJIT);
+
+    // Rebuid frame to include in diagnostics.
+    hadron::BlockBuilder blockRebuilder(&lexer, errorReporter);
+    frame = blockRebuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
+    m_jsonTransport->sendCompilationDiagnostics(id, parser.root(), frame.get(), linearBlock.get(), &virtualJIT);
 }
+
+
 
 } // namespace server

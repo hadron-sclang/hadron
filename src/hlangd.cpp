@@ -21,9 +21,11 @@ int main(int argc, char* argv[]) {
     logger->flush_on(spdlog::level::info);
     if (FLAGS_debugLogs) {
         logger->set_level(spdlog::level::level_enum::debug);
+        logger->flush_on(spdlog::level::debug);
     }
     if (FLAGS_traceLogs) {
         logger->set_level(spdlog::level::level_enum::trace);
+        logger->flush_on(spdlog::level::trace);
     }
     spdlog::set_default_logger(logger);
     SPDLOG_INFO("Hadron version {}, git branch {}@{}, compiled by {} version {}.", hadron::kHadronVersion,

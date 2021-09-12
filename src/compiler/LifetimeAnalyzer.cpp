@@ -49,7 +49,6 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
         // live = union of successor.liveIn for each successor of b
         std::unordered_set<size_t> live;
         for (auto succNumber : blockLabel->successors) {
-
             auto succRange = linearBlock->blockRanges[succNumber];
             assert(linearBlock->instructions[succRange.first]->opcode == hir::kLabel);
             const auto succLabel = reinterpret_cast<const hir::LabelHIR*>(
@@ -85,10 +84,6 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
         // for each operation op of b in reverse order do
         for (size_t j = blockRange.second; j >= blockRange.first; --j) {
             const hir::HIR* hir = linearBlock->instructions[j].get();
-            if (!hir) {
-                continue;
-            }
-
             // In Hadron there's at most 1 valid output from an HIR so this for loop is instead an if statement.
             // for each output operand opd of op do
             if (hir->value.isValid()) {
@@ -107,6 +102,10 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
                 linearBlock->valueLifetimes[opd.number][0].usages.emplace(j);
                 // live.add(opd)
                 live.insert(opd.number);
+            }
+
+            if (j == 0) {
+                break;
             }
         }
 
@@ -128,7 +127,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
         // Cleanup step, add the (now final) ranges into the lifetimes.
         for (auto rangePair : blockVariableRanges) {
             linearBlock->valueLifetimes[rangePair.first][0].addLiveRange(rangePair.second.first,
-                rangePair.second.second);
+                rangePair.second.second + 1);
         }
     }
 }

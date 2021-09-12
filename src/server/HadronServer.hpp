@@ -26,9 +26,7 @@ public:
     void initialize(std::optional<lsp::ID> id);
     void semanticTokensFull(const std::string& filePath);
 
-    // Hadron commands
-    void hadronParseTree(lsp::ID id, const std::string& filePath);
-    void hadronControlFlow(lsp::ID id, const std::string& filePath);
+    void hadronCompilationDiagnostics(lsp::ID id, const std::string& filePath);
 
     enum ServerState {
         kUninitialized,

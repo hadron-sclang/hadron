@@ -118,6 +118,13 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
         } break;
         }
     }
+
+    // TODO: patches?
+
+    // Load caller return address from framePointer + 1 into the stack pointer, then jump there.
+   jit->ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, framePointer));
+   jit->ldxi_w(JIT::kStackPointerReg, JIT::kStackPointerReg, Slot::slotValueOffset(1));
+   jit->jmpr(JIT::kStackPointerReg);
 }
 
 } // namespace hadron
