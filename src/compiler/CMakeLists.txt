@@ -109,6 +109,7 @@ add_library(hadron STATIC
     include/hadron/ErrorReporter.hpp
     include/hadron/Function.hpp
     include/hadron/Hash.hpp
+    include/hadron/Heap.hpp
     include/hadron/HIR.hpp
     include/hadron/JIT.hpp
     include/hadron/JITMemoryArena.hpp
@@ -133,6 +134,7 @@ add_library(hadron STATIC
     Emitter.cpp
     ErrorReporter.cpp
     Hash.cpp
+    Heap.cpp
     HIR.cpp
     Interpreter.cpp
     JITMemoryArena.cpp

@@ -46,5 +46,7 @@ defer work for the main thread.
   * compiled class library code
   * IdentityDictionaries
 
-Approach - spaces division seems useful, given the different handling approaches required.
+Approach - spaces division seems useful, given the different handling approaches required. Per-page free list is
+"high water mark" indicating after which all memory is known free. Build the young allocator/collector first. All on
+main thread. Scavenge operation and pointer rewriting.
 
