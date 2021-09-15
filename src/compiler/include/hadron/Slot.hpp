@@ -7,6 +7,8 @@
 #include <cstddef>
 #include <string>
 
+// TODO: refactor to 8 byte Slots along the lines of:
+// https://www.npopov.com/2012/02/02/Pointer-magic-for-efficient-dynamic-value-representations.html
 namespace hadron {
 
 struct Slot {

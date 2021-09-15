@@ -1,28 +1,27 @@
 #include "hadron/Heap.hpp"
 
+#include "hadron/Page.hpp"
+
+#include "spdlog/spdlog.h"
+
 namespace hadron {
 
-// Pages should be aligned along page size.
-struct Heap::Page {
-    void* pageStartAddress;
-    size_t highWaterMark;
-    int mmapFileDescriptor;
-};
+void* Heap::allocateNew(size_t sizeInBytes) {
+    auto sizeClass = getSizeClass(sizeInBytes);
+    if (sizeClass < SizeClass::kExtraLarge) {
+        
+    } else {
 
-struct Heap::Space {
-    std::vector<Heap::Page> freePages;
-};
-
-void* Heap::allocateNew(size_t bytes) {
-
+    }
+    return nullptr;
 }
 
-Heap::SizeClass Heap::getSizeClass(size_t bytes) {
-    if (bytes < kSmallObjectSize) {
+Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
+    if (sizeInBytes < kSmallObjectSize) {
         return SizeClass::kSmall;
-    } else if (bytes < kMediumObjectSize) {
+    } else if (sizeInBytes < kMediumObjectSize) {
         return SizeClass::kMedium;
-    } else if (bytes < kLargeObjectSize) {
+    } else if (sizeInBytes < kLargeObjectSize) {
         return SizeClass::kLarge;
     }
     return SizeClass::kExtraLarge;
