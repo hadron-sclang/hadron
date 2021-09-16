@@ -32,11 +32,16 @@ private:
         kSmall = 0,
         kMedium = 1,
         kLarge = 2,
-        kExtraLarge = 3,
-        kNumberOfSizeClasses = 4
+        kNumberOfSizeClasses = 3
     };
     SizeClass getSizeClass(size_t sizeInBytes);
-    std::array<std::vector<Page>, kNumberOfSizeClasses> m_youngPages;
+//    size_t getSizeOfClass(SizeClass sizeClass);
+
+    // Nonfull pages organized by size class.
+    std::array<Page, kNumberOfSizeClasses> m_youngPages;
+    // Young objects that survive the
+    std::array<std::vector<Page>, kNumberOfSizeClasses> m_middlePages;
+    size_t m_totalMappedPages;
 };
 
 } // namespace hadron
