@@ -1,6 +1,8 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_PAGE_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_PAGE_HPP_
 
+#include <cstddef>
+
 namespace hadron {
 
 // Represents a contiguous region of memory mapped memory. Contains Heap allocations of a fixed size. Not

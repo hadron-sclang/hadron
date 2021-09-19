@@ -1,7 +1,5 @@
 #include "hadron/Heap.hpp"
 
-#include "hadron/Page.hpp"
-
 #include "spdlog/spdlog.h"
 
 namespace hadron {
@@ -43,6 +41,7 @@ void* Heap::allocateNew(size_t sizeInBytes) {
         return m_youngPages[sizeClass].allocate();
     }
 
+    return nullptr;
 }
 
 Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {

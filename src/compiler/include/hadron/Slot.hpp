@@ -7,9 +7,38 @@
 #include <cstddef>
 #include <string>
 
-// TODO: refactor to 8 byte Slots along the lines of:
+// Tagged pointer/double 8-byte Slot structure. Uses code and techniques borrowed from:
 // https://www.npopov.com/2012/02/02/Pointer-magic-for-efficient-dynamic-value-representations.html
+// by Nikita Popov.
 namespace hadron {
+
+class Slot {
+private:
+    union {
+        double asDouble;
+        uint64_t asBits;
+    };
+
+    // Quiet NaN:
+    // seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm
+    // s1111111|11111ppp|pppppppp|pppppppp|pppppppp|pppppppp|pppppppp|pppppppp
+
+    // Maximum double (qNaN with sign bit set without payload):
+    //                     seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm
+    // 0xfff8000000000000: 11111111|11111000|00000000|00000000|00000000|00000000|00000000|00000000
+    static constexpr uint64_t kDoubleTag  = 0xfff8000000000000;
+    static constexpr uint64_t kNilTag     = 0xfff9000000000000;
+    static constexpr uint64_t kInt32Tag   = 0xfffa000000000000;
+    static constexpr uint64_t kBooleanTag = 0xfffb000000000000;
+    static constexpr uint64_t kStringTag  = 0xfffc000000000000;
+    static constexpr uint64_t kSymbolTag  = 0xfffd000000000000;
+    static constexpr uint64_t kObjectTag  = 0xfffe000000000000;
+    static constexpr uint64_t kArrayTag   = 0xffff000000000000;
+
+public:
+
+};
+
 
 struct Slot {
 public:

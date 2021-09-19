@@ -1,12 +1,13 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_HEAP_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_HEAP_HPP_
 
+#include "hadron/Page.hpp"
+
 #include <array>
 #include <cstddef>
 #include <vector>
 
 namespace hadron {
-class Page;
 
 // Manages dynamic memory allocation for Hadron, including garbage collection. Inspired by the design of the v8 garbage
 // collection system, but greatly simplified.
