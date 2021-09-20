@@ -1,7 +1,10 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_THREAD_CONTEXT_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_THREAD_CONTEXT_HPP_
 
-#include "hadron/Slot.hpp"
+#include "Slot.hpp"
+
+#include <cstddef>
+#include <cstdint>
 
 namespace hadron {
 
@@ -14,9 +17,9 @@ struct ThreadContext {
 
     // We keep a separate stack for Hadron JIT from the main C/C++ application stack.
     size_t stackSize;
-    Slot* hadronStack;
-    Slot* framePointer;
-    Slot* stackPointer;
+    uint8_t* hadronStack;
+    uint8_t* framePointer;
+    uint8_t* stackPointer;
 
     // The return address to restore the C stack and exit the machine code ABI.
     const uint8_t* exitMachineCode;

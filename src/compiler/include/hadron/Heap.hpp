@@ -36,7 +36,6 @@ private:
         kNumberOfSizeClasses = 3
     };
     SizeClass getSizeClass(size_t sizeInBytes);
-//    size_t getSizeOfClass(SizeClass sizeClass);
 
     // Nonfull pages organized by size class.
     std::array<Page, kNumberOfSizeClasses> m_youngPages;

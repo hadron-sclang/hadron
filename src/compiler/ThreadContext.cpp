@@ -21,7 +21,7 @@ bool ThreadContext::allocateStack(size_t size) {
         free(hadronStack);
         hadronStack = nullptr;
     }
-    hadronStack = reinterpret_cast<Slot*>(malloc(size * sizeof(Slot)));
+    hadronStack = reinterpret_cast<uint8_t*>(malloc(size * sizeof(Slot)));
     if (!hadronStack) {
         stackSize = 0;
         framePointer = nullptr;
@@ -30,7 +30,7 @@ bool ThreadContext::allocateStack(size_t size) {
     }
 
     stackSize = size;
-    framePointer = hadronStack + stackSize - 1;
+    framePointer = hadronStack + stackSize - sizeof(Slot);
     stackPointer = framePointer;
     return true;
 }

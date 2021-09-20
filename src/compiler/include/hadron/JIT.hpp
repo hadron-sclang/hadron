@@ -74,6 +74,8 @@ public:
     virtual void jmpi(Address location) = 0;
 
     // * loads
+    // %target = *address
+    virtual void ldr_l(Reg target, Reg address) = 0;
     // %target = *(%address + offset)
     virtual void ldxi_w(Reg target, Reg address, int offset) = 0;
     virtual void ldxi_i(Reg target, Reg address, int offset) = 0;
@@ -82,6 +84,7 @@ public:
     // * stores
     // *address = value
     virtual void str_i(Reg address, Reg value) = 0;
+    virtual void str_l(Reg address, Reg value) = 0;
     // *(offset + address) = value  // note: immediate address with register offset not currently supported
     virtual void stxi_w(int offset, Reg address, Reg value) = 0;
     virtual void stxi_i(int offset, Reg address, Reg value) = 0;

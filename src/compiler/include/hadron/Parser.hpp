@@ -142,9 +142,10 @@ struct DynListNode : public Node {
 };
 
 struct LiteralNode : public Node {
-    LiteralNode(size_t index, const Slot& v): Node(NodeType::kLiteral, index), value(v) {}
+    LiteralNode(size_t index, Type t, const Slot& v): Node(NodeType::kLiteral, index), type(t), value(v) {}
     virtual ~LiteralNode() = default;
 
+    Type type;
     // Due to unary negation of literals, this value may differ from the token value at tokenIndex.
     Slot value;
     // If blockLiteral is non-null, this is a blockLiteral and the Slot is ignored.

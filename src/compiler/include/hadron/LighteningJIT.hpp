@@ -65,10 +65,12 @@ public:
     Label jmp() override;
     void jmpr(Reg r) override;
     void jmpi(Address location) override;
+    void ldr_l(Reg target, Reg address) override;
     void ldxi_w(Reg target, Reg address, int offset) override;
     void ldxi_i(Reg target, Reg address, int offset) override;
     void ldxi_l(Reg target, Reg address, int offset) override;
     void str_i(Reg address, Reg value) override;
+    void str_l(Reg address, Reg value) override;
     void stxi_w(int offset, Reg address, Reg value) override;
     void stxi_i(int offset, Reg address, Reg value) override;
     void stxi_l(int offset, Reg address, Reg value) override;

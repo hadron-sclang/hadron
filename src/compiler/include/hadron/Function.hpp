@@ -3,7 +3,6 @@
 
 #include "hadron/Hash.hpp"
 #include "hadron/JITMemoryArena.hpp"
-#include "hadron/LSBHashTable.hpp"
 #include "hadron/Slot.hpp"
 
 #include <memory>
@@ -22,17 +21,6 @@ struct Function {
     // Argument names in order.
     std::unique_ptr<Hash[]> argumentNames;
     std::unique_ptr<Slot[]> defaultValues;
-
-    struct NameIndex {
-        Hash hash;
-        std::unique_ptr<NameIndex> next;
-        int index;
-    };
-    struct NameTable : public LSBHashTable<NameIndex> {
-        NameTable() : LSBHashTable() {}
-        virtual ~NameTable() = default;
-    };
-    NameTable nameIndices;
 
     const uint8_t* machineCode = nullptr;
     JITMemoryArena::MCodePtr machineCodeOwned;

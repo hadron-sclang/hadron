@@ -89,6 +89,10 @@ void VirtualJIT::jmpi(Address location) {
     m_instructions.emplace_back(Inst{Opcodes::kJmpi, location});
 }
 
+void VirtualJIT::ldr_l(Reg target, Reg address) {
+    m_instructions.emplace_back(Inst{Opcodes::kLdrL, target, address});
+}
+
 void VirtualJIT::ldxi_w(Reg target, Reg address, int offset) {
     m_instructions.emplace_back(Inst{Opcodes::kLdxiW, target, address, offset});
 }
@@ -103,6 +107,10 @@ void VirtualJIT::ldxi_l(Reg target, Reg address, int offset) {
 
 void VirtualJIT::str_i(Reg address, Reg value) {
     m_instructions.emplace_back(Inst{Opcodes::kStrI, address, value});
+}
+
+void VirtualJIT::str_l(Reg address, Reg value) {
+    m_instructions.emplace_back(Inst{Opcodes::kStrL, address, value});
 }
 
 void VirtualJIT::stxi_w(int offset, Reg address, Reg value) {
@@ -160,7 +168,7 @@ void VirtualJIT::patchThere(Label target, Address location) {
             "label argument as there are only {} labels", target, location, m_labels.size()));
     }
 }
-
+/*
 bool VirtualJIT::toString(std::string& codeString) const {
     std::stringstream code;
 
@@ -274,5 +282,6 @@ bool VirtualJIT::toString(std::string& codeString) const {
     codeString = code.str();
     return true;
 }
+*/
 
 } // namespace hadron

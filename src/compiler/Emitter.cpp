@@ -9,6 +9,7 @@
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
 
+#include <cassert>
 #include <unordered_map>
 #include <vector>
 
@@ -39,21 +40,23 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
         switch(hir->opcode) {
         case hir::Opcode::kLoadArgument: {
             const auto loadArgument = reinterpret_cast<const hir::LoadArgumentHIR*>(hir);
-            jit->ldxi_w(loadArgument->valueLocations.at(loadArgument->value.number), JIT::kStackPointerReg,
-                    Slot::slotValueOffset(loadArgument->index));
+            jit->ldxi_l(loadArgument->valueLocations.at(loadArgument->value.number), JIT::kStackPointerReg,
+                    loadArgument->index * kSlotSize);
         } break;
 
         case hir::Opcode::kLoadArgumentType: {
             const auto loadArgumentType = reinterpret_cast<const hir::LoadArgumentTypeHIR*>(hir);
-            jit->ldxi_w(loadArgumentType->valueLocations.at(loadArgumentType->value.number), JIT::kStackPointerReg,
-                    Slot::slotTypeOffset(loadArgumentType->index));
+            jit->ldxi_l(loadArgumentType->valueLocations.at(loadArgumentType->value.number), JIT::kStackPointerReg,
+                    loadArgumentType->index * kSlotSize);
         } break;
 
         case hir::Opcode::kConstant: {
             // Presence of a ConstantHIR this late in compilation must mean the constant value is needed in the
             // allocated register, so transfer it there.
             const auto constant = reinterpret_cast<const hir::ConstantHIR*>(hir);
-            jit->movi(constant->valueLocations.at(constant->value.number), constant->constant.value.intValue);
+            // Note the assumption this is an integer constant.
+            assert(constant->constant.getType() == Type::kInteger);
+            jit->movi(constant->valueLocations.at(constant->value.number), constant->constant.getInt32());
         } break;
 
         case hir::Opcode::kStoreReturn: {
@@ -62,10 +65,7 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             jit->stxi_w(offsetof(ThreadContext, stackPointer), JIT::kContextPointerReg, JIT::kStackPointerReg);
             jit->ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, framePointer));
             // Now store the result value and type at the frame pointer location.
-            jit->stxi_w(Slot::slotValueOffset(0), JIT::kStackPointerReg,
-                    storeReturn->valueLocations.at(storeReturn->returnValue.first.number));
-            jit->stxi_w(Slot::slotTypeOffset(0), JIT::kStackPointerReg,
-                    storeReturn->valueLocations.at(storeReturn->returnValue.second.number));
+            jit->str_l(JIT::kStackPointerReg, storeReturn->valueLocations.at(storeReturn->returnValue.first.number));
             // Now restore the stack pointer.
             jit->ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, stackPointer));
         } break;
@@ -123,7 +123,7 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
 
     // Load caller return address from framePointer + 1 into the stack pointer, then jump there.
    jit->ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, framePointer));
-   jit->ldxi_w(JIT::kStackPointerReg, JIT::kStackPointerReg, Slot::slotValueOffset(1));
+   jit->ldxi_w(JIT::kStackPointerReg, JIT::kStackPointerReg, kSlotSize);
    jit->jmpr(JIT::kStackPointerReg);
 }
 

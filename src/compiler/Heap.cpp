@@ -55,19 +55,4 @@ Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
     return SizeClass::kNumberOfSizeClasses;
 }
 
-/*
-size_t Heap::getSizeOfClass(SizeClass sizeClass) {
-    switch(sizeClass) {
-    case SizeClass::kSmall:
-        return kSmallObjectSize;
-    case SizeClass::kMedium:
-        return kMediumObjectSize;
-    case SizeClass::kLarge:
-        return kLargeObjectSize;
-    default:
-        return 0;
-    }
-    return 0;
-}
-*/
 } // namespace hadron

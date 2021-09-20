@@ -209,6 +209,10 @@ void LighteningJIT::jmpi(Address location) {
     jit_jmpi(m_state, m_addresses[location]);
 }
 
+void LighteningJIT::ldr_l(Reg target, Reg address) {
+    jit_ldr_l(m_state, reg(target), reg(address));
+}
+
 void LighteningJIT::ldxi_w(Reg target, Reg address, int offset) {
     if (sizeof(void*) == 8) {
         ldxi_l(target, address, offset);
@@ -227,6 +231,10 @@ void LighteningJIT::ldxi_l(Reg target, Reg address, int offset) {
 
 void LighteningJIT::str_i(Reg address, Reg value) {
     jit_str_i(m_state, reg(address), reg(value));
+}
+
+void LighteningJIT::str_l(Reg address, Reg value) {
+    jit_str_l(m_state, reg(address), reg(value));
 }
 
 void LighteningJIT::stxi_w(int offset, Reg address, Reg value) {

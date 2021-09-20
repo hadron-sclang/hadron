@@ -191,11 +191,11 @@ Slot Interpreter::run(Function* func) {
 
 void Interpreter::enterMachineCode(ThreadContext* context, const uint8_t* machineCode) {
     // Set machine return address as the exit trampoline into Hadron stack frame.
-    *(context->framePointer) = Slot(Type::kFramePointer, context->framePointer);
+    *(context->framePointer) = context->framePointer;
     --(context->framePointer);
-    *(context->framePointer) = Slot(Type::kStackPointer, context->stackPointer);
+    *(context->framePointer) = context->stackPointer;
     --(context->framePointer);
-    *(context->framePointer) = Slot(reinterpret_cast<uint8_t*>(m_exitTrampoline));
+    *(context->framePointer) = reinterpret_cast<uint8_t*>(m_exitTrampoline);
     --(context->framePointer);
 
     // Initialize return value.

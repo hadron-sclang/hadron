@@ -33,10 +33,12 @@ public:
     Label jmp() override;
     void jmpr(Reg r) override;
     void jmpi(Address location) override;
+    void ldr_l(Reg target, Reg address) override;
     void ldxi_w(Reg target, Reg address, int offset) override;
     void ldxi_i(Reg target, Reg address, int offset) override;
     void ldxi_l(Reg target, Reg address, int offset) override;
     void str_i(Reg address, Reg value) override;
+    void str_l(Reg address, Reg value) override;
     void stxi_w(int offset, Reg address, Reg value) override;
     void stxi_i(int offset, Reg address, Reg value) override;
     void stxi_l(int offset, Reg address, Reg value) override;
@@ -59,10 +61,12 @@ public:
         kJmp        = 0x0700,
         kJmpr       = 0x0800,
         kJmpi       = 0x0801,
+        kLdrL       = 0x0802,
         kLdxiW      = 0x0900,
         kLdxiI      = 0x0a00,
         kLdxiL      = 0x0b00,
         kStrI       = 0x0c00,
+        kStrL       = 0x0c01,
         kStxiW      = 0x0d00,
         kStxiI      = 0x0e00,
         kStxiL      = 0x0f00,
@@ -75,7 +79,7 @@ public:
         kPatchThere = 0x1700,
     };
 
-    bool toString(std::string& codeString) const;
+//    bool toString(std::string& codeString) const;
 
     using Inst = std::array<int32_t, 4>;
     const std::vector<Inst>& instructions() const { return m_instructions; }

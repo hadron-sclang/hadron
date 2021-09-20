@@ -48,7 +48,7 @@ bool ConstantHIR::isEquivalent(const HIR* hir) const {
 
 Value ConstantHIR::proposeValue(uint32_t number) {
     value.number = number;
-    value.typeFlags = constant.type;
+    value.typeFlags = constant.getType();
     return value;
 }
 
