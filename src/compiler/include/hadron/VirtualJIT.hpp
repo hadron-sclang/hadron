@@ -24,12 +24,14 @@ public:
     int getFloatRegisterCount() const override;
 
     void addr(Reg target, Reg a, Reg b) override;
-    void addi(Reg target, Reg a, int b) override;
+    void addi(Reg target, Reg a, Word b) override;
+    void andi(Reg target, Reg a, UWord b) override;
+    void ori(Reg target, Reg a, UWord b) override;
     void xorr(Reg target, Reg a, Reg b) override;
     void movr(Reg target, Reg value) override;
-    void movi(Reg target, int value) override;
-    Label bgei(Reg a, int b) override;
-    Label beqi(Reg a, int b) override;
+    void movi(Reg target, Word value) override;
+    Label bgei(Reg a, Word b) override;
+    Label beqi(Reg a, Word b) override;
     Label jmp() override;
     void jmpr(Reg r) override;
     void jmpi(Address location) override;
@@ -50,9 +52,11 @@ public:
     void patchHere(Label label) override;
     void patchThere(Label target, Address location) override;
 
-    enum Opcodes : int32_t {
+    enum Opcodes : Word {
         kAddr       = 0x0100,
         kAddi       = 0x0200,
+        kAndi       = 0x0201,
+        kOri        = 0x0202,
         kXorr       = 0x0300,
         kMovr       = 0x0400,
         kMovi       = 0x0500,
@@ -81,7 +85,7 @@ public:
 
 //    bool toString(std::string& codeString) const;
 
-    using Inst = std::array<int32_t, 4>;
+    using Inst = std::array<Word, 4>;
     const std::vector<Inst>& instructions() const { return m_instructions; }
     const std::vector<size_t>& labels() const { return m_labels; }
 

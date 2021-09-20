@@ -829,6 +829,12 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const hadron::VirtualJIT* vi
         case hadron::VirtualJIT::Opcodes::kAddi:
             opcode.PushBack("addi", document.GetAllocator());
             break;
+        case hadron::VirtualJIT::Opcodes::kAndi:
+            opcode.PushBack("andi", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kOri:
+            opcode.PushBack("ori", document.GetAllocator());
+            break;
         case hadron::VirtualJIT::Opcodes::kXorr:
             opcode.PushBack("xorr", document.GetAllocator());
             break;

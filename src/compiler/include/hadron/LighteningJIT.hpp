@@ -56,12 +56,14 @@ public:
     int getFloatRegisterCount() const override;
 
     void addr(Reg target, Reg a, Reg b) override;
-    void addi(Reg target, Reg a, int b) override;
+    void addi(Reg target, Reg a, Word b) override;
+    void andi(Reg target, Reg a, UWord b) override;
+    void ori(Reg target, Reg a, UWord b) override;
     void xorr(Reg target, Reg a, Reg b) override;
     void movr(Reg target, Reg value) override;
-    void movi(Reg target, int value) override;
-    Label bgei(Reg a, int b) override;
-    Label beqi(Reg a, int b) override;
+    void movi(Reg target, Word value) override;
+    Label bgei(Reg a, Word b) override;
+    Label beqi(Reg a, Word b) override;
     Label jmp() override;
     void jmpr(Reg r) override;
     void jmpi(Address location) override;

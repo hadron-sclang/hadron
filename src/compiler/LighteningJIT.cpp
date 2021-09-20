@@ -168,8 +168,16 @@ void LighteningJIT::addr(Reg target, Reg a, Reg b) {
     jit_addr(m_state, reg(target), reg(a), reg(b));
 }
 
-void LighteningJIT::addi(Reg target, Reg a, int b) {
+void LighteningJIT::addi(Reg target, Reg a, Word b) {
     jit_addi(m_state, reg(target), reg(a), b);
+}
+
+void LighteningJIT::andi(Reg target, Reg a, UWord b) {
+    jit_andi(m_state, reg(target), reg(a), b);
+}
+
+void LighteningJIT::ori(Reg target, Reg a, UWord b) {
+    jit_ori(m_state, reg(target), reg(a), b);
 }
 
 void LighteningJIT::xorr(Reg target, Reg a, Reg b) {
@@ -182,16 +190,16 @@ void LighteningJIT::movr(Reg target, Reg value) {
     }
 }
 
-void LighteningJIT::movi(Reg target, int value) {
+void LighteningJIT::movi(Reg target, Word value) {
     jit_movi(m_state, reg(target), value);
 }
 
-JIT::Label LighteningJIT::bgei(Reg a, int b) {
+JIT::Label LighteningJIT::bgei(Reg a, Word b) {
     m_labels.emplace_back(jit_bgei(m_state, reg(a), b));
     return m_labels.size() - 1;
 }
 
-JIT::Label LighteningJIT::beqi(Reg a, int b) {
+JIT::Label LighteningJIT::beqi(Reg a, Word b) {
     m_labels.emplace_back(jit_beqi(m_state, reg(a), b));
     return m_labels.size() - 1;
 }
