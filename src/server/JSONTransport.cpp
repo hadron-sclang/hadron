@@ -924,6 +924,13 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const hadron::VirtualJIT* vi
         labels.PushBack(static_cast<uint64_t>(label), document.GetAllocator());
     }
     jsonJIT.AddMember("labels", labels, document.GetAllocator());
+
+    rapidjson::Value uwords;
+    uwords.SetArray();
+    for (auto uword : virtualJIT->uwords()) {
+        uwords.PushBack(uword, document.GetAllocator());
+    }
+    jsonJIT.AddMember("uwords", uwords, document.GetAllocator());
 }
 
 

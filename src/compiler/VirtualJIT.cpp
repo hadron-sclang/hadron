@@ -47,11 +47,15 @@ void VirtualJIT::addi(Reg target, Reg a, Word b) {
 }
 
 void VirtualJIT::andi(Reg target, Reg a, UWord b) {
-    m_instructions.emplace_back(Inst{Opcodes::kAndi, target, a, b});
+    Word uwordIndex = m_uwords.size();
+    m_uwords.emplace_back(b);
+    m_instructions.emplace_back(Inst{Opcodes::kAndi, target, a, uwordIndex});
 }
 
 void VirtualJIT::ori(Reg target, Reg a, UWord b) {
-    m_instructions.emplace_back(Inst{Opcodes::kOri, target, a, b});
+    Word uwordIndex = m_uwords.size();
+    m_uwords.emplace_back(b);
+    m_instructions.emplace_back(Inst{Opcodes::kOri, target, a, uwordIndex});
 }
 
 void VirtualJIT::xorr(Reg target, Reg a, Reg b) {

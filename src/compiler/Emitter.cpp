@@ -9,6 +9,8 @@
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
 
+#include "spdlog/spdlog.h"
+
 #include <cassert>
 #include <unordered_map>
 #include <vector>
@@ -61,13 +63,22 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
 
         case hir::Opcode::kStoreReturn: {
             const auto storeReturn = reinterpret_cast<const hir::StoreReturnHIR*>(hir);
+            // Add pointer tag to stack pointer to maintain invariant that saved pointers are always tagged.
+            jit->ori(JIT::kStackPointerReg, JIT::kStackPointerReg, Slot::kObjectTag);
             // Save the stack pointer to the thread context so we can load the frame pointer in its place.
             jit->stxi_w(offsetof(ThreadContext, stackPointer), JIT::kContextPointerReg, JIT::kStackPointerReg);
+            // Load and untag Frame Pointer
             jit->ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, framePointer));
-            // Now store the result value and type at the frame pointer location.
-            jit->str_l(JIT::kStackPointerReg, storeReturn->valueLocations.at(storeReturn->returnValue.first.number));
+            jit->andi(JIT::kStackPointerReg, JIT::kStackPointerReg, ~Slot::kTagMask);
+            // NOTE ASSUMPTION OF INTEGER TYPE
+            auto valReg = storeReturn->valueLocations.at(storeReturn->returnValue.first.number);
+            jit->andi(valReg, valReg, ~Slot::kTagMask);
+            jit->ori(valReg, valReg, Slot::kInt32Tag);
+            // Now store the tagged result value and type at the frame pointer location.
+            jit->str_l(JIT::kStackPointerReg, valReg);
             // Now restore the stack pointer.
             jit->ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, stackPointer));
+            jit->andi(JIT::kStackPointerReg, JIT::kStackPointerReg, ~Slot::kTagMask);
         } break;
 
         case hir::Opcode::kResolveType:
@@ -123,9 +134,9 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
 
     // Load caller return address from framePointer + 1 into the stack pointer, then jump there.
     jit->ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, framePointer));
-    jit->andi(JIT::kStackPointerReg, JIT::kStackPointerReg, ~(kTagMask));
+    jit->andi(JIT::kStackPointerReg, JIT::kStackPointerReg, ~Slot::kTagMask);
     jit->ldxi_w(JIT::kStackPointerReg, JIT::kStackPointerReg, kSlotSize);
-    jit->andi(JIT::kStackPointerReg, JIT::kStackPointerReg, ~(kTagMask));
+    jit->andi(JIT::kStackPointerReg, JIT::kStackPointerReg, ~Slot::kTagMask);
     jit->jmpr(JIT::kStackPointerReg);
 }
 

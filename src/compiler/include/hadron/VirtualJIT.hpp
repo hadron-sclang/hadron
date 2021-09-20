@@ -88,12 +88,14 @@ public:
     using Inst = std::array<Word, 4>;
     const std::vector<Inst>& instructions() const { return m_instructions; }
     const std::vector<size_t>& labels() const { return m_labels; }
+    const std::vector<UWord>& uwords() const { return m_uwords; }
 
 private:
     int m_maxRegisters;
     int m_maxFloatRegisters;
     std::vector<Inst> m_instructions;
     std::vector<size_t> m_labels;  // indices in the m_instructions table.
+    std::vector<UWord> m_uwords; // store unsigned words separately
     int m_addressCount; // keep a count of requests to address() so we can refer to them by index.
 };
 

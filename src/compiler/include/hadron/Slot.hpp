@@ -7,8 +7,6 @@
 #include <cstddef>
 #include <string>
 
-static constexpr uint64_t kTagMask = 0xffff000000000000;
-
 // Tagged pointer/double 8-byte Slot structure. Uses code and techniques borrowed from:
 // https://www.npopov.com/2012/02/02/Pointer-magic-for-efficient-dynamic-value-representations.html
 // by Nikita Popov.
@@ -62,12 +60,6 @@ public:
     inline bool getBool() const { return m_asBits & (~kTagMask); }
     inline void* getPointer() const { return reinterpret_cast<void*>(m_asBits & (~kTagMask)); }
 
-private:
-    union {
-        double m_asDouble;
-        uint64_t m_asBits;
-    };
-
     // Maximum double (quiet NaN with sign bit set without payload):
     //                     seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm
     // 0xfff8000000000000: 11111111|11111000|00000000|00000000|00000000|00000000|00000000|00000000
@@ -78,6 +70,13 @@ private:
     static constexpr uint64_t kObjectTag  = 0xfffc000000000000;
     // Lower 48 bits of a 64-bit hash.
     static constexpr uint64_t kHashTag    = 0xfffd000000000000;
+    static constexpr uint64_t kTagMask    = 0xffff000000000000;
+
+private:
+    union {
+        double m_asDouble;
+        uint64_t m_asBits;
+    };
 };
 
 static_assert(sizeof(Slot) == 8);

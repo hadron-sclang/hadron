@@ -25,9 +25,11 @@ def buildMachineCode(outFile, machineCode):
         elif inst[0] == 'addi':
             outFile.write('addi {}, {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
         elif inst[0] == 'andi':
-            outFile.write('andi {}, {}, 0x{:x}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
+            outFile.write('andi {}, {}, 0x{:016x}<br>\n'.format(reg(inst[1]), reg(inst[2]),
+                machineCode['uwords'][inst[3]]))
         elif inst[0] == 'ori':
-            outFile.write('ori {}, {}, 0x{:x}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
+            outFile.write('ori {}, {}, 0x{:016x}<br>\n'.format(reg(inst[1]), reg(inst[2]),
+                machineCode['uwords'][inst[3]]))
         elif inst[0] == 'xorr':
             outFile.write('xorr {}, {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2]), reg(inst[3])))
         elif inst[0] == 'movr':
