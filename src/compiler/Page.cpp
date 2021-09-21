@@ -13,7 +13,10 @@ Page::Page(size_t objectSize, size_t totalSize, bool isExecutable):
     m_objectSize(objectSize),
     m_totalSize(totalSize),
     m_isExecutable(isExecutable),
-    m_highWaterMark(0) {}
+    m_nextFreeObject(0),
+    m_allocatedObjects(0) {
+    m_collectionCounts.resize(totalSize / objectSize, 0);
+}
 
 Page::~Page() {
     unmap();
@@ -35,12 +38,12 @@ bool Page::map() {
 
     if (address == MAP_FAILED) {
         int mmapError = errno;
-        SPDLOG_CRITICAL("Page mmap failed for {} bytes, errno: {}, string: {}", sizeInBytes, mmapError,
+        SPDLOG_CRITICAL("Page mmap failed for {} bytes, errno: {}, string: {}", m_totalSize, mmapError,
                 strerror(mmapError));
         return false;
     }
 
-    m_startAddress = address;
+    m_startAddress = reinterpret_cast<uint8_t*>(address);
     return true;
 }
 
@@ -59,5 +62,30 @@ bool Page::unmap() {
     return true;
 }
 
+void* Page::allocate() {
+    if (m_allocatedObjects == m_collectionCounts.size()) {
+        return nullptr;
+    }
+    assert(m_collectionCounts[m_nextFreeObject] == 0);
+    void* address = m_startAddress + (m_nextFreeObject * m_objectSize);
+    m_collectionCounts[m_nextFreeObject] = 1;
+    ++m_allocatedObjects;
+    if (m_allocatedObjects < m_collectionCounts.size()) {
+        for (size_t i = 1; i < m_collectionCounts.size(); ++i) {
+            m_nextFreeObject = (m_nextFreeObject + i) % m_collectionCounts.size();
+            if (m_collectionCounts[m_nextFreeObject] == 0) {
+                break;
+            }
+        }
+    } else {
+        m_nextFreeObject = m_collectionCounts.size();
+    }
+    return address;
+}
+
+size_t Page::capacity() {
+    assert(m_allocatedObjects <= m_collectionCounts.size());
+    return m_collectionCounts.size() - m_allocatedObjects;
+}
 
 } // namespace hadron

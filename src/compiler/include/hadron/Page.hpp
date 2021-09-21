@@ -2,6 +2,7 @@
 #define SRC_COMPILER_INCLUDE_HADRON_PAGE_HPP_
 
 #include <cstddef>
+#include <vector>
 
 namespace hadron {
 
@@ -19,20 +20,25 @@ public:
     // Returns a pointer to available memory for a new object of size |objectSize|, or nullptr if no additional capacity
     // available.
     void* allocate();
-    // Returns available room in the page (past high-water mark) *in number of stored objects*
+    // Returns available room in the page *in number of stored objects*
     size_t capacity();
 
 private:
     // Mmaped start of the address of this page.
-    void* m_startAddress;
+    uint8_t* m_startAddress;
     // Individual size of an object stored in this page, in bytes.
     size_t m_objectSize;
     // Total size of page in bytes.
     size_t m_totalSize;
     // If true the Page needs to be marked for JIT bytecode on mapping.
     bool m_isExecutable;
-    // Offset of the first un-allocated object within this page, in bytes.
-    size_t m_highWaterMark;
+    // Index of next free object in Page.
+    size_t m_nextFreeObject;
+    // Number of allocated objects in Page.
+    size_t m_allocatedObjects;
+    // Maintains an entry per-object of the collection iterations each object has survived + 1, meaning that if a count
+    // is zero that slot is unallocated.
+    std::vector<uint8_t> m_collectionCounts;
 };
 
 }

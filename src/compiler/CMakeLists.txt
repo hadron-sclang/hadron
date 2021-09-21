@@ -119,6 +119,7 @@ add_library(hadron STATIC
     include/hadron/LighteningJIT.hpp
     include/hadron/LinearBlock.hpp
     include/hadron/MoveScheduler.hpp
+    include/hadron/Page.hpp
     include/hadron/Parser.hpp
     include/hadron/RegisterAllocator.hpp
     include/hadron/Resolver.hpp
@@ -141,6 +142,7 @@ add_library(hadron STATIC
     LifetimeInterval.cpp
     LighteningJIT.cpp
     MoveScheduler.cpp
+    Page.cpp
     RegisterAllocator.cpp
     Resolver.cpp
     SourceFile.cpp

@@ -18,9 +18,6 @@ public:
     Heap();
     ~Heap();
 
-    // Map some initial pages, set up for low(er)-latency allocations.
-    bool setup();
-
     // Default allocation, allocates from the young space (unless extra large).
     void* allocateNew(size_t sizeInBytes);
 
@@ -42,13 +39,18 @@ private:
         kNumberOfSizeClasses = 3
     };
     SizeClass getSizeClass(size_t sizeInBytes);
+    size_t getSize(SizeClass sizeClass);
+    void mark();
+    void sweep();
 
     // Nonfull pages organized by size class, already mapped to (hopefully) minimize typical allocation latency.
-    std::array<Page, kNumberOfSizeClasses> m_youngPages;
-    // Young objects that survive the
-    std::array<std::vector<Page>, kNumberOfSizeClasses> m_middlePages;
+    std::array<std::vector<Page>, kNumberOfSizeClasses> m_youngPages;
+    // Young objects that survive a few collections are compacted and copied to m_oldPages.
+    std::array<std::vector<Page>, kNumberOfSizeClasses> m_maturePages;
 
-    std::map<uintptr_t, Page*> m_mappedPages;
+    std::array<std::vector<Page>, kNumberOfSizeClasses> m_youngExecutablePages;
+    std::array<std::vector<Page>, kNumberOfSizeClasses> m_matureExecutablePages;
+
     size_t m_totalMappedPages;
 };
 

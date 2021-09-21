@@ -4,31 +4,7 @@
 
 namespace hadron {
 
-Heap::Heap():
-    m_youngPages{
-        Page{kSmallObjectSize, kPageSize},
-        Page{kMediumObjectSize, kPageSize},
-        Page{kLargeObjectSize, kPageSize}},
-    m_totalMappedPages(0) {}
-
-bool Heap::setup() {
-    if (!m_youngPages[kSmall].map()) {
-        return false;
-    }
-    ++m_totalMappedPages;
-
-    if (!m_youngPages[kMedium].map()) {
-        return false;
-    }
-    ++m_totalMappedPages;
-
-    if (!m_youngPages[kLarge].map()) {
-        return false;
-    }
-    ++m_totalMappedPages;
-
-    return true;
-}
+Heap::Heap(): m_totalMappedPages(0) {}
 
 void* Heap::allocateNew(size_t sizeInBytes) {
     auto sizeClass = getSizeClass(sizeInBytes);
@@ -37,11 +13,25 @@ void* Heap::allocateNew(size_t sizeInBytes) {
         return nullptr;
     }
 
-    if (m_youngPages[sizeClass].capacity()) {
-        return m_youngPages[sizeClass].allocate();
+    for (auto& page : m_youngPages[sizeClass]) {
+        if (page.capacity()) {
+            return page.allocate();
+        }
     }
 
-    return nullptr;
+    void* address = nullptr;
+    if (m_youngPages[sizeClass].size() < 2) {
+        m_youngPages[sizeClass].emplace_back(Page{getSize(sizeClass), kPageSize});
+        if (!m_youngPages[sizeClass].back().map()) {
+            return nullptr;
+        }
+        address = m_youngPages[sizeClass].back().allocate();
+    }
+
+    mark();
+    sweep();
+
+    return address;
 }
 
 Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
@@ -53,6 +43,27 @@ Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
         return SizeClass::kLarge;
     }
     return SizeClass::kNumberOfSizeClasses;
+}
+
+size_t Heap::getSize(SizeClass sizeClass) {
+    switch(sizeClass) {
+    case kSmall:
+        return kSmallObjectSize;
+    case kMedium:
+        return kMediumObjectSize;
+    case kLarge:
+        return kLargeObjectSize;
+    default:
+        return 0;
+    }
+}
+
+void Heap::mark() {
+
+}
+
+void Heap::sweep() {
+
 }
 
 } // namespace hadron
