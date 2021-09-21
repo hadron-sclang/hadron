@@ -10,7 +10,7 @@ namespace hadron {
 class Page {
 public:
     Page() = delete;
-    Page(size_t objectSize, size_t totalSize);
+    Page(size_t objectSize, size_t totalSize, bool isExecutable = false);
     ~Page();
 
     bool map();
@@ -29,6 +29,8 @@ private:
     size_t m_objectSize;
     // Total size of page in bytes.
     size_t m_totalSize;
+    // If true the Page needs to be marked for JIT bytecode on mapping.
+    bool m_isExecutable;
     // Offset of the first un-allocated object within this page, in bytes.
     size_t m_highWaterMark;
 };

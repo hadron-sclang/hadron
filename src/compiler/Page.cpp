@@ -8,8 +8,12 @@
 
 namespace hadron {
 
-Page::Page(size_t objectSize, size_t totalSize):
-    m_startAddress(nullptr), m_objectSize(objectSize), m_totalSize(totalSize), m_highWaterMark(0) {}
+Page::Page(size_t objectSize, size_t totalSize, bool isExecutable):
+    m_startAddress(nullptr),
+    m_objectSize(objectSize),
+    m_totalSize(totalSize),
+    m_isExecutable(isExecutable),
+    m_highWaterMark(0) {}
 
 Page::~Page() {
     unmap();
@@ -21,7 +25,13 @@ bool Page::map() {
         return true;
     }
 
-    void* address = mmap(nullptr, m_totalSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void* address = MAP_FAILED;
+    if (!m_isExecutable) {
+        address = mmap(nullptr, m_totalSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    } else {
+        address = mmap(nullptr, m_totalSize, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_JIT | MAP_PRIVATE | MAP_ANONYMOUS,
+                -1, 0);
+    }
 
     if (address == MAP_FAILED) {
         int mmapError = errno;

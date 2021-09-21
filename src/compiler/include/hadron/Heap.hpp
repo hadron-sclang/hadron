@@ -5,6 +5,8 @@
 
 #include <array>
 #include <cstddef>
+#include <map>
+#include <memory>
 #include <vector>
 
 namespace hadron {
@@ -22,6 +24,10 @@ public:
     // Default allocation, allocates from the young space (unless extra large).
     void* allocateNew(size_t sizeInBytes);
 
+    // Used for allocating JIT memory. Returns the maximum usable size in |allocatedSize|, which can be useful as the
+    // JIT bytecode is typically based on size estimates.
+    void* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
+
     // TODO: verify size classes experimentally.
     static constexpr size_t kSmallObjectSize = 256;
     static constexpr size_t kMediumObjectSize = 2048;
@@ -37,10 +43,12 @@ private:
     };
     SizeClass getSizeClass(size_t sizeInBytes);
 
-    // Nonfull pages organized by size class.
+    // Nonfull pages organized by size class, already mapped to (hopefully) minimize typical allocation latency.
     std::array<Page, kNumberOfSizeClasses> m_youngPages;
     // Young objects that survive the
     std::array<std::vector<Page>, kNumberOfSizeClasses> m_middlePages;
+
+    std::map<uintptr_t, Page*> m_mappedPages;
     size_t m_totalMappedPages;
 };
 

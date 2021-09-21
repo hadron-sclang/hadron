@@ -83,8 +83,6 @@ public:
         kPatchThere = 0x1700,
     };
 
-//    bool toString(std::string& codeString) const;
-
     using Inst = std::array<Word, 4>;
     const std::vector<Inst>& instructions() const { return m_instructions; }
     const std::vector<size_t>& labels() const { return m_labels; }

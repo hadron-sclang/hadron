@@ -908,7 +908,7 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const hadron::VirtualJIT* vi
             opcode.PushBack("patch_there", document.GetAllocator());
             break;
         default:
-            SPDLOG_WARN("Encounterd unknown opcode {:x} in virtualJIT serialization", inst[0]);
+            SPDLOG_WARN("Encountered unknown opcode {:x} in virtualJIT serialization", inst[0]);
             break;
         }
         opcode.PushBack(rapidjson::Value(inst[1]), document.GetAllocator());
