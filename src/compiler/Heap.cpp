@@ -4,34 +4,52 @@
 
 namespace hadron {
 
-Heap::Heap(): m_totalMappedPages(0) {}
+Heap::Heap(): m_stackPageOffset(0), m_totalMappedPages(0) {}
 
 void* Heap::allocateNew(size_t sizeInBytes) {
-    auto sizeClass = getSizeClass(sizeInBytes);
-    if (sizeClass == kNumberOfSizeClasses) {
-        SPDLOG_ERROR("Heap failed allocating very large object of size {}", sizeInBytes);
-        return nullptr;
-    }
+    return allocateYoung(sizeInBytes, m_youngPages, false);
+}
 
-    for (auto& page : m_youngPages[sizeClass]) {
-        if (page.capacity()) {
-            return page.allocate();
-        }
+void* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
+    auto address = allocateYoung(sizeInBytes, m_youngExecutablePages, true);
+    if (address) {
+        auto sizeClass = getSizeClass(sizeInBytes);
+        allocatedSize = getSize(sizeClass);
+    } else {
+        allocatedSize = 0;
     }
+    return address;
+}
 
-    void* address = nullptr;
-    if (m_youngPages[sizeClass].size() < 2) {
-        m_youngPages[sizeClass].emplace_back(Page{getSize(sizeClass), kPageSize});
-        if (!m_youngPages[sizeClass].back().map()) {
+void* Heap::allocateStackSegment() {
+    if (m_stackPageOffset == 0) {
+        m_stackSegments.emplace_back(Page{kLargeObjectSize, kPageSize, false});
+        if (!m_stackSegments.back().map()) {
+            SPDLOG_CRITICAL("Failed to map new stack segment.");
+            assert(false);
             return nullptr;
         }
-        address = m_youngPages[sizeClass].back().allocate();
     }
 
-    mark();
-    sweep();
+    auto address = m_stackSegments.back().startAddress();
+    assert(address);
+    address += m_stackPageOffset;
 
+    m_stackPageOffset = (m_stackPageOffset + kLargeObjectSize) % kPageSize;
     return address;
+}
+
+void Heap::freeTopStackSegment() {
+    // TODO: consider some page recycling or other hysterisis here to prevent stack boundary oscillation from spamming
+    // map/unmap syscalls.
+    if (m_stackPageOffset == 0) {
+        assert(m_stackSegments.size());
+        m_stackSegments.pop_back();
+        m_stackPageOffset = kPageSize - kLargeObjectSize;
+    } else {
+        assert(m_stackPageOffset >= kLargeObjectSize);
+        m_stackPageOffset -= kLargeObjectSize;
+    }
 }
 
 Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
@@ -42,7 +60,7 @@ Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
     } else if (sizeInBytes < kLargeObjectSize) {
         return SizeClass::kLarge;
     }
-    return SizeClass::kNumberOfSizeClasses;
+    return SizeClass::kOversize;
 }
 
 size_t Heap::getSize(SizeClass sizeClass) {
@@ -58,12 +76,42 @@ size_t Heap::getSize(SizeClass sizeClass) {
     }
 }
 
-void Heap::mark() {
+void* Heap::allocateYoung(size_t sizeInBytes, SizedPages& youngPages, bool isExecutable) {
+    auto sizeClass = getSizeClass(sizeInBytes);
+    if (sizeClass == kOversize) {
+        youngPages[kOversize].emplace_back(Page{sizeInBytes, sizeInBytes, isExecutable});
+        if (!youngPages[kOversize].back().map()) {
+            SPDLOG_ERROR("Mapping failed for oversize object of {} bytes", sizeInBytes);
+            return nullptr;
+        }
+        return youngPages[kOversize].back().allocate();
+    }
 
+    // Find existing capacity in already mapped pages.
+    for (auto& page : youngPages[sizeClass]) {
+        if (page.capacity()) {
+            return page.allocate();
+        }
+    }
+
+    // HERE is where we would initiate a collection
+    mark();
+    sweep();
+
+    youngPages[sizeClass].emplace_back(Page{getSize(sizeClass), kPageSize, isExecutable});
+    if (!youngPages[sizeClass].back().map()) {
+        return nullptr;
+    }
+    ++m_totalMappedPages;
+    return youngPages[sizeClass].back().allocate();
+}
+
+void Heap::mark() {
+    // TODO once we add the Stack should be enough to build a decent root set
 }
 
 void Heap::sweep() {
-
+    // TODO once we have mark() going
 }
 
 } // namespace hadron

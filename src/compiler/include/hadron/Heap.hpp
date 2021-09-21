@@ -25,6 +25,11 @@ public:
     // JIT bytecode is typically based on size estimates.
     void* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
 
+    // Stack segments are always allocated at kLargeObjectSize. They are also allocated and freed in stack ordering,
+    // and are exempt from garbage collection. They serve as part of the root set of objects for scanning.
+    void* allocateStackSegment();
+    void freeTopStackSegment();
+
     // TODO: verify size classes experimentally.
     static constexpr size_t kSmallObjectSize = 256;
     static constexpr size_t kMediumObjectSize = 2048;
@@ -36,20 +41,25 @@ private:
         kSmall = 0,
         kMedium = 1,
         kLarge = 2,
-        kNumberOfSizeClasses = 3
+        kOversize = 3
     };
+    using SizedPages = std::array<std::vector<Page>, kOversize>;
+
     SizeClass getSizeClass(size_t sizeInBytes);
     size_t getSize(SizeClass sizeClass);
+    void* allocateYoung(size_t sizeInBytes, SizedPages& youngPages, bool isExecutable);
     void mark();
     void sweep();
 
-    // Nonfull pages organized by size class, already mapped to (hopefully) minimize typical allocation latency.
-    std::array<std::vector<Page>, kNumberOfSizeClasses> m_youngPages;
-    // Young objects that survive a few collections are compacted and copied to m_oldPages.
-    std::array<std::vector<Page>, kNumberOfSizeClasses> m_maturePages;
+    SizedPages m_youngPages;
+    SizedPages m_maturePages;
 
-    std::array<std::vector<Page>, kNumberOfSizeClasses> m_youngExecutablePages;
-    std::array<std::vector<Page>, kNumberOfSizeClasses> m_matureExecutablePages;
+    SizedPages m_youngExecutablePages;
+    SizedPages m_matureExecutablePages;
+
+    std::vector<Page> m_stackSegments;
+    // Offset of first free chunk within last Page of m_stackSegments.
+    size_t m_stackPageOffset;
 
     size_t m_totalMappedPages;
 };

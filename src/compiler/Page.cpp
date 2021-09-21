@@ -88,4 +88,15 @@ size_t Page::capacity() {
     return m_collectionCounts.size() - m_allocatedObjects;
 }
 
+void Page::mark(void* address, Color color) {
+    uintptr_t start = reinterpret_cast<uintptr_t>(m_startAddress);
+    uintptr_t addressInt = reinterpret_cast<uintptr_t>(address);
+    assert(start <= addressInt);
+    assert(addressInt - start < m_totalSize);
+    size_t objectNumber = (addressInt - start) / m_objectSize;
+    // Strip out old color if any.
+    m_collectionCounts[objectNumber] &= 0x3f;
+    m_collectionCounts[objectNumber] |= color;
+}
+
 } // namespace hadron

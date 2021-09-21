@@ -23,6 +23,18 @@ public:
     // Returns available room in the page *in number of stored objects*
     size_t capacity();
 
+
+    // Reserve the 2 most significant bits for coloring objects in the m_collectionCounts field.
+    enum Color : uint8_t {
+        kWhite = 0,
+        kGray = 0x40,
+        kBlack = 0x80
+    };
+    // Mark the object contained by address.
+    void mark(void* address, Color color);
+
+    uint8_t* startAddress() const { return m_startAddress; }
+
 private:
     // Mmaped start of the address of this page.
     uint8_t* m_startAddress;
