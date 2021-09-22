@@ -24,19 +24,23 @@ public:
     int getFloatRegisterCount() const override;
 
     void addr(Reg target, Reg a, Reg b) override;
-    void addi(Reg target, Reg a, int b) override;
+    void addi(Reg target, Reg a, Word b) override;
+    void andi(Reg target, Reg a, UWord b) override;
+    void ori(Reg target, Reg a, UWord b) override;
     void xorr(Reg target, Reg a, Reg b) override;
     void movr(Reg target, Reg value) override;
-    void movi(Reg target, int value) override;
-    Label bgei(Reg a, int b) override;
-    Label beqi(Reg a, int b) override;
+    void movi(Reg target, Word value) override;
+    Label bgei(Reg a, Word b) override;
+    Label beqi(Reg a, Word b) override;
     Label jmp() override;
     void jmpr(Reg r) override;
     void jmpi(Address location) override;
+    void ldr_l(Reg target, Reg address) override;
     void ldxi_w(Reg target, Reg address, int offset) override;
     void ldxi_i(Reg target, Reg address, int offset) override;
     void ldxi_l(Reg target, Reg address, int offset) override;
     void str_i(Reg address, Reg value) override;
+    void str_l(Reg address, Reg value) override;
     void stxi_w(int offset, Reg address, Reg value) override;
     void stxi_i(int offset, Reg address, Reg value) override;
     void stxi_l(int offset, Reg address, Reg value) override;
@@ -48,9 +52,11 @@ public:
     void patchHere(Label label) override;
     void patchThere(Label target, Address location) override;
 
-    enum Opcodes : int32_t {
+    enum Opcodes : Word {
         kAddr       = 0x0100,
         kAddi       = 0x0200,
+        kAndi       = 0x0201,
+        kOri        = 0x0202,
         kXorr       = 0x0300,
         kMovr       = 0x0400,
         kMovi       = 0x0500,
@@ -59,10 +65,12 @@ public:
         kJmp        = 0x0700,
         kJmpr       = 0x0800,
         kJmpi       = 0x0801,
+        kLdrL       = 0x0802,
         kLdxiW      = 0x0900,
         kLdxiI      = 0x0a00,
         kLdxiL      = 0x0b00,
         kStrI       = 0x0c00,
+        kStrL       = 0x0c01,
         kStxiW      = 0x0d00,
         kStxiI      = 0x0e00,
         kStxiL      = 0x0f00,
@@ -75,17 +83,17 @@ public:
         kPatchThere = 0x1700,
     };
 
-    bool toString(std::string& codeString) const;
-
-    using Inst = std::array<int32_t, 4>;
+    using Inst = std::array<Word, 4>;
     const std::vector<Inst>& instructions() const { return m_instructions; }
     const std::vector<size_t>& labels() const { return m_labels; }
+    const std::vector<UWord>& uwords() const { return m_uwords; }
 
 private:
     int m_maxRegisters;
     int m_maxFloatRegisters;
     std::vector<Inst> m_instructions;
     std::vector<size_t> m_labels;  // indices in the m_instructions table.
+    std::vector<UWord> m_uwords; // store unsigned words separately
     int m_addressCount; // keep a count of requests to address() so we can refer to them by index.
 };
 

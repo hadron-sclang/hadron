@@ -109,6 +109,7 @@ add_library(hadron STATIC
     include/hadron/ErrorReporter.hpp
     include/hadron/Function.hpp
     include/hadron/Hash.hpp
+    include/hadron/Heap.hpp
     include/hadron/HIR.hpp
     include/hadron/JIT.hpp
     include/hadron/JITMemoryArena.hpp
@@ -117,8 +118,8 @@ add_library(hadron STATIC
     include/hadron/LifetimeInterval.hpp
     include/hadron/LighteningJIT.hpp
     include/hadron/LinearBlock.hpp
-    include/hadron/LSBHashTable.hpp
     include/hadron/MoveScheduler.hpp
+    include/hadron/Page.hpp
     include/hadron/Parser.hpp
     include/hadron/RegisterAllocator.hpp
     include/hadron/Resolver.hpp
@@ -133,6 +134,7 @@ add_library(hadron STATIC
     Emitter.cpp
     ErrorReporter.cpp
     Hash.cpp
+    Heap.cpp
     HIR.cpp
     Interpreter.cpp
     JITMemoryArena.cpp
@@ -140,9 +142,9 @@ add_library(hadron STATIC
     LifetimeInterval.cpp
     LighteningJIT.cpp
     MoveScheduler.cpp
+    Page.cpp
     RegisterAllocator.cpp
     Resolver.cpp
-    Slot.cpp
     SourceFile.cpp
     ThreadContext.cpp
     VirtualJIT.cpp
@@ -153,7 +155,6 @@ set(HADRON_COMPILER_UNITTESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/ErrorReporter_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lexer_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/LifetimeInterval_unittests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/LSBHashTable_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MoveScheduler_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Parser_unittests.cpp
     PARENT_SCOPE

@@ -34,6 +34,13 @@ public:
     using Label = int32_t;
     using Reg = int32_t;
     using Address = int32_t;
+#ifdef HADRON_64_BIT
+    using Word = int64_t;
+    using UWord = uint64_t;
+#else
+    using Word = int32_t;
+    using UWord = uint32_t;
+#endif
  
     // We reserve GPR(0) and GPR(1) for the context and stack pointers, respectively.
     static constexpr JIT::Reg kContextPointerReg = -2;
@@ -51,7 +58,11 @@ public:
     // %target = %a + %b
     virtual void addr(Reg target, Reg a, Reg b) = 0;
     // %target = %a + b
-    virtual void addi(Reg target, Reg a, int b) = 0;
+    virtual void addi(Reg target, Reg a, Word b) = 0;
+    // %target = %a & b
+    virtual void andi(Reg target, Reg a, UWord b) = 0;
+    // %target = %a | b
+    virtual void ori(Reg target, Reg a, UWord b) = 0;
     // %target = %a ^ %b
     virtual void xorr(Reg target, Reg a, Reg b) = 0;
 
@@ -59,13 +70,13 @@ public:
     // %target <- %value
     virtual void movr(Reg target, Reg value) = 0;
     // %target <- value
-    virtual void movi(Reg target, int value) = 0;
+    virtual void movi(Reg target, Word value) = 0;
 
     // * branches
     // if a >= b goto Label
-    virtual Label bgei(Reg a, int b) = 0;
+    virtual Label bgei(Reg a, Word b) = 0;
     // if a == b goto Label
-    virtual Label beqi(Reg a, int b) = 0;
+    virtual Label beqi(Reg a, Word b) = 0;
     // unconditionally jump to Label
     virtual Label jmp() = 0;
     // jump to register
@@ -74,6 +85,8 @@ public:
     virtual void jmpi(Address location) = 0;
 
     // * loads
+    // %target = *address
+    virtual void ldr_l(Reg target, Reg address) = 0;
     // %target = *(%address + offset)
     virtual void ldxi_w(Reg target, Reg address, int offset) = 0;
     virtual void ldxi_i(Reg target, Reg address, int offset) = 0;
@@ -82,6 +95,7 @@ public:
     // * stores
     // *address = value
     virtual void str_i(Reg address, Reg value) = 0;
+    virtual void str_l(Reg address, Reg value) = 0;
     // *(offset + address) = value  // note: immediate address with register offset not currently supported
     virtual void stxi_w(int offset, Reg address, Reg value) = 0;
     virtual void stxi_i(int offset, Reg address, Reg value) = 0;

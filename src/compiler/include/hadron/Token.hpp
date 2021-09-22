@@ -3,6 +3,7 @@
 
 #include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
+#include "hadron/Type.hpp"
 
 #include <string_view>
 
@@ -74,29 +75,31 @@ struct Token {
     std::string_view range;
     Location location;
     Slot value;
+    Type literalType;
     bool couldBeBinop;
     Hash hash = 0;
     bool escapeString = false;
 
-    Token(): name(kEmpty), couldBeBinop(false) {}
+    inline Token(): name(kEmpty), couldBeBinop(false) {}
 
     /*! Makes an integer kLiteral token */
-    Token(const char* start, size_t length, int32_t intValue):
-        name(kLiteral), range(start, length), value(intValue), couldBeBinop(false) {}
+    inline Token(const char* start, size_t length, int32_t intValue):
+        name(kLiteral), range(start, length), value(intValue), literalType(Type::kInteger), couldBeBinop(false) {}
 
     /*! Makes a float kLiteral token */
     Token(const char* start, size_t length, double floatValue):
-        name(kLiteral), range(start, length), value(floatValue), couldBeBinop(false) {}
+        name(kLiteral), range(start, length), value(floatValue), literalType(Type::kFloat), couldBeBinop(false) {}
 
     /*! Makes a boolean kLiteral token */
     Token(const char* start, size_t length, bool boolean, Hash h = 0):
-        name(kLiteral), range(start, length), value(boolean), couldBeBinop(false), hash(h) {}
+        name(kLiteral),
+        range(start, length), value(boolean), literalType(Type::kBoolean), couldBeBinop(false), hash(h) {}
 
     /*! Makes an kLiteral token */
-    Token(const char* start, size_t length, Type literalType, bool hasEscapeCharacters = false, Hash h = 0):
+    Token(const char* start, size_t length, Type type, bool hasEscapeCharacters = false, Hash h = 0):
             name(kLiteral),
             range(start, length),
-            value(literalType),
+            literalType(type),
             couldBeBinop(false),
             hash(h),
             escapeString(hasEscapeCharacters) {}

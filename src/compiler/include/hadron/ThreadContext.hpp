@@ -1,7 +1,10 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_THREAD_CONTEXT_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_THREAD_CONTEXT_HPP_
 
-#include "hadron/Slot.hpp"
+#include "Slot.hpp"
+
+#include <cstddef>
+#include <cstdint>
 
 namespace hadron {
 
@@ -20,6 +23,7 @@ struct ThreadContext {
 
     // The return address to restore the C stack and exit the machine code ABI.
     const uint8_t* exitMachineCode;
+    // An exit flag that can be set to indicate unusual exit conditions.
     int machineCodeStatus;
 
     // The stack pointer as preserved on entry into machine code.

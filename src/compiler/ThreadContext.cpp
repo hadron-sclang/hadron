@@ -30,7 +30,7 @@ bool ThreadContext::allocateStack(size_t size) {
     }
 
     stackSize = size;
-    framePointer = hadronStack + stackSize - 1;
+    framePointer = hadronStack + stackSize - sizeof(Slot);
     stackPointer = framePointer;
     return true;
 }

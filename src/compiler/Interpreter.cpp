@@ -52,10 +52,12 @@ bool Interpreter::setup() {
     // Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register, I have taken
     // some care to ensure that GPR(2)/Reg 0 is not the stack pointer on any of the supported architectures.
     jit.loadCArgs2(JIT::kContextPointerReg, JIT::Reg(0));
-    // Save the C stack pointer.
+    // Save the C stack pointer, this pointer is *not* tagged as it does not point into Hadron-allocated heap.
     jit.stxi_w(offsetof(ThreadContext, cStackPointer), JIT::kContextPointerReg, jit.getCStackPointerRegister());
     // Restore the Hadron stack pointer
     jit.ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, stackPointer));
+    // Remove tag from pointer.
+    jit.andi(JIT::kStackPointerReg, JIT::kStackPointerReg, ~Slot::kTagMask);
     // Jump into the calling code.
     jit.jmpr(JIT::Reg(0));
 
@@ -191,11 +193,11 @@ Slot Interpreter::run(Function* func) {
 
 void Interpreter::enterMachineCode(ThreadContext* context, const uint8_t* machineCode) {
     // Set machine return address as the exit trampoline into Hadron stack frame.
-    *(context->framePointer) = Slot(Type::kFramePointer, context->framePointer);
+    *(context->framePointer) = context->framePointer;
     --(context->framePointer);
-    *(context->framePointer) = Slot(Type::kStackPointer, context->stackPointer);
+    *(context->framePointer) = context->stackPointer;
     --(context->framePointer);
-    *(context->framePointer) = Slot(reinterpret_cast<uint8_t*>(m_exitTrampoline));
+    *(context->framePointer) = reinterpret_cast<uint8_t*>(m_exitTrampoline);
     --(context->framePointer);
 
     // Initialize return value.

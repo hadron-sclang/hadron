@@ -685,39 +685,25 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(const hadron::parse::N
 void JSONTransport::JSONTransportImpl::serializeSlot(hadron::Slot slot, rapidjson::Value& target,
         rapidjson::Document& document) {
     target.SetObject();
-    switch (slot.type) {
+    switch (slot.getType()) {
     case hadron::Type::kNil:
         target.AddMember("type", rapidjson::Value("nil"), document.GetAllocator());
+        target.AddMember("value", rapidjson::Value("nil"), document.GetAllocator());
         break;
     case hadron::Type::kInteger:
         target.AddMember("type", rapidjson::Value("integer"), document.GetAllocator());
-        target.AddMember("value", rapidjson::Value(slot.value.intValue), document.GetAllocator());
+        target.AddMember("value", rapidjson::Value(slot.getInt32()), document.GetAllocator());
         break;
     case hadron::Type::kFloat:
         target.AddMember("type", rapidjson::Value("float"), document.GetAllocator());
-        target.AddMember("value", rapidjson::Value(slot.value.floatValue), document.GetAllocator());
+        target.AddMember("value", rapidjson::Value(slot.getFloat()), document.GetAllocator());
         break;
     case hadron::Type::kBoolean:
         target.AddMember("type", rapidjson::Value("boolean"), document.GetAllocator());
-        target.AddMember("value", rapidjson::Value(slot.value.boolValue), document.GetAllocator());
-        break;
-    case hadron::Type::kString:
-        target.AddMember("type", rapidjson::Value("string"), document.GetAllocator());
+        target.AddMember("value", rapidjson::Value(slot.getBool()), document.GetAllocator());
         break;
     case hadron::Type::kSymbol:
         target.AddMember("type", rapidjson::Value("symbol"), document.GetAllocator());
-        break;
-    case hadron::Type::kClass:
-        target.AddMember("type", rapidjson::Value("class"), document.GetAllocator());
-        break;
-    case hadron::Type::kObject:
-        target.AddMember("type", rapidjson::Value("object"), document.GetAllocator());
-        break;
-    case hadron::Type::kArray:
-        target.AddMember("type", rapidjson::Value("array"), document.GetAllocator());
-        break;
-    case hadron::Type::kType:
-        target.AddMember("type", rapidjson::Value("type"), document.GetAllocator());
         break;
     default:
         target.AddMember("type", rapidjson::Value("unknown"), document.GetAllocator());
@@ -843,6 +829,12 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const hadron::VirtualJIT* vi
         case hadron::VirtualJIT::Opcodes::kAddi:
             opcode.PushBack("addi", document.GetAllocator());
             break;
+        case hadron::VirtualJIT::Opcodes::kAndi:
+            opcode.PushBack("andi", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kOri:
+            opcode.PushBack("ori", document.GetAllocator());
+            break;
         case hadron::VirtualJIT::Opcodes::kXorr:
             opcode.PushBack("xorr", document.GetAllocator());
             break;
@@ -867,6 +859,9 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const hadron::VirtualJIT* vi
         case hadron::VirtualJIT::Opcodes::kJmpi:
             opcode.PushBack("jmpi", document.GetAllocator());
             break;
+        case hadron::VirtualJIT::Opcodes::kLdrL:
+            opcode.PushBack("ldr_l", document.GetAllocator());
+            break;
         case hadron::VirtualJIT::Opcodes::kLdxiW:
             opcode.PushBack("ldxi_w", document.GetAllocator());
             break;
@@ -878,6 +873,9 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const hadron::VirtualJIT* vi
             break;
         case hadron::VirtualJIT::Opcodes::kStrI:
             opcode.PushBack("str_i", document.GetAllocator());
+            break;
+        case hadron::VirtualJIT::Opcodes::kStrL:
+            opcode.PushBack("str_l", document.GetAllocator());
             break;
         case hadron::VirtualJIT::Opcodes::kStxiW:
             opcode.PushBack("stxi_w", document.GetAllocator());
@@ -909,6 +907,9 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const hadron::VirtualJIT* vi
         case hadron::VirtualJIT::Opcodes::kPatchThere:
             opcode.PushBack("patch_there", document.GetAllocator());
             break;
+        default:
+            SPDLOG_WARN("Encountered unknown opcode {:x} in virtualJIT serialization", inst[0]);
+            break;
         }
         opcode.PushBack(rapidjson::Value(inst[1]), document.GetAllocator());
         opcode.PushBack(rapidjson::Value(inst[2]), document.GetAllocator());
@@ -923,6 +924,13 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const hadron::VirtualJIT* vi
         labels.PushBack(static_cast<uint64_t>(label), document.GetAllocator());
     }
     jsonJIT.AddMember("labels", labels, document.GetAllocator());
+
+    rapidjson::Value uwords;
+    uwords.SetArray();
+    for (auto uword : virtualJIT->uwords()) {
+        uwords.PushBack(uword, document.GetAllocator());
+    }
+    jsonJIT.AddMember("uwords", uwords, document.GetAllocator());
 }
 
 

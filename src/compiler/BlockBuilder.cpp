@@ -109,8 +109,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
             m_block->revisions[nameToken.hash] = nodeValue;
         } else {
             nodeValue.first = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot()));
-            nodeValue.second = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(
-                    Slot(Type::kType, Slot::Value(Type::kNil))));
+            nodeValue.second = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot(Type::kNil)));
             m_block->revisions[nameToken.hash] = nodeValue;
         }
     } break;
@@ -173,8 +172,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
     case parse::NodeType::kLiteral: {
         const auto literal = reinterpret_cast<const parse::LiteralNode*>(node);
         nodeValue.first = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(literal->value));
-        nodeValue.second = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(
-            Slot(Type::kType, Slot::Value(literal->value.type))));
+        nodeValue.second = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot(literal->type)));
     } break;
 
     case parse::NodeType::kName: {
@@ -318,11 +316,9 @@ std::pair<Value, Value> BlockBuilder::buildDispatch(const parse::Node* target, H
     // Build argument list starting with target argument as `this`.
     dispatch->addArgument(targetValue);
     // Going to need the symbol type handy for insertion as the selector and any keyword arguments.
-    auto symbolType = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot(Type::kType,
-        Slot::Value(Type::kSymbol))));
+    auto symbolType = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot(Type::kType)));
     // Next is selector added as a symbol constant.
-    dispatch->addArgument(std::make_pair(findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot(Type::kSymbol,
-        Slot::Value(selector)))), symbolType));
+    dispatch->addArgument(std::make_pair(findOrInsertLocal(std::make_unique<hir::ConstantHIR>(selector)), symbolType));
 
     // Now append any additional arguments.
     while (arguments) {
@@ -334,8 +330,7 @@ std::pair<Value, Value> BlockBuilder::buildDispatch(const parse::Node* target, H
     while (keywordArguments) {
         assert(keywordArguments->nodeType == parse::NodeType::kKeyValue);
         auto keyName = m_lexer->tokens()[keywordArguments->tokenIndex].hash;
-        auto key = std::make_pair(findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot(Type::kSymbol,
-            Slot::Value(keyName)))), symbolType);
+        auto key = std::make_pair(findOrInsertLocal(std::make_unique<hir::ConstantHIR>(keyName)), symbolType);
         dispatch->addKeywordArgument(key, buildFinalValue(keywordArguments->value.get()));
         keywordArguments = reinterpret_cast<const parse::KeyValueNode*>(keywordArguments->next.get());
     }

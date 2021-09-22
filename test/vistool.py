@@ -24,6 +24,12 @@ def buildMachineCode(outFile, machineCode):
             outFile.write('addr {}, {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2]), reg(inst[3])))
         elif inst[0] == 'addi':
             outFile.write('addi {}, {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
+        elif inst[0] == 'andi':
+            outFile.write('andi {}, {}, 0x{:016x}<br>\n'.format(reg(inst[1]), reg(inst[2]),
+                machineCode['uwords'][inst[3]]))
+        elif inst[0] == 'ori':
+            outFile.write('ori {}, {}, 0x{:016x}<br>\n'.format(reg(inst[1]), reg(inst[2]),
+                machineCode['uwords'][inst[3]]))
         elif inst[0] == 'xorr':
             outFile.write('xorr {}, {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2]), reg(inst[3])))
         elif inst[0] == 'movr':
@@ -40,6 +46,8 @@ def buildMachineCode(outFile, machineCode):
             outFile.write('jmpr {}<br>\n'.format(reg(inst[1])))
         elif inst[0] == 'jmpi':
             outFile.write('jmpi {}<br>\n'.format(inst[1]))
+        elif inst[0] == 'ldr_l':
+            outFile.write('ldr_l {} {}<br>\n'.format(reg(inst[1]), reg(inst[2])))
         elif inst[0] == 'ldxi_w':
             outFile.write('ldxi_w {} {} {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
         elif inst[0] == 'ldxi_i':
@@ -47,7 +55,9 @@ def buildMachineCode(outFile, machineCode):
         elif inst[0] == 'ldxi_l':
             outFile.write('ldxi_l {} {} {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
         elif inst[0] == 'str_i':
-            outFile.write('str_i {} {}<br>\n'.format(reg(inst[1]), inst[2]))
+            outFile.write('str_i {} {}<br>\n'.format(reg(inst[1]), reg(inst[2])))
+        elif inst[0] == 'str_l':
+            outFile.write('str_l {} {}<br>\n'.format(reg(inst[1]), reg(inst[2])))
         elif inst[0] == 'stxi_w':
             outFile.write('stxi_w {} {} {}<br>\n'.format(inst[1], reg(inst[2]), reg(inst[3])))
         elif inst[0] == 'stxi_i':
