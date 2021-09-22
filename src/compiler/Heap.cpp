@@ -7,11 +7,11 @@ namespace hadron {
 Heap::Heap(): m_stackPageOffset(0), m_totalMappedPages(0) {}
 
 void* Heap::allocateNew(size_t sizeInBytes) {
-    return allocateYoung(sizeInBytes, m_youngPages, false);
+    return allocateSized(sizeInBytes, m_youngPages, false);
 }
 
 void* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
-    auto address = allocateYoung(sizeInBytes, m_youngExecutablePages, true);
+    auto address = allocateSized(sizeInBytes, m_executablePages, true);
     if (address) {
         auto sizeClass = getSizeClass(sizeInBytes);
         allocatedSize = getSize(sizeClass);
@@ -52,6 +52,10 @@ void Heap::freeTopStackSegment() {
     }
 }
 
+void* Heap::allocateRootSet(size_t sizeInBytes) {
+    return allocateSized(sizeInBytes, m_rootSet, false);
+}
+
 Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
     if (sizeInBytes < kSmallObjectSize) {
         return SizeClass::kSmall;
@@ -76,19 +80,19 @@ size_t Heap::getSize(SizeClass sizeClass) {
     }
 }
 
-void* Heap::allocateYoung(size_t sizeInBytes, SizedPages& youngPages, bool isExecutable) {
+void* Heap::allocateSized(size_t sizeInBytes, SizedPages& sizedPages, bool isExecutable) {
     auto sizeClass = getSizeClass(sizeInBytes);
     if (sizeClass == kOversize) {
-        youngPages[kOversize].emplace_back(Page{sizeInBytes, sizeInBytes, isExecutable});
-        if (!youngPages[kOversize].back().map()) {
+        sizedPages[kOversize].emplace_back(Page{sizeInBytes, sizeInBytes, isExecutable});
+        if (!sizedPages[kOversize].back().map()) {
             SPDLOG_ERROR("Mapping failed for oversize object of {} bytes", sizeInBytes);
             return nullptr;
         }
-        return youngPages[kOversize].back().allocate();
+        return sizedPages[kOversize].back().allocate();
     }
 
     // Find existing capacity in already mapped pages.
-    for (auto& page : youngPages[sizeClass]) {
+    for (auto& page : sizedPages[sizeClass]) {
         if (page.capacity()) {
             return page.allocate();
         }
@@ -98,12 +102,12 @@ void* Heap::allocateYoung(size_t sizeInBytes, SizedPages& youngPages, bool isExe
     mark();
     sweep();
 
-    youngPages[sizeClass].emplace_back(Page{getSize(sizeClass), kPageSize, isExecutable});
-    if (!youngPages[sizeClass].back().map()) {
+    sizedPages[sizeClass].emplace_back(Page{getSize(sizeClass), kPageSize, isExecutable});
+    if (!sizedPages[sizeClass].back().map()) {
         return nullptr;
     }
     ++m_totalMappedPages;
-    return youngPages[sizeClass].back().allocate();
+    return sizedPages[sizeClass].back().allocate();
 }
 
 void Heap::mark() {

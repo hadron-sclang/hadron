@@ -30,6 +30,10 @@ public:
     void* allocateStackSegment();
     void freeTopStackSegment();
 
+    // Allocates to the set of permanent objects that are the point of origin for all scanning jobs, along with the
+    // stack segments.
+    void* allocateRootSet(size_t sizeInBytes);
+
     // TODO: verify size classes experimentally.
     static constexpr size_t kSmallObjectSize = 256;
     static constexpr size_t kMediumObjectSize = 2048;
@@ -47,15 +51,19 @@ private:
 
     SizeClass getSizeClass(size_t sizeInBytes);
     size_t getSize(SizeClass sizeClass);
-    void* allocateYoung(size_t sizeInBytes, SizedPages& youngPages, bool isExecutable);
+    void* allocateSized(size_t sizeInBytes, SizedPages& sizedPages, bool isExecutable);
     void mark();
     void sweep();
 
     SizedPages m_youngPages;
     SizedPages m_maturePages;
 
-    SizedPages m_youngExecutablePages;
-    SizedPages m_matureExecutablePages;
+    // Bytecode cannot be relocated and so is kept only in one set of pages.
+    SizedPages m_executablePages;
+
+    // Not garbage collected, permanently allocated objects. Root objects are where scanning starts, along with the
+    // stack.
+    SizedPages m_rootSet;
 
     std::vector<Page> m_stackSegments;
     // Offset of first free chunk within last Page of m_stackSegments.
