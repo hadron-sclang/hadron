@@ -19,3 +19,6 @@
 [submodule "third_party/rapidjson"]
 	path = third_party/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
+[submodule "third_party/supercollider"]
+	path = third_party/supercollider
+	url = https://github.com/hadron-sclang/supercollider.git

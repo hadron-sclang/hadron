@@ -1,4 +1,3 @@
-
 include_directories(
     "${CMAKE_CURRENT_BINARY_DIR}"
     "${INSTALL_EXT}/include"
@@ -202,4 +201,15 @@ install(TARGETS hadron
         ARCHIVE
         PUBLIC_HEADER
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hadron
+)
+
+#############
+# schema
+add_executable(schema
+    schema.cpp
+)
+
+target_link_libraries(schema
+    gflags
+    hadron
 )

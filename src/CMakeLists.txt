@@ -14,7 +14,13 @@ include_directories(
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
 configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
 
+# Dependency flow:
+# server ----------------------\
+#   |                          |
+#   |                          v
+#   \------> runtime -----> compiler
 add_subdirectory(compiler)
+add_subdirectory(runtime)
 add_subdirectory(server)
 
 #############
