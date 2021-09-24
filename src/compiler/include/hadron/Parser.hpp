@@ -37,7 +37,8 @@ enum NodeType {
     kBinopCall = 17,
     kPerformList = 18,
     kNumericSeries = 19,
-    kIf = 20
+    kCurryArgument = 20,
+    kIf = 21
 };
 
 struct Node {
@@ -221,6 +222,11 @@ struct NumericSeriesNode : public Node {
     std::unique_ptr<Node> start;
     std::unique_ptr<Node> step;
     std::unique_ptr<Node> stop;
+};
+
+struct CurryArgumentNode : public Node {
+    CurryArgumentNode(size_t index): Node(NodeType::kCurryArgument, index) {}
+    virtual ~CurryArgumentNode() = default;
 };
 
 struct IfNode : public Node {

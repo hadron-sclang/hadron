@@ -17,7 +17,7 @@
 %token <size_t> CURRYARGUMENT IF
 
 %type <std::unique_ptr<hadron::parse::ArgListNode>> argdecls
-%type <std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode block blocklist1 blocklist
+%type <std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode block blocklist1 blocklist optblock
 %type <std::unique_ptr<hadron::parse::CallNode>> msgsend
 %type <std::unique_ptr<hadron::parse::ClassExtNode>> classextension classextensions
 %type <std::unique_ptr<hadron::parse::ClassNode>> classdef classes
@@ -78,7 +78,10 @@ T append(T head, T tail) {
       }                                                                                                                \
     }
 
-
+std::ostream& operator<<(std::ostream& o, const hadron::Token::Location& loc) {
+    o << loc.lineNumber + 1 << ", " << loc.characterNumber + 1;
+    return o;
+}
 
 yy::parser::symbol_type yylex(hadron::Parser* hadronParser);
 }
@@ -205,6 +208,10 @@ optcomma	: %empty
 
 optequal	: %empty
             | ASSIGN
+            ;
+
+optblock    : %empty { $optblock = nullptr; }
+            | block { $optblock = std::move($block); }
             ;
 
 funcbody    : funretval {
@@ -389,6 +396,13 @@ if  : IF OPENPAREN exprseq COMMA block[true] COMMA block[false] optcomma CLOSEPA
             ifNode->trueBlock = std::move($true);
             $if = std::move(ifNode);
         }
+    | IF OPENPAREN exprseq CLOSEPAREN block optblock {
+            auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
+            ifNode->condition = std::move($exprseq);
+            ifNode->trueBlock = std::move($block);
+            ifNode->falseBlock = std::move($optblock);
+            $if = std::move(ifNode);
+        }
     ;
 
 // TODO: figure out is this used? What does it mean? Things like: "4 + .foo 5" parse in LSC (evaluates to 9).
@@ -447,6 +461,7 @@ arrayelems1[target] : exprseq { $target = std::move($exprseq); }
 
 expr1[target]   : literal { $target = std::move($literal); }
                 | IDENTIFIER { $target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER); }
+                | CURRYARGUMENT { $target = std::make_unique<hadron::parse::CurryArgumentNode>($CURRYARGUMENT); }
                 | msgsend { $target = std::move($msgsend); }
                 | OPENPAREN exprseq CLOSEPAREN {
                         // To keep consistent with variable-less cmdlinecode blocks that get parsed as this we point
