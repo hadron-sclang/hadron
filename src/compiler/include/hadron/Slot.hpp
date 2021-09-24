@@ -28,6 +28,7 @@ public:
     }
     // Preserves the lower 48 bits of a 64-bit hash and adds the Hash NaN.
     inline Slot(uint64_t h) { m_asBits = (h & (~kTagMask)) | kHashTag; }
+    inline Slot(char c) { m_asBits = kCharTag | c; }
 
     inline bool operator==(const Slot& s) const { return m_asBits == s.m_asBits; }
     inline bool operator!=(const Slot& s) const { return m_asBits != s.m_asBits; }
@@ -59,6 +60,7 @@ public:
     inline uint64_t getHash() const { return m_asBits & (~kTagMask); }
     inline bool getBool() const { return m_asBits & (~kTagMask); }
     inline void* getPointer() const { return reinterpret_cast<void*>(m_asBits & (~kTagMask)); }
+    inline char getChar() const { return m_asBits & (~kTagMask); }
 
     // Maximum double (quiet NaN with sign bit set without payload):
     //                     seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm
@@ -70,6 +72,7 @@ public:
     static constexpr uint64_t kObjectTag  = 0xfffc000000000000;
     // Lower 48 bits of a 64-bit hash.
     static constexpr uint64_t kHashTag    = 0xfffd000000000000;
+    static constexpr uint64_t kCharTag    = 0xfffe000000000000;
     static constexpr uint64_t kTagMask    = 0xffff000000000000;
 
 private:

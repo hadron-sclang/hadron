@@ -73,6 +73,35 @@
                     static_cast<size_t>(ts - lineStarts.back())};
         };
 
+        ######################
+        # character literals #
+        ######################
+        '$' (any - '\\') {
+            m_tokens.emplace_back(Token(ts + 1, 1, *(ts + 1)));
+            m_tokens.back().location = Token::Location{lineStarts.size() - 1,
+                    static_cast<size_t>(ts - lineStarts.back())};
+        };
+        '$\\t' {
+            m_tokens.emplace_back(Token(ts + 1, 2, '\t'));
+            m_tokens.back().location = Token::Location{lineStarts.size() - 1,
+                    static_cast<size_t>(ts - lineStarts.back())};
+        };
+        '$\\n' {
+            m_tokens.emplace_back(Token(ts + 1, 2, '\n'));
+            m_tokens.back().location = Token::Location{lineStarts.size() - 1,
+                    static_cast<size_t>(ts - lineStarts.back())};
+        };
+        '$\\r' {
+            m_tokens.emplace_back(Token(ts + 1, 2, '\r'));
+            m_tokens.back().location = Token::Location{lineStarts.size() - 1,
+                    static_cast<size_t>(ts - lineStarts.back())};
+        };
+        '$\\' (any - ('t' | 'n' | 'r')) {
+            m_tokens.emplace_back(Token(ts + 1, 2, *(ts + 2)));
+            m_tokens.back().location = Token::Location{lineStarts.size() - 1,
+                    static_cast<size_t>(ts - lineStarts.back())};
+        };
+
         ##############
         # delimiters #
         ##############

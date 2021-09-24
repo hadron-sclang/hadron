@@ -5,7 +5,7 @@
 %define parse.trace
 %define parse.error verbose
 %locations
-%define api.location.type { std::string_view }
+%define api.location.type { hadron::Token::Location }
 %param { hadron::Parser* hadronParser }
 %skeleton "lalr1.cc"
 
@@ -50,6 +50,7 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Lexer.hpp"
 
+#include "fmt/format.h"
 #include "spdlog/spdlog.h"
 
 #include <string_view>
@@ -71,11 +72,13 @@ T append(T head, T tail) {
 #define YYLLOC_DEFAULT(current, rhs, n)                                                                                \
     {                                                                                                                  \
       if (n) {                                                                                                         \
-          current = std::string_view(YYRHSLOC(rhs, 1).data(), YYRHSLOC(rhs, n).data() - YYRHSLOC(rhs, 1).data());      \
+          current = YYRHSLOC(rhs, n);                                                                                  \
       } else {                                                                                                         \
-          current = std::string_view();                                                                                \
+          current = hadron::Token::Location{0,0};                                                                      \
       }                                                                                                                \
     }
+
+
 
 yy::parser::symbol_type yylex(hadron::Parser* hadronParser);
 }
@@ -716,7 +719,7 @@ binop2  : binop { $binop2 = $binop; }
 yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
     if (hadronParser->sendInterpret()) {
         hadronParser->setInterpret(false);
-        return yy::parser::make_INTERPRET(std::string_view());
+        return yy::parser::make_INTERPRET(hadron::Token::Location{0, 0});
     }
 
     auto index = hadronParser->tokenIndex();
@@ -725,134 +728,136 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
 
     switch (token.name) {
     case hadron::Token::Name::kEmpty:
-        return yy::parser::make_END(token.range);
+        return yy::parser::make_END(token.location);
 
     case hadron::Token::Name::kInterpret:
-        return yy::parser::make_INTERPRET(token.range);
+        return yy::parser::make_INTERPRET(token.location);
 
     case hadron::Token::Name::kLiteral:
         // We special-case integers and floats to support unary negation.
         if (token.literalType == hadron::Type::kInteger) {
-            return yy::parser::make_INTEGER(index, token.range);
+            return yy::parser::make_INTEGER(index, token.location);
         } else if (token.literalType == hadron::Type::kFloat) {
-            return  yy::parser::make_FLOAT(index, token.range);
+            return  yy::parser::make_FLOAT(index, token.location);
         }
-        return yy::parser::make_LITERAL(index, token.range);
+        return yy::parser::make_LITERAL(index, token.location);
 
     case hadron::Token::Name::kPrimitive:
-        return yy::parser::make_PRIMITIVE(index, token.range);
+        return yy::parser::make_PRIMITIVE(index, token.location);
 
     case hadron::Token::Name::kPlus:
-        return yy::parser::make_PLUS(index, token.range);
+        return yy::parser::make_PLUS(index, token.location);
 
     case hadron::Token::Name::kMinus:
-        return yy::parser::make_MINUS(index, token.range);
+        return yy::parser::make_MINUS(index, token.location);
 
     case hadron::Token::Name::kAsterisk:
-        return yy::parser::make_ASTERISK(index, token.range);
+        return yy::parser::make_ASTERISK(index, token.location);
 
     case hadron::Token::Name::kAssign:
-        return yy::parser::make_ASSIGN(index, token.range);
+        return yy::parser::make_ASSIGN(index, token.location);
 
     case hadron::Token::Name::kLessThan:
-        return yy::parser::make_LESSTHAN(index, token.range);
+        return yy::parser::make_LESSTHAN(index, token.location);
 
     case hadron::Token::Name::kGreaterThan:
-        return yy::parser::make_GREATERTHAN(index, token.range);
+        return yy::parser::make_GREATERTHAN(index, token.location);
 
     case hadron::Token::Name::kPipe:
-        return yy::parser::make_PIPE(index, token.range);
+        return yy::parser::make_PIPE(index, token.location);
 
     case hadron::Token::Name::kReadWriteVar:
-        return yy::parser::make_READWRITEVAR(index, token.range);
+        return yy::parser::make_READWRITEVAR(index, token.location);
 
     case hadron::Token::Name::kLeftArrow:
-        return yy::parser::make_LEFTARROW(index, token.range);
+        return yy::parser::make_LEFTARROW(index, token.location);
 
     case hadron::Token::Name::kBinop:
-        return yy::parser::make_BINOP(index, token.range);
+        return yy::parser::make_BINOP(index, token.location);
 
     case hadron::Token::Name::kKeyword:
-        return yy::parser::make_KEYWORD(index, token.range);
+        return yy::parser::make_KEYWORD(index, token.location);
 
     case hadron::Token::Name::kOpenParen:
-        return yy::parser::make_OPENPAREN(index, token.range);
+        return yy::parser::make_OPENPAREN(index, token.location);
 
     case hadron::Token::Name::kCloseParen:
-        return yy::parser::make_CLOSEPAREN(index, token.range);
+        return yy::parser::make_CLOSEPAREN(index, token.location);
 
     case hadron::Token::Name::kOpenCurly:
-        return yy::parser::make_OPENCURLY(index, token.range);
+        return yy::parser::make_OPENCURLY(index, token.location);
 
     case hadron::Token::Name::kCloseCurly:
-        return yy::parser::make_CLOSECURLY(index, token.range);
+        return yy::parser::make_CLOSECURLY(index, token.location);
 
     case hadron::Token::Name::kOpenSquare:
-        return yy::parser::make_OPENSQUARE(index, token.range);
+        return yy::parser::make_OPENSQUARE(index, token.location);
 
     case hadron::Token::Name::kCloseSquare:
-        return yy::parser::make_CLOSESQUARE(index, token.range);
+        return yy::parser::make_CLOSESQUARE(index, token.location);
 
     case hadron::Token::Name::kComma:
-        return yy::parser::make_COMMA(index, token.range);
+        return yy::parser::make_COMMA(index, token.location);
 
     case hadron::Token::Name::kSemicolon:
-        return yy::parser::make_SEMICOLON(index, token.range);
+        return yy::parser::make_SEMICOLON(index, token.location);
 
     case hadron::Token::Name::kColon:
-        return yy::parser::make_COLON(index, token.range);
+        return yy::parser::make_COLON(index, token.location);
 
     case hadron::Token::Name::kCaret:
-        return yy::parser::make_CARET(index, token.range);
+        return yy::parser::make_CARET(index, token.location);
 
     case hadron::Token::Name::kTilde:
-        return yy::parser::make_TILDE(index, token.range);
+        return yy::parser::make_TILDE(index, token.location);
 
     case hadron::Token::Name::kHash:
-        return yy::parser::make_HASH(index, token.range);
+        return yy::parser::make_HASH(index, token.location);
 
     case hadron::Token::Name::kGrave:
-        return yy::parser::make_GRAVE(index, token.range);
+        return yy::parser::make_GRAVE(index, token.location);
 
     case hadron::Token::Name::kVar:
-        return yy::parser::make_VAR(index, token.range);
+        return yy::parser::make_VAR(index, token.location);
 
     case hadron::Token::Name::kArg:
-        return yy::parser::make_ARG(index, token.range);
+        return yy::parser::make_ARG(index, token.location);
 
     case hadron::Token::Name::kConst:
-        return yy::parser::make_CONST(index, token.range);
+        return yy::parser::make_CONST(index, token.location);
 
     case hadron::Token::Name::kClassVar:
-        return yy::parser::make_CLASSVAR(index, token.range);
+        return yy::parser::make_CLASSVAR(index, token.location);
 
     case hadron::Token::Name::kIdentifier:
-        return yy::parser::make_IDENTIFIER(index, token.range);
+        return yy::parser::make_IDENTIFIER(index, token.location);
 
     case hadron::Token::Name::kClassName:
-        return yy::parser::make_CLASSNAME(index, token.range);
+        return yy::parser::make_CLASSNAME(index, token.location);
 
     case hadron::Token::Name::kDot:
-        return yy::parser::make_DOT(index, token.range);
+        return yy::parser::make_DOT(index, token.location);
 
     case hadron::Token::Name::kDotDot:
-        return yy::parser::make_DOTDOT(index, token.range);
+        return yy::parser::make_DOTDOT(index, token.location);
 
     case hadron::Token::Name::kEllipses:
-        return yy::parser::make_ELLIPSES(index, token.range);
+        return yy::parser::make_ELLIPSES(index, token.location);
 
     case hadron::Token::Name::kCurryArgument:
-        return yy::parser::make_CURRYARGUMENT(index, token.range);
+        return yy::parser::make_CURRYARGUMENT(index, token.location);
 
     case hadron::Token::Name::kIf:
-        return yy::parser::make_IF(index, token.range);
+        return yy::parser::make_IF(index, token.location);
     }
 
-    return yy::parser::make_END(token.range);
+    return yy::parser::make_END(token.location);
 }
 
-void yy::parser::error(const std::string_view& /* location */, const std::string& errorString) {
-    hadronParser->errorReporter()->addError(errorString);
+void yy::parser::error(const hadron::Token::Location& location, const std::string& errorString) {
+    auto locError = fmt::format("line {} col {}: {}", location.lineNumber + 1, location.characterNumber + 1,
+            errorString);
+    hadronParser->errorReporter()->addError(locError);
 }
 
 namespace hadron {

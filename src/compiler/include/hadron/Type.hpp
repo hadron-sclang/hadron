@@ -13,14 +13,15 @@ enum Type : std::int32_t {
     kInteger = 0x0002,
     kFloat   = 0x0004,
     kBoolean = 0x0008,
-    kString  = 0x0010,
-    kSymbol  = 0x0020,
-    kClass   = 0x0040,
-    kObject  = 0x0080,
-    kArray   = 0x0100,
-    kBlock   = 0x0200,
-    kType    = 0x0400,
-    kAny     = 0x07ff,
+    kChar    = 0x0010,
+    kString  = 0x0020,
+    kSymbol  = 0x0040,
+    kClass   = 0x0080,
+    kObject  = 0x0100,
+    kArray   = 0x0200,
+    kBlock   = 0x0400,
+    kType    = 0x0800,
+    kAny     = 0x0fff,
 };
 
 } // namespace hadron

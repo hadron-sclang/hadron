@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
     hadron::Parser parser(&lexer, errorReporter);
     if (!parser.parseClass() || !errorReporter->ok()) {
         std::cerr << "schema failed to parse input class file: " << FLAGS_classFile << std::endl;
-        return -1;
+        return 0;
     }
 
     std::ofstream outFile(FLAGS_schemaFile);
