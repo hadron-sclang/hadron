@@ -340,6 +340,7 @@ msgsend : IDENTIFIER blocklist1 {
             }
         | IDENTIFIER OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
                 // TODO: performList
+                $msgsend = nullptr;
             }
         | expr DOT IDENTIFIER OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
@@ -478,6 +479,12 @@ expr1[target]   : literal { $target = std::move($literal); }
                         auto list = std::make_unique<hadron::parse::DynListNode>($OPENSQUARE);
                         list->elements = std::move($arrayelems);
                         $target = std::move(list);
+                    }
+                | expr1[build] OPENSQUARE arglist1 CLOSESQUARE {
+                        auto accessNode = std::make_unique<hadron::parse::ArrayAccessNode>($OPENSQUARE);
+                        accessNode->targetArray = std::move($build);
+                        accessNode->indexArgument = std::move($arglist1);
+                        $target = std::move(accessNode);
                     }
                 | if { $target = std::move($if); }
                 ;

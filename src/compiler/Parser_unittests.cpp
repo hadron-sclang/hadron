@@ -2786,11 +2786,11 @@ TEST_CASE("Parser expr1") {
 
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->expr != nullptr);
-        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDynList);
-        const auto dynList = reinterpret_cast<const parse::DynListNode*>(block->body->expr.get());
-        REQUIRE(dynList->elements);
-        REQUIRE(dynList->elements->nodeType == parse::NodeType::kExprSeq);
-        const parse::ExprSeqNode* exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(dynList->elements.get());
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kList);
+        const auto list = reinterpret_cast<const parse::ListNode*>(block->body->expr.get());
+        REQUIRE(list->elements);
+        REQUIRE(list->elements->nodeType == parse::NodeType::kExprSeq);
+        const parse::ExprSeqNode* exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(list->elements.get());
         REQUIRE(exprSeq->expr);
         REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kName);
         const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(exprSeq->expr.get());
@@ -2819,6 +2819,25 @@ TEST_CASE("Parser expr1") {
     }
 
     SUBCASE("expr1: expr1 '[' arglist1 ']'") {
+        Parser parser("text[0]");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kArrayAccess);
+        auto access = reinterpret_cast<const parse::ArrayAccessNode*>(block->body->expr.get());
+        REQUIRE(access->targetArray);
+        REQUIRE(access->targetArray->nodeType == parse::NodeType::kName);
+        auto name = reinterpret_cast<const parse::NameNode*>(access->targetArray.get());
+        CHECK(parser.lexer()->tokens()[name->tokenIndex].range.compare("text") == 0);
+        REQUIRE(access->indexArgument);
+        REQUIRE(access->indexArgument->expr);
+        REQUIRE(access->indexArgument->expr->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(access->indexArgument->expr.get());
+        CHECK(literal->value == Slot(0));
     }
 
     SUBCASE("expr1: valrangexd") {

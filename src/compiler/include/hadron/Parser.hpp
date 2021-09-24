@@ -25,20 +25,22 @@ enum NodeType {
     kClassExt = 5,
     kClass = 6,
     kReturn = 7,
-    kDynList = 8,
-    kBlock = 9,
-    kLiteral = 10,
-    kName = 11,
-    kExprSeq = 12,
-    kAssign = 13,
-    kSetter = 14,
-    kKeyValue = 15,
-    kCall = 16,
-    kBinopCall = 17,
-    kPerformList = 18,
-    kNumericSeries = 19,
-    kCurryArgument = 20,
-    kIf = 21
+    kList = 8,
+    kDictionary = 9,
+    kBlock = 10,
+    kLiteral = 11,
+    kName = 12,
+    kExprSeq = 13,
+    kAssign = 14,
+    kSetter = 15,
+    kKeyValue = 16,
+    kCall = 17,
+    kBinopCall = 18,
+    kPerformList = 19,
+    kNumericSeries = 20,
+    kCurryArgument = 21,
+    kArrayAccess = 22,
+    kIf = 23
 };
 
 struct Node {
@@ -135,12 +137,19 @@ struct ReturnNode : public Node {
     std::unique_ptr<Node> valueExpr;
 };
 
-struct DynListNode : public Node {
-    DynListNode(size_t index): Node(NodeType::kDynList, index) {}
-    virtual ~DynListNode() = default;
+struct ListNode : public Node {
+    ListNode(size_t index): Node(NodeType::kList, index) {}
+    virtual ~ListNode() = default;
 
     std::unique_ptr<Node> elements;
 };
+
+struct DictionaryNode : public Node {
+    DictionaryNode(size_t index): Node(NodeType::kDictionary, index) {}
+    virtual ~DictionaryNode() = default;
+
+    std::unique_ptr<Node> elements;
+}
 
 struct LiteralNode : public Node {
     LiteralNode(size_t index, Type t, const Slot& v): Node(NodeType::kLiteral, index), type(t), value(v) {}
@@ -227,6 +236,16 @@ struct NumericSeriesNode : public Node {
 struct CurryArgumentNode : public Node {
     CurryArgumentNode(size_t index): Node(NodeType::kCurryArgument, index) {}
     virtual ~CurryArgumentNode() = default;
+};
+
+// Normally translated to the "at" method, but parsed as a distinct parse node to allow for possible compiler inlining
+// of array access.
+struct ArrayAccessNode : public Node {
+    ArrayAccessNode(size_t index): Node(NodeType::kArrayAccess, index) {}
+    virtual ~ArrayAccessNode() = default;
+
+    std::unique_ptr<Node> targetArray;
+    std::unique_ptr<ExprSeqNode> indexArgument;
 };
 
 struct IfNode : public Node {
