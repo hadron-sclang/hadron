@@ -25,12 +25,14 @@
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist
 %type <std::unique_ptr<hadron::parse::LiteralNode>> literal
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
-%type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ arrayelems arrayelems1
+%type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */
 %type <std::unique_ptr<hadron::parse::ReturnNode>> funretval retval
 %type <std::unique_ptr<hadron::parse::VarDefNode>> rwslotdeflist rwslotdef slotdef vardef constdef constdeflist
 %type <std::unique_ptr<hadron::parse::VarDefNode>> vardeflist slotdeflist vardeflist0 slotdeflist0
 %type <std::unique_ptr<hadron::parse::VarListNode>> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
-%type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1
+%type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
+%type <std::unique_ptr<hadron::parse::ExprSeqNode>> dictslotlist1 dictslotdef arrayelems1
+
 
 %type <std::optional<size_t>> superclass optname primitive
 %type <std::pair<bool, bool>> rwspec
@@ -439,23 +441,21 @@ arrayelems1[target] : exprseq { $target = std::move($exprseq); }
                     | KEYWORD exprseq {
                             auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD,
                                 hadron::Type::kSymbol, hadron::Slot());
-                            $target = append<std::unique_ptr<hadron::parse::Node>>(std::move(literal),
-                                std::move($exprseq));
+                            auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD, std::move(literal));
+                            $target = append(std::move(exprSeq), std::move($exprseq));
                         }
                     | arrayelems1[build] COMMA exprseq {
-                            $target = append<std::unique_ptr<hadron::parse::Node>>(std::move($build),
-                                std::move($exprseq));
+                            $target = append(std::move($build), std::move($exprseq));
                         }
                     | arrayelems1[build] COMMA KEYWORD exprseq {
                             auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD,
                                 hadron::Type::kSymbol, hadron::Slot());
-                            auto affixes = append<std::unique_ptr<hadron::parse::Node>>(std::move(literal),
-                                std::move($exprseq));
+                            auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD, std::move(literal));
+                            auto affixes = append(std::move(exprSeq), std::move($exprseq));
                             $target = append(std::move($build), std::move(affixes));
                         }
                     | arrayelems1[build] COMMA exprseq[append] COLON exprseq[next] {
-                        auto affixes = append<std::unique_ptr<hadron::parse::Node>>(std::move($append),
-                            std::move($next));
+                        auto affixes = append(std::move($append), std::move($next));
                         $target = append(std::move($build), std::move(affixes));
                         }
                     ;
@@ -476,9 +476,14 @@ expr1[target]   : literal { $target = std::move($literal); }
                         $target = std::move(name);
                     }
                 | OPENSQUARE arrayelems CLOSESQUARE {
-                        auto list = std::make_unique<hadron::parse::DynListNode>($OPENSQUARE);
+                        auto list = std::make_unique<hadron::parse::ListNode>($OPENSQUARE);
                         list->elements = std::move($arrayelems);
                         $target = std::move(list);
+                    }
+                | OPENPAREN dictslotlist CLOSEPAREN {
+                        auto dict = std::make_unique<hadron::parse::DictionaryNode>($OPENPAREN);
+                        dict->elements = std::move($dictslotlist);
+                        $target = std::move(dict);
                     }
                 | expr1[build] OPENSQUARE arglist1 CLOSESQUARE {
                         auto accessNode = std::make_unique<hadron::parse::ArrayAccessNode>($OPENSQUARE);
@@ -635,6 +640,25 @@ vardef  : IDENTIFIER { $vardef = std::make_unique<hadron::parse::VarDefNode>($ID
                 $vardef = std::move(varDef);
             }
         ;
+
+dictslotdef  : exprseq[build] COLON exprseq[next] { $dictslotdef = append(std::move($build), std::move($next)); }
+             | KEYWORD exprseq {
+                    auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD,
+                        hadron::Type::kSymbol, hadron::Slot());
+                    auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD, std::move(literal));
+                    $dictslotdef = append(std::move(exprSeq), std::move($exprseq));
+                }
+             ;
+
+dictslotlist1[target]   : dictslotdef { $target = std::move($dictslotdef); }
+                        | dictslotlist1[build] COMMA dictslotdef {
+                                $target = append(std::move($build), std::move($dictslotdef));
+                            }
+                        ;
+
+dictslotlist    : %empty { $dictslotlist = nullptr; }
+                | dictslotlist1 { $dictslotlist = std::move($dictslotlist1); }
+                ;
 
 rwslotdeflist[target]   : rwslotdef { $target = std::move($rwslotdef); }
                         | rwslotdeflist[build] COMMA rwslotdef {

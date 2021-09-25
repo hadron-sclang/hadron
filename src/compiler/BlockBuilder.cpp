@@ -135,8 +135,12 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
         findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(nodeValue));
     } break;
 
-    case parse::NodeType::kDynList: {
+    case parse::NodeType::kList: {
         assert(false);  // TODO
+    } break;
+
+    case parse::NodeType::kDictionary: {
+        assert(false);
     } break;
 
     // This only works for inline blocks <- when do these happen? Are they blockLiterals?

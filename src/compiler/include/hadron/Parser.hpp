@@ -141,15 +141,15 @@ struct ListNode : public Node {
     ListNode(size_t index): Node(NodeType::kList, index) {}
     virtual ~ListNode() = default;
 
-    std::unique_ptr<Node> elements;
+    std::unique_ptr<ExprSeqNode> elements;
 };
 
 struct DictionaryNode : public Node {
     DictionaryNode(size_t index): Node(NodeType::kDictionary, index) {}
     virtual ~DictionaryNode() = default;
 
-    std::unique_ptr<Node> elements;
-}
+    std::unique_ptr<ExprSeqNode> elements;
+};
 
 struct LiteralNode : public Node {
     LiteralNode(size_t index, Type t, const Slot& v): Node(NodeType::kLiteral, index), type(t), value(v) {}

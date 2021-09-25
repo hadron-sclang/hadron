@@ -1705,6 +1705,79 @@ TEST_CASE("Parser vardef") {
     }
 }
 
+TEST_CASE("Parser dictslotdef") {
+    SUBCASE("dictslotdef: exprseq ':' exprseq") {
+        Parser parser("(\"\": \"\")");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDictionary);
+        auto dict = reinterpret_cast<const parse::DictionaryNode*>(block->body->expr.get());
+        REQUIRE(dict->elements);
+        REQUIRE(dict->elements->expr);
+        REQUIRE(dict->elements->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(dict->elements->expr.get());
+        CHECK(literal->type == Type::kString);
+        REQUIRE(dict->elements->next);
+        REQUIRE(dict->elements->next->nodeType == parse::NodeType::kExprSeq);
+        const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(dict->elements->next.get());
+        REQUIRE(exprSeq->expr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->type == Type::kString);
+    }
+
+    SUBCASE("dictslotdef: keybinop exprseq") {
+        Parser parser("(foo: 4)");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDictionary);
+        auto dict = reinterpret_cast<const parse::DictionaryNode*>(block->body->expr.get());
+        REQUIRE(dict->elements);
+        REQUIRE(dict->elements->expr);
+        REQUIRE(dict->elements->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(dict->elements->expr.get());
+        CHECK(literal->type == Type::kSymbol);
+        REQUIRE(dict->elements->next);
+        REQUIRE(dict->elements->next->nodeType == parse::NodeType::kExprSeq);
+        const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(dict->elements->next.get());
+        REQUIRE(exprSeq->expr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->type == Type::kInteger);
+        CHECK(literal->value == Slot(4));
+    }
+}
+
+TEST_CASE("Parser dictslotlist1") {
+    SUBCASE("dictslotlist1: dictslotdef") {
+        REQUIRE(false);
+    }
+
+    SUBCASE("dictslotlist1: dictslotlist1 ',' dictslotdef") {
+        REQUIRE(false);
+    }
+}
+
+TEST_CASE("Parser dictslotlist") {
+    SUBCASE("dictslotlist: %empty") {
+        REQUIRE(false);
+    }
+
+    SUBCASE("dictslotlist: dictslotlist1 optcomma") {
+        REQUIRE(false);
+    }
+}
+
 TEST_CASE("Parser argdecls") {
     SUBCASE("argdecls: <e>") {
         Parser parser("{ 1 }");
@@ -2813,6 +2886,23 @@ TEST_CASE("Parser expr1") {
     }
 
     SUBCASE("expr1: '(' dictslotlist ')'") {
+        Parser parser("().call()");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
+        auto call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
+        CHECK(parser.lexer()->tokens()[call->tokenIndex].range.compare("call") == 0);
+        REQUIRE(call->target);
+        REQUIRE(call->target->nodeType == parse::NodeType::kDictionary);
+        auto dict = reinterpret_cast<const parse::DictionaryNode*>(call->target.get());
+        CHECK(dict->elements == nullptr);
+        CHECK(call->arguments == nullptr);
+        CHECK(call->keywordArguments == nullptr);
     }
 
     SUBCASE("expr1: pseudovar") {
@@ -2871,8 +2961,8 @@ TEST_CASE("Parser arrayelems") {
         const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->expr != nullptr);
-        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDynList);
-        auto array = reinterpret_cast<const parse::DynListNode*>(block->body->expr.get());
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kList);
+        auto array = reinterpret_cast<const parse::ListNode*>(block->body->expr.get());
         CHECK(array->elements == nullptr);
     }
 
@@ -2885,8 +2975,8 @@ TEST_CASE("Parser arrayelems") {
         const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->expr != nullptr);
-        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDynList);
-        auto array = reinterpret_cast<const parse::DynListNode*>(block->body->expr.get());
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kList);
+        auto array = reinterpret_cast<const parse::ListNode*>(block->body->expr.get());
 
         REQUIRE(array->elements != nullptr);
         REQUIRE(array->elements->nodeType == parse::NodeType::kExprSeq);
@@ -2919,8 +3009,8 @@ TEST_CASE("Parser arrayelems1") {
         const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->expr != nullptr);
-        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDynList);
-        auto array = reinterpret_cast<const parse::DynListNode*>(block->body->expr.get());
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kList);
+        auto array = reinterpret_cast<const parse::ListNode*>(block->body->expr.get());
 
         REQUIRE(array->elements != nullptr);
         REQUIRE(array->elements->nodeType == parse::NodeType::kExprSeq);
@@ -2957,8 +3047,8 @@ TEST_CASE("Parser arrayelems1") {
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->expr != nullptr);
 
-        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDynList);
-        auto array = reinterpret_cast<const parse::DynListNode*>(block->body->expr.get());
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kList);
+        auto array = reinterpret_cast<const parse::ListNode*>(block->body->expr.get());
 
         REQUIRE(array->elements != nullptr);
         REQUIRE(array->elements->nodeType == parse::NodeType::kExprSeq);
@@ -3002,17 +3092,20 @@ TEST_CASE("Parser arrayelems1") {
         const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
         REQUIRE(block->body != nullptr);
         REQUIRE(block->body->expr != nullptr);
-        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDynList);
-        auto array = reinterpret_cast<const parse::DynListNode*>(block->body->expr.get());
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kList);
+        auto array = reinterpret_cast<const parse::ListNode*>(block->body->expr.get());
 
         REQUIRE(array->elements != nullptr);
-        REQUIRE(array->elements->nodeType == parse::NodeType::kLiteral);
-        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(array->elements.get());
+        REQUIRE(array->elements->nodeType == parse::NodeType::kExprSeq);
+        const parse::ExprSeqNode* exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(array->elements.get());
+        REQUIRE(exprSeq->expr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
         CHECK(literal->type == Type::kSymbol);
 
-        REQUIRE(literal->next != nullptr);
-        REQUIRE(literal->next->nodeType == parse::NodeType::kExprSeq);
-        const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(literal->next.get());
+        REQUIRE(exprSeq->next != nullptr);
+        REQUIRE(exprSeq->next->nodeType == parse::NodeType::kExprSeq);
+        exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(exprSeq->next.get());
         REQUIRE(exprSeq->expr != nullptr);
         REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
         literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
@@ -3051,8 +3144,8 @@ TEST_CASE("Parser if") {
         REQUIRE(ifNode->condition->expr->nodeType == parse::NodeType::kCall);
         const parse::CallNode* call = reinterpret_cast<parse::CallNode*>(ifNode->condition->expr.get());
         REQUIRE(call->target != nullptr);
-        REQUIRE(call->target->nodeType == parse::NodeType::kDynList);
-        const auto dynList = reinterpret_cast<const parse::DynListNode*>(call->target.get());
+        REQUIRE(call->target->nodeType == parse::NodeType::kList);
+        const auto dynList = reinterpret_cast<const parse::ListNode*>(call->target.get());
         REQUIRE(dynList->elements != nullptr);
         REQUIRE(dynList->elements->nodeType == parse::NodeType::kExprSeq);
         const parse::ExprSeqNode* exprSeq = reinterpret_cast<parse::ExprSeqNode*>(dynList->elements.get());

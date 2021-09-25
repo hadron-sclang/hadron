@@ -5,6 +5,7 @@
 
 list(APPEND SCLANG_CLASS_FILES
     "${SCLANG_PATH}/Common/Core/Kernel.sc"
+    "${SCLANG_PATH}/Common/Core/Object.sc"
 )
 
 set(SCHEMA_FILES)
