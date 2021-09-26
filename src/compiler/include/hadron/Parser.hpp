@@ -39,8 +39,10 @@ enum NodeType {
     kPerformList = 19,
     kNumericSeries = 20,
     kCurryArgument = 21,
-    kArrayAccess = 22,
-    kIf = 23
+    kArrayRead = 22,
+    kArrayWrite = 23,
+    kCopySeries = 24,
+    kIf = 25
 };
 
 struct Node {
@@ -240,12 +242,32 @@ struct CurryArgumentNode : public Node {
 
 // Normally translated to the "at" method, but parsed as a distinct parse node to allow for possible compiler inlining
 // of array access.
-struct ArrayAccessNode : public Node {
-    ArrayAccessNode(size_t index): Node(NodeType::kArrayAccess, index) {}
-    virtual ~ArrayAccessNode() = default;
+struct ArrayReadNode : public Node {
+    ArrayReadNode(size_t index): Node(NodeType::kArrayRead, index) {}
+    virtual ~ArrayReadNode() = default;
 
     std::unique_ptr<Node> targetArray;
     std::unique_ptr<ExprSeqNode> indexArgument;
+};
+
+struct ArrayWriteNode : public Node {
+    ArrayWriteNode(size_t index): Node(NodeType::kArrayWrite, index) {}
+    ~ArrayWriteNode() = default;
+
+    // targetArray[indexArgument] = value
+    std::unique_ptr<Node> targetArray;
+    std::unique_ptr<ExprSeqNode> indexArgument;
+    std::unique_ptr<Node> value;
+};
+
+// Syntax shorthand for subarray copies, e.g. target[1,2..4]
+struct CopySeriesNode : public Node {
+    CopySeriesNode(size_t index): Node(NodeType::kCopySeries, index) {}
+    virtual ~CopySeriesNode() = default;
+
+    std::unique_ptr<Node> target;
+    std::unique_ptr<ExprSeqNode> first;
+    std::unique_ptr<ExprSeqNode> last;
 };
 
 struct IfNode : public Node {

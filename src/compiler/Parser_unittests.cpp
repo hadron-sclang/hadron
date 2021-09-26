@@ -2752,6 +2752,7 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: expr1 '[' arglist1 ']' '=' expr") {
+        
     }
 
     SUBCASE("expr: expr '.' '[' arglist1 ']' '=' expr") {
@@ -2955,20 +2956,81 @@ TEST_CASE("Parser expr1") {
         const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
         REQUIRE(block->body);
         REQUIRE(block->body->expr);
-        REQUIRE(block->body->expr->nodeType == parse::NodeType::kArrayAccess);
-        auto access = reinterpret_cast<const parse::ArrayAccessNode*>(block->body->expr.get());
-        REQUIRE(access->targetArray);
-        REQUIRE(access->targetArray->nodeType == parse::NodeType::kName);
-        auto name = reinterpret_cast<const parse::NameNode*>(access->targetArray.get());
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kArrayRead);
+        auto arrayRead = reinterpret_cast<const parse::ArrayReadNode*>(block->body->expr.get());
+        REQUIRE(arrayRead->targetArray);
+        REQUIRE(arrayRead->targetArray->nodeType == parse::NodeType::kName);
+        auto name = reinterpret_cast<const parse::NameNode*>(arrayRead->targetArray.get());
         CHECK(parser.lexer()->tokens()[name->tokenIndex].range.compare("text") == 0);
-        REQUIRE(access->indexArgument);
-        REQUIRE(access->indexArgument->expr);
-        REQUIRE(access->indexArgument->expr->nodeType == parse::NodeType::kLiteral);
-        auto literal = reinterpret_cast<const parse::LiteralNode*>(access->indexArgument->expr.get());
+        REQUIRE(arrayRead->indexArgument);
+        REQUIRE(arrayRead->indexArgument->expr);
+        REQUIRE(arrayRead->indexArgument->expr->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(arrayRead->indexArgument->expr.get());
         CHECK(literal->value == Slot(0));
     }
 
-    SUBCASE("expr1: valrangexd") {
+    SUBCASE("expr1: valrangex1") {
+        Parser parser("target[4..]");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kCopySeries);
+        const auto copySeries = reinterpret_cast<const parse::CopySeriesNode*>(block->body->expr.get());
+        REQUIRE(copySeries->target);
+        REQUIRE(copySeries->target->nodeType == parse::NodeType::kName);
+        const auto name = reinterpret_cast<const parse::NameNode*>(copySeries->target.get());
+        CHECK(parser.lexer()->tokens()[name->tokenIndex].range.compare("target") == 0);
+        REQUIRE(copySeries->first);
+        REQUIRE(copySeries->first->expr);
+        REQUIRE(copySeries->first->expr->nodeType == parse::NodeType::kLiteral);
+        const auto literal = reinterpret_cast<const parse::LiteralNode*>(copySeries->first->expr.get());
+        CHECK(literal->type == Type::kInteger);
+        CHECK(literal->value == Slot(4));
+        CHECK(copySeries->last == nullptr);
+    }
+}
+
+TEST_CASE("Parser valrangex1") {
+    SUBCASE("valrangex1: expr1 '[' arglist1 DOTDOT ']'") {
+        Parser parser("target[3,5..]");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kCopySeries);
+        const auto copySeries = reinterpret_cast<const parse::CopySeriesNode*>(block->body->expr.get());
+        REQUIRE(copySeries->target);
+        REQUIRE(copySeries->target->nodeType == parse::NodeType::kName);
+        const auto name = reinterpret_cast<const parse::NameNode*>(copySeries->target.get());
+        CHECK(parser.lexer()->tokens()[name->tokenIndex].range.compare("target") == 0);
+        REQUIRE(copySeries->first);
+        REQUIRE(copySeries->first->expr);
+        REQUIRE(copySeries->first->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(copySeries->first->expr.get());
+        CHECK(literal->type == Type::kInteger);
+        CHECK(literal->value == Slot(3));
+        REQUIRE(copySeries->first->next);
+        REQUIRE(copySeries->first->next->nodeType == parse::NodeType::kExprSeq);
+        const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(copySeries->first->next.get());
+        REQUIRE(exprSeq->expr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->type == Type::kInteger);
+        CHECK(literal->value == Slot(5));
+        CHECK(copySeries->last == nullptr);
+    }
+
+    SUBCASE("valrangex1: expr1 '[' DOTDOT exprseq ']'") {
+    }
+
+    SUBCASE("valrangex1: expr1 '[' arglist1 DOTDOT exprseq ']'") {
     }
 }
 

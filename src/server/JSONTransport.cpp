@@ -670,7 +670,13 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(const hadron::parse::N
     case hadron::parse::NodeType::kCurryArgument: {
         // TODO
     } break;
-    case hadron::parse::NodeType::kArrayAccess: {
+    case hadron::parse::NodeType::kArrayRead: {
+        // TODO
+    } break;
+    case hadron::parse::NodeType::kArrayWrite: {
+        // TODO
+    } break;
+    case hadron::parse::NodeType::kCopySeries: {
         // TODO
     } break;
     case hadron::parse::NodeType::kIf: {

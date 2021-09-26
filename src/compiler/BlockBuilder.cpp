@@ -239,7 +239,15 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
         assert(false); // TODO
     } break;
 
-    case parse::NodeType::kArrayAccess: {
+    case parse::NodeType::kArrayRead: {
+        assert(false); // TODO
+    } break;
+
+    case parse::NodeType::kArrayWrite: {
+        assert(false); // TODO
+    } break;
+
+    case parse::NodeType::kCopySeries: {
         assert(false); // TODO
     } break;
 
