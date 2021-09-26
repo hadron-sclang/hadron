@@ -1758,23 +1758,61 @@ TEST_CASE("Parser dictslotdef") {
     }
 }
 
-TEST_CASE("Parser dictslotlist1") {
-    SUBCASE("dictslotlist1: dictslotdef") {
-        REQUIRE(false);
-    }
-
-    SUBCASE("dictslotlist1: dictslotlist1 ',' dictslotdef") {
-        REQUIRE(false);
-    }
-}
-
 TEST_CASE("Parser dictslotlist") {
     SUBCASE("dictslotlist: %empty") {
-        REQUIRE(false);
+        Parser parser("()");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDictionary);
+        auto dict = reinterpret_cast<const parse::DictionaryNode*>(block->body->expr.get());
+        CHECK(dict->elements == nullptr);
     }
 
     SUBCASE("dictslotlist: dictslotlist1 optcomma") {
-        REQUIRE(false);
+        Parser parser("(key: value, 4: 7,)");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kDictionary);
+        auto dict = reinterpret_cast<const parse::DictionaryNode*>(block->body->expr.get());
+        REQUIRE(dict->elements);
+
+        REQUIRE(dict->elements->expr);
+        REQUIRE(dict->elements->expr->nodeType == parse::NodeType::kLiteral);
+        const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(dict->elements->expr.get());
+        CHECK(literal->type == Type::kSymbol);
+        REQUIRE(dict->elements->next);
+        REQUIRE(dict->elements->next->nodeType == parse::NodeType::kExprSeq);
+        const parse::ExprSeqNode* exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(dict->elements->next.get());
+        REQUIRE(exprSeq->expr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kName);
+        const auto name = reinterpret_cast<const parse::NameNode*>(exprSeq->expr.get());
+        CHECK(parser.lexer()->tokens()[name->tokenIndex].range.compare("value") == 0);
+        REQUIRE(exprSeq->next);
+        REQUIRE(exprSeq->next->nodeType == parse::NodeType::kExprSeq);
+        exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(exprSeq->next.get());
+        REQUIRE(exprSeq->expr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->type == Type::kInteger);
+        CHECK(literal->value == Slot(4));
+        REQUIRE(exprSeq->next);
+        REQUIRE(exprSeq->next->nodeType == parse::NodeType::kExprSeq);
+        exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(exprSeq->next.get());
+        REQUIRE(exprSeq->expr);
+        REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
+        literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
+        CHECK(literal->type == Type::kInteger);
+        CHECK(literal->value == Slot(7));
     }
 }
 

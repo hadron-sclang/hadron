@@ -657,7 +657,7 @@ dictslotlist1[target]   : dictslotdef { $target = std::move($dictslotdef); }
                         ;
 
 dictslotlist    : %empty { $dictslotlist = nullptr; }
-                | dictslotlist1 { $dictslotlist = std::move($dictslotlist1); }
+                | dictslotlist1 optcomma { $dictslotlist = std::move($dictslotlist1); }
                 ;
 
 rwslotdeflist[target]   : rwslotdef { $target = std::move($rwslotdef); }
