@@ -1,6 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_PARSER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_PARSER_HPP_
 
+#include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/Token.hpp"
 #include "hadron/Type.hpp"
@@ -15,6 +16,11 @@ class ErrorReporter;
 class Lexer;
 
 namespace parse {
+
+// TODO: Once symbols are in memory management, enough of the parser should be established that it could make sense to
+// go back and clean up the constructors of the Nodes to match the Bison-generated parser types for symbols. We've added
+// hashes to places where they are useful, it's time to plumb them through the rest of the code, and stop using that
+// awkward parser.lexer()->tokens()[name->nodeIndex] construction, yuck! :)
 
 enum NodeType {
     kEmpty = 0,
@@ -124,8 +130,9 @@ struct ClassNode : public Node {
     ClassNode(size_t index): Node(NodeType::kClass, index) {}
     virtual ~ClassNode() = default;
 
-    std::optional<size_t> superClassNameIndex;
-    std::optional<size_t> optionalNameIndex;
+    Hash name;
+    std::optional<Hash> superClassName;
+    std::optional<Hash> optionalName;
 
     std::unique_ptr<VarListNode> variables;
     std::unique_ptr<MethodNode> methods;
@@ -180,9 +187,10 @@ struct KeyValueNode : public Node {
 
 // target.selector(arguments, keyword: arguments)
 struct CallNode : public Node {
-    CallNode(size_t index): Node(NodeType::kCall, index) {}
+    CallNode(std::pair<size_t, Hash> sel): Node(NodeType::kCall, sel.first), selector(sel.second) {}
     virtual ~CallNode() = default;
 
+    Hash selector;
     std::unique_ptr<Node> target;
     std::unique_ptr<Node> arguments;
     std::unique_ptr<KeyValueNode> keywordArguments;

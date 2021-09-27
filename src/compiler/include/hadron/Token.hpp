@@ -77,7 +77,7 @@ struct Token {
     Slot value;
     Type literalType;
     bool couldBeBinop;
-    Hash hash = 0;
+    Hash hash = 0;  // TODO - could overlap with value? Since they are now both Slots?
     bool escapeString = false;
 
     inline Token(): name(kEmpty), couldBeBinop(false) {}

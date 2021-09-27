@@ -45,8 +45,8 @@ TEST_CASE("Parser root") {
         REQUIRE(className.name == Token::kClassName);
         CHECK(className.range.compare("A") == 0);
         CHECK(className.hash == hash("A"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->variables == nullptr);
         CHECK(classNode->methods == nullptr);
 
@@ -57,8 +57,8 @@ TEST_CASE("Parser root") {
         REQUIRE(className.name == Token::kClassName);
         CHECK(className.range.compare("B") == 0);
         CHECK(className.hash == hash("B"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->variables == nullptr);
         CHECK(classNode->methods == nullptr);
     }
@@ -123,12 +123,9 @@ TEST_CASE("Parser classdef") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("A") == 0);
         CHECK(name.hash == hash("A"));
-        REQUIRE(classNode->superClassNameIndex);
-        name = parser.lexer()->tokens()[classNode->superClassNameIndex.value()];
-        REQUIRE(name.name == Token::kClassName);
-        CHECK(name.range.compare("B") == 0);
-        CHECK(name.hash == hash("B"));
-        CHECK(!classNode->optionalNameIndex);
+        REQUIRE(classNode->superClassName);
+        CHECK(classNode->superClassName.value() == hash("B"));
+        CHECK(!classNode->optionalName);
 
         REQUIRE(classNode->variables);
         REQUIRE(classNode->variables->definitions);
@@ -166,16 +163,10 @@ TEST_CASE("Parser classdef") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("Sub") == 0);
         CHECK(name.hash == hash("Sub"));
-        REQUIRE(classNode->optionalNameIndex);
-        name = parser.lexer()->tokens()[classNode->optionalNameIndex.value()];
-        REQUIRE(name.name == Token::kIdentifier);
-        CHECK(name.range.compare("opt") == 0);
-        CHECK(name.hash == hash("opt"));
-        REQUIRE(classNode->superClassNameIndex);
-        name = parser.lexer()->tokens()[classNode->superClassNameIndex.value()];
-        REQUIRE(name.name == Token::kClassName);
-        CHECK(name.range.compare("Super") == 0);
-        CHECK(name.hash == hash("Super"));
+        REQUIRE(classNode->optionalName);
+        CHECK(classNode->optionalName.value() == hash("opt"));
+        REQUIRE(classNode->superClassName);
+        CHECK(classNode->superClassName.value() == hash("Super"));
 
         REQUIRE(classNode->variables);
         REQUIRE(classNode->variables->definitions);
@@ -350,8 +341,8 @@ TEST_CASE("Parser classvardecls") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("A") == 0);
         CHECK(name.hash == hash("A"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->variables == nullptr);
         CHECK(classNode->methods == nullptr);
     }
@@ -368,8 +359,8 @@ TEST_CASE("Parser classvardecls") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("C") == 0);
         CHECK(name.hash == hash("C"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
 
         REQUIRE(classNode->variables != nullptr);
@@ -499,8 +490,8 @@ TEST_CASE("Parser classvardecl") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("X") == 0);
         CHECK(name.hash == hash("X"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
 
         REQUIRE(classNode->variables != nullptr);
@@ -553,8 +544,8 @@ TEST_CASE("Parser classvardecl") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("Y") == 0);
         CHECK(name.hash == hash("Y"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
 
         REQUIRE(classNode->variables != nullptr);
@@ -607,8 +598,8 @@ TEST_CASE("Parser classvardecl") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("Z") == 0);
         CHECK(name.hash == hash("Z"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
 
         REQUIRE(classNode->variables != nullptr);
@@ -658,8 +649,8 @@ TEST_CASE("Parser methods") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("Zed") == 0);
         CHECK(name.hash == hash("Zed"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
     }
 
@@ -675,8 +666,8 @@ TEST_CASE("Parser methods") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("Multi") == 0);
         CHECK(name.hash == hash("Multi"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
 
         REQUIRE(classNode->methods != nullptr);
         const parse::MethodNode* method = classNode->methods.get();
@@ -734,8 +725,8 @@ TEST_CASE("Parser methoddef") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("W") == 0);
         CHECK(name.hash == hash("W"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
 
         REQUIRE(classNode->methods != nullptr);
         const parse::MethodNode* method = classNode->methods.get();
@@ -800,8 +791,8 @@ TEST_CASE("Parser methoddef") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("Kz") == 0);
         CHECK(name.hash == hash("Kz"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
 
         REQUIRE(classNode->methods != nullptr);
         const parse::MethodNode* method = classNode->methods.get();
@@ -877,8 +868,8 @@ TEST_CASE("Parser methoddef") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("Mx") == 0);
         CHECK(name.hash == hash("Mx"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
 
         REQUIRE(classNode->methods != nullptr);
         const parse::MethodNode* method = classNode->methods.get();
@@ -975,8 +966,8 @@ TEST_CASE("Parser methoddef") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("QRS") == 0);
         CHECK(name.hash == hash("QRS"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
 
         REQUIRE(classNode->methods != nullptr);
         const parse::MethodNode* method = classNode->methods.get();
@@ -1256,8 +1247,8 @@ TEST_CASE("Parser rwslotdeflist") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("M") == 0);
         CHECK(name.hash == hash("M"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
 
         REQUIRE(classNode->variables != nullptr);
@@ -1290,8 +1281,8 @@ TEST_CASE("Parser rwslotdeflist") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("Cv") == 0);
         CHECK(name.hash == hash("Cv"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
         REQUIRE(classNode->variables != nullptr);
         const parse::VarListNode* varList = classNode->variables.get();
@@ -1346,8 +1337,8 @@ TEST_CASE("Parser rwslotdef") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("BFG") == 0);
         CHECK(name.hash == hash("BFG"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
 
         REQUIRE(classNode->variables != nullptr);
@@ -1380,8 +1371,8 @@ TEST_CASE("Parser rwslotdef") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("Lit") == 0);
         CHECK(name.hash == hash("Lit"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
 
         REQUIRE(classNode->variables != nullptr);
@@ -1421,8 +1412,8 @@ TEST_CASE("Parser constdeflist") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("UniConst") == 0);
         CHECK(name.hash == hash("UniConst"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
 
         REQUIRE(classNode->variables != nullptr);
@@ -1455,8 +1446,8 @@ TEST_CASE("Parser constdeflist") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("MultiConst") == 0);
         CHECK(name.hash == hash("MultiConst"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
 
         REQUIRE(classNode->variables != nullptr);
@@ -1523,8 +1514,8 @@ TEST_CASE("Parser constdef") {
         REQUIRE(name.name == Token::kClassName);
         CHECK(name.range.compare("Math") == 0);
         CHECK(name.hash == hash("Math"));
-        CHECK(!classNode->superClassNameIndex);
-        CHECK(!classNode->optionalNameIndex);
+        CHECK(!classNode->superClassName);
+        CHECK(!classNode->optionalName);
         CHECK(classNode->methods == nullptr);
 
         REQUIRE(classNode->variables != nullptr);
@@ -2282,18 +2273,23 @@ TEST_CASE("Parser msgsend") {
     }
 
     SUBCASE("msgsend: classname blocklist1") {
+        CHECK(false);
     }
 
     SUBCASE("msgsend: classname '(' ')' blocklist") {
+        CHECK(false);
     }
 
     SUBCASE("msgsend: classname '(' keyarglist1 optcomma ')' blocklist") {
+        CHECK(false);
     }
 
     SUBCASE("msgsend: classname '(' arglist1 optkeyarglist ')' blocklist") {
+        CHECK(false);
     }
 
     SUBCASE("msgsend: classname '(' arglistv1 optkeyarglist ')'") {
+        CHECK(false);
     }
 
     SUBCASE("msgsend: expr '.' '(' ')' blocklist") {
@@ -2752,7 +2748,29 @@ TEST_CASE("Parser expr") {
     }
 
     SUBCASE("expr: expr1 '[' arglist1 ']' '=' expr") {
-        
+        Parser parser("bar[i] = \\foo");
+        REQUIRE(parser.parse());
+
+        REQUIRE(parser.root() != nullptr);
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kArrayWrite);
+        auto arrayWrite = reinterpret_cast<const parse::ArrayWriteNode*>(block->body->expr.get());
+        REQUIRE(arrayWrite->targetArray);
+        REQUIRE(arrayWrite->targetArray->nodeType == parse::NodeType::kName);
+        const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(arrayWrite->targetArray.get());
+        CHECK(parser.lexer()->tokens()[name->tokenIndex].range.compare("bar") == 0);
+        REQUIRE(arrayWrite->indexArgument);
+        REQUIRE(arrayWrite->indexArgument->expr);
+        REQUIRE(arrayWrite->indexArgument->expr->nodeType == parse::NodeType::kName);
+        name = reinterpret_cast<const parse::NameNode*>(arrayWrite->indexArgument->expr.get());
+        CHECK(parser.lexer()->tokens()[name->tokenIndex].range.compare("i") == 0);
+        REQUIRE(arrayWrite->value);
+        REQUIRE(arrayWrite->value->nodeType == parse::NodeType::kLiteral);
+        auto literal = reinterpret_cast<const parse::LiteralNode*>(arrayWrite->value.get());
+        CHECK(literal->type == kSymbol);
     }
 
     SUBCASE("expr: expr '.' '[' arglist1 ']' '=' expr") {
