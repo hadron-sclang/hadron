@@ -19,23 +19,23 @@
 // Include Hashes in the token when meaningful.
 %token <std::pair<size_t, hadron::Hash>> BINOP KEYWORD IDENTIFIER CLASSNAME
 
-
 %type <std::unique_ptr<hadron::parse::ArgListNode>> argdecls
 %type <std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode block blocklist1 blocklist optblock
-%type <std::unique_ptr<hadron::parse::CallNode>> msgsend
 %type <std::unique_ptr<hadron::parse::ClassExtNode>> classextension classextensions
 %type <std::unique_ptr<hadron::parse::ClassNode>> classdef classes
+%type <std::unique_ptr<hadron::parse::ExprSeqNode>> dictslotlist1 dictslotdef arrayelems1
+%type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
 %type <std::unique_ptr<hadron::parse::IfNode>> if
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist
 %type <std::unique_ptr<hadron::parse::LiteralNode>> literal
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
-%type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ valrangex1
+%type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ valrangex1 msgsend
 %type <std::unique_ptr<hadron::parse::ReturnNode>> funretval retval
+%type <std::unique_ptr<hadron::parse::SeriesIterNode>> valrange3
+%type <std::unique_ptr<hadron::parse::SeriesNode>> valrange2
 %type <std::unique_ptr<hadron::parse::VarDefNode>> rwslotdeflist rwslotdef slotdef vardef constdef constdeflist
 %type <std::unique_ptr<hadron::parse::VarDefNode>> vardeflist slotdeflist vardeflist0 slotdeflist0
 %type <std::unique_ptr<hadron::parse::VarListNode>> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
-%type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
-%type <std::unique_ptr<hadron::parse::ExprSeqNode>> dictslotlist1 dictslotdef arrayelems1
 
 %type <std::optional<hadron::Hash>> superclass optname
 %type <std::optional<size_t>> primitive
@@ -354,27 +354,34 @@ msgsend : IDENTIFIER blocklist1 {
             }
         | CLASSNAME blocklist1 {
                 // This is shorthand for Classname.new {args}
-                auto call = std::make_unique<hadron::parse::CallNode>(std::make_pair($CLASSNAME.first,
-                        hadron::kNewHash));
-                call->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
-                call->arguments = std::move($blocklist1);
-                $msgsend = std::move(call);
+                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME.first);
+                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                newCall->arguments = std::move($blocklist1);
+                $msgsend = std::move(newCall);
             }
         | CLASSNAME OPENPAREN CLOSEPAREN blocklist {
                 // This is shorthand for Classname.new() {args}
-
+                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME.first);
+                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                newCall->arguments = std::move($blocklist);
+                $msgsend = std::move(newCall);
             }
         | CLASSNAME OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
-                $msgsend = nullptr;
-
+                // This is shorthand for Classname.new(foo: bazz) {args}
+                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME.first);
+                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                newCall->arguments = std::move($blocklist);
+                newCall->keywordArguments = std::move($keyarglist1);
+                $msgsend = std::move(newCall);
             }
         | CLASSNAME OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
-                $msgsend = nullptr;
-
-            }
-        | CLASSNAME OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
-                $msgsend = nullptr;
-
+                // This is shorthand for Classname.new(arg, foo: bazz) {args}
+                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME.first);
+                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                newCall->arguments = append<std::unique_ptr<hadron::parse::Node>>(std::move($arglist1),
+                        std::move($blocklist));
+                newCall->keywordArguments = std::move($optkeyarglist);
+                $msgsend = std::move(newCall);
             }
         | expr DOT IDENTIFIER OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
@@ -514,6 +521,8 @@ expr1[target]   : literal { $target = std::move($literal); }
                         list->elements = std::move($arrayelems);
                         $target = std::move(list);
                     }
+                | OPENPAREN valrange2 CLOSEPAREN { $target = std::move($valrange2); }
+                | OPENPAREN COLON valrange3 CLOSEPAREN { $target = std::move($valrange3); }
                 | OPENPAREN dictslotlist CLOSEPAREN {
                         auto dict = std::make_unique<hadron::parse::DictionaryNode>($OPENPAREN);
                         dict->elements = std::move($dictslotlist);
@@ -534,6 +543,85 @@ valrangex1  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE {
                     copySeries->target = std::move($expr1);
                     copySeries->first = std::move($arglist1);
                     $valrangex1 = std::move(copySeries);
+                }
+            | expr1 OPENSQUARE DOTDOT exprseq CLOSESQUARE {
+                    auto copySeries = std::make_unique<hadron::parse::CopySeriesNode>($OPENSQUARE);
+                    copySeries->target = std::move($expr1);
+                    copySeries->last = std::move($exprseq);
+                    $valrangex1 = std::move(copySeries);
+                }
+            | expr1 OPENSQUARE arglist1 DOTDOT exprseq CLOSESQUARE {
+                    auto copySeries = std::make_unique<hadron::parse::CopySeriesNode>($OPENSQUARE);
+                    copySeries->target = std::move($expr1);
+                    copySeries->first = std::move($arglist1);
+                    copySeries->last = std::move($exprseq);
+                    $valrangex1 = std::move(copySeries);
+                }
+            ;
+
+// (start, step..size) --> SimpleNumber.series(start, step, last) -> start.series(step, last)
+valrange2   : exprseq[start] DOTDOT {
+                    // There are only certain contexts that this is a valid construction, a 'do' operation and a list
+                    // comprehension. (Where the last value is implied)
+                    auto series = std::make_unique<hadron::parse::SeriesNode>($DOTDOT);
+                    series->start = std::move($start);
+                    $valrange2 = std::move(series);
+                }
+            | DOTDOT exprseq[last] {
+                    auto series = std::make_unique<hadron::parse::SeriesNode>($DOTDOT);
+                    series->last = std::move($last);
+                    $valrange2 = std::move(series);
+                }
+            | exprseq[start] DOTDOT exprseq[last] {
+                    auto series = std::make_unique<hadron::parse::SeriesNode>($DOTDOT);
+                    series->start = std::move($start);
+                    series->last = std::move($last);
+                    $valrange2 = std::move(series);
+                }
+            | exprseq[start] COMMA exprseq[step] DOTDOT {
+                    // Another case that needs an implied last value.
+                    auto series = std::make_unique<hadron::parse::SeriesNode>($DOTDOT);
+                    series->start = std::move($start);
+                    series->step = std::move($step);
+                    $valrange2 = std::move(series);
+                }
+            | exprseq[start] COMMA exprseq[step] DOTDOT exprseq[last] {
+                    auto series = std::make_unique<hadron::parse::SeriesNode>($DOTDOT);
+                    series->start = std::move($start);
+                    series->step = std::move($step);
+                    series->last = std::move($last);
+                    $valrange2 = std::move(series);
+                }
+            ;
+
+valrange3   : exprseq[start] DOTDOT {
+                    auto seriesIter = std::make_unique<hadron::parse::SeriesIterNode>($DOTDOT);
+                    seriesIter->start = std::move($start);
+                    $valrange3 = std::move(seriesIter);
+                }
+            | DOTDOT exprseq[last] {
+                    auto seriesIter = std::make_unique<hadron::parse::SeriesIterNode>($DOTDOT);
+                    seriesIter->last = std::move($last);
+                    $valrange3 = std::move(seriesIter);
+                }
+            | exprseq[start] DOTDOT exprseq[last] {
+                    auto seriesIter = std::make_unique<hadron::parse::SeriesIterNode>($DOTDOT);
+                    seriesIter->start = std::move($start);
+                    seriesIter->last = std::move($last);
+                    $valrange3 = std::move(seriesIter);
+                }
+            | exprseq[start] COMMA exprseq[step] DOTDOT {
+                    auto seriesIter = std::make_unique<hadron::parse::SeriesIterNode>($DOTDOT);
+                    seriesIter->start = std::move($start);
+                    seriesIter->step = std::move($step);
+                    $valrange3 = std::move(seriesIter);
+                }
+            | exprseq[start] COMMA exprseq[step] DOTDOT exprseq[last] {
+                    auto seriesIter = std::make_unique<hadron::parse::SeriesIterNode>($DOTDOT);
+                    seriesIter->start = std::move($start);
+                    seriesIter->step = std::move($step);
+                    seriesIter->last = std::move($last);
+                    $valrange3 = std::move(seriesIter);
                 }
             ;
 
@@ -638,7 +726,6 @@ argdecls    : %empty { $argdecls = nullptr; }
                     $argdecls = std::move(argList);
                 }
             ;
-
 
 constdeflist[target]    : constdef { $target = std::move($constdef); }
                         | constdeflist[build] optcomma constdef {

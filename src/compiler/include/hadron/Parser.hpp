@@ -22,6 +22,9 @@ namespace parse {
 // hashes to places where they are useful, it's time to plumb them through the rest of the code, and stop using that
 // awkward parser.lexer()->tokens()[name->nodeIndex] construction, yuck! :)
 
+// DEBATE: A broad set of parser nodes or a narrow? There are a lot of syntax shortcuts in SuperCollider, and most of
+// them resolve to CallNodes under the hood. The design goal of the Parser, however, is to represent an
+
 enum NodeType {
     kEmpty = 0,
     kVarDef = 1,
@@ -48,7 +51,10 @@ enum NodeType {
     kArrayRead = 22,
     kArrayWrite = 23,
     kCopySeries = 24,
-    kIf = 25
+    kNew = 25,
+    kSeries = 26,
+    kSeriesIter = 27,
+    kIf = 28
 };
 
 struct Node {
@@ -275,6 +281,35 @@ struct CopySeriesNode : public Node {
 
     std::unique_ptr<Node> target;
     std::unique_ptr<ExprSeqNode> first;
+    std::unique_ptr<ExprSeqNode> last;
+};
+
+// Syntax shorthand for a call to the new() method.
+struct NewNode : public Node {
+    NewNode(size_t index): Node(NodeType::kNew, index) {}
+    virtual ~NewNode() = default;
+
+    std::unique_ptr<Node> target;
+    std::unique_ptr<Node> arguments;
+    std::unique_ptr<KeyValueNode> keywordArguments;
+};
+
+// Equivalent to start.series(step, last)
+struct SeriesNode : public Node {
+    SeriesNode(size_t index): Node(NodeType::kSeries, index) {}
+    virtual ~SeriesNode() = default;
+
+    std::unique_ptr<ExprSeqNode> start;
+    std::unique_ptr<ExprSeqNode> step;
+    std::unique_ptr<ExprSeqNode> last;
+};
+
+struct SeriesIterNode : public Node {
+    SeriesIterNode(size_t index): Node(NodeType::kSeriesIter, index) {}
+    virtual ~SeriesIterNode() = default;
+
+    std::unique_ptr<ExprSeqNode> start;
+    std::unique_ptr<ExprSeqNode> step;
     std::unique_ptr<ExprSeqNode> last;
 };
 
