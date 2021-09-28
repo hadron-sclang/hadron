@@ -22,9 +22,6 @@ namespace parse {
 // hashes to places where they are useful, it's time to plumb them through the rest of the code, and stop using that
 // awkward parser.lexer()->tokens()[name->nodeIndex] construction, yuck! :)
 
-// DEBATE: A broad set of parser nodes or a narrow? There are a lot of syntax shortcuts in SuperCollider, and most of
-// them resolve to CallNodes under the hood. The design goal of the Parser, however, is to represent an
-
 enum NodeType {
     kEmpty = 0,
     kVarDef = 1,
@@ -54,7 +51,8 @@ enum NodeType {
     kNew = 25,
     kSeries = 26,
     kSeriesIter = 27,
-    kIf = 28
+    kLiteralList = 28,
+    kIf = 29
 };
 
 struct Node {

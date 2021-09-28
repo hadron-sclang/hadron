@@ -27,7 +27,7 @@
 %type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
 %type <std::unique_ptr<hadron::parse::IfNode>> if
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist
-%type <std::unique_ptr<hadron::parse::LiteralNode>> literal
+%type <std::unique_ptr<hadron::parse::LiteralNode>> literal listlit
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
 %type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ valrangex1 msgsend
 %type <std::unique_ptr<hadron::parse::ReturnNode>> funretval retval
@@ -635,7 +635,7 @@ expr[target]    : expr1 { $target = std::move($expr1); }
                         $target = std::move(binop);
                     }
                 | IDENTIFIER ASSIGN expr[build] {
-                        auto assign = std::make_unique<hadron::parse::AssignNode>($ASSIGN);
+                        auto assign = std::make_unique<hadron::parse::AssignNode>($A    SSIGN);
                         assign->name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
                         assign->value = std::move($build);
                         $target = std::move(assign);
@@ -797,6 +797,11 @@ dictslotlist    : %empty { $dictslotlist = nullptr; }
                 | dictslotlist1 optcomma { $dictslotlist = std::move($dictslotlist1); }
                 ;
 
+listlit : HASH OPENSQUARE literallistc CLOSESQUARE {
+
+            }
+        ;
+
 rwslotdeflist[target]   : rwslotdef { $target = std::move($rwslotdef); }
                         | rwslotdeflist[build] COMMA rwslotdef {
                                 $target = append(std::move($build), std::move($rwslotdef));
@@ -869,6 +874,7 @@ literal : LITERAL {
                 literal->blockLiteral = std::move($block);
                 $literal = std::move(literal);
             }
+        | listlit { $literal = std::move($listlit); }
         ;
 
 integer : INTEGER { $integer = std::make_pair($INTEGER, hadronParser->token($INTEGER).value.getInt32()); }
