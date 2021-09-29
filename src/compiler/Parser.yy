@@ -27,9 +27,11 @@
 %type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
 %type <std::unique_ptr<hadron::parse::IfNode>> if
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist
-%type <std::unique_ptr<hadron::parse::LiteralNode>> literal listlit
+%type <std::unique_ptr<hadron::parse::LiteralNode>> coreliteral
+%type <std::unique_ptr<hadron::parse::LiteralListNode>> listlit listlit2
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
-%type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ valrangex1 msgsend
+%type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
+%type <std::unique_ptr<hadron::parse::Node>> literallist1 literal listliteral
 %type <std::unique_ptr<hadron::parse::ReturnNode>> funretval retval
 %type <std::unique_ptr<hadron::parse::SeriesIterNode>> valrange3
 %type <std::unique_ptr<hadron::parse::SeriesNode>> valrange2
@@ -349,8 +351,12 @@ msgsend : IDENTIFIER blocklist1 {
                 $msgsend = std::move(call);
             }
         | IDENTIFIER OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
-                // TODO: performList
-                $msgsend = nullptr;
+                // TODO - differentiate between this and superPerformList()
+                auto performList = std::make_unique<hadron::parse::PerformListNode>($OPENPAREN);
+                performList->target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
+                performList->arguments = std::move($arglistv1);
+                performList->keywordArguments = std::move($optkeyarglist);
+                $msgsend = std::move(performList);
             }
         | CLASSNAME blocklist1 {
                 // This is shorthand for Classname.new {args}
@@ -403,6 +409,14 @@ msgsend : IDENTIFIER blocklist1 {
                     std::move($blocklist));
                 call->keywordArguments = std::move($optkeyarglist);
                 $msgsend = std::move(call);
+            }
+        | expr DOT IDENTIFIER OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
+                // TODO - differentiate between this and superPerformList()
+                auto performList = std::make_unique<hadron::parse::PerformListNode>($IDENTIFIER.first);
+                performList->target = std::move($expr);
+                performList->arguments = std::move($arglistv1);
+                performList->keywordArguments = std::move($optkeyarglist);
+                $msgsend = std::move(performList);
             }
         | expr DOT IDENTIFIER blocklist {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
@@ -635,7 +649,7 @@ expr[target]    : expr1 { $target = std::move($expr1); }
                         $target = std::move(binop);
                     }
                 | IDENTIFIER ASSIGN expr[build] {
-                        auto assign = std::make_unique<hadron::parse::AssignNode>($A    SSIGN);
+                        auto assign = std::make_unique<hadron::parse::AssignNode>($ASSIGN);
                         assign->name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
                         assign->value = std::move($build);
                         $target = std::move(assign);
@@ -797,10 +811,32 @@ dictslotlist    : %empty { $dictslotlist = nullptr; }
                 | dictslotlist1 optcomma { $dictslotlist = std::move($dictslotlist1); }
                 ;
 
-listlit : HASH OPENSQUARE literallistc CLOSESQUARE {
+listlit : HASH listlit2 { $listlit = std::move($listlit2); }
+        ;
 
+// Same as listlit but without the hashes, for inner literal lists
+listlit2 : OPENSQUARE literallistc CLOSESQUARE {
+                auto litList = std::make_unique<hadron::parse::LiteralListNode>($OPENSQUARE);
+                litList->elements = std::move($literallistc);
+                $listlit2 = std::move(litList);
+            }
+        | CLASSNAME OPENSQUARE literallistc CLOSESQUARE {
+                auto litList = std::make_unique<hadron::parse::LiteralListNode>($OPENSQUARE);
+                litList->className = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                litList->elements = std::move($literallistc);
+                $listlit2 = std::move(litList);
             }
         ;
+
+literallistc    : %empty { $literallistc = nullptr; }
+                | literallist1 optcomma { $literallistc = std::move($literallist1); }
+                ;
+
+literallist1[target]    : listliteral { $target = std::move($listliteral); }
+                        | literallist1[build] COMMA listliteral {
+                                $target = append(std::move($build), std::move($listliteral));
+                            }
+                        ;
 
 rwslotdeflist[target]   : rwslotdef { $target = std::move($rwslotdef); }
                         | rwslotdeflist[build] COMMA rwslotdef {
@@ -856,26 +892,33 @@ optkeyarglist   : optcomma { $optkeyarglist = nullptr; }
                 | COMMA keyarglist1 optcomma { $optkeyarglist = std::move($keyarglist1); }
                 ;
 
-literal : LITERAL {
-                $literal = std::make_unique<hadron::parse::LiteralNode>($LITERAL,
-                    hadronParser->token($LITERAL).literalType, hadronParser->token($LITERAL).value);
-            }
-        | integer {
-                $literal = std::make_unique<hadron::parse::LiteralNode>($integer.first,
-                    hadron::Type::kInteger, hadron::Slot($integer.second));
-            }
-        | float {
-                $literal = std::make_unique<hadron::parse::LiteralNode>($float.first,
-                    hadron::Type::kFloat, hadron::Slot($float.second));
-            }
-        | block {
-                auto literal = std::make_unique<hadron::parse::LiteralNode>($block->tokenIndex, hadron::Type::kBlock,
-                    hadron::Slot());
-                literal->blockLiteral = std::move($block);
-                $literal = std::move(literal);
-            }
+listliteral : coreliteral { $listliteral = std::move($coreliteral); }
+        | listlit2 { $listliteral = std::move($listlit2); }
+        ;
+
+literal : coreliteral { $literal = std::move($coreliteral); }
         | listlit { $literal = std::move($listlit); }
         ;
+
+coreliteral : LITERAL {
+                $coreliteral = std::make_unique<hadron::parse::LiteralNode>($LITERAL,
+                    hadronParser->token($LITERAL).literalType, hadronParser->token($LITERAL).value);
+                }
+            | integer {
+                    $coreliteral = std::make_unique<hadron::parse::LiteralNode>($integer.first,
+                            hadron::Type::kInteger, hadron::Slot($integer.second));
+                }
+            | float {
+                    $coreliteral = std::make_unique<hadron::parse::LiteralNode>($float.first,
+                            hadron::Type::kFloat, hadron::Slot($float.second));
+                }
+            | block {
+                    auto literal = std::make_unique<hadron::parse::LiteralNode>($block->tokenIndex,
+                            hadron::Type::kBlock, hadron::Slot());
+                    literal->blockLiteral = std::move($block);
+                    $coreliteral = std::move(literal);
+                }
+            ;
 
 integer : INTEGER { $integer = std::make_pair($INTEGER, hadronParser->token($INTEGER).value.getInt32()); }
         | MINUS INTEGER %prec MINUS {

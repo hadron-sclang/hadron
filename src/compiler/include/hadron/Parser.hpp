@@ -236,6 +236,7 @@ struct PerformListNode : public Node {
 
     std::unique_ptr<Node> target;
     std::unique_ptr<Node> arguments;
+    std::unique_ptr<KeyValueNode> keywordArguments;
 };
 
 struct NumericSeriesNode : public Node {
@@ -309,6 +310,14 @@ struct SeriesIterNode : public Node {
     std::unique_ptr<ExprSeqNode> start;
     std::unique_ptr<ExprSeqNode> step;
     std::unique_ptr<ExprSeqNode> last;
+};
+
+struct LiteralListNode : public Node {
+    LiteralListNode(size_t index): Node(NodeType::kLiteralList, index) {}
+    ~LiteralListNode() = default;
+
+    std::unique_ptr<NameNode> className;
+    std::unique_ptr<Node> elements;
 };
 
 struct IfNode : public Node {

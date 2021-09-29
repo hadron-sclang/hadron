@@ -1,9 +1,12 @@
 // schema, parses a SuperCollider input class file and generates a Schema C++ output file
 #include "hadron/ErrorReporter.hpp"
+#include "hadron/Hash.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/SourceFile.hpp"
+#include "internal/FileSystem.hpp"
 
+#include "fmt/format.h"
 #include "gflags/gflags.h"
 
 #include <fstream>
@@ -42,6 +45,18 @@ int main(int argc, char* argv[]) {
         std::cerr << "schema file error on ouput file: " << FLAGS_schemaFile << std::endl;
     }
 
+    fs::path outFilePath(FLAGS_schemaFile);
+    auto filename = outFilePath.filename().string();
+    auto includeGuard = fmt::format("SRC_RUNTIME_SCHEMA_{:016x}_{}", hadron::hash(FLAGS_schemaFile).getHash(),
+            filename);
+    outFile << "#ifndef " << includeGuard << std::endl;
+    outFile << "#define " << includeGuard << std::endl << std::endl;
+
+//    outFile << "#include \"hadron/Hash.hpp\"" << std::endl;
+//    outFile << "#include \"hadron/Slot.hpp\"" << std::endl;
+
+    outFile << "namespace hadron {" << std::endl << std::endl;
+
     const hadron::parse::Node* node = parser.root();
     while (node) {
         if (node->nodeType != hadron::parse::NodeType::kClass) {
@@ -51,10 +66,32 @@ int main(int argc, char* argv[]) {
         const hadron::parse::ClassNode* classNode = reinterpret_cast<const hadron::parse::ClassNode*>(node);
         auto token = lexer.tokens()[classNode->tokenIndex];
         std::string className(token.range.data(), token.range.size());
-        std::cout << className << std::endl;
+        // TODO: conversion of superClassName to a hash means we no longer have the token range so offsets are broken :(
+        outFile << "// " << className << std::endl;
+        outFile << fmt::format("static constexpr uint64_t k{}Hash = 0x{:016x};\n", className,
+                hadron::hash(className).getHash());
+        size_t varCount = 0;
+//        size_t classVarCount = 0;
+        const hadron::parse::VarListNode* varList = classNode->variables.get();
+        while (varList) {
+            if (lexer.tokens()[varList->tokenIndex].hash == hadron::hash("var")) {
+                const hadron::parse::VarDefNode* varDef = varList->definitions.get();
+                while (varDef) {
+                    outFile << fmt::format("static constexpr size_t k{}Offset_{} = {};\n", className,
+                            lexer.tokens()[varDef->tokenIndex].range, varCount);
+                    ++varCount;
+                    varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
+                }
+            }
+            varList = reinterpret_cast<const hadron::parse::VarListNode*>(varList->next.get());
+        }
 
+        outFile << fmt::format("static constexpr size_t k{}Size = {};\n", className, varCount);
+        outFile << std::endl;
         node = classNode->next.get();
     }
 
+    outFile << "} // namespace hadron" << std::endl << std::endl;
+    outFile << "#endif // " << includeGuard << std::endl;
     return 0;
 }

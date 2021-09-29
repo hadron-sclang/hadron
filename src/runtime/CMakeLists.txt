@@ -12,9 +12,10 @@ set(SCHEMA_FILES)
 
 foreach(CLASS_FILE ${SCLANG_CLASS_FILES})
     # Obtain relative path of the output file.
-    string(REGEX REPLACE ".sc$" ".cpp" SCHEMA_FILE ${CLASS_FILE})
-    set(SCHEMA_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SCHEMA_FILE})
-#    message(STATUS "Processing ${CLASS_FILE} to ${SCHEMA_FILE}")
+    string(REGEX REPLACE ".sc$" ".h" SCHEMA_FILE ${CLASS_FILE})
+    string(REGEX REPLACE ${SCLANG_PATH} "" SCHEMA_FILE ${SCHEMA_FILE})
+    set(SCHEMA_FILE ${CMAKE_CURRENT_BINARY_DIR}/schema/${SCHEMA_FILE})
+    message(STATUS "Processing ${CLASS_FILE} to ${SCHEMA_FILE}")
     list(APPEND SCHEMA_FILES ${SCHEMA_FILE})
     # Create custom command which generates {out_file} from the {in_file}
     add_custom_command(OUTPUT ${SCHEMA_FILE}

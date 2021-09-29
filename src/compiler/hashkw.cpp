@@ -38,6 +38,7 @@ int main(int argc, char* argv[]) {
         { "kPipeHash                ", "|" },
         { "kReadWriteHash           ", "<>" },
         { "kSubtractHash            ", "-" },
+        { "kSuperHash               ", "super" },
         { "kThisHash                ", "this" },
         { "kTrueHash                ", "true" },
         { "kVarHash                 ", "var" },

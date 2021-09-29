@@ -688,6 +688,9 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(const hadron::parse::N
     case hadron::parse::NodeType::kSeriesIter: {
         // TODO
     } break;
+    case hadron::parse::NodeType::kLiteralList: {
+        // TODO
+    } break;
     case hadron::parse::NodeType::kIf: {
         const auto ifNode = reinterpret_cast<const hadron::parse::IfNode*>(node);
         jsonNode.AddMember("nodeType", rapidjson::Value("If"), document.GetAllocator());
