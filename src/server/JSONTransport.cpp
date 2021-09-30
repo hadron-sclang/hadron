@@ -522,17 +522,17 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(const hadron::parse::N
     case hadron::parse::NodeType::kClass: {
         const auto classNode = reinterpret_cast<const hadron::parse::ClassNode*>(node);
         jsonNode.AddMember("nodeType", rapidjson::Value("Class"), document.GetAllocator());
-        if (classNode->superClassName) {
-            jsonNode.AddMember("superClassName", rapidjson::Value(classNode->superClassName->getHash()),
-                    document.GetAllocator());
+        if (classNode->superClassNameIndex) {
+            jsonNode.AddMember("superClassNameIndex", rapidjson::Value(
+                static_cast<uint64_t>(*(classNode->superClassNameIndex))), document.GetAllocator());
         } else {
-            jsonNode.AddMember("superClassName", rapidjson::Value(), document.GetAllocator());
+            jsonNode.AddMember("superClassNameIndex", rapidjson::Value(), document.GetAllocator());
         }
-        if (classNode->optionalName) {
-            jsonNode.AddMember("optionalName", rapidjson::Value(classNode->optionalName->getHash()),
-                    document.GetAllocator());
+        if (classNode->optionalNameIndex) {
+            jsonNode.AddMember("optionalNameIndex", rapidjson::Value(
+                static_cast<uint64_t>(*(classNode->optionalNameIndex))), document.GetAllocator());
         } else {
-            jsonNode.AddMember("optionalName", rapidjson::Value(), document.GetAllocator());
+            jsonNode.AddMember("optionalNameIndex", rapidjson::Value(), document.GetAllocator());
         }
         path.emplace_back(rapidjson::Pointer::Token{"variables", sizeof("variables") - 1,
             rapidjson::kPointerInvalidIndex});

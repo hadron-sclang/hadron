@@ -53,9 +53,10 @@ int main(int argc, char* argv[]) {
     outFile << "#define " << includeGuard << std::endl << std::endl;
 
 //    outFile << "#include \"hadron/Hash.hpp\"" << std::endl;
-//    outFile << "#include \"hadron/Slot.hpp\"" << std::endl;
+    outFile << "#include \"hadron/Slot.hpp\"" << std::endl;
+    outFile << "#include \"runtime/ObjectHeader.hpp\"" << std::endl << std::endl;
 
-    outFile << "namespace hadron {" << std::endl << std::endl;
+    outFile << "namespace runtime {" << std::endl << std::endl;
 
     const hadron::parse::Node* node = parser.root();
     while (node) {
@@ -66,32 +67,39 @@ int main(int argc, char* argv[]) {
         const hadron::parse::ClassNode* classNode = reinterpret_cast<const hadron::parse::ClassNode*>(node);
         auto token = lexer.tokens()[classNode->tokenIndex];
         std::string className(token.range.data(), token.range.size());
-        // TODO: conversion of superClassName to a hash means we no longer have the token range so offsets are broken :(
-        outFile << "// " << className << std::endl;
-        outFile << fmt::format("static constexpr uint64_t k{}Hash = 0x{:016x};\n", className,
+        std::string superClassName;
+        if (className != "Object") {
+            if (classNode->superClassNameIndex) {
+                token = lexer.tokens()[classNode->superClassNameIndex.value()];
+                superClassName = std::string(token.range);
+            } else {
+                superClassName = "Object";
+            }
+        } else {
+            superClassName = "ObjectHeader";
+        }
+
+        outFile << "// ========== " << className << std::endl;
+        outFile << fmt::format("static constexpr uint64_t k{}Hash = 0x{:016x};\n\n", className,
                 hadron::hash(className).getHash());
-        size_t varCount = 0;
-//        size_t classVarCount = 0;
+
+        outFile << fmt::format("struct {} : public {} {{\n", className, superClassName);
         const hadron::parse::VarListNode* varList = classNode->variables.get();
         while (varList) {
             if (lexer.tokens()[varList->tokenIndex].hash == hadron::hash("var")) {
                 const hadron::parse::VarDefNode* varDef = varList->definitions.get();
                 while (varDef) {
-                    outFile << fmt::format("static constexpr size_t k{}Offset_{} = {};\n", className,
-                            lexer.tokens()[varDef->tokenIndex].range, varCount);
-                    ++varCount;
+                    outFile << fmt::format("    hadron::Slot {};\n", lexer.tokens()[varDef->tokenIndex].range);
                     varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
                 }
             }
             varList = reinterpret_cast<const hadron::parse::VarListNode*>(varList->next.get());
         }
-
-        outFile << fmt::format("static constexpr size_t k{}Size = {};\n", className, varCount);
-        outFile << std::endl;
+        outFile << fmt::format("}};\n\n");
         node = classNode->next.get();
     }
 
-    outFile << "} // namespace hadron" << std::endl << std::endl;
+    outFile << "} // namespace runtime" << std::endl << std::endl;
     outFile << "#endif // " << includeGuard << std::endl;
     return 0;
 }

@@ -39,7 +39,7 @@
 %type <std::unique_ptr<hadron::parse::VarDefNode>> vardeflist slotdeflist vardeflist0 slotdeflist0
 %type <std::unique_ptr<hadron::parse::VarListNode>> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
 
-%type <std::optional<hadron::Hash>> superclass optname
+%type <std::optional<size_t>> superclass optname
 %type <std::optional<size_t>> primitive
 %type <std::pair<bool, bool>> rwspec
 %type <bool> rspec
@@ -113,17 +113,15 @@ classextensions[target] : classextension { $target = std::move($classextension);
 
 classdef    : CLASSNAME superclass OPENCURLY classvardecls methods CLOSECURLY {
                     auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME.first);
-                    classDef->name = $CLASSNAME.second;
-                    classDef->superClassName = $superclass;
+                    classDef->superClassNameIndex = $superclass;
                     classDef->variables = std::move($classvardecls);
                     classDef->methods = std::move($methods);
                     $classdef = std::move(classDef);
                 }
             | CLASSNAME OPENSQUARE optname CLOSESQUARE superclass OPENCURLY classvardecls methods CLOSECURLY {
                     auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME.first);
-                    classDef->name = $CLASSNAME.second;
-                    classDef->superClassName = $superclass;
-                    classDef->optionalName = $optname;
+                    classDef->superClassNameIndex = $superclass;
+                    classDef->optionalNameIndex = $optname;
                     classDef->variables = std::move($classvardecls);
                     classDef->methods = std::move($methods);
                     $classdef = std::move(classDef);
@@ -138,11 +136,11 @@ classextension  : PLUS CLASSNAME OPENCURLY methods CLOSECURLY {
                 ;
 
 optname : %empty { $optname = std::nullopt; }
-        | IDENTIFIER { $optname = $IDENTIFIER.second; }
+        | IDENTIFIER { $optname = $IDENTIFIER.first; }
         ;
 
 superclass  : %empty { $superclass = std::nullopt; }
-            | COLON CLASSNAME { $superclass = $CLASSNAME.second; }
+            | COLON CLASSNAME { $superclass = $CLASSNAME.first; }
             ;
 
 classvardecls[target]   : %empty { $target = nullptr; }

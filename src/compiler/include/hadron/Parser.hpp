@@ -134,9 +134,8 @@ struct ClassNode : public Node {
     ClassNode(size_t index): Node(NodeType::kClass, index) {}
     virtual ~ClassNode() = default;
 
-    Hash name;
-    std::optional<Hash> superClassName;
-    std::optional<Hash> optionalName;
+    std::optional<size_t> superClassNameIndex;
+    std::optional<size_t> optionalNameIndex;
 
     std::unique_ptr<VarListNode> variables;
     std::unique_ptr<MethodNode> methods;
