@@ -133,7 +133,7 @@ target_link_libraries(schemac
 list(APPEND SCLANG_CLASS_FILES
     "${SCLANG_PATH}/Common/Core/Kernel.sc"
     "${SCLANG_PATH}/Common/Core/Object.sc"
-#    "${SCLANG_PATH}/Common/Core/Symbol.sc"
+    "${SCLANG_PATH}/Common/Core/Symbol.sc"
 )
 
 set(SCHEMA_FILES)
@@ -159,11 +159,14 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
+    library/Class.cpp
+    library/Object.cpp
+    library/Symbol.cpp
+
     BlockBuilder.cpp
     BlockBuilder.hpp
     BlockSerializer.cpp
     BlockSerializer.hpp
-    Class.cpp
     Emitter.cpp
     Emitter.hpp
     Function.hpp
@@ -184,7 +187,6 @@ add_library(hadron STATIC
     LinearBlock.hpp
     MoveScheduler.cpp
     MoveScheduler.hpp
-    Object.cpp
     Page.cpp
     Page.hpp
     RegisterAllocator.cpp

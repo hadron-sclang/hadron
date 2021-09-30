@@ -1,3 +1,4 @@
+#include "schema/Common/Core/Object.hpp"
 #include "schema/Common/Core/Kernel.hpp"
 
 namespace hadron {

@@ -46,6 +46,10 @@ int main(int argc, char* argv[]) {
         std::cerr << "schema file error on ouput file: " << FLAGS_schemaFile << std::endl;
     }
 
+    // Some argument names in sclang are C++ keywords, causing the generated file to have invalid code. We keep a list
+    // here of suitable replacements and use them if a match is encountered.
+    std::map<std::string, std::string> keywordSubs{{"bool", "scBool"}};
+
     fs::path outFilePath(FLAGS_schemaFile);
     auto includeGuard = fmt::format("SRC_HADRON_SCHEMA_{:012X}", hadron::hash(FLAGS_schemaFile).getHash());
     outFile << "#ifndef " << includeGuard << std::endl;
@@ -55,7 +59,9 @@ int main(int argc, char* argv[]) {
     outFile << "#include \"hadron/Slot.hpp\"" << std::endl;
     outFile << "#include \"hadron/ThreadContext.hpp\"" << std::endl;
 
-    outFile << std::endl << "// GENERATED FILE - DO NOT EDIT" << std::endl;
+    outFile << std::endl << "// NOTE: schemac generated this file from sclang input file:" << std::endl;
+    outFile << "// " << FLAGS_classFile << std::endl;
+    outFile << "// edits will likely be clobbered." << std::endl;
 
     outFile << std::endl << "namespace hadron {" << std::endl << std::endl;
 
@@ -106,7 +112,7 @@ int main(int argc, char* argv[]) {
         while (method) {
             if (method->primitiveIndex) {
                 std::string primitiveName(lexer.tokens()[method->primitiveIndex.value()].range);
-                // Uniqueify the primitive calls, as they often occur in more than one method.
+                // Uniqueify the primitive calls, as they can occur in more than one method.
                 if (primitives.find(primitiveName) == primitives.end()) {
                     std::string signature = fmt::format("    Slot {}(ThreadContext* context", primitiveName);
                     if (method->body && method->body->arguments && method->body->arguments->varList) {
@@ -114,7 +120,10 @@ int main(int argc, char* argv[]) {
                         // TODO: defaults
                         const hadron::parse::VarDefNode* varDef = method->body->arguments->varList->definitions.get();
                         while (varDef) {
-                            signature += fmt::format(", Slot {}", lexer.tokens()[varDef->tokenIndex].range);
+                            std::string varName(lexer.tokens()[varDef->tokenIndex].range);
+                            auto subs = keywordSubs.find(varName);
+                            if (subs != keywordSubs.end()) { varName = subs->second; }
+                            signature += fmt::format(", Slot {}", varName);
                             varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
                         }
                     }
