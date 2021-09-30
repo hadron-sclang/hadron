@@ -5,27 +5,12 @@ set(CXX_EXTENSIONS OFF)
 include(ExternalProject)
 
 include_directories(
-    "internal"
     "${INSTALL_EXT}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
-configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
-
-# Hadron build process
-# (a) Generate Lexer and Parser using Ragel and Bison, compile (maybe into frontend?)
-# (b) Schema to process SuperCollider class files to generate Object, Kernel headers
-# (c) Everything else, primitives, garbage collection, interpreter (backend)
-
-# Dependency flow:
-# server ----------------------\
-#   |                          |
-#   |                          v
-#   \------> runtime -----> compiler
-add_subdirectory(compiler)
-add_subdirectory(runtime)
+add_subdirectory(hadron)
 add_subdirectory(server)
 
 #############

@@ -12,6 +12,6 @@ namespace fs = std::filesystem;
 #        include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
 #    endif
-#endif // __OSX__
+#endif // __APPLE__
 
 #endif // SRC_FILE_SYSTEM_HPP_

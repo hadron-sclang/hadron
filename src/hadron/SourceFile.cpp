@@ -1,7 +1,7 @@
 #include "hadron/SourceFile.hpp"
 
-#include "FileSystem.hpp"
 #include "hadron/ErrorReporter.hpp"
+#include "internal/FileSystem.hpp"
 
 namespace hadron {
 

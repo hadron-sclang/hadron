@@ -2,11 +2,11 @@
 
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/HIR.hpp"
+#include "hadron/internal/BuildInfo.hpp"
 #include "hadron/LifetimeInterval.hpp"
 #include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/VirtualJIT.hpp"
-#include "internal/BuildInfo.hpp"
 #include "server/HadronServer.hpp"
 #include "server/LSPMethods.hpp"
 

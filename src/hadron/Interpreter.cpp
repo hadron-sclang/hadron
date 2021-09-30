@@ -1,6 +1,5 @@
 #include "hadron/Interpreter.hpp"
 
-#include "FileSystem.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
@@ -17,6 +16,7 @@
 #include "hadron/SourceFile.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "hadron/VirtualJIT.hpp"
+#include "internal/FileSystem.hpp"
 
 #include "spdlog/spdlog.h"
 

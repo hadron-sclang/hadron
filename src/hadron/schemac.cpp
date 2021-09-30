@@ -11,6 +11,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -46,17 +47,17 @@ int main(int argc, char* argv[]) {
     }
 
     fs::path outFilePath(FLAGS_schemaFile);
-    auto filename = outFilePath.filename().string();
-    auto includeGuard = fmt::format("SRC_RUNTIME_SCHEMA_{:016x}_{}", hadron::hash(FLAGS_schemaFile).getHash(),
-            filename);
+    auto includeGuard = fmt::format("SRC_HADRON_SCHEMA_{:012X}", hadron::hash(FLAGS_schemaFile).getHash());
     outFile << "#ifndef " << includeGuard << std::endl;
     outFile << "#define " << includeGuard << std::endl << std::endl;
 
-//    outFile << "#include \"hadron/Hash.hpp\"" << std::endl;
+    outFile << "#include \"hadron/ObjectHeader.hpp\"" << std::endl;
     outFile << "#include \"hadron/Slot.hpp\"" << std::endl;
-    outFile << "#include \"runtime/ObjectHeader.hpp\"" << std::endl << std::endl;
+    outFile << "#include \"hadron/ThreadContext.hpp\"" << std::endl;
 
-    outFile << "namespace runtime {" << std::endl << std::endl;
+    outFile << std::endl << "// GENERATED FILE - DO NOT EDIT" << std::endl;
+
+    outFile << std::endl << "namespace hadron {" << std::endl << std::endl;
 
     const hadron::parse::Node* node = parser.root();
     while (node) {
@@ -80,26 +81,60 @@ int main(int argc, char* argv[]) {
         }
 
         outFile << "// ========== " << className << std::endl;
-        outFile << fmt::format("static constexpr uint64_t k{}Hash = 0x{:016x};\n\n", className,
+        outFile << fmt::format("static constexpr uint64_t k{}Hash = 0x{:012x};\n\n", className,
                 hadron::hash(className).getHash());
 
         outFile << fmt::format("struct {} : public {} {{\n", className, superClassName);
+
+        // Add member variables to struct definition.
         const hadron::parse::VarListNode* varList = classNode->variables.get();
         while (varList) {
             if (lexer.tokens()[varList->tokenIndex].hash == hadron::hash("var")) {
                 const hadron::parse::VarDefNode* varDef = varList->definitions.get();
                 while (varDef) {
-                    outFile << fmt::format("    hadron::Slot {};\n", lexer.tokens()[varDef->tokenIndex].range);
+                    outFile << fmt::format("    Slot {};\n", lexer.tokens()[varDef->tokenIndex].range);
                     varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
                 }
             }
             varList = reinterpret_cast<const hadron::parse::VarListNode*>(varList->next.get());
         }
+
+        std::map<std::string, std::string> primitives;
+
+        // Add any primitives as member functions.
+        const hadron::parse::MethodNode* method = classNode->methods.get();
+        while (method) {
+            if (method->primitiveIndex) {
+                std::string primitiveName(lexer.tokens()[method->primitiveIndex.value()].range);
+                // Uniqueify the primitive calls, as they often occur in more than one method.
+                if (primitives.find(primitiveName) == primitives.end()) {
+                    std::string signature = fmt::format("    Slot {}(ThreadContext* context", primitiveName);
+                    if (method->body && method->body->arguments && method->body->arguments->varList) {
+                        // TODO: vargargs
+                        // TODO: defaults
+                        const hadron::parse::VarDefNode* varDef = method->body->arguments->varList->definitions.get();
+                        while (varDef) {
+                            signature += fmt::format(", Slot {}", lexer.tokens()[varDef->tokenIndex].range);
+                            varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
+                        }
+                    }
+                    signature += ");\n";
+                    primitives.emplace(std::make_pair(primitiveName, signature));
+                }
+            }
+            method = reinterpret_cast<const hadron::parse::MethodNode*>(method->next.get());
+        }
+
+        // Output all primitives in sorted order.
+        for (auto primitive : primitives) {
+            outFile << primitive.second;
+        }
+
         outFile << fmt::format("}};\n\n");
         node = classNode->next.get();
     }
 
-    outFile << "} // namespace runtime" << std::endl << std::endl;
+    outFile << "} // namespace hadron" << std::endl << std::endl;
     outFile << "#endif // " << includeGuard << std::endl;
     return 0;
 }
