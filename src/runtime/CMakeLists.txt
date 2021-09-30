@@ -28,12 +28,4 @@ foreach(CLASS_FILE ${SCLANG_CLASS_FILES})
     )
 endforeach()
 
-add_custom_target(ProcessFiles ALL DEPENDS ${SCHEMA_FILES})
-
-#add_library(runtime STATIC
-#    ${SCHEMA_FILES}
-#)
-
-#target_link_libraries(runtime
-#    compiler
-#)
+add_custom_target(schemafiles ALL DEPENDS ${SCHEMA_FILES})

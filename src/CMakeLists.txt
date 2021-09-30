@@ -14,6 +14,11 @@ include_directories(
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
 configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
 
+# Hadron build process
+# (a) Generate Lexer and Parser using Ragel and Bison, compile (maybe into frontend?)
+# (b) Schema to process SuperCollider class files to generate Object, Kernel headers
+# (c) Everything else, primitives, garbage collection, interpreter (backend)
+
 # Dependency flow:
 # server ----------------------\
 #   |                          |
