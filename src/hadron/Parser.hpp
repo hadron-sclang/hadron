@@ -1,6 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_PARSER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_PARSER_HPP_
 
+#include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/Token.hpp"
 #include "hadron/Type.hpp"
@@ -16,6 +17,11 @@ class Lexer;
 
 namespace parse {
 
+// TODO: Once symbols are in memory management, enough of the parser should be established that it could make sense to
+// go back and clean up the constructors of the Nodes to match the Bison-generated parser types for symbols. We've added
+// hashes to places where they are useful, it's time to plumb them through the rest of the code, and stop using that
+// awkward parser.lexer()->tokens()[name->nodeIndex] construction, yuck! :)
+
 enum NodeType {
     kEmpty = 0,
     kVarDef = 1,
@@ -25,19 +31,28 @@ enum NodeType {
     kClassExt = 5,
     kClass = 6,
     kReturn = 7,
-    kDynList = 8,
-    kBlock = 9,
-    kLiteral = 10,
-    kName = 11,
-    kExprSeq = 12,
-    kAssign = 13,
-    kSetter = 14,
-    kKeyValue = 15,
-    kCall = 16,
-    kBinopCall = 17,
-    kPerformList = 18,
-    kNumericSeries = 19,
-    kIf = 20
+    kList = 8,
+    kDictionary = 9,
+    kBlock = 10,
+    kLiteral = 11,
+    kName = 12,
+    kExprSeq = 13,
+    kAssign = 14,
+    kSetter = 15,
+    kKeyValue = 16,
+    kCall = 17,
+    kBinopCall = 18,
+    kPerformList = 19,
+    kNumericSeries = 20,
+    kCurryArgument = 21,
+    kArrayRead = 22,
+    kArrayWrite = 23,
+    kCopySeries = 24,
+    kNew = 25,
+    kSeries = 26,
+    kSeriesIter = 27,
+    kLiteralList = 28,
+    kIf = 29
 };
 
 struct Node {
@@ -134,11 +149,18 @@ struct ReturnNode : public Node {
     std::unique_ptr<Node> valueExpr;
 };
 
-struct DynListNode : public Node {
-    DynListNode(size_t index): Node(NodeType::kDynList, index) {}
-    virtual ~DynListNode() = default;
+struct ListNode : public Node {
+    ListNode(size_t index): Node(NodeType::kList, index) {}
+    virtual ~ListNode() = default;
 
-    std::unique_ptr<Node> elements;
+    std::unique_ptr<ExprSeqNode> elements;
+};
+
+struct DictionaryNode : public Node {
+    DictionaryNode(size_t index): Node(NodeType::kDictionary, index) {}
+    virtual ~DictionaryNode() = default;
+
+    std::unique_ptr<ExprSeqNode> elements;
 };
 
 struct LiteralNode : public Node {
@@ -168,9 +190,10 @@ struct KeyValueNode : public Node {
 
 // target.selector(arguments, keyword: arguments)
 struct CallNode : public Node {
-    CallNode(size_t index): Node(NodeType::kCall, index) {}
+    CallNode(std::pair<size_t, Hash> sel): Node(NodeType::kCall, sel.first), selector(sel.second) {}
     virtual ~CallNode() = default;
 
+    Hash selector;
     std::unique_ptr<Node> target;
     std::unique_ptr<Node> arguments;
     std::unique_ptr<KeyValueNode> keywordArguments;
@@ -212,6 +235,7 @@ struct PerformListNode : public Node {
 
     std::unique_ptr<Node> target;
     std::unique_ptr<Node> arguments;
+    std::unique_ptr<KeyValueNode> keywordArguments;
 };
 
 struct NumericSeriesNode : public Node {
@@ -221,6 +245,78 @@ struct NumericSeriesNode : public Node {
     std::unique_ptr<Node> start;
     std::unique_ptr<Node> step;
     std::unique_ptr<Node> stop;
+};
+
+struct CurryArgumentNode : public Node {
+    CurryArgumentNode(size_t index): Node(NodeType::kCurryArgument, index) {}
+    virtual ~CurryArgumentNode() = default;
+};
+
+// Normally translated to the "at" method, but parsed as a distinct parse node to allow for possible compiler inlining
+// of array access.
+struct ArrayReadNode : public Node {
+    ArrayReadNode(size_t index): Node(NodeType::kArrayRead, index) {}
+    virtual ~ArrayReadNode() = default;
+
+    std::unique_ptr<Node> targetArray;
+    std::unique_ptr<ExprSeqNode> indexArgument;
+};
+
+struct ArrayWriteNode : public Node {
+    ArrayWriteNode(size_t index): Node(NodeType::kArrayWrite, index) {}
+    ~ArrayWriteNode() = default;
+
+    // targetArray[indexArgument] = value
+    std::unique_ptr<Node> targetArray;
+    std::unique_ptr<ExprSeqNode> indexArgument;
+    std::unique_ptr<Node> value;
+};
+
+// Syntax shorthand for subarray copies, e.g. target[1,2..4]
+struct CopySeriesNode : public Node {
+    CopySeriesNode(size_t index): Node(NodeType::kCopySeries, index) {}
+    virtual ~CopySeriesNode() = default;
+
+    std::unique_ptr<Node> target;
+    std::unique_ptr<ExprSeqNode> first;
+    std::unique_ptr<ExprSeqNode> last;
+};
+
+// Syntax shorthand for a call to the new() method.
+struct NewNode : public Node {
+    NewNode(size_t index): Node(NodeType::kNew, index) {}
+    virtual ~NewNode() = default;
+
+    std::unique_ptr<Node> target;
+    std::unique_ptr<Node> arguments;
+    std::unique_ptr<KeyValueNode> keywordArguments;
+};
+
+// Equivalent to start.series(step, last)
+struct SeriesNode : public Node {
+    SeriesNode(size_t index): Node(NodeType::kSeries, index) {}
+    virtual ~SeriesNode() = default;
+
+    std::unique_ptr<ExprSeqNode> start;
+    std::unique_ptr<ExprSeqNode> step;
+    std::unique_ptr<ExprSeqNode> last;
+};
+
+struct SeriesIterNode : public Node {
+    SeriesIterNode(size_t index): Node(NodeType::kSeriesIter, index) {}
+    virtual ~SeriesIterNode() = default;
+
+    std::unique_ptr<ExprSeqNode> start;
+    std::unique_ptr<ExprSeqNode> step;
+    std::unique_ptr<ExprSeqNode> last;
+};
+
+struct LiteralListNode : public Node {
+    LiteralListNode(size_t index): Node(NodeType::kLiteralList, index) {}
+    ~LiteralListNode() = default;
+
+    std::unique_ptr<NameNode> className;
+    std::unique_ptr<Node> elements;
 };
 
 struct IfNode : public Node {

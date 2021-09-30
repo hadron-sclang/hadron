@@ -1,11 +1,15 @@
-
 include_directories(
     "${CMAKE_CURRENT_BINARY_DIR}"
     "${INSTALL_EXT}/include"
 )
 
-#############
-# libhadron
+# Hadron build process
+# (a) Generate Lexer and Parser using Ragel and Bison
+# (b) Using frontend files, build schema binary, process SuperCollider class files to generate schema headers
+# (c) Build everything else, primitives, garbage collection, interpreter, etc.
+
+#########################
+# frontend source files
 
 # colm dependency to build Ragel
 ExternalProject_add(colm
@@ -48,15 +52,6 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     VERBATIM
 )
 
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
-    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/Assembler.rl"
-    MAIN_DEPENDENCY Assembler.rl
-    DEPENDS ragel-install
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    VERBATIM
-)
-
 # predefined symbol hash table
 add_executable(hashkw
     hashkw.cpp
@@ -83,7 +78,7 @@ if (APPLE)
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     if (BREW_BISON EQUAL 0 AND EXISTS "${BREW_BISON_PREFIX}")
-        message(STATUS "Found Bison keg installed by Homebrew at ${BREW_BISON_PREFIX}")
+        message(STATUS "Found Bison binary installed by Homebrew at ${BREW_BISON_PREFIX}")
         set(BISON_EXECUTABLE "${BREW_BISON_PREFIX}/bin/bison")
     endif()
 endif()
@@ -96,62 +91,115 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
     VERBATIM
 )
 
-add_library(hadron STATIC
-    "${CMAKE_CURRENT_BINARY_DIR}/Assembler.cpp"
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
+configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
+
+set(HADRON_FRONTEND_FILES
     "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp"
 
-    include/hadron/Assembler.hpp
-    include/hadron/BlockBuilder.hpp
-    include/hadron/BlockSerializer.hpp
-    include/hadron/Emitter.hpp
-    include/hadron/ErrorReporter.hpp
-    include/hadron/Function.hpp
-    include/hadron/Hash.hpp
-    include/hadron/Heap.hpp
-    include/hadron/HIR.hpp
-    include/hadron/JIT.hpp
-    include/hadron/JITMemoryArena.hpp
-    include/hadron/Lexer.hpp
-    include/hadron/LifetimeAnalyzer.hpp
-    include/hadron/LifetimeInterval.hpp
-    include/hadron/LighteningJIT.hpp
-    include/hadron/LinearBlock.hpp
-    include/hadron/MoveScheduler.hpp
-    include/hadron/Page.hpp
-    include/hadron/Parser.hpp
-    include/hadron/RegisterAllocator.hpp
-    include/hadron/Resolver.hpp
-    include/hadron/Slot.hpp
-    include/hadron/SourceFile.hpp
-    include/hadron/ThreadContext.hpp
-    include/hadron/Type.hpp
-    include/hadron/VirtualJIT.hpp
+    internal/FileSystem.hpp
+
+    ErrorReporter.cpp
+    ErrorReporter.hpp
+    Hash.cpp
+    Hash.hpp
+    Lexer.hpp
+    Parser.hpp
+    Slot.hpp
+    SourceFile.cpp
+    SourceFile.hpp
+    Type.hpp
+)
+
+#############
+# schemac
+add_executable(schemac
+    ${HADRON_FRONTEND_FILES}
+    schemac.cpp
+)
+
+target_link_libraries(schemac
+    gflags
+    fmt
+    spdlog
+    xxHash::xxhash
+)
+
+#############
+# libhadron
+list(APPEND SCLANG_CLASS_FILES
+    "${SCLANG_PATH}/Common/Core/Kernel.sc"
+    "${SCLANG_PATH}/Common/Core/Object.sc"
+    "${SCLANG_PATH}/Common/Core/Symbol.sc"
+)
+
+set(SCHEMA_FILES)
+
+foreach(CLASS_FILE ${SCLANG_CLASS_FILES})
+    string(REGEX REPLACE ".sc$" ".hpp" SCHEMA_FILE ${CLASS_FILE})
+    string(REGEX REPLACE ${SCLANG_PATH} "" SCHEMA_FILE ${SCHEMA_FILE})
+    set(SCHEMA_FILE ${CMAKE_CURRENT_BINARY_DIR}/schema/${SCHEMA_FILE})
+    get_filename_component(SCHEMA_FILE_DIRECTORY ${SCHEMA_FILE} DIRECTORY)
+    file(MAKE_DIRECTORY ${SCHEMA_FILE_DIRECTORY})
+    list(APPEND SCHEMA_FILES ${SCHEMA_FILE})
+    add_custom_command(OUTPUT ${SCHEMA_FILE}
+        COMMAND schemac --classFile ${CLASS_FILE} --schemaFile ${SCHEMA_FILE}
+        MAIN_DEPENDENCY ${CLASS_FILE}
+        DEPENDS schemac
+        VERBATIM
+    )
+endforeach()
+
+add_custom_target(schemafiles ALL DEPENDS ${SCHEMA_FILES})
+
+add_library(hadron STATIC
+    ${HADRON_FRONTEND_FILES}
+    ${SCHEMA_FILES}
+
+    library/Class.cpp
+    library/Object.cpp
+    library/Symbol.cpp
 
     BlockBuilder.cpp
+    BlockBuilder.hpp
     BlockSerializer.cpp
+    BlockSerializer.hpp
     Emitter.cpp
-    ErrorReporter.cpp
-    Hash.cpp
+    Emitter.hpp
+    Function.hpp
     Heap.cpp
+    Heap.hpp
     HIR.cpp
+    HIR.hpp
     Interpreter.cpp
+    JIT.hpp
     JITMemoryArena.cpp
+    JITMemoryArena.hpp
     LifetimeAnalyzer.cpp
+    LifetimeAnalyzer.hpp
     LifetimeInterval.cpp
+    LifetimeInterval.hpp
     LighteningJIT.cpp
+    LighteningJIT.hpp
+    LinearBlock.hpp
     MoveScheduler.cpp
+    MoveScheduler.hpp
     Page.cpp
+    Page.hpp
     RegisterAllocator.cpp
+    RegisterAllocator.hpp
     Resolver.cpp
-    SourceFile.cpp
+    Resolver.hpp
     ThreadContext.cpp
+    ThreadContext.hpp
     VirtualJIT.cpp
+    VirtualJIT.hpp
 )
 
 set(HADRON_COMPILER_UNITTESTS
-    ${CMAKE_CURRENT_SOURCE_DIR}/Assembler_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ErrorReporter_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lexer_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/LifetimeInterval_unittests.cpp
@@ -160,7 +208,7 @@ set(HADRON_COMPILER_UNITTESTS
     PARENT_SCOPE
 )
 
-file(GLOB HADRON_PUBLIC_HEADERS include/hadron/*.hpp)
+file(GLOB HADRON_PUBLIC_HEADERS *.hpp)
 set_target_properties(hadron PROPERTIES PUBLIC_HEADER "${HADRON_PUBLIC_HEADERS}")
 
 target_compile_options(hadron PUBLIC
@@ -190,6 +238,7 @@ target_include_directories(hadron PUBLIC
 
 add_dependencies(hadron
     jemalloc-install
+    schemafiles
 )
 
 if(APPLE)

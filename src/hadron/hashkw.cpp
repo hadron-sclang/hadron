@@ -11,6 +11,7 @@
 #include <vector>
 
 int main(int argc, char* argv[]) {
+    // TODO: standardize names of symbols across Hadron - some "unconventional" choices here..
     std::vector<std::array<std::string, 2>> hashNames = {
         { "kAddHash                 ", "+" },
         { "kArgHash                 ", "arg" },
@@ -29,6 +30,7 @@ int main(int argc, char* argv[]) {
         { "kLessThanOrEqualToHash   ", "<=" },
         { "kModuloHash              ", "%" },
         { "kMultiplyHash            ", "*" },
+        { "kNewHash                 ", "new" },
         { "kNilHash                 ", "nil" },
         { "kNotEqualToHash          ", "!=" },
         { "kNotExactlyEqualToHash   ", "!==" },
@@ -36,6 +38,7 @@ int main(int argc, char* argv[]) {
         { "kPipeHash                ", "|" },
         { "kReadWriteHash           ", "<>" },
         { "kSubtractHash            ", "-" },
+        { "kSuperHash               ", "super" },
         { "kThisHash                ", "this" },
         { "kTrueHash                ", "true" },
         { "kVarHash                 ", "var" },
@@ -58,7 +61,7 @@ int main(int argc, char* argv[]) {
     outFile << "namespace hadron {" << std::endl << std::endl;
 
     for (const auto& pair : hashNames) {
-        outFile << fmt::format("    const uint64_t {} = 0x{:016x};  // \'{}\'\n", pair[0],
+        outFile << fmt::format("    static constexpr uint64_t {} = 0x{:016x};  // \'{}\'\n", pair[0],
             XXH3_64bits(pair[1].data(), pair[1].size()), pair[1]);
     }
 

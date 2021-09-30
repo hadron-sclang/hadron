@@ -600,7 +600,85 @@ TEST_CASE("Lexer Symbols") {
     }
 }
 
-TEST_CASE("Binary Operators") {
+TEST_CASE("Lexer Characters") {
+    SUBCASE("unescaped characters") {
+        // The last one lexes in LSC as a space
+        const char* code = "$a $B $3 $: $$ $ ";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 6);
+        CHECK(lexer.tokens()[0].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[0].range.data() == code + 1);
+        CHECK(lexer.tokens()[0].range.size() == 1);
+        CHECK(lexer.tokens()[0].literalType == Type::kChar);
+        CHECK(lexer.tokens()[0].value.getChar() == 'a');
+        CHECK(lexer.tokens()[1].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[1].range.data() == code + 4);
+        CHECK(lexer.tokens()[1].range.size() == 1);
+        CHECK(lexer.tokens()[1].literalType == Type::kChar);
+        CHECK(lexer.tokens()[1].value.getChar() == 'B');
+        CHECK(lexer.tokens()[2].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[2].range.data() == code + 7);
+        CHECK(lexer.tokens()[2].range.size() == 1);
+        CHECK(lexer.tokens()[2].literalType == Type::kChar);
+        CHECK(lexer.tokens()[2].value.getChar() == '3');
+        CHECK(lexer.tokens()[3].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[3].range.data() == code + 10);
+        CHECK(lexer.tokens()[3].range.size() == 1);
+        CHECK(lexer.tokens()[3].literalType == Type::kChar);
+        CHECK(lexer.tokens()[3].value.getChar() == ':');
+        CHECK(lexer.tokens()[4].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[4].range.data() == code + 13);
+        CHECK(lexer.tokens()[4].range.size() == 1);
+        CHECK(lexer.tokens()[4].literalType == Type::kChar);
+        CHECK(lexer.tokens()[4].value.getChar() == '$');
+        CHECK(lexer.tokens()[5].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[5].range.data() == code + 16);
+        CHECK(lexer.tokens()[5].range.size() == 1);
+        CHECK(lexer.tokens()[5].literalType == Type::kChar);
+        CHECK(lexer.tokens()[5].value.getChar() == ' ');
+    }
+
+    SUBCASE("escaped characters") {
+        // The last one lexes in LSC as a space
+        const char* code = "$\\t $\\r $\\n $\\a $\\\\ $\\ ";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 6);
+        CHECK(lexer.tokens()[0].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[0].range.data() == code + 1);
+        CHECK(lexer.tokens()[0].range.size() == 2);
+        CHECK(lexer.tokens()[0].literalType == Type::kChar);
+        CHECK(lexer.tokens()[0].value.getChar() == '\t');
+        CHECK(lexer.tokens()[1].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[1].range.data() == code + 5);
+        CHECK(lexer.tokens()[1].range.size() == 2);
+        CHECK(lexer.tokens()[1].literalType == Type::kChar);
+        CHECK(lexer.tokens()[1].value.getChar() == '\r');
+        CHECK(lexer.tokens()[2].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[2].range.data() == code + 9);
+        CHECK(lexer.tokens()[2].range.size() == 2);
+        CHECK(lexer.tokens()[2].literalType == Type::kChar);
+        CHECK(lexer.tokens()[2].value.getChar() == '\n');
+        CHECK(lexer.tokens()[3].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[3].range.data() == code + 13);
+        CHECK(lexer.tokens()[3].range.size() == 2);
+        CHECK(lexer.tokens()[3].literalType == Type::kChar);
+        CHECK(lexer.tokens()[3].value.getChar() == 'a');
+        CHECK(lexer.tokens()[4].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[4].range.data() == code + 17);
+        CHECK(lexer.tokens()[4].range.size() == 2);
+        CHECK(lexer.tokens()[4].literalType == Type::kChar);
+        CHECK(lexer.tokens()[4].value.getChar() == '\\');
+        CHECK(lexer.tokens()[5].name == Token::Name::kLiteral);
+        CHECK(lexer.tokens()[5].range.data() == code + 21);
+        CHECK(lexer.tokens()[5].range.size() == 2);
+        CHECK(lexer.tokens()[5].literalType == Type::kChar);
+        CHECK(lexer.tokens()[5].value.getChar() == ' ');
+    }
+}
+
+TEST_CASE("Lexer Binary Operators") {
     SUBCASE("bare plus") {
         const char* code = "+ - * = < > | <> <-";
         Lexer lexer(code);

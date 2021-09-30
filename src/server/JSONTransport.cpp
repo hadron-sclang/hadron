@@ -2,11 +2,11 @@
 
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/HIR.hpp"
+#include "hadron/internal/BuildInfo.hpp"
 #include "hadron/LifetimeInterval.hpp"
 #include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/VirtualJIT.hpp"
-#include "internal/BuildInfo.hpp"
 #include "server/HadronServer.hpp"
 #include "server/LSPMethods.hpp"
 
@@ -550,12 +550,20 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(const hadron::parse::N
         serializeParseNode(retNode->valueExpr.get(), document, path, serial);
         path.pop_back();
     } break;
-    case hadron::parse::NodeType::kDynList: {
-        const auto dynList = reinterpret_cast<const hadron::parse::DynListNode*>(node);
-        jsonNode.AddMember("nodeType", rapidjson::Value("DynList"), document.GetAllocator());
+    case hadron::parse::NodeType::kList: {
+        const auto list = reinterpret_cast<const hadron::parse::ListNode*>(node);
+        jsonNode.AddMember("nodeType", rapidjson::Value("List"), document.GetAllocator());
         path.emplace_back(rapidjson::Pointer::Token{"elements", sizeof("elements") - 1,
                 rapidjson::kPointerInvalidIndex});
-        serializeParseNode(dynList->elements.get(), document, path, serial);
+        serializeParseNode(list->elements.get(), document, path, serial);
+        path.pop_back();
+    } break;
+    case hadron::parse::NodeType::kDictionary: {
+        const auto dict = reinterpret_cast<const hadron::parse::DictionaryNode*>(node);
+        jsonNode.AddMember("nodeType", rapidjson::Value("Dictionary"), document.GetAllocator());
+        path.emplace_back(rapidjson::Pointer::Token{"elements", sizeof("elements") - 1,
+                rapidjson::kPointerInvalidIndex});
+        serializeParseNode(dict->elements.get(), document, path, serial);
         path.pop_back();
     } break;
     case hadron::parse::NodeType::kBlock: {
@@ -657,6 +665,30 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(const hadron::parse::N
         // TODO
     } break;
     case hadron::parse::NodeType::kNumericSeries: {
+        // TODO
+    } break;
+    case hadron::parse::NodeType::kCurryArgument: {
+        // TODO
+    } break;
+    case hadron::parse::NodeType::kArrayRead: {
+        // TODO
+    } break;
+    case hadron::parse::NodeType::kArrayWrite: {
+        // TODO
+    } break;
+    case hadron::parse::NodeType::kCopySeries: {
+        // TODO
+    } break;
+    case hadron::parse::NodeType::kNew: {
+        // TODO
+    } break;
+    case hadron::parse::NodeType::kSeries: {
+        // TODO
+    } break;
+    case hadron::parse::NodeType::kSeriesIter: {
+        // TODO
+    } break;
+    case hadron::parse::NodeType::kLiteralList: {
         // TODO
     } break;
     case hadron::parse::NodeType::kIf: {

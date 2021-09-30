@@ -27,7 +27,8 @@ public:
         m_asBits = reinterpret_cast<uint64_t>(pointer) | kObjectTag;
     }
     // Preserves the lower 48 bits of a 64-bit hash and adds the Hash NaN.
-    inline Slot(uint64_t h) { m_asBits = (h & (~kTagMask)) | kHashTag; }
+    inline Slot(uint64_t h) { m_asBits = (h & (~kTagMask)) | kSymbolTag; }
+    inline Slot(char c) { m_asBits = kCharTag | c; }
 
     inline bool operator==(const Slot& s) const { return m_asBits == s.m_asBits; }
     inline bool operator!=(const Slot& s) const { return m_asBits != s.m_asBits; }
@@ -46,7 +47,7 @@ public:
             return Type::kBoolean;
         case kObjectTag:
             return Type::kObject;
-        case kHashTag:
+        case kSymbolTag:
             return Type::kSymbol;
         default:
             assert(false);
@@ -59,6 +60,7 @@ public:
     inline uint64_t getHash() const { return m_asBits & (~kTagMask); }
     inline bool getBool() const { return m_asBits & (~kTagMask); }
     inline void* getPointer() const { return reinterpret_cast<void*>(m_asBits & (~kTagMask)); }
+    inline char getChar() const { return m_asBits & (~kTagMask); }
 
     // Maximum double (quiet NaN with sign bit set without payload):
     //                     seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm
@@ -69,7 +71,8 @@ public:
     static constexpr uint64_t kBooleanTag = 0xfffb000000000000;
     static constexpr uint64_t kObjectTag  = 0xfffc000000000000;
     // Lower 48 bits of a 64-bit hash.
-    static constexpr uint64_t kHashTag    = 0xfffd000000000000;
+    static constexpr uint64_t kSymbolTag  = 0xfffd000000000000;
+    static constexpr uint64_t kCharTag    = 0xfffe000000000000;
     static constexpr uint64_t kTagMask    = 0xffff000000000000;
 
 private:
@@ -80,6 +83,7 @@ private:
 };
 
 static_assert(sizeof(Slot) == 8);
+// Making this a signed integer makes for easier pointer arithmetic.
 static constexpr int kSlotSize = 8;
 
 } // namespace hadron

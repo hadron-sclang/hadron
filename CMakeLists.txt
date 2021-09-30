@@ -52,5 +52,10 @@ endif()
 
 message(STATUS "hadron detected host CPU ${HADRON_HOST_CPU}")
 
+if(NOT DEFINED SCLANG_PATH)
+    set(SCLANG_PATH "${CMAKE_SOURCE_DIR}/third_party/supercollider/SCClassLibrary" CACHE
+        STRING "Path to SCClassLibrary")
+endif()
+
 add_subdirectory(third_party)
 add_subdirectory(src)

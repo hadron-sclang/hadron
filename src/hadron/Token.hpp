@@ -77,7 +77,7 @@ struct Token {
     Slot value;
     Type literalType;
     bool couldBeBinop;
-    Hash hash = 0;
+    Hash hash = 0;  // TODO - could overlap with value? Since they are now both Slots?
     bool escapeString = false;
 
     inline Token(): name(kEmpty), couldBeBinop(false) {}
@@ -95,7 +95,12 @@ struct Token {
         name(kLiteral),
         range(start, length), value(boolean), literalType(Type::kBoolean), couldBeBinop(false), hash(h) {}
 
-    /*! Makes an kLiteral token */
+    /*! Makes a char kLiteral token (length can be 2 for escape characters) */
+    Token(const char* start, size_t length, char charValue):
+        name(kLiteral),
+        range(start, length), value(charValue), literalType(Type::kChar), couldBeBinop(false) {}
+
+    /*! Makes a kLiteral token */
     Token(const char* start, size_t length, Type type, bool hasEscapeCharacters = false, Hash h = 0):
             name(kLiteral),
             range(start, length),
