@@ -52,7 +52,9 @@ enum NodeType {
     kSeries = 26,
     kSeriesIter = 27,
     kLiteralList = 28,
-    kIf = 29
+    kMultiAssignVars = 29,
+    kMultiAssign = 30,
+    kIf = 31
 };
 
 struct Node {
@@ -264,7 +266,7 @@ struct ArrayReadNode : public Node {
 
 struct ArrayWriteNode : public Node {
     ArrayWriteNode(size_t index): Node(NodeType::kArrayWrite, index) {}
-    ~ArrayWriteNode() = default;
+    virtual ~ArrayWriteNode() = default;
 
     // targetArray[indexArgument] = value
     std::unique_ptr<Node> targetArray;
@@ -313,10 +315,26 @@ struct SeriesIterNode : public Node {
 
 struct LiteralListNode : public Node {
     LiteralListNode(size_t index): Node(NodeType::kLiteralList, index) {}
-    ~LiteralListNode() = default;
+    virtual ~LiteralListNode() = default;
 
     std::unique_ptr<NameNode> className;
     std::unique_ptr<Node> elements;
+};
+
+struct MultiAssignVarsNode : public Node {
+    MultiAssignVarsNode(size_t index): Node(NodeType::kMultiAssignVars, index) {}
+    virtual ~MultiAssignVarsNode() = default;
+
+    std::unique_ptr<NameNode> names;
+    std::unique_ptr<NameNode> rest;
+};
+
+struct MultiAssignNode : public Node {
+    MultiAssignNode(size_t index): Node(NodeType::kMultiAssign, index) {}
+    virtual ~MultiAssignNode() = default;
+
+    std::unique_ptr<MultiAssignVarsNode> targets;
+    std::unique_ptr<Node> value;
 };
 
 struct IfNode : public Node {
@@ -330,7 +348,6 @@ struct IfNode : public Node {
 };
 
 } // namespace parse
-
 
 class Parser {
 public:

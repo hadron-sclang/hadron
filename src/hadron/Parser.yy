@@ -30,6 +30,8 @@
 %type <std::unique_ptr<hadron::parse::LiteralNode>> coreliteral
 %type <std::unique_ptr<hadron::parse::LiteralListNode>> listlit listlit2
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
+%type <std::unique_ptr<hadron::parse::MultiAssignVarsNode>> mavars
+%type <std::unique_ptr<hadron::parse::NameNode>> mavarlist
 %type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
 %type <std::unique_ptr<hadron::parse::Node>> literallist1 literal listliteral
 %type <std::unique_ptr<hadron::parse::ReturnNode>> funretval retval
@@ -387,6 +389,13 @@ msgsend : IDENTIFIER blocklist1 {
                 newCall->keywordArguments = std::move($optkeyarglist);
                 $msgsend = std::move(newCall);
             }
+        | CLASSNAME OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
+                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME.first);
+                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                newCall->arguments = std::move($arglistv1);
+                newCall->keywordArguments = std::move($optkeyarglist);
+                $msgsend = std::move(newCall);
+            }
         | expr DOT IDENTIFIER OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
                 call->target = std::move($expr);
@@ -673,6 +682,12 @@ expr[target]    : expr1 { $target = std::move($expr1); }
                         setter->target = std::move($arglist1);
                         setter->value = std::move($value);
                     }
+                | HASH mavars ASSIGN expr[value] {
+                        auto multiAssign = std::make_unique<hadron::parse::MultiAssignNode>($ASSIGN);
+                        multiAssign->targets = std::move($mavars);
+                        multiAssign->value = std::move($value);
+                        $target = std::move(multiAssign);
+                    }
                 | expr1 OPENSQUARE arglist1 CLOSESQUARE ASSIGN expr[value] {
                         auto write = std::make_unique<hadron::parse::ArrayWriteNode>($ASSIGN);
                         write->targetArray = std::move($expr1);
@@ -889,6 +904,29 @@ keyarg  : KEYWORD exprseq {
 optkeyarglist   : optcomma { $optkeyarglist = nullptr; }
                 | COMMA keyarglist1 optcomma { $optkeyarglist = std::move($keyarglist1); }
                 ;
+
+mavars  : mavarlist {
+                auto multiVars = std::make_unique<hadron::parse::MultiAssignVarsNode>($mavarlist->tokenIndex);
+                multiVars->names = std::move($mavarlist);
+                $mavars = std::move(multiVars);
+            }
+        | mavarlist ELLIPSES IDENTIFIER {
+                auto multiVars = std::make_unique<hadron::parse::MultiAssignVarsNode>($mavarlist->tokenIndex);
+                multiVars->names = std::move($mavarlist);
+                multiVars->rest = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
+                $mavars = std::move(multiVars);
+            }
+        ;
+
+mavarlist[target]   : IDENTIFIER {
+                            auto name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
+                            $target = std::move(name);
+                        }
+                    | mavarlist[build] COMMA IDENTIFIER {
+                            auto name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
+                            $target = append(std::move($build), std::move(name));
+                        }
+                    ;
 
 listliteral : coreliteral { $listliteral = std::move($coreliteral); }
         | listlit2 { $listliteral = std::move($listlit2); }

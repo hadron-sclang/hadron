@@ -267,6 +267,14 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
         assert(false); // TODO
     } break;
 
+    case parse::NodeType::kMultiAssignVars: {
+        assert(false); // TODO
+    } break;
+
+    case parse::NodeType::kMultiAssign: {
+        assert(false); // TODO
+    } break;
+
     case parse::NodeType::kIf: {
         const auto ifNode = reinterpret_cast<const parse::IfNode*>(node);
         auto condition = buildFinalValue(ifNode->condition.get());

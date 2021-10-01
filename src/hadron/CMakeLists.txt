@@ -131,6 +131,12 @@ target_link_libraries(schemac
 #############
 # libhadron
 list(APPEND SCLANG_CLASS_FILES
+    "${SCLANG_PATH}/Common/Collections/ArrayedCollection.sc"
+    "${SCLANG_PATH}/Common/Collections/Collection.sc"
+    "${SCLANG_PATH}/Common/Collections/Dictionary.sc"
+    "${SCLANG_PATH}/Common/Collections/Set.sc"
+    "${SCLANG_PATH}/Common/Collections/SequenceableCollection.sc"
+    "${SCLANG_PATH}/Common/Collections/String.sc"
     "${SCLANG_PATH}/Common/Core/Kernel.sc"
     "${SCLANG_PATH}/Common/Core/Object.sc"
     "${SCLANG_PATH}/Common/Core/Symbol.sc"
@@ -160,7 +166,9 @@ add_library(hadron STATIC
     ${SCHEMA_FILES}
 
     library/Class.cpp
+    library/IdentityDictionary.cpp
     library/Object.cpp
+#    library/String.cpp
     library/Symbol.cpp
 
     BlockBuilder.cpp
