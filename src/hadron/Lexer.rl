@@ -15,8 +15,10 @@
         ############
         # comments #
         ############
-        '/*' ((extend - ('\n' | '*/')) | ('\n' @newline))* '*/' { /* ignore block comments */ };
-        '//' (extend - '\n')* ('\n' @newline >/ eof_ok) {
+#        '/*' ((any - '\n') | ('\n' @newline))* :>> '*/' { /* ignore block comments */ };
+        '/*' ((any - '\n') | ('\n' @newline))* '*/' { /* ignore block comments */ };
+
+        '//' (any - '\n')* ('\n' @newline >/ eof_ok) {
             // / ignore line comments (and fix Ragel syntax highlighting in vscode with an extra slash)
         };
 
@@ -330,7 +332,11 @@
                     static_cast<size_t>(ts - lineStarts.back())};
         };
 
+        ##############
+        # whitespace #
+        ##############
         (space - '\n') | ('\n' @newline) { /* ignore whitespace */ };
+
         any {
             size_t lineNumber = m_errorReporter->getLineNumber(ts);
             m_errorReporter->addError(fmt::format("Lexing error at line {} character {}: unrecognized token '{}'",

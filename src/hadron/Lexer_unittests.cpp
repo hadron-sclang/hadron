@@ -1804,7 +1804,7 @@ TEST_CASE("Lexer Comments") {
         const char* code = "/*********/";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
-        REQUIRE(lexer.tokens().size() == 0);
+        CHECK(lexer.tokens().size() == 0);
     }
     SUBCASE("nested block comments allowed") {
         const char* code = "1 /* SuperCollider allows \n /* nested */ \n comments */ a";
@@ -1821,10 +1821,31 @@ TEST_CASE("Lexer Comments") {
         CHECK(lexer.tokens()[1].range.size() == 1);
     }
     SUBCASE("block comment extended characters") {
-        const char * code = "/* // ✌️a */";
+        const char* code = "/* // ✌️a */";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 0);
+    }
+    SUBCASE("block comment with commented out code") {
+        const char* code = "/*\n"
+                            "var index, atKey;\n"
+                            "index = this.scanFor(key);\n"
+                            "array.put(index+1, value);\n"
+                            "if ( array.at(index).isNil, {\n"
+                            "\tarray.put(index, key);\n"
+                            "\tsize = size + 1;\n"
+                            "\tif (array.size < (size * 4), { this.grow });\n"
+                            "});\n"
+                            "*/\n";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        CHECK(lexer.tokens().size() == 0);
+    }
+    SUBCASE("multiple block comments") {
+        const char* code = "a /* b */ c /* d */ e /* f */ g";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        CHECK(lexer.tokens().size() == 4);
     }
 }
 
