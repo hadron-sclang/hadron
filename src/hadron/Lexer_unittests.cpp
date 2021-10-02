@@ -1806,8 +1806,8 @@ TEST_CASE("Lexer Comments") {
         REQUIRE(lexer.lex());
         CHECK(lexer.tokens().size() == 0);
     }
-    SUBCASE("nested block comments allowed") {
-        const char* code = "1 /* SuperCollider allows \n /* nested */ \n comments */ a";
+    SUBCASE("nested block comments") {
+        const char* code = "1 /* SuperCollider /* */ /*/* allows \n /* nested */*/ \n */ comments */ a";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 2);
@@ -1817,8 +1817,7 @@ TEST_CASE("Lexer Comments") {
         CHECK(lexer.tokens()[0].literalType == Type::kInteger);
         CHECK(lexer.tokens()[0].value.getInt32() == 1);
         CHECK(lexer.tokens()[1].name == Token::Name::kIdentifier);
-        CHECK(lexer.tokens()[1].range.data() == code + 55);
-        CHECK(lexer.tokens()[1].range.size() == 1);
+        CHECK(lexer.tokens()[1].range.compare("a") == 0);
     }
     SUBCASE("block comment extended characters") {
         const char* code = "/* // ✌️a */";

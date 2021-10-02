@@ -1,22 +1,27 @@
 %%{
     machine lexer;
 
+    action startBlockComment { blockCommentDepth = 1; }
+    action pushBlockComment { ++blockCommentDepth; }
+    action popBlockComment { --blockCommentDepth > 1 }
+
     action marker { marker = p; }
     action counter { ++counter; }
     action eof_ok { return true; }
     action newline {
-            while (lineStarts.back() > p) {
-                lineStarts.pop_back();
-            }
-            lineStarts.emplace_back(p + 1);
+        while (lineStarts.back() > p) {
+            lineStarts.pop_back();
         }
+        lineStarts.emplace_back(p + 1);
+    }
 
     main := |*
         ############
         # comments #
         ############
-#        '/*' ((any - '\n') | ('\n' @newline))* :>> '*/' { /* ignore block comments */ };
-        '/*' ((any - '\n') | ('\n' @newline))* '*/' { /* ignore block comments */ };
+        ('/*' %startBlockComment)
+        (('/*' %pushBlockComment) | (any - '\n') | ('\n' %newline) | ('*/' when popBlockComment))*
+        :>> '*/' { /* ignore block comments */ };
 
         '//' (any - '\n')* ('\n' @newline >/ eof_ok) {
             // / ignore line comments (and fix Ragel syntax highlighting in vscode with an extra slash)
@@ -398,6 +403,8 @@ bool Lexer::lex() {
     // Scanner uses backtracking, so we keep a stack of current line endings, and may need to pop them off if we
     // detect a backtrack.
     std::vector<const char*> lineStarts({m_code.data()});
+    // Block comments are nestable, so we keep a count of depth.
+    int blockCommentDepth = 0;
 
     %% write init;
 
