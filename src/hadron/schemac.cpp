@@ -112,8 +112,6 @@ int main(int argc, char* argv[]) {
         while (method) {
             if (method->primitiveIndex) {
                 std::string primitiveName(lexer.tokens()[method->primitiveIndex.value()].range);
-//                std::cerr << fmt::format("{}.{} has primitive: {}\n", className,
-//                        lexer.tokens()[method->tokenIndex].range, primitiveName);
                 // Uniqueify the primitive calls, as they can occur in more than one method.
                 if (primitives.find(primitiveName) == primitives.end()) {
                     std::string signature = fmt::format("    Slot {}(ThreadContext* context", primitiveName);
@@ -132,9 +130,6 @@ int main(int argc, char* argv[]) {
                     signature += ");\n";
                     primitives.emplace(std::make_pair(primitiveName, signature));
                 }
-            } else {
-//                std::cerr << fmt::format("{}.{} no primitive\n", className,
-//                        lexer.tokens()[method->tokenIndex].range);
             }
             method = reinterpret_cast<const hadron::parse::MethodNode*>(method->next.get());
         }
