@@ -1,6 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_HEAP_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_HEAP_HPP_
 
+#include "hadron/Hash.hpp"
 #include "hadron/Page.hpp"
 
 #include <array>
@@ -33,6 +34,8 @@ public:
     // Allocates to the set of permanent objects that are the point of origin for all scanning jobs, along with the
     // stack segments.
     void* allocateRootSet(size_t sizeInBytes);
+
+    Hash allocateSymbol(const char* symbol, size_t length);
 
     // TODO: verify size classes experimentally.
     static constexpr size_t kSmallObjectSize = 256;
