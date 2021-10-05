@@ -131,6 +131,7 @@ target_link_libraries(schemac
 #############
 # libhadron
 list(APPEND SCLANG_CLASS_FILES
+    "${SCLANG_PATH}/Common/Collections/Array.sc"
     "${SCLANG_PATH}/Common/Collections/ArrayedCollection.sc"
     "${SCLANG_PATH}/Common/Collections/Collection.sc"
     "${SCLANG_PATH}/Common/Collections/Dictionary.sc"

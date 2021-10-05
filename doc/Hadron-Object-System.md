@@ -14,7 +14,8 @@ of these.
 
 Add a method to Interpreter `compileClass` which takes a `parse::ClassNode*` and adds an instance of `Class` to the
 Class table, a map - for now both Symbol table and Class table can be maps. So, the job of the `compileClass` function
-is to create an *instance* of Class with name `Foo` - but where to class variables and methods live?
+is to create an *instance* of Class with name `Foo`. Class variables live in a global class variable table accessible
+via `classVarIndex`
 
 ```
 Object.class -> Meta_Object
