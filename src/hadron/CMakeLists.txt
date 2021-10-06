@@ -138,6 +138,7 @@ list(APPEND SCLANG_CLASS_FILES
     "${SCLANG_PATH}/Common/Collections/Set.sc"
     "${SCLANG_PATH}/Common/Collections/SequenceableCollection.sc"
     "${SCLANG_PATH}/Common/Collections/String.sc"
+    "${SCLANG_PATH}/Common/Core/Function.sc"
     "${SCLANG_PATH}/Common/Core/Kernel.sc"
     "${SCLANG_PATH}/Common/Core/Object.sc"
     "${SCLANG_PATH}/Common/Core/Symbol.sc"
@@ -169,7 +170,6 @@ add_library(hadron STATIC
     library/Class.cpp
     library/IdentityDictionary.cpp
     library/Object.cpp
-#    library/String.cpp
     library/Symbol.cpp
 
     BlockBuilder.cpp
@@ -178,15 +178,12 @@ add_library(hadron STATIC
     BlockSerializer.hpp
     Emitter.cpp
     Emitter.hpp
-    Function.hpp
     Heap.cpp
     Heap.hpp
     HIR.cpp
     HIR.hpp
     Interpreter.cpp
     JIT.hpp
-    JITMemoryArena.cpp
-    JITMemoryArena.hpp
     LifetimeAnalyzer.cpp
     LifetimeAnalyzer.hpp
     LifetimeInterval.cpp

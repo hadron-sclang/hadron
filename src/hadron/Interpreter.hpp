@@ -1,7 +1,6 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_INTERPRETER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_INTERPRETER_HPP_
 
-#include "hadron/JITMemoryArena.hpp"
 #include "hadron/Slot.hpp"
 
 #include <memory>
@@ -31,6 +30,8 @@ public:
     // something to call back when compilation was complete?
     std::unique_ptr<Function> compile(std::string_view code);
     std::unique_ptr<Function> compileFile(std::string path);
+
+    bool compileClass(std::string path);
 
     // Runs the provided block on the calling thread. Constructs a new ThreadContext, including a stack. On normal exit,
     // pulls the result from the stack and returns it.

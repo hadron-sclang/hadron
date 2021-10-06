@@ -4,8 +4,6 @@
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
 #include "hadron/ErrorReporter.hpp"
-#include "hadron/Function.hpp"
-#include "hadron/JITMemoryArena.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
@@ -167,6 +165,15 @@ std::unique_ptr<Function> Interpreter::compileFile(std::string path) {
     }
 
     return compile(std::string_view(file.codeView()));
+}
+
+bool Interpreter::compileClass(std::string path) {
+    SourceFile file(path);
+    if (!file.read(m_errorReporter)) {
+        return false;
+    }
+
+
 }
 
 Slot Interpreter::run(Function* func) {
