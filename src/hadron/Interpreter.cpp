@@ -20,9 +20,7 @@
 
 namespace hadron {
 
-Interpreter::Interpreter():
-    m_errorReporter(std::make_shared<ErrorReporter>()),
-    m_jitMemoryArena(std::make_unique<JITMemoryArena>()) {}
+Interpreter::Interpreter(): m_errorReporter(std::make_shared<ErrorReporter>()) {}
 
 Interpreter::~Interpreter() {
     teardown();

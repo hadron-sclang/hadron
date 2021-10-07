@@ -52,9 +52,10 @@ enum NodeType {
     kSeries = 26,
     kSeriesIter = 27,
     kLiteralList = 28,
-    kMultiAssignVars = 29,
-    kMultiAssign = 30,
-    kIf = 31
+    kLiteralDict = 29,
+    kMultiAssignVars = 30,
+    kMultiAssign = 31,
+    kIf = 32
 };
 
 struct Node {
@@ -187,6 +188,7 @@ struct KeyValueNode : public Node {
     KeyValueNode(size_t index): Node(NodeType::kKeyValue, index) {}
     virtual ~KeyValueNode() = default;
 
+    std::unique_ptr<ExprSeqNode> key;
     std::unique_ptr<ExprSeqNode> value;
 };
 
@@ -321,6 +323,13 @@ struct LiteralListNode : public Node {
     std::unique_ptr<Node> elements;
 };
 
+struct LiteralDictNode : public Node {
+    LiteralDictNode(size_t index): Node(NodeType::kLiteralDict, index) {}
+    virtual ~LiteralDictNode() = default;
+
+    std::unique_ptr<Node> elements;
+};
+
 struct MultiAssignVarsNode : public Node {
     MultiAssignVarsNode(size_t index): Node(NodeType::kMultiAssignVars, index) {}
     virtual ~MultiAssignVarsNode() = default;
@@ -342,9 +351,9 @@ struct IfNode : public Node {
     virtual ~IfNode() = default;
 
     std::unique_ptr<ExprSeqNode> condition;
-    std::unique_ptr<BlockNode> trueBlock;
+    std::unique_ptr<ExprSeqNode> trueExpr;
     // optional else condition.
-    std::unique_ptr<BlockNode> falseBlock;
+    std::unique_ptr<ExprSeqNode> falseExpr;
 };
 
 } // namespace parse

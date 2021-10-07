@@ -433,37 +433,40 @@ msgsend : IDENTIFIER blocklist1 {
             }
         ;
 
-if  : IF OPENPAREN exprseq COMMA block[true] COMMA block[false] optcomma CLOSEPAREN {
+if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] optcomma CLOSEPAREN {
             auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
-            ifNode->condition = std::move($exprseq);
-            ifNode->trueBlock = std::move($true);
-            ifNode->falseBlock = std::move($false);
+            ifNode->condition = std::move($condition);
+            ifNode->trueExpr = std::move($true);
+            ifNode->falseExpr = std::move($false);
             $if = std::move(ifNode);
         }
-    | IF OPENPAREN exprseq COMMA block[true] optcomma CLOSEPAREN {
+    | IF OPENPAREN exprseq[condition] COMMA exprseq[true] optcomma CLOSEPAREN {
             auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
-            ifNode->condition = std::move($exprseq);
-            ifNode->trueBlock = std::move($true);
+            ifNode->condition = std::move($condition);
+            ifNode->trueExpr = std::move($true);
             $if = std::move(ifNode);
         }
-    | expr DOT IF OPENPAREN block[true] COMMA block[false] optcomma CLOSEPAREN {
+    | expr DOT IF OPENPAREN exprseq[true] COMMA exprseq[false] optcomma CLOSEPAREN {
             auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
             ifNode->condition = std::make_unique<hadron::parse::ExprSeqNode>($expr->tokenIndex, std::move($expr));
-            ifNode->trueBlock = std::move($true);
-            ifNode->falseBlock = std::move($false);
+            ifNode->trueExpr = std::move($true);
+            ifNode->falseExpr = std::move($false);
             $if = std::move(ifNode);
         }
-    | expr DOT IF OPENPAREN block[true] optcomma CLOSEPAREN {
+    | expr DOT IF OPENPAREN exprseq[true] optcomma CLOSEPAREN {
             auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
             ifNode->condition = std::make_unique<hadron::parse::ExprSeqNode>($expr->tokenIndex, std::move($expr));
-            ifNode->trueBlock = std::move($true);
+            ifNode->trueExpr = std::move($true);
             $if = std::move(ifNode);
         }
-    | IF OPENPAREN exprseq CLOSEPAREN block optblock {
+    | IF OPENPAREN exprseq[condition] CLOSEPAREN block[true] optblock {
             auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
-            ifNode->condition = std::move($exprseq);
-            ifNode->trueBlock = std::move($block);
-            ifNode->falseBlock = std::move($optblock);
+            ifNode->condition = std::move($condition);
+            ifNode->trueExpr = std::make_unique<hadron::parse::ExprSeqNode>($true->tokenIndex, std::move($true));
+            if ($optblock) {
+                ifNode->falseExpr = std::make_unique<hadron::parse::ExprSeqNode>($optblock->tokenIndex,
+                        std::move($optblock));
+            }
             $if = std::move(ifNode);
         }
     ;
@@ -824,6 +827,31 @@ dictslotlist    : %empty { $dictslotlist = nullptr; }
                 | dictslotlist1 optcomma { $dictslotlist = std::move($dictslotlist1); }
                 ;
 
+dictlit : OPENPAREN litdictslotlist CLOSEPAREN { $dictlit = std::move($litdictlist); }
+
+litdictslotdef  : listliteral[key] ':' listliteral[value] {
+                        $litdictslotdef = 
+                    }
+                | KEYWORD listliteral {
+                        auto keyValue = std::make_unique<hadron::parse::KeyValueNode>($KEYWORD.first);
+                        auto name = std::make_unique<hadron::parse::NameNode>($KEYWORD.first);
+                        keyValue->key = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first, std::move(name));
+                        keyValue->value = std::move($listliteral);
+                        $litdictslotdef = std::move(keyValue);
+                    }
+                ;
+
+litdictslotlist1[target]    : litdictslotdef { $target = std::move($litdictslotdef); }
+                            | litdictslotlist1[build] ',' litdictslotdef {
+                                    $target = append(std::move($build), std::move($litdictslotdef));
+                                }
+                            ;
+
+litdictslotlist : %empty { $litdictslotlist = nullptr; }
+                | litdictslotlist1 optcomma
+                ;
+
+
 listlit : HASH listlit2 { $listlit = std::move($listlit2); }
         ;
 
@@ -895,9 +923,11 @@ keyarglist1[target] : keyarg { $target = std::move($keyarg); }
                     ;
 
 keyarg  : KEYWORD exprseq {
-                auto keyarg = std::make_unique<hadron::parse::KeyValueNode>($KEYWORD.first);
-                keyarg->value = std::move($exprseq);
-                $keyarg = std::move(keyarg);
+                auto keyArg = std::make_unique<hadron::parse::KeyValueNode>($KEYWORD.first);
+                auto name = std::make_unique<hadron::parse::NameNode>($KEYWORD.first);
+                keyArg->key = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first, std::move(name));
+                keyArg->value = std::move($exprseq);
+                $keyarg = std::move(keyArg);
             }
         ;
 
@@ -934,6 +964,7 @@ listliteral : coreliteral { $listliteral = std::move($coreliteral); }
 
 literal : coreliteral { $literal = std::move($coreliteral); }
         | listlit { $literal = std::move($listlit); }
+        | dictlit { $literal = std::move($dictlit); }
         ;
 
 coreliteral : LITERAL {

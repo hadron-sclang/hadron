@@ -15,7 +15,6 @@
     }
 
     binopChar = ('!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' | '?' | '/');
-
     blockComment := ((any* - ('/*' | '*/' | '\n')) | ('\n' @newline)*) (('/*' @callBlock) | ('*/' @returnBlock));
 
     main := |*

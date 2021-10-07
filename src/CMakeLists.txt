@@ -32,14 +32,14 @@ add_custom_target(run_unittests ALL
 
 #############
 # hlang
-add_executable(hlang
-    hlang.cpp
-)
+#add_executable(hlang
+#    hlang.cpp
+#)
 
-target_link_libraries(hlang
-    gflags
-    hadron
-)
+#target_link_libraries(hlang
+#    gflags
+#    hadron
+#)
 
 #############
 # hlangd

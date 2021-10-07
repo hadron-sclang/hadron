@@ -8,6 +8,8 @@
 
 namespace hadron {
 
+class Heap;
+
 struct ThreadContext {
     ThreadContext();
     ~ThreadContext();
@@ -28,6 +30,8 @@ struct ThreadContext {
 
     // The stack pointer as preserved on entry into machine code.
     void* cStackPointer;
+
+    std::shared_ptr<Heap> heap;
 };
 
 } // namespace hadron
