@@ -26,7 +26,9 @@
 %type <std::unique_ptr<hadron::parse::ExprSeqNode>> dictslotlist1 dictslotdef arrayelems1
 %type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
 %type <std::unique_ptr<hadron::parse::IfNode>> if
-%type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist
+%type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist litdictslotdef litdictslotlist1
+%type <std::unique_ptr<hadron::parse::KeyValueNode>> litdictslotlist
+%type <std::unique_ptr<hadron::parse::LiteralDictNode>> dictlit2
 %type <std::unique_ptr<hadron::parse::LiteralNode>> coreliteral
 %type <std::unique_ptr<hadron::parse::LiteralListNode>> listlit listlit2
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
@@ -785,6 +787,11 @@ slotdef : IDENTIFIER { $slotdef = std::make_unique<hadron::parse::VarDefNode>($I
                 varDef->initialValue = std::move($literal);
                 $slotdef = std::move(varDef);
             }
+        | IDENTIFIER optequal OPENPAREN exprseq CLOSEPAREN {
+                auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER.first);
+                varDef->initialValue = std::move($exprseq);
+                $slotdef = std::move(varDef);
+            }
         ;
 
 vardeflist0 : %empty { $vardeflist0 = nullptr; }
@@ -827,15 +834,22 @@ dictslotlist    : %empty { $dictslotlist = nullptr; }
                 | dictslotlist1 optcomma { $dictslotlist = std::move($dictslotlist1); }
                 ;
 
-dictlit : OPENPAREN litdictslotlist CLOSEPAREN { $dictlit = std::move($litdictlist); }
+dictlit2: OPENPAREN litdictslotlist CLOSEPAREN {
+                auto litDict = std::make_unique<hadron::parse::LiteralDictNode>($OPENPAREN);
+                litDict->elements = std::move($litdictslotlist);
+                $dictlit2 = std::move(litDict);
+            }
+        ;
 
 litdictslotdef  : listliteral[key] ':' listliteral[value] {
-                        $litdictslotdef = 
+                        auto keyValue = std::make_unique<hadron::parse::KeyValueNode>($key->tokenIndex);
+                        keyValue->key = std::move($key);
+                        keyValue->value = std::move($value);
+                        $litdictslotdef = std::move(keyValue);
                     }
                 | KEYWORD listliteral {
                         auto keyValue = std::make_unique<hadron::parse::KeyValueNode>($KEYWORD.first);
-                        auto name = std::make_unique<hadron::parse::NameNode>($KEYWORD.first);
-                        keyValue->key = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first, std::move(name));
+                        keyValue->key = std::make_unique<hadron::parse::NameNode>($KEYWORD.first);
                         keyValue->value = std::move($listliteral);
                         $litdictslotdef = std::move(keyValue);
                     }
@@ -848,7 +862,7 @@ litdictslotlist1[target]    : litdictslotdef { $target = std::move($litdictslotd
                             ;
 
 litdictslotlist : %empty { $litdictslotlist = nullptr; }
-                | litdictslotlist1 optcomma
+                | litdictslotlist1 optcomma { $litdictslotlist = std::move($litdictslotlist1); }
                 ;
 
 
@@ -960,11 +974,11 @@ mavarlist[target]   : IDENTIFIER {
 
 listliteral : coreliteral { $listliteral = std::move($coreliteral); }
         | listlit2 { $listliteral = std::move($listlit2); }
+        | dictlit2 { $listliteral = std::move($dictlit2); }
         ;
 
 literal : coreliteral { $literal = std::move($coreliteral); }
         | listlit { $literal = std::move($listlit); }
-        | dictlit { $literal = std::move($dictlit); }
         ;
 
 coreliteral : LITERAL {

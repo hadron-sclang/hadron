@@ -267,6 +267,10 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
         assert(false); // TODO
     } break;
 
+    case parse::NodeType::kLiteralDict: {
+        assert(false); // TODO
+    } break;
+
     case parse::NodeType::kMultiAssignVars: {
         assert(false); // TODO
     } break;
@@ -276,6 +280,10 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
     } break;
 
     case parse::NodeType::kIf: {
+        // TODO: interesting side effect of changing the `if` parsing grammar from Blocks to ExprSeq nodes. Make less
+        // awkward.
+
+/*
         const auto ifNode = reinterpret_cast<const parse::IfNode*>(node);
         auto condition = buildFinalValue(ifNode->condition.get());
         auto condBranchOwning = std::make_unique<hir::BranchIfZeroHIR>(condition);
@@ -293,8 +301,8 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
 
         // Build the true condition block. We unconditionally branch to this with the expectation that it will be
         // serialized after the if block, meaning we can delete the branch.
-        assert(ifNode->trueBlock);
-        auto trueFrameOwning = buildSubframe(ifNode->trueBlock.get());
+        assert(ifNode->trueExpr);
+        auto trueFrameOwning = buildSubframe(ifNode->trueExpr.get());
         Frame* trueFrame = trueFrameOwning.get();
         parentFrame->subFrames.emplace_back(std::move(trueFrameOwning));
         branch->blockNumber = trueFrame->blocks.front()->number;
@@ -303,8 +311,8 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
 
         // Build the else condition block if present. The BranchIfZero will target branching here.
         Frame* falseFrame = nullptr;
-        if (ifNode->falseBlock) {
-            auto falseFrameOwning = buildSubframe(ifNode->falseBlock.get());
+        if (ifNode->falseExpr) {
+            auto falseFrameOwning = buildSubframe(ifNode->falseExpr.get());
             falseFrame = falseFrameOwning.get();
             parentFrame->subFrames.emplace_back(std::move(falseFrameOwning));
             condBranch->blockNumber = falseFrame->blocks.front()->number;
@@ -336,6 +344,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
             ifBlock->successors.emplace_back(m_block);
             m_block->predecessors.emplace_back(ifBlock);
         }
+*/
     } break;
     }
 

@@ -138,6 +138,7 @@ list(APPEND SCLANG_CLASS_FILES
     "${SCLANG_PATH}/Common/Collections/Set.sc"
     "${SCLANG_PATH}/Common/Collections/SequenceableCollection.sc"
     "${SCLANG_PATH}/Common/Collections/String.sc"
+    "${SCLANG_PATH}/Common/Core/AbstractFunction.sc"
     "${SCLANG_PATH}/Common/Core/Function.sc"
     "${SCLANG_PATH}/Common/Core/Kernel.sc"
     "${SCLANG_PATH}/Common/Core/Object.sc"

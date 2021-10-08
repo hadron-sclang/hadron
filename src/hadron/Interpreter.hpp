@@ -9,8 +9,11 @@
 namespace hadron {
 
 class ErrorReporter;
-struct Function;
 struct ThreadContext;
+
+struct Function {
+
+};
 
 // Trying to loosely follow the Interpreter API in SC
 class Interpreter {
@@ -47,8 +50,6 @@ private:
     void (*m_entryTrampoline)(ThreadContext* context, const uint8_t* machineCode);
     // Restores registers and returns control to C++ code.
     void (*m_exitTrampoline)();
-
-    JITMemoryArena::MCodePtr m_trampolines;
 };
 
 } // namespace hadron

@@ -188,8 +188,8 @@ struct KeyValueNode : public Node {
     KeyValueNode(size_t index): Node(NodeType::kKeyValue, index) {}
     virtual ~KeyValueNode() = default;
 
-    std::unique_ptr<ExprSeqNode> key;
-    std::unique_ptr<ExprSeqNode> value;
+    std::unique_ptr<Node> key;
+    std::unique_ptr<Node> value;
 };
 
 // target.selector(arguments, keyword: arguments)
