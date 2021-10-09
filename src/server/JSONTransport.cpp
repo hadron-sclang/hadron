@@ -691,6 +691,9 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(const hadron::parse::N
     case hadron::parse::NodeType::kLiteralList: {
         // TODO
     } break;
+    case hadron::parse::NodeType::kLiteralDict: {
+        // TODO
+    } break;
     case hadron::parse::NodeType::kMultiAssignVars: {
         // TODO
     } break;

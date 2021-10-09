@@ -351,9 +351,9 @@ struct IfNode : public Node {
     virtual ~IfNode() = default;
 
     std::unique_ptr<ExprSeqNode> condition;
-    std::unique_ptr<ExprSeqNode> trueExpr;
+    std::unique_ptr<BlockNode> trueBlock;
     // optional else condition.
-    std::unique_ptr<ExprSeqNode> falseExpr;
+    std::unique_ptr<BlockNode> falseBlock;
 };
 
 } // namespace parse

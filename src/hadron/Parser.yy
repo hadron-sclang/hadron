@@ -438,36 +438,41 @@ msgsend : IDENTIFIER blocklist1 {
 if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] optcomma CLOSEPAREN {
             auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
             ifNode->condition = std::move($condition);
-            ifNode->trueExpr = std::move($true);
-            ifNode->falseExpr = std::move($false);
+            ifNode->trueBlock = std::make_unique<hadron::parse::BlockNode>($true->tokenIndex);
+            ifNode->trueBlock->body = std::move($true);
+            ifNode->falseBlock = std::make_unique<hadron::parse::BlockNode>($false->tokenIndex);
+            ifNode->falseBlock->body = std::move($false);
             $if = std::move(ifNode);
         }
     | IF OPENPAREN exprseq[condition] COMMA exprseq[true] optcomma CLOSEPAREN {
             auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
             ifNode->condition = std::move($condition);
-            ifNode->trueExpr = std::move($true);
+            ifNode->trueBlock = std::make_unique<hadron::parse::BlockNode>($true->tokenIndex);
+            ifNode->trueBlock->body = std::move($true);
             $if = std::move(ifNode);
         }
     | expr DOT IF OPENPAREN exprseq[true] COMMA exprseq[false] optcomma CLOSEPAREN {
             auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
             ifNode->condition = std::make_unique<hadron::parse::ExprSeqNode>($expr->tokenIndex, std::move($expr));
-            ifNode->trueExpr = std::move($true);
-            ifNode->falseExpr = std::move($false);
+            ifNode->trueBlock = std::make_unique<hadron::parse::BlockNode>($true->tokenIndex);
+            ifNode->trueBlock->body = std::move($true);
+            ifNode->falseBlock = std::make_unique<hadron::parse::BlockNode>($false->tokenIndex);
+            ifNode->falseBlock->body = std::move($false);
             $if = std::move(ifNode);
         }
     | expr DOT IF OPENPAREN exprseq[true] optcomma CLOSEPAREN {
             auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
             ifNode->condition = std::make_unique<hadron::parse::ExprSeqNode>($expr->tokenIndex, std::move($expr));
-            ifNode->trueExpr = std::move($true);
+            ifNode->trueBlock = std::make_unique<hadron::parse::BlockNode>($true->tokenIndex);
+            ifNode->trueBlock->body = std::move($true);
             $if = std::move(ifNode);
         }
     | IF OPENPAREN exprseq[condition] CLOSEPAREN block[true] optblock {
             auto ifNode = std::make_unique<hadron::parse::IfNode>($IF);
             ifNode->condition = std::move($condition);
-            ifNode->trueExpr = std::make_unique<hadron::parse::ExprSeqNode>($true->tokenIndex, std::move($true));
+            ifNode->trueBlock = std::move($true);
             if ($optblock) {
-                ifNode->falseExpr = std::make_unique<hadron::parse::ExprSeqNode>($optblock->tokenIndex,
-                        std::move($optblock));
+                ifNode->falseBlock = std::move($optblock);
             }
             $if = std::move(ifNode);
         }
