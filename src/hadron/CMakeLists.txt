@@ -177,6 +177,8 @@ add_library(hadron STATIC
     BlockBuilder.hpp
     BlockSerializer.cpp
     BlockSerializer.hpp
+    ClassLibrary.cpp
+    ClassLibrary.hpp
     Emitter.cpp
     Emitter.hpp
     Heap.cpp
