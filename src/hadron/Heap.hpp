@@ -8,6 +8,8 @@
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace hadron {
@@ -35,7 +37,8 @@ public:
     // stack segments.
     void* allocateRootSet(size_t sizeInBytes);
 
-    Hash allocateSymbol(const char* symbol, size_t length);
+    // Compute symbol hash, copy symbol data into root set symbol table (if not already set up), returns the Hash.
+    Hash addSymbol(std::string_view symbol);
 
     // TODO: verify size classes experimentally.
     static constexpr size_t kSmallObjectSize = 256;
@@ -73,6 +76,8 @@ private:
     size_t m_stackPageOffset;
 
     size_t m_totalMappedPages;
+
+    std::unordered_map<Hash, std::string_view> m_symbolTable;
 };
 
 } // namespace hadron

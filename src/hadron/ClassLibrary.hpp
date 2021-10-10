@@ -16,7 +16,7 @@ public:
     ~ClassLibrary() = default;
 
     // Parse and compile a class file, then add it to the Heap.
-    void addClassFile(const std::string& classFile);
+    bool addClassFile(const std::string& classFile);
 
 private:
     std::shared_ptr<Heap> m_heap;
