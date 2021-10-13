@@ -10,6 +10,12 @@
 #include "schema/Common/Core/Object.hpp"
 #include "schema/Common/Core/Kernel.hpp"
 
+#include "schema/Common/Collections/Collection.hpp"
+#include "schema/Common/Collections/SequenceableCollection.hpp"
+#include "schema/Common/Collections/ArrayedCollection.hpp"
+#include "schema/Common/Collections/Array.hpp"
+
+
 #include "spdlog/spdlog.h"
 
 namespace hadron {
@@ -39,6 +45,45 @@ bool ClassLibrary::addClassFile(const std::string& classFile) {
     }
 
     auto filenameSymbol = m_heap->addSymbol(classFile);
+    const parse::Node* node = parser.root();
+    while (node) {
+        if (node->nodeType != parse::NodeType::kClass) {
+            SPDLOG_ERROR("Class file didn't contain Class: {}\n", classFile);
+            return false;
+        }
+        auto classNode = reinterpret_cast<const parse::ClassNode*>(node);
+        library::Class* classDef = reinterpret_cast<library::Class*>(m_heap->allocateObject(library::kClassHash,
+                sizeof(library::Class)));
+        classDef->name = m_heap->addSymbol(lexer.tokens()[classNode->tokenIndex].range);
+        classDef->nextclass = Slot(); // TODO
+        if (classNode->superClassNameIndex) {
+            classDef->superclass = m_heap->addSymbol(lexer.tokens()[classNode->superClassNameIndex.value()].range);
+        } else {
+            if (classDef->name == library::kObjectHash) {
+                classDef->superclass = Slot();
+            } else {
+                classDef->superclass = library::kObjectHash;
+            }
+        }
+        classDef->subclasses = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
+        classDef->methods = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
+        classDef->instVarNames = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
+        classDef->classVarNames = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
+        classDef->iprototype = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
+        classDef->cprototype = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
+        classDef->constNames = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
+        classDef->constValues = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
+        classDef->instanceFormat = Slot();
+        classDef->instanceFlags = Slot();
+        classDef->classIndex = Slot();
+        classDef->classFlags = Slot();
+        classDef->maxSubclassIndex = Slot();
+        classDef->filenameSymbol = filenameSymbol;
+        classDef->charPos = Slot();
+        classDef->classVarIndex = Slot();
+
+        node = classNode->next.get();
+    }
 
 
     return true;

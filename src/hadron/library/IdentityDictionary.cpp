@@ -4,9 +4,12 @@
 #include "schema/Common/Collections/Dictionary.hpp"
 
 namespace hadron {
+namespace library {
 
-Slot IdentityDictionary::_IdentDict_At(ThreadContext* /* context */, Slot /* key */) {
+// static
+Slot IdentityDictionary::_IdentDict_At(ThreadContext* /* context */, Slot /* _this */, Slot /* key */) {
     return Slot();
 }
 
-};
+} // namespace library
+} // namespace hadron

@@ -2,6 +2,7 @@
 #define SRC_COMPILER_INCLUDE_HADRON_HEAP_HPP_
 
 #include "hadron/Hash.hpp"
+#include "hadron/ObjectHeader.hpp"
 #include "hadron/Page.hpp"
 
 #include <array>
@@ -24,6 +25,9 @@ public:
     // Default allocation, allocates from the young space (unless extra large).
     void* allocateNew(size_t sizeInBytes);
 
+    // Allocates space at the desired size and then sets the fields in the ObjectHeader as provided.
+    ObjectHeader* allocateObject(Hash className, size_t sizeInBytes);
+
     // Used for allocating JIT memory. Returns the maximum usable size in |allocatedSize|, which can be useful as the
     // JIT bytecode is typically based on size estimates.
     void* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
@@ -45,6 +49,9 @@ public:
     static constexpr size_t kMediumObjectSize = 2048;
     static constexpr size_t kLargeObjectSize = 16384;
     static constexpr size_t kPageSize = 256 * 1024;
+
+    // For the given size object, returns the allocation size of the size class of the allocation.
+    size_t getAllocationSize(size_t sizeInBytes);
 
 private:
     enum SizeClass {

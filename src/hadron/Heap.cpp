@@ -12,6 +12,14 @@ void* Heap::allocateNew(size_t sizeInBytes) {
     return allocateSized(sizeInBytes, m_youngPages, false);
 }
 
+ObjectHeader* Heap::allocateObject(Hash className, size_t sizeInBytes) {
+    ObjectHeader* header = reinterpret_cast<ObjectHeader*>(allocateNew(sizeInBytes));
+    if (!header) { return nullptr; }
+    header->_className = className;
+    header->_sizeInBytes = sizeInBytes;
+    return header;
+}
+
 void* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
     auto address = allocateSized(sizeInBytes, m_executablePages, true);
     if (address) {

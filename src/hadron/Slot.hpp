@@ -12,6 +12,8 @@
 // by Nikita Popov.
 namespace hadron {
 
+struct ObjectHeader;
+
 class Slot {
 public:
     // Construct a Slot with nil value.
@@ -23,6 +25,7 @@ public:
     inline Slot(int32_t number) { m_asBits = number | kInt32Tag; }
     inline Slot(bool value) { m_asBits = (value ? 1 : 0) | kBooleanTag; }
 
+    // TODO: Might not be necessary as ObjectHeader encodes the type and the RawArrays all get their own Hashes
     // Lower 3 bits of pointer bits are unused because all pointers in Hadron are Slot-aligned on 8 bytes.
     enum PointerType : uint64_t {
         kObject = 0,
@@ -73,13 +76,10 @@ public:
     inline double getFloat() const { return m_asDouble; }
     inline uint64_t getHash() const { return m_asBits & (~kTagMask); }
     inline bool getBool() const { return m_asBits & (~kTagMask); }
-    inline void* getPointer() const { return reinterpret_cast<void*>(m_asBits & (~kTagMask)); }
-    inline PointerType getPointerType() const {
-        assert((m_asBits & kTagMask) == kPointerTag);
-        return static_cast<PointerType>(m_asBits & kPointerTypeMask);
-    }
+    inline ObjectHeader* getPointer() const { return reinterpret_cast<ObjectHeader*>(m_asBits & (~kTagMask)); }
     inline char getChar() const { return m_asBits & (~kTagMask); }
 
+    inline bool isPointer() const { return (m_asBits & kTagMask) == kPointerTag; }
 
     // Maximum double (quiet NaN with sign bit set without payload):
     //                     seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm
