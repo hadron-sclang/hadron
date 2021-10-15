@@ -96,8 +96,7 @@ bool ClassLibrary::addClassFile(const std::string& classFile) {
                 nameArray = classDef->constNames;
                 valueArray = classDef->constValues;
             } else {
-                // Serious parser internal error with a VarListNode pointing at a token that isn't 'var', 'classvar',
-                // or 'const'.
+                // Parser internal error with VarListNode pointing at a token that isn't 'var', 'classvar', or 'const'.
                 assert(false);
             }
 
@@ -127,6 +126,9 @@ bool ClassLibrary::addClassFile(const std::string& classFile) {
             method->raw1 = Slot();
             method->raw2 = Slot();
             method->code = Slot(); // TODO - this is where the bytecode lives apparently.
+            method->selectors = Slot(); // TODO: ??
+            method->constants = Slot(); // Why do we need these?
+
 
             method->ownerClass = Slot(classDef);
             method->name = m_heap->addSymbol(lexer.tokens()[methodNode->tokenIndex].range);
@@ -135,6 +137,7 @@ bool ClassLibrary::addClassFile(const std::string& classFile) {
             } else {
                 method->primitiveName = Slot();
             }
+            method->filenameSymbol = filenameSymbol;
             method->charPos = Slot(); // TODO
             library::ArrayedCollection::_ArrayAdd(nullptr, classDef->methods, Slot(method));
 
