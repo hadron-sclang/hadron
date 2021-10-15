@@ -1,6 +1,7 @@
 // schema, parses a SuperCollider input class file and generates a Schema C++ output file
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
+#include "hadron/Keywords.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/SourceFile.hpp"
@@ -97,7 +98,7 @@ int main(int argc, char* argv[]) {
         // Add member variables to struct definition.
         const hadron::parse::VarListNode* varList = classNode->variables.get();
         while (varList) {
-            if (lexer.tokens()[varList->tokenIndex].hash == hadron::hash("var")) {
+            if (lexer.tokens()[varList->tokenIndex].hash == hadron::kVarHash) {
                 const hadron::parse::VarDefNode* varDef = varList->definitions.get();
                 while (varDef) {
                     outFile << fmt::format("    Slot {};\n", lexer.tokens()[varDef->tokenIndex].range);

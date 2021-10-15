@@ -79,6 +79,7 @@ public:
     inline ObjectHeader* getPointer() const { return reinterpret_cast<ObjectHeader*>(m_asBits & (~kTagMask)); }
     inline char getChar() const { return m_asBits & (~kTagMask); }
 
+    inline bool isInt32() const { return (m_asBits & kTagMask) == kInt32Tag; }
     inline bool isPointer() const { return (m_asBits & kTagMask) == kPointerTag; }
 
     // Maximum double (quiet NaN with sign bit set without payload):

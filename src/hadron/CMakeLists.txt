@@ -168,6 +168,7 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
+    library/ArrayedCollection.cpp
     library/Class.cpp
     library/IdentityDictionary.cpp
     library/Object.cpp
