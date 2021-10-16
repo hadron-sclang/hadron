@@ -67,11 +67,11 @@ bool ClassLibrary::addClassFile(const std::string& classFile) {
         }
         classDef->subclasses = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
         classDef->methods = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
-        classDef->instVarNames = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
-        classDef->classVarNames = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
+        classDef->instVarNames = m_heap->allocateObject(library::kSymbolArrayHash, sizeof(library::SymbolArray));
+        classDef->classVarNames = m_heap->allocateObject(library::kSymbolArrayHash, sizeof(library::SymbolArray));
         classDef->iprototype = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
         classDef->cprototype = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
-        classDef->constNames = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
+        classDef->constNames = m_heap->allocateObject(library::kSymbolArrayHash, sizeof(library::SymbolArray));
         classDef->constValues = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
         classDef->instanceFormat = Slot();
         classDef->instanceFlags = Slot();
@@ -125,11 +125,14 @@ bool ClassLibrary::addClassFile(const std::string& classFile) {
                 sizeof(library::Method)));
             method->raw1 = Slot();
             method->raw2 = Slot();
-            method->code = Slot(); // TODO - this is where the bytecode lives apparently.
+            method->code = Slot(); // TODO: machine code
             method->selectors = Slot(); // TODO: ??
-            method->constants = Slot(); // Why do we need these?
-
-
+            method->constants = Slot(); // TODO: ??
+            method->prototypeFrame = Slot(); // TODO
+            method->context = Slot(); // TODO
+            method->argNames = m_heap->allocateObject(library::kSymbolArrayHash, sizeof(library::SymbolArray));
+            method->varNames = m_heap->allocateObject(library::kSymbolArrayHash, sizeof(library::SymbolArray));
+            method->sourceCode = Slot(); // TODO
             method->ownerClass = Slot(classDef);
             method->name = m_heap->addSymbol(lexer.tokens()[methodNode->tokenIndex].range);
             if (methodNode->primitiveIndex) {
