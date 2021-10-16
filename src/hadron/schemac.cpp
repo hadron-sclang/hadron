@@ -1,6 +1,7 @@
 // schema, parses a SuperCollider input class file and generates a Schema C++ output file
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
+#include "hadron/Keywords.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/SourceFile.hpp"
@@ -38,7 +39,7 @@ int main(int argc, char* argv[]) {
     hadron::Parser parser(&lexer, errorReporter);
     if (!parser.parseClass() || !errorReporter->ok()) {
         std::cerr << "schema failed to parse input class file: " << FLAGS_classFile << std::endl;
-        return 0;
+        return -1;
     }
 
     std::ofstream outFile(FLAGS_schemaFile);
@@ -61,15 +62,17 @@ int main(int argc, char* argv[]) {
 
     outFile << std::endl << "// NOTE: schemac generated this file from sclang input file:" << std::endl;
     outFile << "// " << FLAGS_classFile << std::endl;
-    outFile << "// edits will likely be clobbered." << std::endl;
+    outFile << "// edits will likely be clobbered." << std::endl << std::endl;
 
-    outFile << std::endl << "namespace hadron {" << std::endl << std::endl;
+    outFile << "namespace hadron {" << std::endl;
+    outFile << "namespace library {" << std::endl << std::endl;
 
     const hadron::parse::Node* node = parser.root();
     while (node) {
         if (node->nodeType != hadron::parse::NodeType::kClass) {
             std::cerr << "schema did not find a Class root node in parse tree for file: " << FLAGS_classFile
                     << std::endl;
+            return -1;
         }
         const hadron::parse::ClassNode* classNode = reinterpret_cast<const hadron::parse::ClassNode*>(node);
         auto token = lexer.tokens()[classNode->tokenIndex];
@@ -95,7 +98,7 @@ int main(int argc, char* argv[]) {
         // Add member variables to struct definition.
         const hadron::parse::VarListNode* varList = classNode->variables.get();
         while (varList) {
-            if (lexer.tokens()[varList->tokenIndex].hash == hadron::hash("var")) {
+            if (lexer.tokens()[varList->tokenIndex].hash == hadron::kVarHash) {
                 const hadron::parse::VarDefNode* varDef = varList->definitions.get();
                 while (varDef) {
                     outFile << fmt::format("    Slot {};\n", lexer.tokens()[varDef->tokenIndex].range);
@@ -114,7 +117,8 @@ int main(int argc, char* argv[]) {
                 std::string primitiveName(lexer.tokens()[method->primitiveIndex.value()].range);
                 // Uniqueify the primitive calls, as they can occur in more than one method.
                 if (primitives.find(primitiveName) == primitives.end()) {
-                    std::string signature = fmt::format("    Slot {}(ThreadContext* context", primitiveName);
+                    std::string signature = fmt::format("    static Slot {}(ThreadContext* context, Slot _this",
+                            primitiveName);
                     if (method->body && method->body->arguments && method->body->arguments->varList) {
                         // TODO: vargargs
                         // TODO: defaults
@@ -139,11 +143,13 @@ int main(int argc, char* argv[]) {
             outFile << primitive.second;
         }
 
-        outFile << fmt::format("}};\n\n");
+        outFile << "};" << std::endl << std::endl;
         node = classNode->next.get();
     }
 
+    outFile << "} // namespace library" << std::endl;
     outFile << "} // namespace hadron" << std::endl << std::endl;
+
     outFile << "#endif // " << includeGuard << std::endl;
     return 0;
 }

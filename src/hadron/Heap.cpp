@@ -2,12 +2,22 @@
 
 #include "spdlog/spdlog.h"
 
+#include <cassert>
+
 namespace hadron {
 
 Heap::Heap(): m_stackPageOffset(0), m_totalMappedPages(0) {}
 
 void* Heap::allocateNew(size_t sizeInBytes) {
     return allocateSized(sizeInBytes, m_youngPages, false);
+}
+
+ObjectHeader* Heap::allocateObject(Hash className, size_t sizeInBytes) {
+    ObjectHeader* header = reinterpret_cast<ObjectHeader*>(allocateNew(sizeInBytes));
+    if (!header) { return nullptr; }
+    header->_className = className;
+    header->_sizeInBytes = sizeInBytes;
+    return header;
 }
 
 void* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
@@ -54,6 +64,21 @@ void Heap::freeTopStackSegment() {
 
 void* Heap::allocateRootSet(size_t sizeInBytes) {
     return allocateSized(sizeInBytes, m_rootSet, false);
+}
+
+Hash Heap::addSymbol(std::string_view symbol) {
+    auto symbolHash = hash(symbol);
+    auto iter = m_symbolTable.find(symbolHash);
+    if (iter != m_symbolTable.end()) {
+        // Symbol collisions are worth some time and attention.
+        assert(iter->second.compare(symbol) == 0);
+        return symbolHash;
+    }
+
+    char* symbolCopy = reinterpret_cast<char*>(allocateNew(symbol.size()));
+    memcpy(symbolCopy, symbol.data(), symbol.size());
+    m_symbolTable.emplace(std::make_pair(symbolHash, std::string_view(symbolCopy, symbol.size())));
+    return symbolHash;
 }
 
 Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {

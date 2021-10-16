@@ -1,7 +1,6 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_INTERPRETER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_INTERPRETER_HPP_
 
-#include "hadron/JITMemoryArena.hpp"
 #include "hadron/Slot.hpp"
 
 #include <memory>
@@ -10,8 +9,11 @@
 namespace hadron {
 
 class ErrorReporter;
-struct Function;
 struct ThreadContext;
+
+struct Function {
+
+};
 
 // Trying to loosely follow the Interpreter API in SC
 class Interpreter {
@@ -32,6 +34,8 @@ public:
     std::unique_ptr<Function> compile(std::string_view code);
     std::unique_ptr<Function> compileFile(std::string path);
 
+    bool compileClass(std::string path);
+
     // Runs the provided block on the calling thread. Constructs a new ThreadContext, including a stack. On normal exit,
     // pulls the result from the stack and returns it.
     Slot run(Function* func);
@@ -41,14 +45,11 @@ private:
     void enterMachineCode(ThreadContext* context, const uint8_t* machineCode);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
-    std::unique_ptr<JITMemoryArena> m_jitMemoryArena;
 
     // Saves registers, initializes thread context and stack pointer registers, and jumps into the machine code pointer.
     void (*m_entryTrampoline)(ThreadContext* context, const uint8_t* machineCode);
     // Restores registers and returns control to C++ code.
     void (*m_exitTrampoline)();
-
-    JITMemoryArena::MCodePtr m_trampolines;
 };
 
 } // namespace hadron

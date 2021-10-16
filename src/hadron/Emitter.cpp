@@ -64,7 +64,7 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
         case hir::Opcode::kStoreReturn: {
             const auto storeReturn = reinterpret_cast<const hir::StoreReturnHIR*>(hir);
             // Add pointer tag to stack pointer to maintain invariant that saved pointers are always tagged.
-            jit->ori(JIT::kStackPointerReg, JIT::kStackPointerReg, Slot::kObjectTag);
+            jit->ori(JIT::kStackPointerReg, JIT::kStackPointerReg, Slot::kPointerTag);
             // Save the stack pointer to the thread context so we can load the frame pointer in its place.
             jit->stxi_w(offsetof(ThreadContext, stackPointer), JIT::kContextPointerReg, JIT::kStackPointerReg);
             // Load and untag Frame Pointer

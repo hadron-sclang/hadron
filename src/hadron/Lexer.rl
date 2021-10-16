@@ -1,25 +1,23 @@
 %%{
     machine lexer;
 
+    action callBlock { fcall blockComment; }
+    action returnBlock { fret; }
+
     action marker { marker = p; }
     action counter { ++counter; }
     action eof_ok { return true; }
     action newline {
-            while (lineStarts.back() > p) {
-                lineStarts.pop_back();
-            }
-            lineStarts.emplace_back(p + 1);
+        while (lineStarts.back() > p) {
+            lineStarts.pop_back();
         }
+        lineStarts.emplace_back(p + 1);
+    }
+
+    binopChar = ('!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' | '?' | '/');
+    blockComment := ((any* - ('/*' | '*/' | '\n')) | ('\n' @newline)*) (('/*' @callBlock) | ('*/' @returnBlock));
 
     main := |*
-        ############
-        # comments #
-        ############
-        '/*' ((extend - ('\n' | '*/')) | ('\n' @newline))* '*/' { /* ignore block comments */ };
-        '//' (extend - '\n')* ('\n' @newline >/ eof_ok) {
-            // / ignore line comments (and fix Ragel syntax highlighting in vscode with an extra slash)
-        };
-
         ###################
         # number literals #
         ###################
@@ -224,7 +222,7 @@
             m_tokens.back().location = Token::Location{lineStarts.size() - 1,
                     static_cast<size_t>(ts - lineStarts.back())};
         };
-        ('!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' | '?' | '/')+ {
+        (binopChar+ - (('/*' binopChar*) | ('//' binopChar*))) {
             m_tokens.emplace_back(Token(Token::Name::kBinop, ts, te - ts, true, hash(ts, te - ts)));
             m_tokens.back().location = Token::Location{lineStarts.size() - 1,
                     static_cast<size_t>(ts - lineStarts.back())};
@@ -330,7 +328,20 @@
                     static_cast<size_t>(ts - lineStarts.back())};
         };
 
+        ############
+        # comments #
+        ############
+        '/*' { fcall blockComment; };
+
+        '//' (any - '\n')* ('\n' @newline >/ eof_ok) {
+            // / ignore line comments (and fix Ragel syntax highlighting in vscode with an extra slash)
+        };
+
+        ##############
+        # whitespace #
+        ##############
         (space - '\n') | ('\n' @newline) { /* ignore whitespace */ };
+
         any {
             size_t lineNumber = m_errorReporter->getLineNumber(ts);
             m_errorReporter->addError(fmt::format("Lexing error at line {} character {}: unrecognized token '{}'",
@@ -353,6 +364,7 @@
 #include "fmt/core.h"
 #include "spdlog/spdlog.h"
 
+#include <array>
 #include <cstddef>
 #include <stdint.h>
 #include <stdlib.h>
@@ -384,6 +396,9 @@ bool Lexer::lex() {
     int act;
     const char* ts;
     const char* te;
+    // TODO: could consider a dynamically resizing stack, but this is only used for nested block comments right now.
+    std::array<int, 32> stack;
+    int top = 0;
 
     // Some parses need a mid-token marker (like hex numbers) so we declare it here.
     const char* marker = nullptr;

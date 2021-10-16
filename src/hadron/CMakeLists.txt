@@ -131,6 +131,15 @@ target_link_libraries(schemac
 #############
 # libhadron
 list(APPEND SCLANG_CLASS_FILES
+    "${SCLANG_PATH}/Common/Collections/Array.sc"
+    "${SCLANG_PATH}/Common/Collections/ArrayedCollection.sc"
+    "${SCLANG_PATH}/Common/Collections/Collection.sc"
+    "${SCLANG_PATH}/Common/Collections/Dictionary.sc"
+    "${SCLANG_PATH}/Common/Collections/Set.sc"
+    "${SCLANG_PATH}/Common/Collections/SequenceableCollection.sc"
+    "${SCLANG_PATH}/Common/Collections/String.sc"
+    "${SCLANG_PATH}/Common/Core/AbstractFunction.sc"
+    "${SCLANG_PATH}/Common/Core/Function.sc"
     "${SCLANG_PATH}/Common/Core/Kernel.sc"
     "${SCLANG_PATH}/Common/Core/Object.sc"
     "${SCLANG_PATH}/Common/Core/Symbol.sc"
@@ -159,7 +168,9 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
+    library/ArrayedCollection.cpp
     library/Class.cpp
+    library/IdentityDictionary.cpp
     library/Object.cpp
     library/Symbol.cpp
 
@@ -167,17 +178,16 @@ add_library(hadron STATIC
     BlockBuilder.hpp
     BlockSerializer.cpp
     BlockSerializer.hpp
+    ClassLibrary.cpp
+    ClassLibrary.hpp
     Emitter.cpp
     Emitter.hpp
-    Function.hpp
     Heap.cpp
     Heap.hpp
     HIR.cpp
     HIR.hpp
     Interpreter.cpp
     JIT.hpp
-    JITMemoryArena.cpp
-    JITMemoryArena.hpp
     LifetimeAnalyzer.cpp
     LifetimeAnalyzer.hpp
     LifetimeInterval.cpp

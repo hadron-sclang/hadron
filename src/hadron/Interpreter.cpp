@@ -4,8 +4,6 @@
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
 #include "hadron/ErrorReporter.hpp"
-#include "hadron/Function.hpp"
-#include "hadron/JITMemoryArena.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
@@ -22,9 +20,7 @@
 
 namespace hadron {
 
-Interpreter::Interpreter():
-    m_errorReporter(std::make_shared<ErrorReporter>()),
-    m_jitMemoryArena(std::make_unique<JITMemoryArena>()) {}
+Interpreter::Interpreter(): m_errorReporter(std::make_shared<ErrorReporter>()) {}
 
 Interpreter::~Interpreter() {
     teardown();
@@ -34,7 +30,7 @@ bool Interpreter::setup() {
     // Creating the arena requires allocating memory in that arena, and therefore writing to the arena, so we need to
     // ask for write permissions to the arena in order to create it.
     LighteningJIT::markThreadForJITCompilation();
-
+/*
     if (!m_jitMemoryArena->createArena()) {
         SPDLOG_ERROR("Failed to create JIT memory arena.");
         return false;
@@ -72,17 +68,19 @@ bool Interpreter::setup() {
     m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const uint8_t*)>(
             jit.addressToFunctionPointer(entryAddr));
     SPDLOG_INFO("JIT trampoline at {} bytes.", trampolineSize);
-
+*/
     return true;
 }
 
 void Interpreter::teardown() {
+/*
     // Free jit memory before destroying memory arena, or it will be reported as a leak.
     m_trampolines.reset();
     if (m_jitMemoryArena) {
         m_jitMemoryArena->destroyArena();
         m_jitMemoryArena.reset();
     }
+*/
 }
 
 std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
@@ -115,7 +113,7 @@ std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
 
     Resolver resolver;
     resolver.resolve(linearBlock.get());
-
+/*
     // Build function object.
     auto function = std::make_unique<Function>();
     // TODO: setup args inside function.
@@ -156,8 +154,8 @@ std::unique_ptr<Function> Interpreter::compile(std::string_view code) {
         machineCodeSize = 2 * machineCodeSize;
         machineCode = m_jitMemoryArena->alloc(machineCodeSize);
     }
-
-    return function;
+*/
+    return nullptr;
 }
 
 std::unique_ptr<Function> Interpreter::compileFile(std::string path) {
@@ -169,7 +167,16 @@ std::unique_ptr<Function> Interpreter::compileFile(std::string path) {
     return compile(std::string_view(file.codeView()));
 }
 
-Slot Interpreter::run(Function* func) {
+bool Interpreter::compileClass(std::string path) {
+    SourceFile file(path);
+    if (!file.read(m_errorReporter)) {
+        return false;
+    }
+
+    return true;
+}
+
+Slot Interpreter::run(Function* /* func */) {
     ThreadContext threadContext;
     if (!threadContext.allocateStack()) {
         SPDLOG_ERROR("Failed to allocate Hadron stack.");
@@ -179,7 +186,7 @@ Slot Interpreter::run(Function* func) {
     LighteningJIT::markThreadForJITExecution();
 
     // Trampoline into JIT code.
-    enterMachineCode(&threadContext, func->machineCode);
+//    enterMachineCode(&threadContext, func->machineCode);
 
     // Any memory allocation in the JIT arena requires the thread be marked for compilation, which allows writing to
     // the JIT memory regions. TODO: we need a better threading model to isolate the execution threads from the

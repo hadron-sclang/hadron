@@ -2,13 +2,17 @@
 #include "schema/Common/Core/Kernel.hpp"
 
 namespace hadron {
+namespace library {
 
-Slot Class::_AllClasses(ThreadContext* /* context */) {
+// static
+Slot Class::_AllClasses(ThreadContext* /* context */, Slot /* _this */) {
     return Slot();
 }
 
-Slot Class::_DumpClassSubtree(ThreadContext* /* context */) {
+// static
+Slot Class::_DumpClassSubtree(ThreadContext* /* context */, Slot /* _this */) {
     return Slot();
 }
 
+} // namespace library
 } // namespace hadron

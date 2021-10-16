@@ -1,12 +1,16 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_HEAP_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_HEAP_HPP_
 
+#include "hadron/Hash.hpp"
+#include "hadron/ObjectHeader.hpp"
 #include "hadron/Page.hpp"
 
 #include <array>
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace hadron {
@@ -21,6 +25,9 @@ public:
     // Default allocation, allocates from the young space (unless extra large).
     void* allocateNew(size_t sizeInBytes);
 
+    // Allocates space at the desired size and then sets the fields in the ObjectHeader as provided.
+    ObjectHeader* allocateObject(Hash className, size_t sizeInBytes);
+
     // Used for allocating JIT memory. Returns the maximum usable size in |allocatedSize|, which can be useful as the
     // JIT bytecode is typically based on size estimates.
     void* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
@@ -34,11 +41,17 @@ public:
     // stack segments.
     void* allocateRootSet(size_t sizeInBytes);
 
+    // Compute symbol hash, copy symbol data into root set symbol table (if not already set up), returns the Hash.
+    Hash addSymbol(std::string_view symbol);
+
     // TODO: verify size classes experimentally.
     static constexpr size_t kSmallObjectSize = 256;
     static constexpr size_t kMediumObjectSize = 2048;
     static constexpr size_t kLargeObjectSize = 16384;
     static constexpr size_t kPageSize = 256 * 1024;
+
+    // For the given size object, returns the allocation size of the size class of the allocation.
+    size_t getAllocationSize(size_t sizeInBytes);
 
 private:
     enum SizeClass {
@@ -70,6 +83,8 @@ private:
     size_t m_stackPageOffset;
 
     size_t m_totalMappedPages;
+
+    std::unordered_map<Hash, std::string_view> m_symbolTable;
 };
 
 } // namespace hadron

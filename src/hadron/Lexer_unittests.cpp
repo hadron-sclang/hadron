@@ -4,6 +4,7 @@
 #include "hadron/Hash.hpp"
 
 #include "doctest/doctest.h"
+#include "spdlog/spdlog.h"
 
 #include <cstring>
 #include <vector>
@@ -1038,6 +1039,18 @@ TEST_CASE("Lexer Binary Operators") {
         CHECK(!lexer.tokens()[4].couldBeBinop);
         CHECK(lexer.tokens()[4].hash == hash("y"));
     }
+    SUBCASE("binops not block comment") {
+        const char* code = "*/* */";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 2);
+        CHECK(lexer.tokens()[0].name == Token::Name::kBinop);
+        CHECK(lexer.tokens()[0].range.data() == code);
+        CHECK(lexer.tokens()[0].range.size() == 3);
+        CHECK(lexer.tokens()[1].name == Token::Name::kBinop);
+        CHECK(lexer.tokens()[1].range.data() == code + 4);
+        CHECK(lexer.tokens()[1].range.size() == 2);
+    }
 }
 
 TEST_CASE("Lexer Delimiters") {
@@ -1777,6 +1790,12 @@ TEST_CASE("Lexer Comments") {
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 0);
     }
+    SUBCASE("line comment can't be a binop") {
+        const char* code = "//*********";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        CHECK(lexer.tokens().size() == 0);
+    }
     SUBCASE("inline block comment") {
         const char* code = "var a = /* test comment */ x;";
         Lexer lexer(code);
@@ -1800,14 +1819,26 @@ TEST_CASE("Lexer Comments") {
         CHECK(lexer.tokens()[4].range.data() == code + 28);
         CHECK(lexer.tokens()[4].range.size() == 1);
     }
-    SUBCASE("many star block comment") {
+    SUBCASE("block comment is not a binop") {
         const char* code = "/*********/";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
-        REQUIRE(lexer.tokens().size() == 0);
+        CHECK(lexer.tokens().size() == 0);
     }
-    SUBCASE("nested block comments allowed") {
-        const char* code = "1 /* SuperCollider allows \n /* nested */ \n comments */ a";
+    SUBCASE("multiple block comments") {
+        const char* code = "a /* b */ c /* d */ e /* f */ g";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        CHECK(lexer.tokens().size() == 4);
+    }
+    SUBCASE("nested block comments simple") {
+        const char* code = "/* /* */ */";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        CHECK(lexer.tokens().size() == 0);
+    }
+    SUBCASE("nested block comments advanced") {
+        const char* code = "1 /* SuperCollider /* */ /*/* allows \n /* nested */*/ \n block */ comments */ a";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 2);
@@ -1817,14 +1848,28 @@ TEST_CASE("Lexer Comments") {
         CHECK(lexer.tokens()[0].literalType == Type::kInteger);
         CHECK(lexer.tokens()[0].value.getInt32() == 1);
         CHECK(lexer.tokens()[1].name == Token::Name::kIdentifier);
-        CHECK(lexer.tokens()[1].range.data() == code + 55);
-        CHECK(lexer.tokens()[1].range.size() == 1);
+        CHECK(lexer.tokens()[1].range.compare("a") == 0);
     }
     SUBCASE("block comment extended characters") {
-        const char * code = "/* // ✌️a */";
+        const char* code = "/* // ✌️a */";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 0);
+    }
+    SUBCASE("block comment with commented out code") {
+        const char* code = "/*\n"
+                            "var index, atKey;\n"
+                            "index = this.scanFor(key);\n"
+                            "array.put(index+1, value);\n"
+                            "if ( array.at(index).isNil, {\n"
+                            "\tarray.put(index, key);\n"
+                            "\tsize = size + 1;\n"
+                            "\tif (array.size < (size * 4), { this.grow });\n"
+                            "});\n"
+                            "*/\n";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        CHECK(lexer.tokens().size() == 0);
     }
 }
 
