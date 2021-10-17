@@ -203,6 +203,8 @@ add_library(hadron STATIC
     RegisterAllocator.hpp
     Resolver.cpp
     Resolver.hpp
+    Runtime.cpp
+    Runtime.hpp
     ThreadContext.cpp
     ThreadContext.hpp
     VirtualJIT.cpp
@@ -239,7 +241,6 @@ target_link_libraries(hadron PUBLIC
     spdlog
     xxHash::xxhash
     lightening
-    "${INSTALL_EXT}/lib/libjemalloc.a"
 )
 
 target_include_directories(hadron PUBLIC
@@ -247,7 +248,6 @@ target_include_directories(hadron PUBLIC
 )
 
 add_dependencies(hadron
-    jemalloc-install
     schemafiles
 )
 
