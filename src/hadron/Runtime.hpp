@@ -17,8 +17,6 @@ public:
     Runtime() = delete;
     ~Runtime();
 
-    // sclang langauge config file? Some interpreter business?
-
     // First time compilation of class library, then create Kernel runtime objects like Interpreter and Process.
     bool initialize();
 

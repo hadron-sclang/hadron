@@ -82,6 +82,7 @@ if (APPLE)
         set(BISON_EXECUTABLE "${BREW_BISON_PREFIX}/bin/bison")
     endif()
 endif()
+
 find_package(BISON REQUIRED)
 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
@@ -100,6 +101,7 @@ set(HADRON_FRONTEND_FILES
     "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp"
 
+    internal/FileSystem.cpp
     internal/FileSystem.hpp
 
     ErrorReporter.cpp

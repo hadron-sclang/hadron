@@ -25,23 +25,9 @@ public:
     inline Slot(int32_t number) { m_asBits = number | kInt32Tag; }
     inline Slot(bool value) { m_asBits = (value ? 1 : 0) | kBooleanTag; }
 
-    // TODO: Might not be necessary as ObjectHeader encodes the type and the RawArrays all get their own Hashes
-    // Lower 3 bits of pointer bits are unused because all pointers in Hadron are Slot-aligned on 8 bytes.
-    enum PointerType : uint64_t {
-        kObject = 0,
-        kCharArray = 1,
-        kInt8Array = 2,
-        kInt16Array = 3,
-        kInt32Array = 4,
-        kFloatArray = 5,
-        kDoubleArray = 6,
-        kSymbolArray = 7,
-        kPointerTypeMask = 7
-    };
-
-    inline Slot(void* pointer, PointerType pointerType = PointerType::kObject) {
+    inline Slot(void* pointer) {
         assert((reinterpret_cast<uint64_t>(pointer) & kPointerTag) == 0);
-        m_asBits = reinterpret_cast<uint64_t>(pointer) | kPointerTag | pointerType;
+        m_asBits = reinterpret_cast<uint64_t>(pointer) | kPointerTag;
     }
     // Preserves the lower 48 bits of a 64-bit hash and adds the Hash NaN.
     inline Slot(uint64_t h) { m_asBits = (h & (~kTagMask)) | kSymbolTag; }
@@ -81,6 +67,7 @@ public:
 
     inline bool isInt32() const { return (m_asBits & kTagMask) == kInt32Tag; }
     inline bool isPointer() const { return (m_asBits & kTagMask) == kPointerTag; }
+    inline bool isNil() const { return m_asBits == kNilTag; }
 
     // Maximum double (quiet NaN with sign bit set without payload):
     //                     seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm

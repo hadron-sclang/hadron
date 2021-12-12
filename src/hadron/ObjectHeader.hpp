@@ -21,6 +21,7 @@ struct ObjectHeader {
     // Underscores as prefixes for these members so they don't collide with instance variables derived from scanning the
     // SuperCollider class files.
     Hash _className;
+    // This is absolute size, including this header.
     uint64_t _sizeInBytes;
 };
 

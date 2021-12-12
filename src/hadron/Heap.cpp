@@ -8,6 +8,8 @@ namespace hadron {
 
 Heap::Heap(): m_stackPageOffset(0), m_totalMappedPages(0) {}
 
+Heap::~Heap() { /* WRITEME */ }
+
 void* Heap::allocateNew(size_t sizeInBytes) {
     return allocateSized(sizeInBytes, m_youngPages, false);
 }
@@ -79,6 +81,11 @@ Hash Heap::addSymbol(std::string_view symbol) {
     memcpy(symbolCopy, symbol.data(), symbol.size());
     m_symbolTable.emplace(std::make_pair(symbolHash, std::string_view(symbolCopy, symbol.size())));
     return symbolHash;
+}
+
+size_t Heap::getAllocationSize(size_t sizeInBytes) {
+    // TODO: is it *always* the case that this will be true?
+    return getSize(getSizeClass(sizeInBytes));
 }
 
 Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {

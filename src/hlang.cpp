@@ -1,15 +1,23 @@
 // hlang, command line SuperCollider language script interpreter
-#include "hadron/Function.hpp"
-#include "hadron/Interpreter.hpp"
+#include "hadron/ErrorReporter.hpp"
+#include "hadron/Runtime.hpp"
 
 #include "gflags/gflags.h"
 
 #include <iostream>
+#include <memory>
 
 DEFINE_string(sourceFile, "", "Path to the source code file to execute.");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
+
+    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
+    hadron::Runtime runtime(errorReporter);
+    if (!runtime.initialize()) {
+        return -1;
+    }
+/*
     hadron::Interpreter interpreter;
     if (!interpreter.setup()) {
         std::cerr << "Error setting up Hadron Interpreter";
@@ -23,5 +31,6 @@ int main(int argc, char* argv[]) {
     }
 
     interpreter.run(function.get());
+*/
     return 0;
 }

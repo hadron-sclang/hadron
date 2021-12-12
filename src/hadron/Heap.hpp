@@ -26,6 +26,7 @@ public:
     void* allocateNew(size_t sizeInBytes);
 
     // Allocates space at the desired size and then sets the fields in the ObjectHeader as provided.
+    // TODO: there could be a statically compiled size table for the predefined objects.
     ObjectHeader* allocateObject(Hash className, size_t sizeInBytes);
 
     // Used for allocating JIT memory. Returns the maximum usable size in |allocatedSize|, which can be useful as the
