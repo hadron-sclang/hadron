@@ -25,7 +25,7 @@ ObjectHeader* Heap::allocateObject(Hash className, size_t sizeInBytes) {
     return header;
 }
 
-void* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
+uint8_t* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
     auto address = allocateSized(sizeInBytes, m_executablePages, true);
     if (address) {
         auto sizeClass = getSizeClass(sizeInBytes);
@@ -33,7 +33,7 @@ void* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
     } else {
         allocatedSize = 0;
     }
-    return address;
+    return reinterpret_cast<uint8_t*>(address);
 }
 
 void* Heap::allocateStackSegment() {
@@ -92,6 +92,10 @@ size_t Heap::getAllocationSize(void* address) {
     Page* page = findPageContaining(address);
     if (!page) { return 0; }
     return page->objectSize();
+}
+
+size_t Heap::getMaximumSize(size_t sizeInBytes) {
+    return getSize(getSizeClass(sizeInBytes));
 }
 
 Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {

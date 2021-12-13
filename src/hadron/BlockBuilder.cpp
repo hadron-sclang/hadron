@@ -12,7 +12,7 @@
 
 namespace hadron {
 
-BlockBuilder::BlockBuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter):
+BlockBuilder::BlockBuilder(const Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter):
     m_lexer(lexer),
     m_errorReporter(errorReporter),
     m_frame(nullptr),

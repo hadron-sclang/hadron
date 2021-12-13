@@ -1,11 +1,19 @@
 #include "hadron/ClassLibrary.hpp"
 
 #include "hadron/ErrorReporter.hpp"
+#include "hadron/BlockBuilder.hpp"
+#include "hadron/BlockSerializer.hpp"
+#include "hadron/Emitter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/Lexer.hpp"
+#include "hadron/LifetimeAnalyzer.hpp"
+#include "hadron/LighteningJIT.hpp"
+#include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
+#include "hadron/RegisterAllocator.hpp"
+#include "hadron/Resolver.hpp"
 #include "hadron/SourceFile.hpp"
 
 #include "schema/Common/Core/Object.hpp"
@@ -165,7 +173,30 @@ hadron::Slot ClassLibrary::buildMethod(ThreadContext* context, library::Class* c
             sizeof(library::Method)));
     method->raw1 = Slot();
     method->raw2 = Slot();
-    method->code = Slot(); // TODO: machine code in an Int8Array that has the unique property of being executable.
+
+    // JIT compile the bytecode.
+    BlockBuilder blockBuilder(lexer, m_errorReporter);
+    auto frame = blockBuilder.buildFrame(methodNode->body.get());
+    BlockSerializer blockSerializer;
+    auto linearBlock = blockSerializer.serialize(std::move(frame), LighteningJIT::physicalRegisterCount());
+    LifetimeAnalyzer lifetimeAnalyzer;
+    lifetimeAnalyzer.buildLifetimes(linearBlock.get());
+    RegisterAllocator registerAllocator;
+    registerAllocator.allocateRegisters(linearBlock.get());
+    Resolver resolver;
+    resolver.resolve(linearBlock.get());
+
+    // Estimate output size of JIT buffer as 16 bytes per HIR instruction. This is a SWAG and could perhaps be adjusted
+    // or refined, but gives us the size class of the JIT buffer allocation.
+    size_t jitSize = (linearBlock->instructions.size() * 16) + sizeof(library::Int8Array);
+    size_t jitAllocationSize = 0;
+    uint8_t* jitArray = context->heap->allocateJIT(jitSize, jitAllocationSize);
+    LighteningJIT jit(m_errorReporter);
+    jit.begin(jitArray + sizeof(library::Int8Array), jitAllocationSize - sizeof(library::Int8Array));
+    Emitter emitter;
+    emitter.emit(linearBlock.get(), &jit);
+    method->code = Slot(jitArray);
+
     method->selectors = Slot(); // TODO: ??
     method->constants = Slot(); // TODO: ??
     method->prototypeFrame = context->heap->allocateObject(library::kArrayHash, sizeof(library::Array));

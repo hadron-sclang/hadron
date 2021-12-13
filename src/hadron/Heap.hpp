@@ -32,7 +32,7 @@ public:
 
     // Used for allocating JIT memory. Returns the maximum usable size in |allocatedSize|, which can be useful as the
     // JIT bytecode is typically based on size estimates.
-    void* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
+    uint8_t* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
 
     // Stack segments are always allocated at kLargeObjectSize. They are also allocated and freed in stack ordering,
     // and are exempt from garbage collection. They serve as part of the root set of objects for scanning.
@@ -54,6 +54,9 @@ public:
 
     // For the given object, returns the allocation size for that object.
     size_t getAllocationSize(void* address);
+
+    // Returns the size in bytes of the allocation reserved for the given |sizeInBytes|.
+    size_t getMaximumSize(size_t sizeInBytes);
 
 private:
     enum SizeClass {
