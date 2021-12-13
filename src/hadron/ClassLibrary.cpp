@@ -144,10 +144,12 @@ hadron::Slot ClassLibrary::buildClass(ThreadContext* context, Slot filenameSymbo
     while (methodNode) {
         Slot methodSlot = buildMethod(context, classDef, methodNode, lexer);
         if (methodSlot.isNil()) {
-            SPDLOG_ERROR("Error compiling method {} in class {}, skipping.");
+            SPDLOG_ERROR("Error compiling method {} in class {}, skipping.",
+                    lexer->tokens()[classNode->tokenIndex].range);
             methodNode = reinterpret_cast<const hadron::parse::MethodNode*>(methodNode->next.get());
             continue;
         }
+        assert(methodSlot.isPointer());
         library::Method* method = reinterpret_cast<library::Method*>(methodSlot.getPointer());
         assert(method->_className == library::kMethodHash);
         library::ArrayedCollection::_ArrayAdd(context, classDef->methods, methodSlot);
@@ -159,8 +161,8 @@ hadron::Slot ClassLibrary::buildClass(ThreadContext* context, Slot filenameSymbo
 
 hadron::Slot ClassLibrary::buildMethod(ThreadContext* context, library::Class* classDef,
         const hadron::parse::MethodNode* methodNode, const Lexer* lexer) {
-    library::Method* method = reinterpret_cast<library::Method*>(context->heap->allocateObject(
-            library::kMethodHash, sizeof(library::Method)));
+    library::Method* method = reinterpret_cast<library::Method*>(context->heap->allocateObject(library::kMethodHash,
+            sizeof(library::Method)));
     method->raw1 = Slot();
     method->raw2 = Slot();
     method->code = Slot(); // TODO: machine code in an Int8Array that has the unique property of being executable.
@@ -174,8 +176,7 @@ hadron::Slot ClassLibrary::buildMethod(ThreadContext* context, library::Class* c
     method->ownerClass = Slot(classDef);
     method->name = context->heap->addSymbol(lexer->tokens()[methodNode->tokenIndex].range);
     if (methodNode->primitiveIndex) {
-        method->primitiveName = context->heap->addSymbol(
-                lexer->tokens()[methodNode->primitiveIndex.value()].range);
+        method->primitiveName = context->heap->addSymbol(lexer->tokens()[methodNode->primitiveIndex.value()].range);
     } else {
         method->primitiveName = Slot();
     }

@@ -7,6 +7,8 @@
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
 
+#include "spdlog/spdlog.h"
+
 namespace hadron {
 namespace library {
 
@@ -46,12 +48,21 @@ Slot ArrayedCollection::_ArrayAdd(ThreadContext* context, Slot _this, Slot item)
     auto arrayObject = _this.getPointer();
     Hash className = arrayObject->_className;
     auto elementSize = arrayElementSize(className);
-    if (arrayObject->_sizeInBytes + elementSize >= context->heap->getAllocationSize(arrayObject->_sizeInBytes)) {
-        // Allocate bigger size class object and make a copy.
-        // TODO: also Oversize class needs special handling..
+    size_t numberOfElements = (arrayObject->_sizeInBytes - sizeof(ObjectHeader)) / elementSize;
+
+    if (arrayObject->_sizeInBytes + elementSize >= context->heap->getAllocationSize(arrayObject)) {
+        // Double the size of the array in terms of capacity for number of elements.
+        size_t newSize = (numberOfElements * 2 * elementSize) + sizeof(ObjectHeader);
+        auto newArray = context->heap->allocateObject(className, newSize);
+        if (!newArray) {
+            SPDLOG_ERROR("Failed to allocate resize array of {} bytes.", newSize);
+            return Slot();
+        }
+        std::memcpy(newArray, arrayObject, arrayObject->_sizeInBytes);
+        arrayObject = newArray;
+        _this = Slot(arrayObject);
     }
 
-    size_t numberOfElements = (arrayObject->_sizeInBytes - sizeof(ObjectHeader)) / elementSize;
     ObjectHeader* startOfElements = arrayObject + 1;
 
     // TODO: type checking in item
