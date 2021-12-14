@@ -451,12 +451,17 @@ def styleForTokenType(typeIndex):
         "color: grey;",             # kArg
         "color: grey;",             # kConst
         "color: black;",            # kClassVar
+        "color: black;",            # kIdentifier
+        "color: black;",            # kClassName
         "color: grey;",             # kDot
         "color: grey;",             # kDotDot
         "color: grey;",             # kEllipses
         "color: grey;",             # kCurryArgument
         "color: yellow;",           # kIf
     ]
+    if typeIndex >= len(tokenTypeStyles):
+        print("bad typeIndex of {} for styleForTokenType".format(typeIndex))
+        return "color: grey;"
     return tokenTypeStyles[typeIndex]
 
 def buildListing(outFile, tokens, source):

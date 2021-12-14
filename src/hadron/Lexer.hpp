@@ -4,6 +4,7 @@
 #include "hadron/Token.hpp"
 
 #include <memory>
+#include <set>
 #include <string_view>
 #include <vector>
 
@@ -28,8 +29,11 @@ public:
     std::string_view code() const { return m_code; }
 
 private:
+    Token::Location getLocation(const char* p);
+
     std::string_view m_code;
     std::vector<Token> m_tokens;
+    std::set<size_t> m_lineEndings;
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };
