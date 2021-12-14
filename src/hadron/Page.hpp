@@ -34,6 +34,8 @@ public:
     void mark(void* address, Color color);
 
     uint8_t* startAddress() const { return m_startAddress; }
+    size_t totalSize() const { return m_totalSize; }
+    size_t objectSize() const { return m_objectSize; }
 
 private:
     // Mmaped start of the address of this page.

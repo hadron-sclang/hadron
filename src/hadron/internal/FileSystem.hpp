@@ -1,5 +1,5 @@
-#ifndef SRC_FILE_SYSTEM_HPP_
-#define SRC_FILE_SYSTEM_HPP_
+#ifndef SRC_HADRON_INTERNAL_FILE_SYSTEM_HPP_
+#define SRC_HADRON_INTERNAL_FILE_SYSTEM_HPP_
 
 #if (__APPLE__)
 #    include "ghc/filesystem.hpp"
@@ -14,4 +14,12 @@ namespace fs = std::experimental::filesystem;
 #    endif
 #endif // __APPLE__
 
-#endif // SRC_FILE_SYSTEM_HPP_
+namespace hadron {
+
+// Return an absolute path to the running binary. OS-specific code.
+fs::path findBinaryPath();
+fs::path findSCClassLibrary();
+
+} // namespace hadron
+
+#endif // SRC_HADRON_INTERNAL_FILE_SYSTEM_HPP_

@@ -82,6 +82,7 @@ if (APPLE)
         set(BISON_EXECUTABLE "${BREW_BISON_PREFIX}/bin/bison")
     endif()
 endif()
+
 find_package(BISON REQUIRED)
 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
@@ -100,6 +101,7 @@ set(HADRON_FRONTEND_FILES
     "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp"
 
+    internal/FileSystem.cpp
     internal/FileSystem.hpp
 
     ErrorReporter.cpp
@@ -203,6 +205,8 @@ add_library(hadron STATIC
     RegisterAllocator.hpp
     Resolver.cpp
     Resolver.hpp
+    Runtime.cpp
+    Runtime.hpp
     ThreadContext.cpp
     ThreadContext.hpp
     VirtualJIT.cpp
@@ -239,7 +243,6 @@ target_link_libraries(hadron PUBLIC
     spdlog
     xxHash::xxhash
     lightening
-    "${INSTALL_EXT}/lib/libjemalloc.a"
 )
 
 target_include_directories(hadron PUBLIC
@@ -247,7 +250,6 @@ target_include_directories(hadron PUBLIC
 )
 
 add_dependencies(hadron
-    jemalloc-install
     schemafiles
 )
 

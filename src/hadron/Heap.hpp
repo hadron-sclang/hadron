@@ -26,11 +26,13 @@ public:
     void* allocateNew(size_t sizeInBytes);
 
     // Allocates space at the desired size and then sets the fields in the ObjectHeader as provided.
+    // TODO: move to ClassLibrary, which will have hardcoded sizes for bootstrap objects, and will know sizes
+    // of all valid dynamically compiled classes, too. 
     ObjectHeader* allocateObject(Hash className, size_t sizeInBytes);
 
     // Used for allocating JIT memory. Returns the maximum usable size in |allocatedSize|, which can be useful as the
     // JIT bytecode is typically based on size estimates.
-    void* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
+    uint8_t* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
 
     // Stack segments are always allocated at kLargeObjectSize. They are also allocated and freed in stack ordering,
     // and are exempt from garbage collection. They serve as part of the root set of objects for scanning.
@@ -50,8 +52,11 @@ public:
     static constexpr size_t kLargeObjectSize = 16384;
     static constexpr size_t kPageSize = 256 * 1024;
 
-    // For the given size object, returns the allocation size of the size class of the allocation.
-    size_t getAllocationSize(size_t sizeInBytes);
+    // For the given object, returns the allocation size for that object.
+    size_t getAllocationSize(void* address);
+
+    // Returns the size in bytes of the allocation reserved for the given |sizeInBytes|.
+    size_t getMaximumSize(size_t sizeInBytes);
 
 private:
     enum SizeClass {
@@ -60,13 +65,15 @@ private:
         kLarge = 2,
         kOversize = 3
     };
-    using SizedPages = std::array<std::vector<Page>, kOversize>;
+    using SizedPages = std::array<std::vector<std::unique_ptr<Page>>, kOversize>;
 
     SizeClass getSizeClass(size_t sizeInBytes);
     size_t getSize(SizeClass sizeClass);
     void* allocateSized(size_t sizeInBytes, SizedPages& sizedPages, bool isExecutable);
     void mark();
     void sweep();
+    // Return a pointer to a Page object that contains the provided address.
+    Page* findPageContaining(void* address);
 
     SizedPages m_youngPages;
     SizedPages m_maturePages;
@@ -78,11 +85,13 @@ private:
     // stack.
     SizedPages m_rootSet;
 
-    std::vector<Page> m_stackSegments;
+    // Hadron program stack support.
+    std::vector<std::unique_ptr<Page>> m_stackSegments;
     // Offset of first free chunk within last Page of m_stackSegments.
     size_t m_stackPageOffset;
 
-    size_t m_totalMappedPages;
+    // Address of first byte past the end of each Page, used for mapping an arbitrary address back to owning object.
+    std::map<uintptr_t, Page*> m_pageEnds;
 
     std::unordered_map<Hash, std::string_view> m_symbolTable;
 };

@@ -74,7 +74,7 @@ struct Frame {
 // building SSA form.
 class BlockBuilder {
 public:
-    BlockBuilder(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);
+    BlockBuilder(const Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);
     ~BlockBuilder();
 
     std::unique_ptr<Frame> buildFrame(const parse::BlockNode* blockNode);
@@ -104,7 +104,7 @@ private:
     Value findValue(Value v);
     Value findValuePredecessor(Value v, Block* block, std::unordered_map<int, Value>& blockValues);
 
-    Lexer* m_lexer;
+    const Lexer* m_lexer;
     std::shared_ptr<ErrorReporter> m_errorReporter;
     Frame* m_frame;
     Block* m_block;
