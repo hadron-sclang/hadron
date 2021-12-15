@@ -61,8 +61,14 @@ public:
     void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
 
     // Responses from the server for Hadron messages
-    void sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node, const hadron::Frame* frame,
-            const hadron::LinearBlock* linearBlock, const hadron::VirtualJIT* virtualJIT);
+    struct CompilationUnit {
+        std::string name;
+        std::unique_ptr<hadron::Frame> frame;
+        std::unique_ptr<hadron::LinearBlock> linearBlock;
+        std::unique_ptr<hadron::VirtualJIT> virtualJIT;
+    };
+    void sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
+            std::vector<CompilationUnit> compilationUnits);
     void sendParseTree(lsp::ID id, const hadron::parse::Node* node);
     void sendControlFlow(lsp::ID id, const hadron::Frame* frame);
 

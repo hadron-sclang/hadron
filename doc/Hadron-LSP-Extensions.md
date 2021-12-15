@@ -27,9 +27,27 @@ export interface HadronCompilationDiagnosticsResponse {
 	id: integer;
 
 	/**
-	 * The parse tree.
+	 * The parse tree for the entire document.
 	 */
 	parseTree: HadronParseTreeNode;
+
+	/**
+	 * Individual compilation units for the document.
+	 */
+	compilationUnits: array;
+}
+```
+
+As an input file may be a class file it can contain multiple units of compilation, the `compilationUnits` member is an
+array of `HadronCompilationDiagnosticUnit` members.
+
+```
+export interface HadronCompilationDiagnosticUnit {
+	/**
+	 * The name of the compilation unit. If the input was an interpreter script  will be 'INTERPRET',
+	 * otherwise the name will be formatted as "ClassName:methodName"
+	 */
+	 name: string;
 
 	/**
 	 * The root frame of the control flow graph.

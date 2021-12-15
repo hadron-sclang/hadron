@@ -532,7 +532,7 @@ def main(args):
   <title>hadron vis report for {}</title></head>
   <style>
   body {{ font-family: Verdana }}
-  td.used {{ background-color: black; color: white }}
+  td.used {{ background-color: grey; color: white }}
   td.live {{ background-color: lightGrey; color: black }}
   </style>
 <body>

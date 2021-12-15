@@ -83,6 +83,10 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
         return;
     }
 
+    std::vector<JSONTransport::
+
+    // Determine if the input file was an interpreter script or a class file and parse accordingly.
+    if (parser.root()->nodeType == parse::NodeType::kBlock) {
     SPDLOG_TRACE("Compile Diagnostics Block Builder");
     hadron::BlockBuilder blockBuilder(&lexer, errorReporter);
     auto frame = blockBuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
@@ -111,6 +115,10 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
     // Rebuid frame to include in diagnostics.
     hadron::BlockBuilder blockRebuilder(&lexer, errorReporter);
     frame = blockRebuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
+
+    } else {
+        assert(false);
+    }
     m_jsonTransport->sendCompilationDiagnostics(id, parser.root(), frame.get(), linearBlock.get(), &virtualJIT);
 }
 
