@@ -83,43 +83,45 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
         return;
     }
 
-    std::vector<JSONTransport::
+    std::vector<JSONTransport::CompilationUnit> units;
 
     // Determine if the input file was an interpreter script or a class file and parse accordingly.
-    if (parser.root()->nodeType == parse::NodeType::kBlock) {
-    SPDLOG_TRACE("Compile Diagnostics Block Builder");
-    hadron::BlockBuilder blockBuilder(&lexer, errorReporter);
-    auto frame = blockBuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
+    if (parser.root()->nodeType == hadron::parse::NodeType::kBlock) {
+        SPDLOG_TRACE("Compile Diagnostics Block Builder");
+        hadron::BlockBuilder blockBuilder(&lexer, errorReporter);
+        auto frame = blockBuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
 
-    SPDLOG_TRACE("Compile Diagnostics Block Serializer");
-    hadron::BlockSerializer blockSerializer;
-    auto linearBlock = blockSerializer.serialize(std::move(frame), hadron::LighteningJIT::physicalRegisterCount());
+        SPDLOG_TRACE("Compile Diagnostics Block Serializer");
+        hadron::BlockSerializer blockSerializer;
+        auto linearBlock = blockSerializer.serialize(std::move(frame), hadron::LighteningJIT::physicalRegisterCount());
 
-    SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer");
-    hadron::LifetimeAnalyzer lifetimeAnalyzer;
-    lifetimeAnalyzer.buildLifetimes(linearBlock.get());
+        SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer");
+        hadron::LifetimeAnalyzer lifetimeAnalyzer;
+        lifetimeAnalyzer.buildLifetimes(linearBlock.get());
 
-    SPDLOG_TRACE("Compile Diagnostics Register Allocator");
-    hadron::RegisterAllocator registerAllocator;
-    registerAllocator.allocateRegisters(linearBlock.get());
+        SPDLOG_TRACE("Compile Diagnostics Register Allocator");
+        hadron::RegisterAllocator registerAllocator;
+        registerAllocator.allocateRegisters(linearBlock.get());
 
-    SPDLOG_TRACE("Compile Diagnostics Resolver");
-    hadron::Resolver resolver;
-    resolver.resolve(linearBlock.get());
+        SPDLOG_TRACE("Compile Diagnostics Resolver");
+        hadron::Resolver resolver;
+        resolver.resolve(linearBlock.get());
 
-    SPDLOG_TRACE("Compile Diagnostics Emitter");
-    hadron::Emitter emitter;
-    hadron::VirtualJIT virtualJIT;
-    emitter.emit(linearBlock.get(), &virtualJIT);
+        SPDLOG_TRACE("Compile Diagnostics Emitter");
+        hadron::Emitter emitter;
+        auto virtualJIT = std::make_unique<hadron::VirtualJIT>();
+        emitter.emit(linearBlock.get(), virtualJIT.get());
 
-    // Rebuid frame to include in diagnostics.
-    hadron::BlockBuilder blockRebuilder(&lexer, errorReporter);
-    frame = blockRebuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
+        // Rebuid frame to include in diagnostics.
+        hadron::BlockBuilder blockRebuilder(&lexer, errorReporter);
+        frame = blockRebuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
 
+        units.emplace_back(JSONTransport::CompilationUnit{"INTERPRET", std::move(frame), std::move(linearBlock),
+                std::move(virtualJIT)});
     } else {
         assert(false);
     }
-    m_jsonTransport->sendCompilationDiagnostics(id, parser.root(), frame.get(), linearBlock.get(), &virtualJIT);
+    m_jsonTransport->sendCompilationDiagnostics(id, parser.root(), units);
 }
 
 

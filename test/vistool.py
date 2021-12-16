@@ -555,10 +555,12 @@ def main(args):
             'tokenType': deltaTokens[(i * 5) + 3]})
     buildListing(outFile, tokens, source)
     diagnostics = client.getDiagnostics(args.inputFile)
-    buildParseTree(outFile, diagnostics['parseTree'], tokens, args.outputDir)
-    buildControlFlow(outFile, diagnostics['rootFrame'], args.outputDir)
-    buildLinearBlock(outFile, diagnostics['linearBlock'])
-    buildMachineCode(outFile, diagnostics['machineCode'])
+
+    for unit in diagnostics['compilationUnits']:
+        buildParseTree(outFile, diagnostics['parseTree'], tokens, args.outputDir)
+        buildControlFlow(outFile, unit['rootFrame'], args.outputDir)
+        buildLinearBlock(outFile, unit['linearBlock'])
+        buildMachineCode(outFile, unit['machineCode'])
     outFile.write("""
 </body>
 </html>

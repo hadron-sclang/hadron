@@ -68,7 +68,7 @@ public:
         std::unique_ptr<hadron::VirtualJIT> virtualJIT;
     };
     void sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
-            std::vector<CompilationUnit> compilationUnits);
+            const std::vector<CompilationUnit>& compilationUnits);
     void sendParseTree(lsp::ID id, const hadron::parse::Node* node);
     void sendControlFlow(lsp::ID id, const hadron::Frame* frame);
 

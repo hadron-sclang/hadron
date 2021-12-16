@@ -37,8 +37,8 @@ public:
     // Fills out the ServerCapabilities structure before sending to client.
     void sendInitializeResult(std::optional<lsp::ID> id);
     void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
-    void sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node, const hadron::Frame* frame,
-            const hadron::LinearBlock* linearBlock, const hadron::VirtualJIT* virtualJIT);
+    void sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
+            const std::vector<JSONTransport::CompilationUnit>& compilationUnits);
 
 private:
     size_t readHeaders();
@@ -293,7 +293,7 @@ void JSONTransport::JSONTransportImpl::sendSemanticTokens(const std::vector<hadr
 }
 
 void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
-        const hadron::Frame* frame, const hadron::LinearBlock* linearBlock, const hadron::VirtualJIT* virtualJIT) {
+        const std::vector<JSONTransport::CompilationUnit>& compilationUnits) {
     rapidjson::Document document;
     document.SetObject();
     document.AddMember("jsonrpc", rapidjson::Value("2.0"), document.GetAllocator());
@@ -302,16 +302,35 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id, co
             {"parseTree", sizeof("parseTree") - 1, rapidjson::kPointerInvalidIndex}});
     int serial = 0;
     serializeParseNode(node, document, path, serial);
-    rapidjson::Value rootFrame;
-    serial = 0;
-    serializeFrame(frame, serial, rootFrame, document);
-    document["result"].AddMember("rootFrame", rootFrame, document.GetAllocator());
-    rapidjson::Value jsonBlock;
-    serializeLinearBlock(linearBlock, jsonBlock, document);
-    document["result"].AddMember("linearBlock", jsonBlock, document.GetAllocator());
-    rapidjson::Value jsonJIT;
-    serializeJIT(virtualJIT, jsonJIT, document);
-    document["result"].AddMember("machineCode", jsonJIT, document.GetAllocator());
+
+    rapidjson::Value jsonUnits;
+    jsonUnits.SetArray();
+
+    for (const auto& unit : compilationUnits) {
+        rapidjson::Value jsonUnit;
+        jsonUnit.SetObject();
+
+        rapidjson::Value nameString;
+        nameString.SetString(unit.name.data(), document.GetAllocator());
+        jsonUnit.AddMember("name", nameString, document.GetAllocator());
+
+        rapidjson::Value rootFrame;
+        serial = 0;
+        serializeFrame(unit.frame.get(), serial, rootFrame, document);
+        jsonUnit.AddMember("rootFrame", rootFrame, document.GetAllocator());
+
+        rapidjson::Value jsonBlock;
+        serializeLinearBlock(unit.linearBlock.get(), jsonBlock, document);
+        jsonUnit.AddMember("linearBlock", jsonBlock, document.GetAllocator());
+
+        rapidjson::Value jsonJIT;
+        serializeJIT(unit.virtualJIT.get(), jsonJIT, document);
+        jsonUnit.AddMember("machineCode", jsonJIT, document.GetAllocator());
+
+        jsonUnits.PushBack(jsonUnit, document.GetAllocator());
+    }
+
+    document["result"].AddMember("compilationUnits", jsonUnits, document.GetAllocator());
     sendMessage(document);
 }
 
@@ -1251,9 +1270,9 @@ void JSONTransport::sendSemanticTokens(const std::vector<hadron::Token>& tokens)
     m_impl->sendSemanticTokens(tokens);
 }
 
-void JSONTransport::sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node, const hadron::Frame* frame,
-        const hadron::LinearBlock* linearBlock, const hadron::VirtualJIT* virtualJIT) {
-    m_impl->sendCompilationDiagnostics(id, node, frame, linearBlock, virtualJIT);
+void JSONTransport::sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
+        const std::vector<JSONTransport::CompilationUnit>& compilationUnits) {
+    m_impl->sendCompilationDiagnostics(id, node, compilationUnits);
 }
 
 } // namespace server
