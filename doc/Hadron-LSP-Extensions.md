@@ -27,11 +27,6 @@ export interface HadronCompilationDiagnosticsResponse {
 	id: integer;
 
 	/**
-	 * The parse tree for the entire document.
-	 */
-	parseTree: HadronParseTreeNode;
-
-	/**
 	 * Individual compilation units for the document.
 	 */
 	compilationUnits: array;
@@ -48,6 +43,11 @@ export interface HadronCompilationDiagnosticUnit {
 	 * otherwise the name will be formatted as "ClassName:methodName"
 	 */
 	 name: string;
+
+	/**
+	 * The parse tree for the entire document.
+	 */
+	parseTree: HadronParseTreeNode;
 
 	/**
 	 * The root frame of the control flow graph.

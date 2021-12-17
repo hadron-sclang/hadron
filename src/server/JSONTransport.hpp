@@ -2,6 +2,7 @@
 #define SRC_SERVER_JSON_TRANSPORT_HPP_
 
 #include "hadron/Token.hpp"
+#include "server/CompilationUnit.hpp"
 #include "server/LSPTypes.hpp"
 
 #include <memory>
@@ -16,8 +17,8 @@ struct LinearBlock;
 class VirtualJIT;
 namespace parse {
 struct Node;
-}
-}
+} // namespace parse
+} // namespace hadron
 
 namespace server {
 
@@ -61,12 +62,7 @@ public:
     void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
 
     // Responses from the server for Hadron messages
-    struct CompilationUnit {
-        std::string name;
-        std::unique_ptr<hadron::Frame> frame;
-        std::unique_ptr<hadron::LinearBlock> linearBlock;
-        std::unique_ptr<hadron::VirtualJIT> virtualJIT;
-    };
+
     void sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
             const std::vector<CompilationUnit>& compilationUnits);
     void sendParseTree(lsp::ID id, const hadron::parse::Node* node);

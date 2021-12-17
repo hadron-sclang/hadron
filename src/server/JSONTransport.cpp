@@ -38,7 +38,7 @@ public:
     void sendInitializeResult(std::optional<lsp::ID> id);
     void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
     void sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
-            const std::vector<JSONTransport::CompilationUnit>& compilationUnits);
+            const std::vector<CompilationUnit>& compilationUnits);
 
 private:
     size_t readHeaders();
@@ -293,7 +293,7 @@ void JSONTransport::JSONTransportImpl::sendSemanticTokens(const std::vector<hadr
 }
 
 void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
-        const std::vector<JSONTransport::CompilationUnit>& compilationUnits) {
+        const std::vector<CompilationUnit>& compilationUnits) {
     rapidjson::Document document;
     document.SetObject();
     document.AddMember("jsonrpc", rapidjson::Value("2.0"), document.GetAllocator());
@@ -1271,7 +1271,7 @@ void JSONTransport::sendSemanticTokens(const std::vector<hadron::Token>& tokens)
 }
 
 void JSONTransport::sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
-        const std::vector<JSONTransport::CompilationUnit>& compilationUnits) {
+        const std::vector<CompilationUnit>& compilationUnits) {
     m_impl->sendCompilationDiagnostics(id, node, compilationUnits);
 }
 
