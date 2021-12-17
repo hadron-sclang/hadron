@@ -1930,4 +1930,25 @@ TEST_CASE("Lexer Primitives") {
     }
 }
 
+TEST_CASE("Lexer Locations") {
+    SUBCASE("multiline block comment") {
+        const char* code = "/*\n test\n block\n */\n23";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].location.lineNumber == 4);
+        CHECK(lexer.tokens()[0].location.characterNumber == 0);
+    }
+    SUBCASE("multiline nested block comment") {
+        const char* code = "1 /*\n test /*\n multiline\n */\n block\n */\n\tObject";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 2);
+        CHECK(lexer.tokens()[0].location.lineNumber == 0);
+        CHECK(lexer.tokens()[0].location.characterNumber == 0);
+        CHECK(lexer.tokens()[1].location.lineNumber == 6);
+        CHECK(lexer.tokens()[1].location.characterNumber == 1);
+    }
+}
+
 } // namespace hadron

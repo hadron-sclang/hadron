@@ -419,45 +419,53 @@ def buildParseTree(outFile, parseTree, tokens, outputDir):
 
 def styleForTokenType(typeIndex):
     tokenTypeStyles = [
-        "color: lightgrey;",        # kEmpty
-        "color: red;",              # kInterpret
-        "color: blue;",             # kLiteral
-        "color: green;",            # kPrimitive
-        "color: orange;",           # kPlus
-        "color: orange;",           # kMinus
-        "color: orange;",           # kAsterisk
-        "color: red;",              # kAssign
-        "color: orange;",           # kLessThan
-        "color: orange;",           # kGreaterThan
-        "color: orange;",           # kPipe
-        "color: orange;",           # kReadWriteVar
-        "color: orange;",           # kLeftArrow
-        "color: orange;",           # kBinop
-        "color: black;",            # kKeyword
-        "color: grey;",             # kOpenParen
-        "color: grey;",             # kCloseParen
-        "color: grey;",             # kOpenCurly
-        "color: grey;",             # kCloseCurly
-        "color: grey;",             # kOpenSquare
-        "color: grey;",             # kCloseSquare
-        "color: grey;",             # kComma
-        "color: grey;",             # kSemicolon
-        "color: grey;",             # kColon
-        "color: grey;",             # kCaret
-        "color: grey;",             # kTilde
-        "color: grey;",             # kHash
-        "color: grey;",             # kGrave
-        "color: grey;",             # kVar
-        "color: grey;",             # kArg
-        "color: grey;",             # kConst
-        "color: black;",            # kClassVar
-        "color: grey;",             # kDot
-        "color: grey;",             # kDotDot
-        "color: grey;",             # kEllipses
-        "color: grey;",             # kCurryArgument
-        "color: yellow;",           # kIf
+        "color: lightgrey;",        #  0: kEmpty
+        "color: red;",              #  1: kInterpret
+        "color: blue;",             #  2: kLiteral
+        "color: green;",            #  3: kPrimitive
+        "color: orange;",           #  4: kPlus
+        "color: orange;",           #  5: kMinus
+        "color: orange;",           #  6: kAsterisk
+        "color: red;",              #  7: kAssign
+        "color: orange;",           #  8: kLessThan
+        "color: orange;",           #  9: kGreaterThan
+        "color: orange;",           # 10: kPipe
+        "color: orange;",           # 11: kReadWriteVar
+        "color: orange;",           # 12: kLeftArrow
+        "color: orange;",           # 13: kBinop
+        "color: black;",            # 14: kKeyword
+        "color: grey;",             # 15: kOpenParen
+        "color: grey;",             # 16: kCloseParen
+        "color: grey;",             # 17: kOpenCurly
+        "color: grey;",             # 18: kCloseCurly
+        "color: grey;",             # 19: kOpenSquare
+        "color: grey;",             # 20: kCloseSquare
+        "color: grey;",             # 21: kComma
+        "color: grey;",             # 22: kSemicolon
+        "color: grey;",             # 23: kColon
+        "color: grey;",             # 24: kCaret
+        "color: grey;",             # 25: kTilde
+        "color: grey;",             # 26: kHash
+        "color: grey;",             # 27: kGrave
+        "color: grey;",             # 28: kVar
+        "color: grey;",             # 29: kArg
+        "color: grey;",             # 30: kConst
+        "color: black;",            # 31: kClassVar
+        "color: black;",            # 32: kIdentifier
+        "color: black;",            # 33: kClassName
+        "color: grey;",             # 34: kDot
+        "color: grey;",             # 35: kDotDot
+        "color: grey;",             # 36: kEllipses
+        "color: grey;",             # 37: kCurryArgument
+        "color: yellow;",           # 38: kIf
     ]
+    if typeIndex >= len(tokenTypeStyles):
+        print("bad typeIndex of {} for styleForTokenType".format(typeIndex))
+        return "color: grey;"
     return tokenTypeStyles[typeIndex]
+
+def sourceToHTML(source):
+    return html.escape(source).replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp').replace(' ', '&nbsp;')
 
 def buildListing(outFile, tokens, source):
     outFile.write(
@@ -471,8 +479,13 @@ def buildListing(outFile, tokens, source):
     for token in tokens:
         # process any source lines before token as text outside of any token
         while lineNumber < token['lineNumber']:
-            outFile.write('{}{}</span></br>\n'.format(lineStart.format(lineNumber, styleForTokenType(0)),
-                html.escape(source[lineNumber])))
+            if charNumber == 0:
+                outFile.write('{}{}</span></br>\n'.format(lineStart.format(lineNumber + 1, styleForTokenType(0)),
+                    sourceToHTML(source[lineNumber])))
+            else:
+                outFile.write('<span style="{}">{}</span></br>\n'.format(
+                    styleForTokenType(0),
+                    sourceToHTML(source[lineNumber][charNumber:])))
             lineNumber += 1
             charNumber = 0
 
@@ -480,20 +493,22 @@ def buildListing(outFile, tokens, source):
         line = ''
         if (charNumber == 0):
             if token['charNumber'] > 0:
-                line = lineStart.format(lineNumber, styleForTokenType(0))
-                line += html.escape(source[lineNumber][0:token['charNumber']])
+                line = lineStart.format(lineNumber + 1, styleForTokenType(0))
+                line += sourceToHTML(source[lineNumber][0:token['charNumber']])
                 line += '</span><span style="{}">'.format(styleForTokenType(token['tokenType']))
             else:
-                line = lineStart.format(lineNumber, styleForTokenType(token['tokenType']))
+                line = lineStart.format(lineNumber + 1, styleForTokenType(token['tokenType']))
         else:
-            line = '<span style="{}">'.format(styleForTokenType(token['tokenType']))
+            line = '{}<span style="{}">'.format(
+                    sourceToHTML(source[lineNumber][charNumber:token['charNumber']]),
+                    styleForTokenType(token['tokenType']))
 
         tokenLength = 0
         charNumber = token['charNumber']
         tokenSource = ''
         while tokenLength < token['length']:
             lineRemain = min(len(source[lineNumber]) - charNumber, token['length'] - tokenLength)
-            sourceLine = html.escape(source[lineNumber][charNumber : charNumber + lineRemain])
+            sourceLine = sourceToHTML(source[lineNumber][charNumber : charNumber + lineRemain])
             tokenSource += sourceLine
             line += sourceLine
             tokenLength += lineRemain
@@ -506,7 +521,7 @@ def buildListing(outFile, tokens, source):
                 lineNumber += 1
                 # Is there still token left over?
                 if tokenLength < token['length']:
-                    line += lineStart.format(lineNumber, styleForTokenType(token['tokenType']))
+                    line += lineStart.format(lineNumber + 1, styleForTokenType(token['tokenType']))
 
         if charNumber > 0:
             line += '</span>'
@@ -527,7 +542,7 @@ def main(args):
   <title>hadron vis report for {}</title></head>
   <style>
   body {{ font-family: Verdana }}
-  td.used {{ background-color: black; color: white }}
+  td.used {{ background-color: grey; color: white }}
   td.live {{ background-color: lightGrey; color: black }}
   </style>
 <body>
@@ -550,10 +565,14 @@ def main(args):
             'tokenType': deltaTokens[(i * 5) + 3]})
     buildListing(outFile, tokens, source)
     diagnostics = client.getDiagnostics(args.inputFile)
-    buildParseTree(outFile, diagnostics['parseTree'], tokens, args.outputDir)
-    buildControlFlow(outFile, diagnostics['rootFrame'], args.outputDir)
-    buildLinearBlock(outFile, diagnostics['linearBlock'])
-    buildMachineCode(outFile, diagnostics['machineCode'])
+    print(diagnostics)
+
+    for unit in diagnostics['compilationUnits']:
+        name = unit['name']
+        buildParseTree(outFile, unit['parseTree'], tokens, args.outputDir)
+        buildControlFlow(outFile, unit['rootFrame'], args.outputDir)
+        buildLinearBlock(outFile, unit['linearBlock'])
+        buildMachineCode(outFile, unit['machineCode'])
     outFile.write("""
 </body>
 </html>

@@ -24,6 +24,7 @@ namespace server {
 HadronServer::HadronServer(std::unique_ptr<JSONTransport> jsonTransport):
         m_jsonTransport(std::move(jsonTransport)),
         m_state(kUninitialized),
+        m_errorReporter(std::make_shared<hadron::ErrorReporter>()),
         m_interpreter(std::make_unique<hadron::Interpreter>()) {
     m_jsonTransport->setServer(this);
 }
@@ -44,16 +45,15 @@ void HadronServer::initialize(std::optional<lsp::ID> id) {
 
 void HadronServer::semanticTokensFull(const std::string& filePath) {
     hadron::SourceFile sourceFile(filePath);
-    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
-    if (!sourceFile.read(errorReporter)) {
+    if (!sourceFile.read(m_errorReporter)) {
         m_jsonTransport->sendErrorResponse(std::nullopt, JSONTransport::ErrorCode::kFileReadError,
                 fmt::format("Failed to read file {} for lexing.", filePath));
         return;
     }
 
     auto code = sourceFile.codeView();
-    hadron::Lexer lexer(code, errorReporter);
-    if (!lexer.lex() || !errorReporter->ok()) {
+    hadron::Lexer lexer(code, m_errorReporter);
+    if (!lexer.lex() || !m_errorReporter->ok()) {
         // TODO: error reporting
         return;
     }
@@ -63,57 +63,101 @@ void HadronServer::semanticTokensFull(const std::string& filePath) {
 
 void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& filePath) {
     hadron::SourceFile sourceFile(filePath);
-    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
-    if (!sourceFile.read(errorReporter)) {
+    if (!sourceFile.read(m_errorReporter)) {
         m_jsonTransport->sendErrorResponse(std::nullopt, JSONTransport::ErrorCode::kFileReadError,
                 fmt::format("Failed to read file {} for parsing.", filePath));
         return;
     }
 
     auto code = sourceFile.codeView();
-    hadron::Lexer lexer(code, errorReporter);
-    if (!lexer.lex() || !errorReporter->ok()) {
+    hadron::Lexer lexer(code, m_errorReporter);
+    if (!lexer.lex() || !m_errorReporter->ok()) {
         // TODO: errorReporter starts reporting problems itself
         return;
     }
 
-    hadron::Parser parser(&lexer, errorReporter);
-    if (!parser.parse() || !errorReporter->ok()) {
-        // TODO: errors
-        return;
+    // This is not a good way to determine "classNess" of a file. The best fix is likely going to
+    // be to restructure the SC grammar to be able to mix class definitions and interpreted code
+    // more freely. A better medium-term fix is likely going to be adjusting the protocol to
+    // better clarify user intent - are they wanting to see a class file dump or a script dump?
+    // But for now, as these APIs are still very plastic, we key off of file name.
+    bool isClassFile = filePath.size() > 3 && (filePath.substr(filePath.size() - 3, 3) == ".sc");
+
+    hadron::Parser parser(&lexer, m_errorReporter);
+    std::vector<CompilationUnit> units;
+
+    // Determine if the input file was an interpreter script or a class file and parse accordingly.
+    if (isClassFile) {
+        if (!parser.parseClass() || !m_errorReporter->ok()) {
+            // TODO: error handling
+            return;
+        }
+        const hadron::parse::Node* node = parser.root();
+        while (node) {
+            std::string name;
+            const hadron::parse::MethodNode* method = nullptr;
+            if (node->nodeType == hadron::parse::NodeType::kClass) {
+                auto classNode = reinterpret_cast<const hadron::parse::ClassNode*>(node);
+                name = std::string(lexer.tokens()[classNode->tokenIndex].range);
+                method = classNode->methods.get();
+            } else if (node->nodeType == hadron::parse::NodeType::kClassExt) {
+                auto classExtNode = reinterpret_cast<const hadron::parse::ClassExtNode*>(node);
+                name = "+" + std::string(lexer.tokens()[classExtNode->tokenIndex].range);
+                method = classExtNode->methods.get();
+            }
+            while (method) {
+                std::string methodName = name + ":" + std::string(lexer.tokens()[method->tokenIndex].range);
+                addCompilationUnit(methodName, &lexer, method->body.get(), units);
+                method = reinterpret_cast<const hadron::parse::MethodNode*>(method->next.get());
+            }
+
+            node = node->next.get();
+        }
+    } else {
+        if (!parser.parse() || !m_errorReporter->ok()) {
+            // TODO: errors
+            return;
+        }
+        assert(parser.root()->nodeType == hadron::parse::NodeType::kBlock);
+        addCompilationUnit("INTERPRET", &lexer, reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()),
+                units);
     }
+    m_jsonTransport->sendCompilationDiagnostics(id, units);
+}
 
-    SPDLOG_TRACE("Compile Diagnostics Block Builder");
-    hadron::BlockBuilder blockBuilder(&lexer, errorReporter);
-    auto frame = blockBuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
+void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lexer,
+        const hadron::parse::BlockNode* blockNode, std::vector<CompilationUnit>& units) {
+    SPDLOG_TRACE("Compile Diagnostics Block Builder {}", name);
+    hadron::BlockBuilder blockBuilder(lexer, m_errorReporter);
+    auto frame = blockBuilder.buildFrame(blockNode);
 
-    SPDLOG_TRACE("Compile Diagnostics Block Serializer");
+    SPDLOG_TRACE("Compile Diagnostics Block Serializer {}", name);
     hadron::BlockSerializer blockSerializer;
     auto linearBlock = blockSerializer.serialize(std::move(frame), hadron::LighteningJIT::physicalRegisterCount());
 
-    SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer");
+    SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer {}", name);
     hadron::LifetimeAnalyzer lifetimeAnalyzer;
     lifetimeAnalyzer.buildLifetimes(linearBlock.get());
 
-    SPDLOG_TRACE("Compile Diagnostics Register Allocator");
+    SPDLOG_TRACE("Compile Diagnostics Register Allocator {}", name);
     hadron::RegisterAllocator registerAllocator;
     registerAllocator.allocateRegisters(linearBlock.get());
 
-    SPDLOG_TRACE("Compile Diagnostics Resolver");
+    SPDLOG_TRACE("Compile Diagnostics Resolver {}", name);
     hadron::Resolver resolver;
     resolver.resolve(linearBlock.get());
 
-    SPDLOG_TRACE("Compile Diagnostics Emitter");
+    SPDLOG_TRACE("Compile Diagnostics Emitter {}", name);
     hadron::Emitter emitter;
-    hadron::VirtualJIT virtualJIT;
-    emitter.emit(linearBlock.get(), &virtualJIT);
+    auto virtualJIT = std::make_unique<hadron::VirtualJIT>();
+    emitter.emit(linearBlock.get(), virtualJIT.get());
 
     // Rebuid frame to include in diagnostics.
-    hadron::BlockBuilder blockRebuilder(&lexer, errorReporter);
-    frame = blockRebuilder.buildFrame(reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()));
-    m_jsonTransport->sendCompilationDiagnostics(id, parser.root(), frame.get(), linearBlock.get(), &virtualJIT);
+    hadron::BlockBuilder blockRebuilder(lexer, m_errorReporter);
+    frame = blockRebuilder.buildFrame(blockNode);
+
+    units.emplace_back(CompilationUnit{name, blockNode, std::move(frame), std::move(linearBlock),
+            std::move(virtualJIT)});
 }
-
-
 
 } // namespace server
