@@ -63,8 +63,7 @@ public:
 
     // Responses from the server for Hadron messages
 
-    void sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
-            const std::vector<CompilationUnit>& compilationUnits);
+    void sendCompilationDiagnostics(lsp::ID id, const std::vector<CompilationUnit>& compilationUnits);
     void sendParseTree(lsp::ID id, const hadron::parse::Node* node);
     void sendControlFlow(lsp::ID id, const hadron::Frame* frame);
 

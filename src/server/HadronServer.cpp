@@ -76,44 +76,53 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
         return;
     }
 
-    hadron::Parser parser(&lexer, m_errorReporter);
-    if (!parser.parse() || !m_errorReporter->ok()) {
-        // TODO: errors
-        return;
-    }
+    // This is not a good way to determine "classNess" of a file. The best fix is likely going to
+    // be to restructure the SC grammar to be able to mix class definitions and interpreted code
+    // more freely. A better medium-term fix is likely going to be adjusting the protocol to
+    // better clarify user intent - are they wanting to see a class file dump or a script dump?
+    // But for now, as these APIs are still very plastic, we key off of file name.
+    bool isClassFile = filePath.size() > 3 && (filePath.substr(filePath.size() - 3, 3) == ".sc");
 
+    hadron::Parser parser(&lexer, m_errorReporter);
     std::vector<CompilationUnit> units;
 
     // Determine if the input file was an interpreter script or a class file and parse accordingly.
-    if (parser.root()->nodeType == hadron::parse::NodeType::kBlock) {
-        addCompilationUnit("INTERPRET", &lexer, reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()),
-                units);
-    } else {
+    if (isClassFile) {
+        if (!parser.parseClass() || !m_errorReporter->ok()) {
+            // TODO: error handling
+            return;
+        }
         const hadron::parse::Node* node = parser.root();
         while (node) {
+            std::string name;
+            const hadron::parse::MethodNode* method = nullptr;
             if (node->nodeType == hadron::parse::NodeType::kClass) {
                 auto classNode = reinterpret_cast<const hadron::parse::ClassNode*>(node);
-                auto name = std::string(lexer.tokens()[classNode->tokenIndex].range);
-                const hadron::parse::MethodNode* method = classNode->methods.get();
-                while (method) {
-                    std::string methodName = name + ":" + std::string(lexer.tokens()[method->tokenIndex].range);
-                    addCompilationUnit(methodName, &lexer, method->body.get(), units);
-                    method = reinterpret_cast<const hadron::parse::MethodNode*>(method->next.get());
-                }
+                name = std::string(lexer.tokens()[classNode->tokenIndex].range);
+                method = classNode->methods.get();
             } else if (node->nodeType == hadron::parse::NodeType::kClassExt) {
                 auto classExtNode = reinterpret_cast<const hadron::parse::ClassExtNode*>(node);
-                auto name = "+" + std::string(lexer.tokens()[classExtNode->tokenIndex].range);
-                const hadron::parse::MethodNode* method = classExtNode->methods.get();
-                while (method) {
-                    std::string methodName = name + ":" + std::string(lexer.tokens()[method->tokenIndex].range);
-                    addCompilationUnit(methodName, &lexer, method->body.get(), units);
-                    method = reinterpret_cast<const hadron::parse::MethodNode*>(method->next.get());
-                }
+                name = "+" + std::string(lexer.tokens()[classExtNode->tokenIndex].range);
+                method = classExtNode->methods.get();
             }
+            while (method) {
+                std::string methodName = name + ":" + std::string(lexer.tokens()[method->tokenIndex].range);
+                addCompilationUnit(methodName, &lexer, method->body.get(), units);
+                method = reinterpret_cast<const hadron::parse::MethodNode*>(method->next.get());
+            }
+
             node = node->next.get();
         }
+    } else {
+        if (!parser.parse() || !m_errorReporter->ok()) {
+            // TODO: errors
+            return;
+        }
+        assert(parser.root()->nodeType == hadron::parse::NodeType::kBlock);
+        addCompilationUnit("INTERPRET", &lexer, reinterpret_cast<const hadron::parse::BlockNode*>(parser.root()),
+                units);
     }
-    m_jsonTransport->sendCompilationDiagnostics(id, parser.root(), units);
+    m_jsonTransport->sendCompilationDiagnostics(id, units);
 }
 
 void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lexer,

@@ -37,8 +37,7 @@ public:
     // Fills out the ServerCapabilities structure before sending to client.
     void sendInitializeResult(std::optional<lsp::ID> id);
     void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
-    void sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
-            const std::vector<CompilationUnit>& compilationUnits);
+    void sendCompilationDiagnostics(lsp::ID id, const std::vector<CompilationUnit>& compilationUnits);
 
 private:
     size_t readHeaders();
@@ -292,7 +291,7 @@ void JSONTransport::JSONTransportImpl::sendSemanticTokens(const std::vector<hadr
     sendMessage(document);
 }
 
-void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
+void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id,
         const std::vector<CompilationUnit>& compilationUnits) {
     rapidjson::Document document;
     document.SetObject();
@@ -302,6 +301,7 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id, co
     rapidjson::Value jsonUnits;
     jsonUnits.SetArray();
 
+    int serial = 0;
     for (const auto& unit : compilationUnits) {
         rapidjson::Value jsonUnit;
         jsonUnit.SetObject();
@@ -324,16 +324,30 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id, co
         jsonUnit.AddMember("machineCode", jsonJIT, document.GetAllocator());
 
         jsonUnits.PushBack(jsonUnit, document.GetAllocator());
-
-        std::vector<rapidjson::Pointer::Token> path({
-                {"result", sizeof("result") - 1, rapidjson::kPointerInvalidIndex},
-                
-                {"parseTree", sizeof("parseTree") - 1, rapidjson::kPointerInvalidIndex}});
-        int serial = 0;
-        serializeParseNode(node, document, path, serial);
     }
 
-    document["result"].AddMember("compilationUnits", jsonUnits, document.GetAllocator());
+    rapidjson::Value result;
+    result.SetObject();
+    result.AddMember("compilationUnits", jsonUnits, document.GetAllocator());
+    document.AddMember("result", result, document.GetAllocator());
+
+    // rapidjson::Pointer seems to want to anchor on existing nodes, so we add the parse tree to existing entries
+    // in the compilationUnits array after its already been added to the DOM. Note that due to move semantics
+    // in AddMember() |jsonUnits| is now invalid.
+    for (size_t i = 0; i < compilationUnits.size(); ++i) {
+        const auto& unit = compilationUnits[i];
+        auto index = fmt::format("{}", i);
+        std::vector<rapidjson::Pointer::Token> path({
+                {"result", sizeof("result") - 1, rapidjson::kPointerInvalidIndex},
+                {"compilationUnits", sizeof("compilationUnits") - 1, rapidjson::kPointerInvalidIndex},
+                {index.data(), static_cast<rapidjson::SizeType>(index.size()) - 1,
+                        static_cast<rapidjson::SizeType>(i)},
+                {"parseTree", sizeof("parseTree") - 1, rapidjson::kPointerInvalidIndex}
+            });
+        serial = 0;
+        serializeParseNode(unit.blockNode, document, path, serial);
+    }
+
     sendMessage(document);
 }
 
@@ -1273,9 +1287,8 @@ void JSONTransport::sendSemanticTokens(const std::vector<hadron::Token>& tokens)
     m_impl->sendSemanticTokens(tokens);
 }
 
-void JSONTransport::sendCompilationDiagnostics(lsp::ID id, const hadron::parse::Node* node,
-        const std::vector<CompilationUnit>& compilationUnits) {
-    m_impl->sendCompilationDiagnostics(id, node, compilationUnits);
+void JSONTransport::sendCompilationDiagnostics(lsp::ID id, const std::vector<CompilationUnit>& compilationUnits) {
+    m_impl->sendCompilationDiagnostics(id, compilationUnits);
 }
 
 } // namespace server
