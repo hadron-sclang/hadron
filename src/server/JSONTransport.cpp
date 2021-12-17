@@ -298,10 +298,6 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id, co
     document.SetObject();
     document.AddMember("jsonrpc", rapidjson::Value("2.0"), document.GetAllocator());
     encodeId(id, document);
-    std::vector<rapidjson::Pointer::Token> path({{"result", sizeof("result") - 1, rapidjson::kPointerInvalidIndex},
-            {"parseTree", sizeof("parseTree") - 1, rapidjson::kPointerInvalidIndex}});
-    int serial = 0;
-    serializeParseNode(node, document, path, serial);
 
     rapidjson::Value jsonUnits;
     jsonUnits.SetArray();
@@ -328,6 +324,13 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id, co
         jsonUnit.AddMember("machineCode", jsonJIT, document.GetAllocator());
 
         jsonUnits.PushBack(jsonUnit, document.GetAllocator());
+
+        std::vector<rapidjson::Pointer::Token> path({
+                {"result", sizeof("result") - 1, rapidjson::kPointerInvalidIndex},
+                
+                {"parseTree", sizeof("parseTree") - 1, rapidjson::kPointerInvalidIndex}});
+        int serial = 0;
+        serializeParseNode(node, document, path, serial);
     }
 
     document["result"].AddMember("compilationUnits", jsonUnits, document.GetAllocator());
