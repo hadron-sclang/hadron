@@ -11,8 +11,8 @@
 #include <array>
 
 namespace {
-static const std::array<const char*, 2> kClassFileAllowList{
-    "Kernel.sc",
+static const std::array<const char*, 1> kClassFileAllowList{
+//    "Kernel.sc",
     "Object.sc"
 };
 }
