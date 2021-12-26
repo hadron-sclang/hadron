@@ -147,10 +147,10 @@ list(APPEND SCLANG_CLASS_FILES
 set(SCHEMA_FILES)
 
 foreach(CLASS_FILE ${SCLANG_CLASS_FILES})
-    string(REGEX REPLACE ".sc$" ".hpp" SCHEMA_BASE ${CLASS_FILE})
+    string(REGEX REPLACE ".sc$" "" SCHEMA_BASE ${CLASS_FILE})
     string(REGEX REPLACE ${SCLANG_PATH} "" SCHEMA_BASE ${SCHEMA_BASE})
-    set(SCHEMA_FILE ${CMAKE_CURRENT_BINARY_DIR}/schema/${SCHEMA_BASE})
-    set(CASE_FILE ${CMAKE_CURRENT_BINARY_DIR}/case/${SCHEMA_BASE})
+    set(SCHEMA_FILE ${CMAKE_CURRENT_BINARY_DIR}/schema/${SCHEMA_BASE}.hpp)
+    set(CASE_FILE ${CMAKE_CURRENT_BINARY_DIR}/case/${SCHEMA_BASE}PrimitiveCases.inl)
     get_filename_component(SCHEMA_FILE_DIRECTORY ${SCHEMA_FILE} DIRECTORY)
     file(MAKE_DIRECTORY ${SCHEMA_FILE_DIRECTORY})
     get_filename_component(CASE_FILE_DIRECTORY ${CASE_FILE} DIRECTORY)
@@ -201,6 +201,8 @@ add_library(hadron STATIC
     MoveScheduler.hpp
     Page.cpp
     Page.hpp
+    PrimitiveDispatcher.cpp
+    PrimitiveDispatcher.hpp
     RegisterAllocator.cpp
     RegisterAllocator.hpp
     Resolver.cpp

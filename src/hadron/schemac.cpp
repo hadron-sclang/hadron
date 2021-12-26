@@ -117,6 +117,7 @@ int main(int argc, char* argv[]) {
         }
 
         std::map<std::string, std::string> primitives;
+        std::map<std::string, std::string> caseBlocks;
 
         // Add any primitives as member functions.
         const hadron::parse::MethodNode* method = classNode->methods.get();
@@ -127,20 +128,36 @@ int main(int argc, char* argv[]) {
                 if (primitives.find(primitiveName) == primitives.end()) {
                     std::string signature = fmt::format("    static Slot {}(ThreadContext* context, Slot _this",
                             primitiveName);
+                    std::string caseBlock = fmt::format("// {}:{}\ncase 0x{:012x}: {{\n", className,
+                            primitiveName, hadron::hash(primitiveName).getHash());
+                    std::vector<std::string> argNames;
                     if (method->body && method->body->arguments && method->body->arguments->varList) {
-                        // TODO: vargargs
-                        // TODO: defaults
+                        // TODO: vargargs? Is there such a thing as a varargs primitive?
                         const hadron::parse::VarDefNode* varDef = method->body->arguments->varList->definitions.get();
                         while (varDef) {
                             std::string varName(lexer.tokens()[varDef->tokenIndex].range);
                             auto subs = keywordSubs.find(varName);
                             if (subs != keywordSubs.end()) { varName = subs->second; }
                             signature += fmt::format(", Slot {}", varName);
+                            argNames.emplace_back(varName);
                             varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
                         }
                     }
+
                     signature += ");\n";
                     primitives.emplace(std::make_pair(primitiveName, signature));
+
+                    size_t numberOfArgs = argNames.size() + 1;
+                    caseBlock += fmt::format("    Slot _this = *(sp + {});\n", numberOfArgs);
+                    for (size_t i = 0; i < argNames.size(); ++i) {
+                        caseBlock += fmt::format("    Slot {} = *(sp + {});\n", argNames[i], numberOfArgs - i - 1);
+                    }
+                    caseBlock += fmt::format("    return library::{}::{}(context, _this", className, primitiveName);
+                    for (const auto& arg : argNames) {
+                        caseBlock += fmt::format(", {}", arg);
+                    }
+                    caseBlock += ");\n}\n\n";
+                    caseBlocks.emplace(std::make_pair(primitiveName, caseBlock));
                 }
             }
             method = reinterpret_cast<const hadron::parse::MethodNode*>(method->next.get());
@@ -149,6 +166,9 @@ int main(int argc, char* argv[]) {
         // Output all primitives in sorted order.
         for (auto primitive : primitives) {
             outFile << primitive.second;
+        }
+        for (auto caseBlock : caseBlocks) {
+            caseFile << caseBlock.second;
         }
 
         outFile << "};" << std::endl << std::endl;
