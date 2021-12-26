@@ -18,6 +18,7 @@
 
 DEFINE_string(classFile, "", "Path to the SC class file to generate schema file from.");
 DEFINE_string(schemaFile, "", "Path to save the schema output header file to.");
+DEFINE_string(caseFile, "", "Path to save switch statements for function dispatch to.");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
@@ -45,6 +46,13 @@ int main(int argc, char* argv[]) {
     std::ofstream outFile(FLAGS_schemaFile);
     if (!outFile) {
         std::cerr << "schema file error on ouput file: " << FLAGS_schemaFile << std::endl;
+        return -1;
+    }
+
+    std::ofstream caseFile(FLAGS_caseFile);
+    if (!caseFile) {
+        std::cerr << "schema file error on case file: " << FLAGS_caseFile << std::endl;
+        return -1;
     }
 
     // Some argument names in sclang are C++ keywords, causing the generated file to have invalid code. We keep a list
