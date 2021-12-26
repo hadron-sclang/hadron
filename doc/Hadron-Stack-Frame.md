@@ -72,6 +72,6 @@ pointer within the ThreadContext should be set to return to the trampoline exit 
 Hadron machine code may exit back to C code for a variety of reasons. If the base function called from C code has
 returned, the `machineCodeStatus` value is set to `kOk`, and the trampoline detects that the frame pointer is what it
 was set to on machine code entry, this counts as a normal exit from machine code. But the machine code could exit with
-state still on the stack, either in the event of runtime error or exception, or resulting from the need to call an
-intrinsic function. In these cases the trampoline should execute whatever C code was requested by the machine code,
+state still on the stack, either in the event of runtime error or exception, or resulting from the need to call a
+primitive function. In these cases the trampoline should execute whatever C code was requested by the machine code,
 possibly modifying the Hadron stack in the process, and then begin the process for entry back into machine code again.
