@@ -1,5 +1,11 @@
 #include "hadron/Heap.hpp"
 
+#include "schema/Common/Core/Object.hpp"
+#include "schema/Common/Collections/Collection.hpp"
+#include "schema/Common/Collections/SequenceableCollection.hpp"
+#include "schema/Common/Collections/ArrayedCollection.hpp"
+#include "schema/Common/Collections/Array.hpp"
+
 #include "spdlog/spdlog.h"
 
 #include <cassert>
@@ -25,15 +31,19 @@ ObjectHeader* Heap::allocateObject(Hash className, size_t sizeInBytes) {
     return header;
 }
 
-uint8_t* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
+library::Int8Array* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
     auto address = allocateSized(sizeInBytes, m_executablePages, true);
     if (address) {
         auto sizeClass = getSizeClass(sizeInBytes);
         allocatedSize = getSize(sizeClass);
     } else {
         allocatedSize = 0;
+        return nullptr;
     }
-    return reinterpret_cast<uint8_t*>(address);
+    library::Int8Array* jitArray = reinterpret_cast<library::Int8Array*>(address);
+    jitArray->_className = library::kInt8ArrayHash;
+    jitArray->_sizeInBytes = sizeInBytes;
+    return jitArray;
 }
 
 void* Heap::allocateStackSegment() {
@@ -68,8 +78,8 @@ void Heap::freeTopStackSegment() {
     }
 }
 
-void* Heap::allocateRootSet(size_t sizeInBytes) {
-    return allocateSized(sizeInBytes, m_rootSet, false);
+void Heap::addToRootSet(Slot object) {
+    m_rootSet.emplace_back(object);
 }
 
 // TODO: refactor to store Symbol objects

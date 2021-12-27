@@ -4,6 +4,7 @@
 #include "hadron/Hash.hpp"
 #include "hadron/ObjectHeader.hpp"
 #include "hadron/Page.hpp"
+#include "hadron/Slot.hpp"
 
 #include <array>
 #include <cstddef>
@@ -14,6 +15,10 @@
 #include <vector>
 
 namespace hadron {
+
+namespace library {
+struct Int8Array;
+} // namespace library
 
 // Manages dynamic memory allocation for Hadron, including garbage collection. Inspired by the design of the v8 garbage
 // collection system, but greatly simplified.
@@ -27,21 +32,20 @@ public:
 
     // Allocates space at the desired size and then sets the fields in the ObjectHeader as provided.
     // TODO: move to ClassLibrary, which will have hardcoded sizes for bootstrap objects, and will know sizes
-    // of all valid dynamically compiled classes, too. 
+    // of all valid dynamically compiled classes, too.
     ObjectHeader* allocateObject(Hash className, size_t sizeInBytes);
 
     // Used for allocating JIT memory. Returns the maximum usable size in |allocatedSize|, which can be useful as the
     // JIT bytecode is typically based on size estimates.
-    uint8_t* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
+    library::Int8Array* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
 
     // Stack segments are always allocated at kLargeObjectSize. They are also allocated and freed in stack ordering,
     // and are exempt from garbage collection. They serve as part of the root set of objects for scanning.
     void* allocateStackSegment();
     void freeTopStackSegment();
 
-    // Allocates to the set of permanent objects that are the point of origin for all scanning jobs, along with the
-    // stack segments.
-    void* allocateRootSet(size_t sizeInBytes);
+    // Adds to the list of permanent objects that are the point of origin for all scanning jobs.
+    void addToRootSet(Slot object);
 
     // Compute symbol hash, copy symbol data into root set symbol table (if not already set up), returns the Hash.
     Hash addSymbol(std::string_view symbol);
@@ -78,12 +82,14 @@ private:
     SizedPages m_youngPages;
     SizedPages m_maturePages;
 
-    // Bytecode cannot be relocated and so is kept only in one set of pages.
+    // Bytecode cannot be relocated and so is exempt from generational garbage collection.
     SizedPages m_executablePages;
 
     // Not garbage collected, permanently allocated objects. Root objects are where scanning starts, along with the
-    // stack.
-    SizedPages m_rootSet;
+    // stack. TODO: could it be a set? Would that be useful? Unlike the symbol table these aren't hash value keys they
+    // are pointers. It's usually not great to use raw pointer values as unique identifiers - but we're kind of doing
+    // that all over the place in the allocator.
+    std::vector<Slot> m_rootSet;
 
     // Hadron program stack support.
     std::vector<std::unique_ptr<Page>> m_stackSegments;

@@ -173,6 +173,7 @@ add_library(hadron STATIC
     library/ArrayedCollection.cpp
     library/Class.cpp
     library/IdentityDictionary.cpp
+    library/Kernel.cpp
     library/Object.cpp
     library/Symbol.cpp
 

@@ -3,8 +3,15 @@
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Heap.hpp"
+#include "hadron/LighteningJIT.hpp"
+#include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "internal/FileSystem.hpp"
+#include "schema/Common/Core/Object.hpp"
+#include "schema/Common/Collections/Collection.hpp"
+#include "schema/Common/Collections/SequenceableCollection.hpp"
+#include "schema/Common/Collections/ArrayedCollection.hpp"
+#include "schema/Common/Collections/Array.hpp"
 
 #include "spdlog/spdlog.h"
 
@@ -12,7 +19,6 @@
 
 namespace {
 static const std::array<const char*, 1> kClassFileAllowList{
-//    "Kernel.sc",
     "Object.sc"
 };
 }
@@ -30,6 +36,7 @@ Runtime::Runtime(std::shared_ptr<ErrorReporter> errorReporter):
 Runtime::~Runtime() {}
 
 bool Runtime::initialize() {
+    if (!buildTrampolines()) return false;
     if (!recompileClassLibrary()) return false;
 
     return true;
@@ -60,6 +67,47 @@ bool Runtime::recompileClassLibrary() {
         SPDLOG_INFO("Class Library compiling '{}'", path.c_str());
         m_classLibrary->addClassFile(m_threadContext.get(), path);
     }
+    return true;
+}
+
+bool Runtime::buildTrampolines() {
+    // Compile the entry and exit trampolines. This matches the Guile entry/exit trampolines pretty closely.
+    LighteningJIT::markThreadForJITCompilation();
+    size_t jitSize = 0;
+    library::Int8Array* jitArray = m_heap->allocateJIT()
+
+/*
+    // Complete guess as to a reasonable size.
+    m_trampolines = m_jitMemoryArena->alloc(256);
+    LighteningJIT jit(m_errorReporter);
+    jit.begin(m_trampolines.get(), 256);
+    auto align = jit.enterABI();
+    // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* context and a uint8_t* machineCode
+    // pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded into Reg 0. As
+    // Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register, I have taken
+    // some care to ensure that GPR(2)/Reg 0 is not the stack pointer on any of the supported architectures.
+    jit.loadCArgs2(JIT::kContextPointerReg, JIT::Reg(0));
+    // Save the C stack pointer, this pointer is *not* tagged as it does not point into Hadron-allocated heap.
+    jit.stxi_w(offsetof(ThreadContext, cStackPointer), JIT::kContextPointerReg, jit.getCStackPointerRegister());
+    // Restore the Hadron stack pointer
+    jit.ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, stackPointer));
+    // Remove tag from pointer.
+    jit.andi(JIT::kStackPointerReg, JIT::kStackPointerReg, ~Slot::kTagMask);
+    // Jump into the calling code.
+    jit.jmpr(JIT::Reg(0));
+
+    m_exitTrampoline = jit.addressToFunctionPointer(jit.address());
+    // Restore the C stack pointer.
+    jit.ldxi_w(jit.getCStackPointerRegister(), JIT::kContextPointerReg, offsetof(ThreadContext, cStackPointer));
+    jit.leaveABI(align);
+    jit.ret();
+    assert(!jit.hasJITBufferOverflow());
+    size_t trampolineSize = 0;
+    auto entryAddr = jit.end(&trampolineSize);
+    m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const uint8_t*)>(
+            jit.addressToFunctionPointer(entryAddr));
+    SPDLOG_INFO("JIT trampoline at {} bytes.", trampolineSize);
+*/
     return true;
 }
 

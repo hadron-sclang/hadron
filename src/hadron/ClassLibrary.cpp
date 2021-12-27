@@ -193,11 +193,18 @@ hadron::Slot ClassLibrary::buildMethod(ThreadContext* context, library::Class* c
     // or refined, but gives us the size class of the JIT buffer allocation.
     size_t jitSize = (linearBlock->instructions.size() * 16) + sizeof(library::Int8Array);
     size_t jitAllocationSize = 0;
-    uint8_t* jitArray = context->heap->allocateJIT(jitSize, jitAllocationSize);
+    library::Int8Array* jitArray = context->heap->allocateJIT(jitSize, jitAllocationSize);
     LighteningJIT jit(m_errorReporter);
-    jit.begin(jitArray + sizeof(library::Int8Array), jitAllocationSize - sizeof(library::Int8Array));
+    jit.begin(reinterpret_cast<uint8_t*>(jitArray) + sizeof(library::Int8Array),
+            jitAllocationSize - sizeof(library::Int8Array));
     Emitter emitter;
     emitter.emit(linearBlock.get(), &jit);
+
+    // Compute the actual size of the jit and update the size of the array to match.
+    size_t finalSize = 0;
+    jit.end(&finalSize);
+    assert(finalSize + sizeof(library::Int8Array) < jitAllocationSize);
+    jitArray->_sizeInBytes = finalSize + sizeof(library::Int8Array);
     method->code = Slot(jitArray);
 
     method->selectors = Slot(); // TODO: ??
