@@ -1,6 +1,7 @@
 #include "hadron/BlockBuilder.hpp"
 
 #include "hadron/ErrorReporter.hpp"
+#include "hadron/Keywords.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
@@ -42,6 +43,8 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(const parse::BlockNode* block
     // Build argument name list and default values.
 
     // Hack to always append *this* which actually has a known type, interesting.
+    // TODO: where is the promised hack?
+
     const parse::ArgListNode* argList = blockNode->arguments.get();
     int32_t argIndex = 0;
     while (argList) {
@@ -182,8 +185,13 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
     case parse::NodeType::kName: {
         const auto nameNode = reinterpret_cast<const parse::NameNode*>(node);
         auto name = m_lexer->tokens()[nameNode->tokenIndex].hash;
-        // TODO: keywords like `this` live here.
-        nodeValue = findName(name); // <-- this needs to update names in the local block!
+        if (name == Hash(kThisHash)) {
+            // The "this" pointer is always the first argument to any method call.
+            nodeValue.first = findOrInsertLocal(std::make_unique<hir::LoadArgumentHIR>(0));
+            nodeValue.second = findOrInsertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(0));
+        } else {
+            nodeValue = findName(name); // <-- this needs to update names in the local block!
+        }
     } break;
 
     case parse::NodeType::kExprSeq: {

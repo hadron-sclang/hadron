@@ -80,6 +80,8 @@ hadron::Slot ClassLibrary::buildClass(ThreadContext* context, Slot filenameSymbo
         const hadron::parse::ClassNode* classNode, const Lexer* lexer) {
     library::Class* classDef = reinterpret_cast<library::Class*>(context->heap->allocateObject(
             library::kClassHash, sizeof(library::Class)));
+
+    SPDLOG_INFO("Class Library compiling class {}", lexer->tokens()[classNode->tokenIndex].range);
     classDef->name = context->heap->addSymbol(lexer->tokens()[classNode->tokenIndex].range);
     classDef->nextclass = Slot(); // TODO
     if (classNode->superClassNameIndex) {
@@ -169,6 +171,7 @@ hadron::Slot ClassLibrary::buildClass(ThreadContext* context, Slot filenameSymbo
 
 hadron::Slot ClassLibrary::buildMethod(ThreadContext* context, library::Class* classDef,
         const hadron::parse::MethodNode* methodNode, const Lexer* lexer) {
+    SPDLOG_INFO("Class Library compiling method {}", lexer->tokens()[methodNode->tokenIndex].range);
     library::Method* method = reinterpret_cast<library::Method*>(context->heap->allocateObject(library::kMethodHash,
             sizeof(library::Method)));
     method->raw1 = Slot();
