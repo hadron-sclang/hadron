@@ -173,6 +173,7 @@ add_library(hadron STATIC
     library/ArrayedCollection.cpp
     library/Class.cpp
     library/IdentityDictionary.cpp
+    library/Kernel.cpp
     library/Object.cpp
     library/Symbol.cpp
 
@@ -188,7 +189,6 @@ add_library(hadron STATIC
     Heap.hpp
     HIR.cpp
     HIR.hpp
-    Interpreter.cpp
     JIT.hpp
     LifetimeAnalyzer.cpp
     LifetimeAnalyzer.hpp
@@ -209,7 +209,6 @@ add_library(hadron STATIC
     Resolver.hpp
     Runtime.cpp
     Runtime.hpp
-    ThreadContext.cpp
     ThreadContext.hpp
     VirtualJIT.cpp
     VirtualJIT.hpp

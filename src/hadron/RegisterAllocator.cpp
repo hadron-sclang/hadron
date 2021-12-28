@@ -286,8 +286,8 @@ void RegisterAllocator::allocateBlockedReg(LifetimeInterval& current, LinearBloc
 
     // reg = register with highest nextUsePos
     size_t reg = 0;
-    size_t highestNextUsePos = 0;
-    for (size_t i = 0; reg < nextUsePos.size(); ++reg) {
+    size_t highestNextUsePos = nextUsePos[0];
+    for (size_t i = 1; i < nextUsePos.size(); ++i) {
         if (nextUsePos[i] > highestNextUsePos) {
             reg = i;
             highestNextUsePos = nextUsePos[i];

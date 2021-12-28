@@ -4,7 +4,6 @@
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
 #include "hadron/ErrorReporter.hpp"
-#include "hadron/Interpreter.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LinearBlock.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
@@ -12,6 +11,7 @@
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
+#include "hadron/Runtime.hpp"
 #include "hadron/SourceFile.hpp"
 #include "hadron/VirtualJIT.hpp"
 #include "server/JSONTransport.hpp"
@@ -25,7 +25,7 @@ HadronServer::HadronServer(std::unique_ptr<JSONTransport> jsonTransport):
         m_jsonTransport(std::move(jsonTransport)),
         m_state(kUninitialized),
         m_errorReporter(std::make_shared<hadron::ErrorReporter>()),
-        m_interpreter(std::make_unique<hadron::Interpreter>()) {
+        m_runtime(std::make_unique<hadron::Runtime>(m_errorReporter)) {
     m_jsonTransport->setServer(this);
 }
 
@@ -34,9 +34,9 @@ int HadronServer::runLoop() {
 }
 
 void HadronServer::initialize(std::optional<lsp::ID> id) {
-    if (!m_interpreter->setup()) {
+    if (!m_runtime->initialize()) {
         m_jsonTransport->sendErrorResponse(id, JSONTransport::ErrorCode::kInternalError,
-                "Failed to setup Hadron Interpreter.");
+                "Failed to initialize Hadron runtime.");
         return;
     }
     m_state = kRunning;
@@ -80,7 +80,7 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
     // be to restructure the SC grammar to be able to mix class definitions and interpreted code
     // more freely. A better medium-term fix is likely going to be adjusting the protocol to
     // better clarify user intent - are they wanting to see a class file dump or a script dump?
-    // But for now, as these APIs are still very plastic, we key off of file name.
+    // But for now, as these APIs are still very plastic, we key off of file extension.
     bool isClassFile = filePath.size() > 3 && (filePath.substr(filePath.size() - 3, 3) == ".sc");
 
     hadron::Parser parser(&lexer, m_errorReporter);
