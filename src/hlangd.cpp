@@ -1,6 +1,6 @@
 // hlangd is the Hadron Language Server, which communicates via JSON-RPCv2 via stdin/stdout.
 #include "hadron/internal/BuildInfo.hpp"
-#include "hadron/Interpreter.hpp"
+#include "hadron/Runtime.hpp"
 #include "server/HadronServer.hpp"
 #include "server/JSONTransport.hpp"
 

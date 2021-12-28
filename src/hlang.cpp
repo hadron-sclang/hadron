@@ -17,6 +17,7 @@ int main(int argc, char* argv[]) {
     if (!runtime.initialize()) {
         return -1;
     }
+
 /*
     hadron::Interpreter interpreter;
     if (!interpreter.setup()) {

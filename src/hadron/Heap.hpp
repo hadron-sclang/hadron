@@ -27,7 +27,8 @@ public:
     Heap();
     ~Heap();
 
-    // Default allocation, allocates from the young space (unless extra large).
+    // Default allocation, allocates from the young space (unless extra large). Does not initialize the memory to
+    // a known value, Object::_BasicNew does that.
     void* allocateNew(size_t sizeInBytes);
 
     // Allocates space at the desired size and then sets the fields in the ObjectHeader as provided.

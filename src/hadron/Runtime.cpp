@@ -117,7 +117,11 @@ bool Runtime::buildThreadContext() {
             sizeof(library::Process)));
     m_heap->addToRootSet(process);
     process->classVars = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
-    process->interpreter = m_heap->allocateObject(library::kInterpreterHash, sizeof(library::Interpreter));
+    process->interpreter = Slot();
+    process->curThread = Slot();
+    process->mainThread = Slot();
+    process->schedulerQueue = Slot();
+    process->nowExecutingPath = Slot();
     return true;
 }
 

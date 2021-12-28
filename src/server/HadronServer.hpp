@@ -11,8 +11,8 @@
 
 namespace hadron {
 class ErrorReporter;
-class Interpreter;
 class Lexer;
+class Runtime;
 namespace parse {
 struct BlockNode;
 } // namespace parse
@@ -50,7 +50,7 @@ private:
     ServerState m_state;
     std::shared_ptr<hadron::ErrorReporter> m_errorReporter;
 
-    std::unique_ptr<hadron::Interpreter> m_interpreter;
+    std::unique_ptr<hadron::Runtime> m_runtime;
 };
 
 } // namespace server
