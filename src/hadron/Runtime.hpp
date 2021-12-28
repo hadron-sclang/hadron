@@ -26,6 +26,7 @@ public:
 private:
     bool buildTrampolines();
     bool buildThreadContext();
+    void enterMachineCode(const uint8_t* machineCode);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     std::shared_ptr<Heap> m_heap;

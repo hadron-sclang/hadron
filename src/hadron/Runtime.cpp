@@ -82,7 +82,7 @@ bool Runtime::buildTrampolines() {
     jit.begin(reinterpret_cast<uint8_t*>(jitArray) + sizeof(library::Int8Array),
             jitBufferSize - sizeof(library::Int8Array));
     auto align = jit.enterABI();
-    // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* context and a uint8_t* machineCode
+    // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* m_threadContext and a uint8_t* machineCode
     // pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded into Reg 0. As
     // Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register, I have taken
     // some care to ensure that GPR(2)/Reg 0 is not the stack pointer on any of the supported architectures.
@@ -123,6 +123,30 @@ bool Runtime::buildThreadContext() {
     process->schedulerQueue = Slot();
     process->nowExecutingPath = Slot();
     return true;
+}
+
+void Runtime::enterMachineCode(const uint8_t* machineCode) {
+    // Set machine return address as the exit trampoline into Hadron stack frame.
+    *(m_threadContext->framePointer) = m_threadContext->framePointer;
+    --(m_threadContext->framePointer);
+    *(m_threadContext->framePointer) = m_threadContext->stackPointer;
+    --(m_threadContext->framePointer);
+    *(m_threadContext->framePointer) = reinterpret_cast<uint8_t*>(m_exitTrampoline);
+    --(m_threadContext->framePointer);
+
+    // Initialize return value.
+    *(m_threadContext->framePointer) = Slot();
+    // No arguments means stack pointer == frame pointer.
+    m_threadContext->stackPointer = m_threadContext->framePointer;
+
+    // Set up exit state.
+    m_threadContext->exitMachineCode = reinterpret_cast<uint8_t*>(m_exitTrampoline);
+    m_threadContext->machineCodeStatus = 0;
+
+    // Hit the trampoline.
+    SPDLOG_INFO("Machine code entry.");
+    m_entryTrampoline(m_threadContext.get(), machineCode);
+    SPDLOG_INFO("Machine code exit.");
 }
 
 } // namespace hadron
