@@ -1,13 +1,15 @@
 #include "server/HadronServer.hpp"
 
+#include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
 #include "hadron/ErrorReporter.hpp"
+#include "hadron/Frame.hpp"
 #include "hadron/Lexer.hpp"
-#include "hadron/LinearBlock.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
+#include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
@@ -137,6 +139,7 @@ void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lex
 
     SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer {}", name);
     hadron::LifetimeAnalyzer lifetimeAnalyzer;
+
     lifetimeAnalyzer.buildLifetimes(linearBlock.get());
 
     SPDLOG_TRACE("Compile Diagnostics Register Allocator {}", name);

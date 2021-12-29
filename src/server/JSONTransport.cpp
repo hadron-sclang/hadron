@@ -1,6 +1,8 @@
 #include "server/JSONTransport.hpp"
 
+#include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
+#include "hadron/Frame.hpp"
 #include "hadron/HIR.hpp"
 #include "hadron/internal/BuildInfo.hpp"
 #include "hadron/LifetimeInterval.hpp"

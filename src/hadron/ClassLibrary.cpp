@@ -1,9 +1,11 @@
 #include "hadron/ClassLibrary.hpp"
 
-#include "hadron/ErrorReporter.hpp"
+#include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
+#include "hadron/ErrorReporter.hpp"
+#include "hadron/Frame.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/Keywords.hpp"

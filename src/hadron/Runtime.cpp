@@ -40,7 +40,7 @@ Runtime::~Runtime() {}
 bool Runtime::initialize() {
     if (!buildTrampolines()) return false;
     if (!buildThreadContext()) return false;
-    if (!recompileClassLibrary()) return false;
+//    if (!recompileClassLibrary()) return false;
 
     return true;
 }

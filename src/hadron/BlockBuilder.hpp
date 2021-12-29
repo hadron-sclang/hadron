@@ -5,15 +5,14 @@
 #include "hadron/HIR.hpp"
 #include "hadron/Slot.hpp"
 
-#include <cassert>
-#include <list>
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
 namespace hadron {
 
+struct Block;
 class ErrorReporter;
+struct Frame;
 class Lexer;
 
 namespace parse {
@@ -22,56 +21,10 @@ struct KeyValueNode;
 struct Node;
 } // namespace parse
 
-struct Frame;
-
-struct Block {
-    Block(Frame* owningFrame, int blockNumber): frame(owningFrame), number(blockNumber) {}
-
-    // Value numbers are frame-wide but for LVN the value lookups are block-local, because extra-block values
-    // need to go through a Phi function in this Block. For local value numbering we keep a map of the
-    // value to the associated HIR instruction, for possible re-use of instructions.
-    std::unordered_map<Value, hir::HIR*> values;
-    // Map of names (variables, arguments) to most recent revision of <values, type>
-    std::unordered_map<Hash, std::pair<Value, Value>> revisions;
-
-    // Map of values defined extra-locally and their local value. For convenience we also put local values in here,
-    // mapping to themselves.
-    std::unordered_map<Value, Value> localValues;
-    // Owning frame of this block.
-    Frame* frame;
-    // Unique block number.
-    int number;
-    std::list<Block*> predecessors;
-    std::list<Block*> successors;
-
-    std::list<std::unique_ptr<hir::PhiHIR>> phis;
-    // Statements in order of execution.
-    std::list<std::unique_ptr<hir::HIR>> statements;
-};
-
-// Represents a stack frame, so can have arguments supplied, is a scope for local variables, has an entrance and exit
-// Block.
-struct Frame {
-    Frame(): parent(nullptr) {}
-    ~Frame() = default;
-
-    // In-order hashes of argument names.
-    std::vector<Hash> argumentOrder;
-
-    Frame* parent;
-    std::list<std::unique_ptr<Block>> blocks;
-    std::list<std::unique_ptr<Frame>> subFrames;
-
-    // Values only valid for root frames, subFrame values will be 0.
-    size_t numberOfValues = 0;
-    int numberOfBlocks = 0;
-};
-
 // Goes from parse tree to a Control Flow Graph of Blocks of HIR code in SSA form.
 //
-// This is an implementation of the algorithm described in [SSA2] in the Bibliography, "Simple and Efficient
-// Construction of Static Single Assignment Form" by Bruan M. et al, with modifications to support type deduction while
-// building SSA form.
+// This is an implementation of the algorithm described in [SSA2] "Simple and Efficient Construction of Static Single
+// Assignment Form" by Bruan M. et al, with modifications to support type deduction while building SSA form.
 class BlockBuilder {
 public:
     BlockBuilder(const Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);

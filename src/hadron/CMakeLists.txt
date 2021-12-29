@@ -215,6 +215,8 @@ add_library(hadron STATIC
 )
 
 set(HADRON_COMPILER_UNITTESTS
+    ${CMAKE_CURRENT_SOURCE_DIR}/BlockBuilder_unittests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/BlockSerializer_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ErrorReporter_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lexer_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/LifetimeInterval_unittests.cpp
