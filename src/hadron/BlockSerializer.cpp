@@ -12,7 +12,7 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
     // Prepare the LinearBlock for recording of lifetimes in both values and registers.
     auto linearBlock = std::make_unique<LinearBlock>();
     linearBlock->blockOrder.reserve(baseFrame->numberOfBlocks);
-    linearBlock->blockRanges.reserve(baseFrame->numberOfBlocks);
+    linearBlock->blockRanges.resize(baseFrame->numberOfBlocks, std::make_pair(0, 0));
     linearBlock->valueLifetimes.resize(baseFrame->numberOfValues, std::vector<LifetimeInterval>(1));
     linearBlock->registerLifetimes.resize(numberOfRegisters, std::vector<LifetimeInterval>(1));
     for (size_t i = 0; i < baseFrame->numberOfValues; ++i) {
@@ -53,7 +53,7 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
             linearBlock->instructions.emplace_back(std::move(hir));
         }
 
-        blockRange.second = linearBlock->instructions.size() - 1;
+        blockRange.second = linearBlock->instructions.size();
         linearBlock->blockRanges[block->number] = std::move(blockRange);
     }
 

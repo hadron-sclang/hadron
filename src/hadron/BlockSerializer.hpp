@@ -29,7 +29,9 @@ private:
     // Map of block number to Block struct, useful when recursing through control flow graph.
     std::vector<Block*> m_blocks;
 
+    // Does the recursive postorder traversal of the blocks and saves the output in |blockOrder|.
     void orderBlocks(Block* block, std::vector<int>& blockOrder);
+    // Mark all register lifetimes as in use for one instruction past the last instruction in |linearBlock|.
     void reserveRegisters(LinearBlock* linearBlock);
 };
 
