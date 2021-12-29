@@ -9,10 +9,10 @@ namespace hadron {
 
 // The Linear Scan literature refers to a collection of LiveRanges as a single "lifetime interval," that may or may not
 // contain "lifetime holes." These structs are named to respect that convention. We also include an in-order set of
-// use times, as many linear scan heuristics order candidates by time of next use. No effort is made to enforce use
+// use times, as many linear scan heuristics order candidates by time of next use. The class does nothing to enforce use
 // time consistency with the LiveRange intervals.
 
-// LiveRanges are currently [from, to) meaning usage is starting at |from| and ending, but not including, |to|.
+// LiveRanges are currently [from, to) meaning usage is starting at |from| and ending at, but not including, |to|.
 struct LiveRange {
     LiveRange() = delete;
     LiveRange(size_t f, size_t t): from(f), to(t) {}

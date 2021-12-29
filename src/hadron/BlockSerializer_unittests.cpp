@@ -18,6 +18,13 @@ namespace {
 
 static constexpr size_t kNumberOfTestRegisters = 16;
 
+// This validation is feeling very much like a "change detector" for the BlockSerializer class. However, the input
+// requirements for the rest of the pipeline are specific so this serves as documentation and enforcement of those
+// requiements. What the BlockSerializer does is somewhat "mechanical," too. It is likely there's a smarter way to test
+// this code, so if the maintenence cost of this testing code becomes an undue burden please refactor. I expect the
+// surfaces between BlockBuilder, BlockSerializer, and LifetimeAnalyzer to remain relatively stable, modulo algorithm
+// changes, so the hope is that the serializer changes relatively infrequently and therefore the maintenence cost is low
+// compared to the increased confidence that the inputs to the rest of the compiler pipeline are valid.
 void validateBlock(const hadron::LinearBlock* linearBlock, size_t numberOfBlocks, size_t numberOfValues) {
     REQUIRE_EQ(linearBlock->blockOrder.size(), numberOfBlocks);
     REQUIRE_EQ(linearBlock->blockRanges.size(), numberOfBlocks);
@@ -43,8 +50,33 @@ void validateBlock(const hadron::LinearBlock* linearBlock, size_t numberOfBlocks
         CHECK(linearBlock->valueLifetimes[i][0].isEmpty());
     }
 
+    // Make a list of the indices of DispatchHIR instructions, as we expect registers to be reserved for those.
+    std::vector<size_t> dispatchHIRIndices;
+    for (size_t i = 0; i < linearBlock->instructions.size(); ++i) {
+        if (linearBlock->instructions[i]->opcode == hadron::hir::Opcode::kDispatchCall) {
+            dispatchHIRIndices.emplace_back(i);
+        }
+    }
+
+    // There should be a single lifetime for each register, and it should be reserved for each Dispatch opcode as well
+    // as the first instruction past the end of the program.
     REQUIRE_EQ(linearBlock->registerLifetimes.size(), kNumberOfTestRegisters);
-    // Registers should be reserved for all Dispatch calls, as well as past the end of the block.
+    for (size_t reg = 0; reg < kNumberOfTestRegisters; ++reg) {
+        REQUIRE_EQ(linearBlock->registerLifetimes[reg].size(), 1);
+        CHECK_EQ(linearBlock->registerLifetimes[reg][0].registerNumber, reg);
+        REQUIRE_EQ(linearBlock->registerLifetimes[reg][0].ranges.size(), dispatchHIRIndices.size() + 1);
+        auto rangeIter = linearBlock->registerLifetimes[reg][0].ranges.begin();
+        for (auto index : dispatchHIRIndices) {
+            CHECK_EQ(rangeIter->from, index);
+            CHECK_EQ(rangeIter->to, index + 1);
+            ++rangeIter;
+        }
+        CHECK_EQ(rangeIter->from, linearBlock->instructions.size());
+        CHECK_GT(rangeIter->to, linearBlock->instructions.size());
+    }
+
+    // Spill lifetimes are empty until we finish register allocation.
+    CHECK_EQ(linearBlock->spillLifetimes.size(), 0);
 
     // The spill slot counter should remain at the default until register allocation.
     CHECK_EQ(linearBlock->numberOfSpillSlots, 1);
@@ -72,10 +104,6 @@ std::unique_ptr<hadron::LinearBlock> serialize(const char* code) {
 } // namespace
 
 namespace hadron {
-
-// validate ordering - maybe on different control structures, hand validation
-// check blockRanges, valueLifetimes, registerLifetimes, spillLifetimes
-// numberOfSpillSlots should be 1 always at this step
 
 TEST_CASE("BlockSerializer Simple Blocks") {
     SUBCASE("nil block") {

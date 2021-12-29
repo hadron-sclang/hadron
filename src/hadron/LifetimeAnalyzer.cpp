@@ -82,7 +82,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
         }
 
         // for each operation op of b in reverse order do
-        for (size_t j = blockRange.second; j >= blockRange.first; --j) {
+        for (size_t j = blockRange.second - 1; j >= blockRange.first; --j) {
             const hir::HIR* hir = linearBlock->instructions[j].get();
             // In Hadron there's at most 1 valid output from an HIR so this for loop is instead an if statement.
             // for each output operand opd of op do
@@ -104,6 +104,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
                 live.insert(opd.number);
             }
 
+            // Avoid unsigned comparison causing infinite loops with >= 0.
             if (j == 0) {
                 break;
             }

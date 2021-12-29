@@ -40,7 +40,7 @@ Runtime::~Runtime() {}
 bool Runtime::initialize() {
     if (!buildTrampolines()) return false;
     if (!buildThreadContext()) return false;
-//    if (!recompileClassLibrary()) return false;
+    if (!recompileClassLibrary()) return false;
 
     return true;
 }
@@ -82,10 +82,10 @@ bool Runtime::buildTrampolines() {
     jit.begin(reinterpret_cast<uint8_t*>(jitArray) + sizeof(library::Int8Array),
             jitBufferSize - sizeof(library::Int8Array));
     auto align = jit.enterABI();
-    // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* m_threadContext and a uint8_t* machineCode
-    // pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded into Reg 0. As
-    // Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register, I have taken
-    // some care to ensure that GPR(2)/Reg 0 is not the stack pointer on any of the supported architectures.
+    // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* m_threadContext and a uint8_t*
+    // machineCode pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded into
+    // Reg 0. As Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register, I have
+    // taken some care to ensure that GPR(2)/Reg 0 is not the stack pointer on any of the supported architectures.
     jit.loadCArgs2(JIT::kContextPointerReg, JIT::Reg(0));
     // Save the C stack pointer, this pointer is *not* tagged as it does not point into Hadron-allocated heap.
     jit.stxi_w(offsetof(ThreadContext, cStackPointer), JIT::kContextPointerReg, jit.getCStackPointerRegister());

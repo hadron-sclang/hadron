@@ -44,7 +44,7 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(const parse::BlockNode* block
 
     // Build argument name list and default values.
 
-    // Hack to always append *this* which actually has a known type, interesting.
+    // The *this* pointer is always the first argument to every block.
     frame->argumentOrder.emplace_back(kThisHash);
 
     const parse::ArgListNode* argList = blockNode->arguments.get();
