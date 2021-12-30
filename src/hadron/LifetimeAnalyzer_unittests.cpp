@@ -58,11 +58,11 @@ std::unique_ptr<hadron::LinearBlock> analyze(const char* code) {
     return linearBlock;
 }
 
-}
+} // namespace
 
 namespace hadron {
 
-TEST_CASE("BlockSerializer Simple Blocks") {
+TEST_CASE("LifetimeAnalyzer Simple Blocks") {
     SUBCASE("nil block") {
         analyze("nil");
     }
