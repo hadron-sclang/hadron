@@ -8,8 +8,7 @@
 #include <unordered_map>
 
 /*
-Pseudocode taken from [RA5] in the Bibliography, "Linear Scan Register Allocation on SSA Form." by C. Wimmer and M.
-Franz.
+Pseudocode taken from [RA5] "Linear Scan Register Allocation on SSA Form." by C. Wimmer and M. Franz.
 
 RESOLVE
 for each control flow edge from predecessor to successor do

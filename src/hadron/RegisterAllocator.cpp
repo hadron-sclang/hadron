@@ -128,6 +128,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         std::pop_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
         LifetimeInterval current = std::move(m_unhandled.back());
         m_unhandled.pop_back();
+        assert(!current.isEmpty());
 
         // position = start position of current
         size_t position = current.start();
@@ -295,6 +296,7 @@ void RegisterAllocator::allocateBlockedReg(LifetimeInterval& current, LinearBloc
     }
 
     // if first usage of current is after nextUsePos[reg] then
+    assert(current.usages.size());
     size_t currentFirstUsage = *current.usages.begin();
     if (currentFirstUsage > highestNextUsePos) {
         // all other intervals are used before current, so it is best to spill current itself

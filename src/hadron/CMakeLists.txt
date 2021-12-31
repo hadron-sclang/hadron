@@ -201,6 +201,8 @@ add_library(hadron STATIC
     MoveScheduler.hpp
     Page.cpp
     Page.hpp
+    Pipeline.cpp
+    Pipeline.hpp
     PrimitiveDispatcher.cpp
     PrimitiveDispatcher.hpp
     RegisterAllocator.cpp
@@ -223,6 +225,7 @@ set(HADRON_COMPILER_UNITTESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/LifetimeInterval_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MoveScheduler_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Parser_unittests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Pipeline_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/RegisterAllocator_unittests.cpp
     PARENT_SCOPE
 )
