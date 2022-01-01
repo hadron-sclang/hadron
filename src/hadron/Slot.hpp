@@ -18,6 +18,7 @@ class Slot {
 public:
     // Construct a Slot with nil value.
     inline Slot() { m_asBits = kNilTag; }
+    inline Slot(nullptr_t) { m_asBits = kNilTag; }
     inline Slot(double number) {
         m_asDouble = number;
         assert(m_asBits < kMaxDouble);

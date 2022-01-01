@@ -29,17 +29,17 @@ struct BlockNode;
 
 struct Block;
 class ErrorReporter;
-class Heap;
 struct Frame;
 class Lexer;
 struct LinearBlock;
+struct ThreadContext;
 
 // Utility class to compile an input string into machine code. Includes optional code to validate the compiler state
 // between each step in the pipeline, and virtual methods for additional validation work per-step.
 class Pipeline {
 public:
     Pipeline();
-    explicit Pipeline(std::shared_ptr<Heap> heap, std::shared_ptr<ErrorReporter> errorReporter);
+    explicit Pipeline(std::shared_ptr<ErrorReporter> errorReporter);
     ~Pipeline();
 
     // Parameters to override before compilation, or leave at defaults.
@@ -47,7 +47,7 @@ public:
     void setNumberOfRegisters(size_t n) { m_numberOfRegisters = n; }
 
     // For interpreter code only, returns a LinearBlock structure ready for JIT emission, or nullptr on error.
-    Slot compileBlock(std::string_view code);
+    Slot compileBlock(ThreadContext* context, std::string_view code);
     // bool compileMethod(const parse::MethodNode* method, ) ??
 
 #if HADRON_PIPELINE_VALIDATE
@@ -62,10 +62,9 @@ public:
     virtual bool afterResolver(const LinearBlock* linearBlock);
 #endif // HADRON_PIPELINE_VALIDATE
 
-
 protected:
     void setDefaults();
-    std::unique_ptr<LinearBlock> buildBlock(const parse::BlockNode* blockNode, const Lexer* lexer);
+    Slot buildBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer);
 
 #if HADRON_PIPELINE_VALIDATE
     // Checks for valid SSA form and that all members of Frame and contained Blocks are valid.
@@ -84,9 +83,9 @@ protected:
     bool validateResolution(const LinearBlock* linearBlock);
 #endif // HADRON_PIPELINE_VALIDATE
 
-    std::shared_ptr<Heap> m_heap;
     std::shared_ptr<ErrorReporter> m_errorReporter;
     size_t m_numberOfRegisters;
+    bool m_jitToVirtualMachine;
 };
 
 } // namespace hadron

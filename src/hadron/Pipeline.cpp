@@ -3,12 +3,12 @@
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
-//#include "hadron/Emitter.hpp"
+#include "hadron/Emitter.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/HIR.hpp"
-//#include "hadron/Heap.hpp"
+#include "hadron/Heap.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
@@ -17,7 +17,8 @@
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
-//#include "hadron/SourceFile.hpp"
+#include "hadron/ThreadContext.hpp"
+#include "hadron/VirtualJIT.hpp"
 
 #include "spdlog/spdlog.h"
 
@@ -29,7 +30,7 @@ Pipeline::Pipeline(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporte
 
 Pipeline::~Pipeline() {}
 
-std::unique_ptr<LinearBlock> Pipeline::compileBlock(std::string_view code) {
+Slot Pipeline::compileBlock(ThreadContext* context, std::string_view code) {
     Lexer lexer(code, m_errorReporter);
     if (!lexer.lex()) { return nullptr; }
 
@@ -38,7 +39,7 @@ std::unique_ptr<LinearBlock> Pipeline::compileBlock(std::string_view code) {
 
     assert(parser.root()->nodeType == parse::NodeType::kBlock);
 
-    return buildBlock(reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer);
+    return buildBlock(context, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer);
 }
 
 #if HADRON_PIPELINE_VALIDATE
@@ -51,9 +52,10 @@ bool Pipeline::afterResolver(const LinearBlock*) { return true; }
 
 void Pipeline::setDefaults() {
     m_numberOfRegisters = LighteningJIT::physicalRegisterCount();
+    m_jitToVirtualMachine = false;
 }
 
-std::unique_ptr<LinearBlock> Pipeline::buildBlock(const parse::BlockNode* blockNode, const Lexer* lexer) {
+Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer) {
     hadron::BlockBuilder builder(lexer, m_errorReporter);
     auto frame = builder.buildFrame(blockNode);
     if (!frame) { return nullptr; }
@@ -93,7 +95,24 @@ std::unique_ptr<LinearBlock> Pipeline::buildBlock(const parse::BlockNode* blockN
     if (!afterResolver(linearBlock.get())) { return nullptr; }
 #endif // HADRON_PIPELINE_VALIDATE
 
-    return linearBlock;
+    size_t jitSizeEstimate = 0;
+    for (const auto& hir : linearBlock->instructions) {
+        jitSizeEstimate += 16 + (16 * hir->moves.size());
+    }
+    size_t jitMaxSize = jitSizeEstimate;
+    std::unique_ptr<JIT> jit;
+    library::Int8Array* bytecodeArray = nullptr;
+    if (m_jitToVirtualMachine) {
+        jit = std::make_unique<VirtualJIT>(m_errorReporter, m_numberOfRegisters, m_numberOfRegisters);
+    } else {
+        jit = std::make_unique<LighteningJIT>(m_errorReporter);
+        bytecodeArray = context->heap->allocateJIT(jitSizeEstimate, jitMaxSize);
+        LighteningJIT* lighteningJIT = reinterpret_cast<LighteningJIT*>(jit.get());
+        lighteningJIT->begin(reinterpret_cast<uint8_t*>(bytecodeArray) + sizeof(library::Int8Array),
+                jitMaxSize - sizeof(library::Int8Array));
+    }
+
+    return Slot(bytecodeArray);
 }
 
 #if HADRON_PIPELINE_VALIDATE
