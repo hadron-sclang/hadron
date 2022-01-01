@@ -462,8 +462,8 @@ bool Pipeline::validateAllocation(const hadron::LinearBlock* linearBlock) {
 }
 
 bool Pipeline::validateResolution(const LinearBlock*) {
-    // Could go through and look at boundaries for each block, validating that the expectations of where values are
-    // have been met from each predecessor block.
+    // TODO: Could go through and look at boundaries for each block, validating that the expectations of where values
+    // are have been met from each predecessor block.
     return true;
 }
 

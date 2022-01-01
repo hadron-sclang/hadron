@@ -10,6 +10,8 @@
 #endif // NDEBUG
 #endif // HADRON_PIPELINE_VALIDATE
 
+#include "hadron/Slot.hpp"
+
 #include <memory>
 #include <string_view>
 #include <unordered_map>
@@ -27,6 +29,7 @@ struct BlockNode;
 
 struct Block;
 class ErrorReporter;
+class Heap;
 struct Frame;
 class Lexer;
 struct LinearBlock;
@@ -36,12 +39,15 @@ struct LinearBlock;
 class Pipeline {
 public:
     Pipeline();
-    explicit Pipeline(std::shared_ptr<ErrorReporter> errorReporter);
+    explicit Pipeline(std::shared_ptr<Heap> heap, std::shared_ptr<ErrorReporter> errorReporter);
     ~Pipeline();
 
+    // Parameters to override before compilation, or leave at defaults.
+    size_t numberOfRegisters() const { return m_numberOfRegisters; }
+    void setNumberOfRegisters(size_t n) { m_numberOfRegisters = n; }
+
     // For interpreter code only, returns a LinearBlock structure ready for JIT emission, or nullptr on error.
-    // Number of registers is
-    std::unique_ptr<LinearBlock> compileBlock(std::string_view code);
+    Slot compileBlock(std::string_view code);
     // bool compileMethod(const parse::MethodNode* method, ) ??
 
 #if HADRON_PIPELINE_VALIDATE
@@ -56,8 +62,6 @@ public:
     virtual bool afterResolver(const LinearBlock* linearBlock);
 #endif // HADRON_PIPELINE_VALIDATE
 
-    size_t numberOfRegisters() const { return m_numberOfRegisters; }
-    void setNumberOfRegisters(size_t n) { m_numberOfRegisters = n; }
 
 protected:
     void setDefaults();
@@ -80,6 +84,7 @@ protected:
     bool validateResolution(const LinearBlock* linearBlock);
 #endif // HADRON_PIPELINE_VALIDATE
 
+    std::shared_ptr<Heap> m_heap;
     std::shared_ptr<ErrorReporter> m_errorReporter;
     size_t m_numberOfRegisters;
 };
