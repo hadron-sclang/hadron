@@ -46,6 +46,16 @@ public:
     static constexpr JIT::Reg kContextPointerReg = -2;
     static constexpr JIT::Reg kStackPointerReg = -1;
 
+    // ===== Serialization
+    // Begin recording jit bytecode into the provided |buffer| with maximum |size|.
+    virtual void begin(uint8_t* buffer, size_t size) = 0;
+    // Returns true if the bytecode didn't fit into the provided buffer size.
+    virtual bool hasJITBufferOverflow() = 0;
+    // Set jit pointer back to beginning of buffer.
+    virtual void reset() = 0;
+    // End recording jit bytecode into the buffer, writes the final size to sizeOut. Returns the jit address to begin().
+    virtual Address end(size_t* sizeOut) = 0;
+
     // ===== Machine Properties
     virtual int getRegisterCount() const = 0;
     virtual int getFloatRegisterCount() const = 0;
