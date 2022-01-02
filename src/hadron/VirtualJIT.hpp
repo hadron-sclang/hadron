@@ -2,6 +2,7 @@
 #define SRC_COMPILER_INCLUDE_HADRON_VIRTUAL_JIT_HPP_
 
 #include "hadron/JIT.hpp"
+#include "hadron/OpcodeIterator.hpp"
 
 #include <array>
 #include <string>
@@ -56,48 +57,13 @@ public:
     void patchHere(Label label) override;
     void patchThere(Label target, Address location) override;
 
-    enum Opcodes : uint8_t {
-        kAddr       = 0x01,
-        kAddi       = 0x02,
-        kAndi       = 0x03,
-        kOri        = 0x04,
-        kXorr       = 0x05,
-        kMovr       = 0x06,
-        kMovi       = 0x07,
-        kBgei       = 0x08,
-        kBeqi       = 0x09,
-        kJmp        = 0x0a,
-        kJmpr       = 0x0b,
-        kJmpi       = 0x0c,
-        kLdrL       = 0x0d,
-        kLdxiW      = 0x0e,
-        kLdxiI      = 0x0f,
-        kLdxiL      = 0x10,
-        kStrI       = 0x11,
-        kStrL       = 0x12,
-        kStxiW      = 0x13,
-        kStxiI      = 0x14,
-        kStxiL      = 0x15,
-        kRet        = 0x16,
-        kRetr       = 0x17,
-        kReti       = 0x18,
-        kLabel      = 0x19,
-        kAddress    = 0x1a,
-        kPatchHere  = 0x1b,
-        kPatchThere = 0x1c,
-    };
-
-    using Inst = std::array<Word, 4>;
-    const std::vector<Inst>& instructions() const { return m_instructions; }
-    const std::vector<size_t>& labels() const { return m_labels; }
-    const std::vector<UWord>& uwords() const { return m_uwords; }
-
 private:
+    uint8_t reg(Reg r);
+
     int m_maxRegisters;
     int m_maxFloatRegisters;
-    std::vector<Inst> m_instructions;
-    std::vector<size_t> m_labels;  // indices in the m_instructions table.
-    std::vector<UWord> m_uwords; // store unsigned words separately
+    OpcodeIterator m_iterator;
+    std::vector<uint8_t*> m_labels;  // indices in the m_instructions table.
     int m_addressCount; // keep a count of requests to address() so we can refer to them by index.
 };
 

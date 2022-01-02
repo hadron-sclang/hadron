@@ -1,6 +1,8 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_JIT_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_JIT_HPP_
 
+#include "hadron/Arch.hpp"
+
 #include <cstddef>
 #include <memory>
 
@@ -34,13 +36,6 @@ public:
     using Label = int32_t;
     using Reg = int32_t;
     using Address = int32_t;
-#ifdef HADRON_64_BIT
-    using Word = int64_t;
-    using UWord = uint64_t;
-#else
-    using Word = int32_t;
-    using UWord = uint32_t;
-#endif
  
     // We reserve GPR(0) and GPR(1) for the context and stack pointers, respectively.
     static constexpr JIT::Reg kContextPointerReg = -2;

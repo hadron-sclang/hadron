@@ -25,7 +25,12 @@ VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter):
 VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter, int maxRegisters, int maxFloatRegisters):
     JIT(errorReporter),
     m_maxRegisters(maxRegisters),
-    m_maxFloatRegisters(maxFloatRegisters) { }
+    m_maxFloatRegisters(maxFloatRegisters),
+    m_addressCount(0) {}
+
+void VirtualJIT::begin(uint8_t* buffer, size_t size) {
+    m_iterator.setBuffer(buffer, size);
+}
 
 int VirtualJIT::getRegisterCount() const {
     if (m_maxRegisters < 3) {
@@ -39,7 +44,10 @@ int VirtualJIT::getFloatRegisterCount() const {
 }
 
 void VirtualJIT::addr(Reg target, Reg a, Reg b) {
-    m_instructions.emplace_back(Inst{Opcodes::kAddr, target, a, b});
+    m_iterator.addByte(Opcodes::kAddr);
+    m_iterator.addByte(reg(target));
+    m_iterator.addByte(reg(a));
+    m_iterator.addByte(reg(b));
 }
 
 void VirtualJIT::addi(Reg target, Reg a, Word b) {
@@ -179,6 +187,10 @@ void VirtualJIT::patchThere(Label target, Address location) {
         m_errorReporter->addInternalError(fmt::format("VirtualJIT patchat label_{} label_{} contains out-of-bounds "
             "label argument as there are only {} labels", target, location, m_labels.size()));
     }
+}
+
+uint8_t VirtualJIT::reg(Reg r) {
+    return static_cast<uint8_t>(r + 2);
 }
 
 } // namespace hadron

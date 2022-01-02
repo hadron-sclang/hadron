@@ -56,37 +56,6 @@ void LighteningJIT::markThreadForJITExecution() {
     pthread_jit_write_protect_np(true);
 }
 
-// static
-int LighteningJIT::physicalRegisterCount() {
-    // Two registers always reserved for context pointer and stack pointer.
-#   if defined(__i386__)
-    return 8 - 2;
-#   elif defined(__x86_64__)
-    return 16 - 2;
-#   elif defined(__arm__)
-    return 16 - 2;
-#   elif defined(__aarch64__)
-    return 32 - 2;
-#   else
-#   error "Undefined chipset"
-#   endif
-}
-
-// static
-int LighteningJIT::physicalFloatRegisterCount() {
-#   if defined(__i386__)
-    return 8;
-#   elif defined(__x86_64__)
-    return 16;
-#   elif defined(__arm__)
-    return 32;
-#   elif defined(__aarch64__)
-    return 32;
-#   else
-#   error "Undefined chipset"
-#   endif
-}
-
 void LighteningJIT::begin(uint8_t* buffer, size_t size) {
     jit_begin(m_state, buffer, size);
 }

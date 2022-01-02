@@ -26,8 +26,6 @@ public:
 
     static bool markThreadForJITCompilation();
     static void markThreadForJITExecution();
-    static int physicalRegisterCount();
-    static int physicalFloatRegisterCount();
 
     // Save current state from the calling C-style stack frame, including all callee-save registers, and update the
     // C stack pointer (modulo alignment) to point just below this. Returns the number of bytes pushed on to the stack,

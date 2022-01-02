@@ -177,6 +177,7 @@ add_library(hadron STATIC
     library/Object.cpp
     library/Symbol.cpp
 
+    Arch.hpp
     BlockBuilder.cpp
     BlockBuilder.hpp
     BlockSerializer.cpp
@@ -199,6 +200,8 @@ add_library(hadron STATIC
     LinearBlock.hpp
     MoveScheduler.cpp
     MoveScheduler.hpp
+    OpcodeIterator.cpp
+    OpcodeIterator.hpp
     Page.cpp
     Page.hpp
     Pipeline.cpp
