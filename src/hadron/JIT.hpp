@@ -8,7 +8,6 @@
 
 namespace hadron {
 
-class ErrorReporter;
 struct Function;
 
 // TODO: refactor to represent a re-useable tool that produces some kind of build product, a callable block of code
@@ -29,8 +28,7 @@ struct Function;
 // 5) add support for the opcode in MachineCodeRenderer::render()
 class JIT {
 public:
-    JIT(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporter(errorReporter) {}
-    JIT() = delete;
+    JIT() = default;
     virtual ~JIT() = default;
 
     using Label = int32_t;
@@ -123,9 +121,6 @@ public:
     virtual void patchHere(Label label) = 0;
     // Makes |target| point to |location|, for backward jumps.
     virtual void patchThere(Label target, Address location) = 0;
-
-protected:
-    std::shared_ptr<ErrorReporter> m_errorReporter;
 };
 
 } // namespace hadron

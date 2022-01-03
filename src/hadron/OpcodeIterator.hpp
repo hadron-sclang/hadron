@@ -1,8 +1,12 @@
 #ifndef SRC_HADRON_OPCODE_ITERATOR_HPP_
 #define SRC_HADRON_OPCODE_ITERATOR_HPP_
 
+#include "hadron/Arch.hpp"
+
 #include <cstddef>
 #include <cstdint>
+
+namespace hadron {
 
 enum Opcodes : uint8_t {
     kAddr       = 0x01,
@@ -35,17 +39,26 @@ enum Opcodes : uint8_t {
     kPatchThere = 0x1c,
 };
 
-namespace hadron {
-
 class OpcodeIterator {
 public:
     OpcodeIterator() = default;
     ~OpcodeIterator() = default;
 
     void setBuffer(uint8_t* address, size_t size);
+    void reset();
 
     // All the serialization methods return a boolean if there was capacity to add the element or no.
     bool addByte(uint8_t byte);
+    bool addWord(Word word);
+    bool addUWord(UWord word);
+    bool addInt(int integer);
+    // |location| needs to be within the buffer. Overwrites whatever is there with |value|.
+    bool patchWord(uint8_t* location, Word value);
+
+    uint8_t* getCurrent() const { return m_currentBytecode; }
+    bool hasOverflow() const { return m_currentBytecode >= m_endOfBytecode; }
+    // This can return values larger than |size| in the event of an overflow.
+    size_t getSize() const { return m_currentBytecode - m_startOfBytecode; }
 
 private:
     uint8_t* m_startOfBytecode = nullptr;

@@ -1,7 +1,5 @@
 #include "hadron/LighteningJIT.hpp"
 
-#include "hadron/ErrorReporter.hpp"
-
 #include "fmt/format.h"
 #include "spdlog/spdlog.h"
 
@@ -31,9 +29,8 @@ namespace {
 namespace hadron {
 
 
-LighteningJIT::LighteningJIT(std::shared_ptr<ErrorReporter> errorReporter):
-    JIT(errorReporter),
-    m_stackBase(0) {
+LighteningJIT::LighteningJIT():
+    JIT() {
     m_state = jit_new_state(malloc, free);
 }
 
@@ -126,11 +123,11 @@ LighteningJIT::FunctionPointer LighteningJIT::addressToFunctionPointer(Address a
 }
 
 int LighteningJIT::getRegisterCount() const {
-    return physicalRegisterCount();
+    return kNumberOfPhysicalRegisters;
 }
 
 int LighteningJIT::getFloatRegisterCount() const {
-    return physicalFloatRegisterCount();
+    return kNumberOfPhysicalFloatRegisters;
 }
 
 void LighteningJIT::addr(Reg target, Reg a, Reg b) {
@@ -259,6 +256,11 @@ void LighteningJIT::patchHere(Label label) {
 
 void LighteningJIT::patchThere(Label target, Address location) {
     jit_patch_there(m_state, m_labels[target], m_addresses[location]);
+}
+
+// static
+void LighteningJIT::initJITGlobals() {
+    init_jit();
 }
 
 jit_gpr_t LighteningJIT::reg(Reg r) const {

@@ -46,7 +46,7 @@ public:
     size_t numberOfRegisters() const { return m_numberOfRegisters; }
     void setNumberOfRegisters(size_t n) { m_numberOfRegisters = n; }
 
-    // For interpreter code only, returns a LinearBlock structure ready for JIT emission, or nullptr on error.
+    // For interpreter code only, returns an Int8Array with JIT bytecode, or nil on error.
     Slot compileBlock(ThreadContext* context, std::string_view code);
     // bool compileMethod(const parse::MethodNode* method, ) ??
 
@@ -60,6 +60,7 @@ public:
     virtual bool afterLifetimeAnalyzer(const LinearBlock* linearBlock);
     virtual bool afterRegisterAllocator(const LinearBlock* linearBlock);
     virtual bool afterResolver(const LinearBlock* linearBlock);
+    virtual bool afterEmitter(const LinearBlock* linearBlock, Slot bytecodeArray);
 #endif // HADRON_PIPELINE_VALIDATE
 
 protected:
@@ -81,6 +82,8 @@ protected:
     bool validateRegisterCoverage(const LinearBlock* linearBlock, size_t i, uint32_t vReg);
 
     bool validateResolution(const LinearBlock* linearBlock);
+
+    bool validateEmission(const LinearBlock* linearBlock, Slot bytecodeArray);
 #endif // HADRON_PIPELINE_VALIDATE
 
     std::shared_ptr<ErrorReporter> m_errorReporter;

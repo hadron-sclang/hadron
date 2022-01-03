@@ -1,5 +1,6 @@
 #include "hadron/Pipeline.hpp"
 
+#include "hadron/Arch.hpp"
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
@@ -19,6 +20,13 @@
 #include "hadron/Resolver.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "hadron/VirtualJIT.hpp"
+
+#include "schema/Common/Core/Object.hpp"
+#include "schema/Common/Core/Kernel.hpp"
+#include "schema/Common/Collections/Collection.hpp"
+#include "schema/Common/Collections/SequenceableCollection.hpp"
+#include "schema/Common/Collections/ArrayedCollection.hpp"
+#include "schema/Common/Collections/Array.hpp"
 
 #include "spdlog/spdlog.h"
 
@@ -48,10 +56,11 @@ bool Pipeline::afterBlockSerializer(const LinearBlock*) { return true; }
 bool Pipeline::afterLifetimeAnalyzer(const LinearBlock*) { return true; }
 bool Pipeline::afterRegisterAllocator(const LinearBlock*) { return true; }
 bool Pipeline::afterResolver(const LinearBlock*) { return true; }
+bool Pipeline::afterEmitter(const LinearBlock*, Slot) { return true; }
 #endif // HADRON_PIPELINE_VALIDATE
 
 void Pipeline::setDefaults() {
-    m_numberOfRegisters = LighteningJIT::physicalRegisterCount();
+    m_numberOfRegisters = kNumberOfPhysicalRegisters;
     m_jitToVirtualMachine = false;
 }
 
@@ -95,22 +104,35 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
     if (!afterResolver(linearBlock.get())) { return nullptr; }
 #endif // HADRON_PIPELINE_VALIDATE
 
-    size_t jitSizeEstimate = 0;
+    size_t jitMaxSize = sizeof(library::Int8Array);
     for (const auto& hir : linearBlock->instructions) {
-        jitSizeEstimate += 16 + (16 * hir->moves.size());
+        jitMaxSize += 16 + (16 * hir->moves.size());
     }
-    size_t jitMaxSize = jitSizeEstimate;
     std::unique_ptr<JIT> jit;
     library::Int8Array* bytecodeArray = nullptr;
     if (m_jitToVirtualMachine) {
-        jit = std::make_unique<VirtualJIT>(m_errorReporter, m_numberOfRegisters, m_numberOfRegisters);
+        jit = std::make_unique<VirtualJIT>(m_numberOfRegisters, m_numberOfRegisters);
+        bytecodeArray = reinterpret_cast<library::Int8Array*>(context->heap->allocateObject(library::kInt8ArrayHash,
+                jitMaxSize));
+        jitMaxSize = context->heap->getAllocationSize(bytecodeArray);
     } else {
-        jit = std::make_unique<LighteningJIT>(m_errorReporter);
-        bytecodeArray = context->heap->allocateJIT(jitSizeEstimate, jitMaxSize);
-        LighteningJIT* lighteningJIT = reinterpret_cast<LighteningJIT*>(jit.get());
-        lighteningJIT->begin(reinterpret_cast<uint8_t*>(bytecodeArray) + sizeof(library::Int8Array),
-                jitMaxSize - sizeof(library::Int8Array));
+        jit = std::make_unique<LighteningJIT>();
+        bytecodeArray = context->heap->allocateJIT(jitMaxSize, jitMaxSize);
     }
+    jit->begin(reinterpret_cast<uint8_t*>(bytecodeArray) + sizeof(library::Int8Array),
+        jitMaxSize - sizeof(library::Int8Array));
+
+    Emitter emitter;
+    emitter.emit(linearBlock.get(), jit.get());
+    assert(!jit->hasJITBufferOverflow());
+    size_t finalSize = 0;
+    jit->end(&finalSize);
+    bytecodeArray->_sizeInBytes = finalSize + sizeof(library::Int8Array);
+
+#if HADRON_PIPELINE_VALIDATE
+    if (!validateEmission(linearBlock.get(), bytecodeArray)) { return nullptr; }
+    if (!afterEmitter(linearBlock.get(), bytecodeArray)) { return nullptr; }
+#endif
 
     return Slot(bytecodeArray);
 }
@@ -483,6 +505,10 @@ bool Pipeline::validateAllocation(const hadron::LinearBlock* linearBlock) {
 bool Pipeline::validateResolution(const LinearBlock*) {
     // TODO: Could go through and look at boundaries for each block, validating that the expectations of where values
     // are have been met from each predecessor block.
+    return true;
+}
+
+bool Pipeline::validateEmission(const LinearBlock*, Slot) {
     return true;
 }
 

@@ -20,8 +20,7 @@ namespace hadron {
 
 class LighteningJIT : public JIT {
 public:
-    LighteningJIT(std::shared_ptr<ErrorReporter> errorReporter);
-    LighteningJIT() = delete;
+    LighteningJIT();
     virtual ~LighteningJIT();
 
     static bool markThreadForJITCompilation();
@@ -76,7 +75,8 @@ public:
     void patchHere(Label label) override;
     void patchThere(Label target, Address location) override;
 
-    // Lightening requires a call to a global setup function before emitting any JIT bytecode.
+    // Lightening requires a call to a global setup function before emitting any JIT bytecode. Repeated calls are
+    // harmless.
     static void initJITGlobals();
 
     const uint8_t* getAddress(Address a) const { return static_cast<const uint8_t*>(m_addresses[a]); }
@@ -88,8 +88,6 @@ private:
     std::vector<jit_pointer_t> m_addresses;
     // Non-owning pointers to nodes within the jit_state struct, used for labels.
     std::vector<jit_reloc_t> m_labels;
-    // Offset in bytes from the stack frame pointer where the stack begins.
-    int m_stackBase;
 };
 
 }

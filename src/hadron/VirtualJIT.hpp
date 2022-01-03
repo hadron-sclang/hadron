@@ -4,8 +4,6 @@
 #include "hadron/JIT.hpp"
 #include "hadron/OpcodeIterator.hpp"
 
-#include <array>
-#include <string>
 #include <vector>
 
 namespace hadron {
@@ -15,15 +13,15 @@ class VirtualJIT : public JIT {
 public:
     // For unit testing, the empty constructor sets reasonable limits on virtual registers.
     VirtualJIT();
-    // Default constructor allows for approximately infinite registers.
-    VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter);
     // Constructor for testing allows control over register counts to test register allocation.
-    VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter, int maxRegisters, int maxFloatRegisters);
+    VirtualJIT(int maxRegisters, int maxFloatRegisters);
     virtual ~VirtualJIT() = default;
 
     void begin(uint8_t* buffer, size_t size) override;
     bool hasJITBufferOverflow() override;
     void reset() override;
+    // Because the iterator can continue to record sizes even after overflow, if the buffer has overflowed this will
+    // return a |sizeOut| greater than the supplied buffer size.
     Address end(size_t* sizeOut) override;
     int getRegisterCount() const override;
     int getFloatRegisterCount() const override;
@@ -63,8 +61,10 @@ private:
     int m_maxRegisters;
     int m_maxFloatRegisters;
     OpcodeIterator m_iterator;
-    std::vector<uint8_t*> m_labels;  // indices in the m_instructions table.
-    int m_addressCount; // keep a count of requests to address() so we can refer to them by index.
+    // Labels are pointers into the bytecode with room reserved for patching the bytecode with address values.
+    std::vector<uint8_t*> m_labels;
+    // Addresses are pointers into the bytecode with no room reserved for patching the bytecode.
+    std::vector<uint8_t*> m_addresses;
 };
 
 } // namespace hadron

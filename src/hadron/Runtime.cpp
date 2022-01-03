@@ -32,12 +32,14 @@ Runtime::Runtime(std::shared_ptr<ErrorReporter> errorReporter):
     m_heap(std::make_shared<Heap>()),
     m_threadContext(std::make_unique<ThreadContext>()),
     m_classLibrary(std::make_unique<ClassLibrary>(errorReporter)) {
+    LighteningJIT::initJITGlobals();
     m_threadContext->heap = m_heap;
 }
 
 Runtime::~Runtime() {}
 
 bool Runtime::initialize() {
+
     if (!buildTrampolines()) return false;
     if (!buildThreadContext()) return false;
     if (!recompileClassLibrary()) return false;
@@ -45,7 +47,7 @@ bool Runtime::initialize() {
     return true;
 }
 
-bool Runtime::recompileClassLibrary() {
+bool Runtime::compileClassLibrary() {
     auto classLibPath = findSCClassLibrary();
     SPDLOG_INFO("Starting Class Library compilation for files at {}", classLibPath.c_str());
 
@@ -78,7 +80,7 @@ bool Runtime::buildTrampolines() {
     size_t jitBufferSize = 0;
     library::Int8Array* jitArray = m_heap->allocateJIT(Heap::kSmallObjectSize, jitBufferSize);
     m_heap->addToRootSet(jitArray);
-    LighteningJIT jit(m_errorReporter);
+    LighteningJIT jit;
     jit.begin(reinterpret_cast<uint8_t*>(jitArray) + sizeof(library::Int8Array),
             jitBufferSize - sizeof(library::Int8Array));
     auto align = jit.enterABI();
