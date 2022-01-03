@@ -1,11 +1,13 @@
 #include "hadron/MoveScheduler.hpp"
 
+#include "hadron/OpcodeIterator.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/VirtualJIT.hpp"
 
 #include "doctest/doctest.h"
 #include "spdlog/spdlog.h"
 
+#include <array>
 #include <unordered_map>
 
 namespace hadron {
@@ -15,17 +17,28 @@ TEST_CASE("MoveScheduler simple") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves;
         MoveScheduler ms;
+        std::array<uint8_t, 16> jitBuffer;
+        jit.begin(jitBuffer.data(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
-        CHECK(jit.instructions().size() == 0);
+        size_t finalSize = 0;
+        jit.end(&finalSize);
+        CHECK_EQ(finalSize, 0);
     }
 
     SUBCASE("register to register") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves({{3, 2}});
         MoveScheduler ms;
+        std::array<uint8_t, 16> jitBuffer;
+        jit.begin(jitBuffer.data(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
-        REQUIRE(jit.instructions().size() == 1);
-        CHECK(jit.instructions()[0] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 2, 3 });
+        size_t finalSize = 0;
+        jit.end(&finalSize);
+        // Should have written 3 bytes to the buffer
+        REQUIRE_EQ(finalSize, 3);
+        CHECK_EQ(jitBuffer[0], Opcodes::kMovr);
+        CHECK_EQ(jitBuffer[1], 2);
+        CHECK_EQ(jitBuffer[2], 3);
     }
 
     SUBCASE("register to spill") {
@@ -33,6 +46,15 @@ TEST_CASE("MoveScheduler simple") {
         std::unordered_map<int, int> moves({{0, -1}});
         MoveScheduler ms;
         REQUIRE(ms.scheduleMoves(moves, &jit));
+        size_t finalSize = 0;
+        jit.end(&finalSize);
+        // Should have written 3 bytes to the buffer
+        REQUIRE_EQ(finalSize, 3);
+        CHECK_EQ(jitBuffer[0], Opcodes::kMovr);
+        CHECK_EQ(jitBuffer[1], 2);
+        CHECK_EQ(jitBuffer[2], 3);
+
+
         REQUIRE(jit.instructions().size() == 1);
         CHECK(jit.instructions()[0] ==
             VirtualJIT::Inst{ VirtualJIT::Opcodes::kStxiL, -1 * kSlotSize, JIT::kStackPointerReg, 0 });

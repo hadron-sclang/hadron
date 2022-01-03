@@ -57,4 +57,11 @@ bool OpcodeIterator::patchWord(uint8_t* location, Word value) {
     return true;
 }
 
+uint8_t OpcodeIterator::readByte() {
+    if (hasOverflow()) return 0xff;
+    uint8_t val = *m_currentBytecode;
+    ++m_currentBytecode;
+    return val;
+}
+
 } // namespace hadron

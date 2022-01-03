@@ -243,7 +243,7 @@ void VirtualJIT::patchThere(Label target, Address location) {
 
 uint8_t VirtualJIT::reg(Reg r) {
     assert(r >= -2 && r <= 253);
-    return static_cast<uint8_t>(r + 2);
+    return static_cast<uint8_t>(r);
 }
 
 } // namespace hadron

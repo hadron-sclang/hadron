@@ -55,6 +55,9 @@ public:
     // |location| needs to be within the buffer. Overwrites whatever is there with |value|.
     bool patchWord(uint8_t* location, Word value);
 
+    // Responses for the read commands are undefined if hasOverflow() is true.
+    uint8_t readByte();
+
     uint8_t* getCurrent() const { return m_currentBytecode; }
     bool hasOverflow() const { return m_currentBytecode >= m_endOfBytecode; }
     // This can return values larger than |size| in the event of an overflow.
