@@ -113,8 +113,6 @@ public:
     virtual void reti(int value) = 0;
 
     // * labels - relocateable code addresses
-    // Makes a new label for backward branches.
-    virtual Label label() = 0;
     // Get the current address of the jitted code
     virtual Address address() = 0;
     // Makes |label| point to current position in JIT, for forward jumps.

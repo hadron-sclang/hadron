@@ -34,9 +34,12 @@ TEST_CASE("MoveScheduler simple") {
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
         jit.end(&finalSize);
+        OpcodeIterator it;
+        it.setBuffer(jitBuffer.data(), jitBuffer.size());
+        
         // Should have written 3 bytes to the buffer
         REQUIRE_EQ(finalSize, 3);
-        CHECK_EQ(jitBuffer[0], Opcodes::kMovr);
+        CHECK_EQ(jitBuffer[0], Opcode::kMovr);
         CHECK_EQ(jitBuffer[1], 2);
         CHECK_EQ(jitBuffer[2], 3);
     }
@@ -50,14 +53,14 @@ TEST_CASE("MoveScheduler simple") {
         jit.end(&finalSize);
         // Should have written 3 bytes to the buffer
         REQUIRE_EQ(finalSize, 3);
-        CHECK_EQ(jitBuffer[0], Opcodes::kMovr);
+        CHECK_EQ(jitBuffer[0], Opcode::kMovr);
         CHECK_EQ(jitBuffer[1], 2);
         CHECK_EQ(jitBuffer[2], 3);
 
 
         REQUIRE(jit.instructions().size() == 1);
         CHECK(jit.instructions()[0] ==
-            VirtualJIT::Inst{ VirtualJIT::Opcodes::kStxiL, -1 * kSlotSize, JIT::kStackPointerReg, 0 });
+            VirtualJIT::Inst{ VirtualJIT::Opcode::kStxiL, -1 * kSlotSize, JIT::kStackPointerReg, 0 });
     }
 
     SUBCASE("spill to register") {
@@ -67,7 +70,7 @@ TEST_CASE("MoveScheduler simple") {
         REQUIRE(ms.scheduleMoves(moves, &jit));
         REQUIRE(jit.instructions().size() == 1);
         CHECK(jit.instructions()[0] ==
-            VirtualJIT::Inst{ VirtualJIT::Opcodes::kLdxiL, 5, JIT::kStackPointerReg, -24 * kSlotSize });
+            VirtualJIT::Inst{ VirtualJIT::Opcode::kLdxiL, 5, JIT::kStackPointerReg, -24 * kSlotSize });
     }
 
     SUBCASE("multiple independent moves") {
@@ -79,12 +82,12 @@ TEST_CASE("MoveScheduler simple") {
         // Instructions can be in any order so check all three and remove from the map as we encounter.
         for (const auto& inst : jit.instructions()) {
             std::unordered_map<int, int>::iterator it = moves.end();
-            if (inst == VirtualJIT::Inst{ VirtualJIT::Opcodes::kLdxiL, 2, JIT::kStackPointerReg,
+            if (inst == VirtualJIT::Inst{ VirtualJIT::Opcode::kLdxiL, 2, JIT::kStackPointerReg,
                     -3 * kSlotSize }) {
                 it = moves.find(-3);
-            } else if (inst == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 7, 9 }) {
+            } else if (inst == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 7, 9 }) {
                 it = moves.find(9);
-            } else if (inst == VirtualJIT::Inst{ VirtualJIT::Opcodes::kStxiL, -1 * kSlotSize, JIT::kStackPointerReg,
+            } else if (inst == VirtualJIT::Inst{ VirtualJIT::Opcode::kStxiL, -1 * kSlotSize, JIT::kStackPointerReg,
                     3 }) {
                 it = moves.find(3);
             }
@@ -103,8 +106,8 @@ TEST_CASE("MoveScheduler Chains") {
         REQUIRE(ms.scheduleMoves(moves, &jit));
         REQUIRE(jit.instructions().size() == 2);
         // The 1 <- 2 move needs to happen before the 2 <- 3 move.
-        CHECK(jit.instructions()[0] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 1, 2 });
-        CHECK(jit.instructions()[1] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 2, 3 });
+        CHECK(jit.instructions()[0] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 1, 2 });
+        CHECK(jit.instructions()[1] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 2, 3 });
     }
 
     SUBCASE("Three Chain Through Spill") {
@@ -113,10 +116,10 @@ TEST_CASE("MoveScheduler Chains") {
         MoveScheduler ms;
         REQUIRE(ms.scheduleMoves(moves, &jit));
         REQUIRE(jit.instructions().size() == 3);
-        CHECK(jit.instructions()[0] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 1, 3 });
-        CHECK(jit.instructions()[1] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 3, 0 });
+        CHECK(jit.instructions()[0] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 1, 3 });
+        CHECK(jit.instructions()[1] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 3, 0 });
         CHECK(jit.instructions()[2] ==
-            VirtualJIT::Inst{ VirtualJIT::Opcodes::kLdxiL, 0, JIT::kStackPointerReg, -1 * kSlotSize });
+            VirtualJIT::Inst{ VirtualJIT::Opcode::kLdxiL, 0, JIT::kStackPointerReg, -1 * kSlotSize });
     }
 
     SUBCASE("Eight Chain Unordered") {
@@ -125,14 +128,14 @@ TEST_CASE("MoveScheduler Chains") {
         MoveScheduler ms;
         REQUIRE(ms.scheduleMoves(moves, &jit));
         REQUIRE(jit.instructions().size() == 8);
-        CHECK(jit.instructions()[0] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 0, 1 });
-        CHECK(jit.instructions()[1] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 1, 2 });
-        CHECK(jit.instructions()[2] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 2, 3 });
-        CHECK(jit.instructions()[3] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 3, 4 });
-        CHECK(jit.instructions()[4] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 4, 5 });
-        CHECK(jit.instructions()[5] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 5, 6 });
-        CHECK(jit.instructions()[6] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 6, 7 });
-        CHECK(jit.instructions()[7] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, 7, 8 });
+        CHECK(jit.instructions()[0] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 0, 1 });
+        CHECK(jit.instructions()[1] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 1, 2 });
+        CHECK(jit.instructions()[2] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 2, 3 });
+        CHECK(jit.instructions()[3] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 3, 4 });
+        CHECK(jit.instructions()[4] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 4, 5 });
+        CHECK(jit.instructions()[5] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 5, 6 });
+        CHECK(jit.instructions()[6] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 6, 7 });
+        CHECK(jit.instructions()[7] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, 7, 8 });
     }
 }
 
@@ -145,7 +148,7 @@ TEST_CASE("MoveScheduler Cycles") {
         REQUIRE(jit.instructions().size() == 6);
         // Instructions should be all xor operations and every target register should be set at least once.
         for (auto inst : jit.instructions()) {
-            CHECK(inst[0] == VirtualJIT::Opcodes::kXorr);
+            CHECK(inst[0] == VirtualJIT::Opcode::kXorr);
             moves.erase(inst[1]);
         }
         CHECK(moves.empty());
@@ -158,15 +161,15 @@ TEST_CASE("MoveScheduler Cycles") {
         REQUIRE(ms.scheduleMoves(moves, &jit));
         REQUIRE(jit.instructions().size() == 4);
         // First operation should be a store to the temporariy slot.
-        REQUIRE(jit.instructions()[0][0] == VirtualJIT::Opcodes::kStrL);
+        REQUIRE(jit.instructions()[0][0] == VirtualJIT::Opcode::kStrL);
         CHECK(jit.instructions()[0][1] == JIT::kStackPointerReg);
         JIT::Reg chainReg = jit.instructions()[0][3];
         // Second two operations are moves within the cycle.
-        CHECK(jit.instructions()[1] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr, chainReg, (chainReg + 1) % 3 });
-        CHECK(jit.instructions()[2] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kMovr,
+        CHECK(jit.instructions()[1] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr, chainReg, (chainReg + 1) % 3 });
+        CHECK(jit.instructions()[2] == VirtualJIT::Inst{ VirtualJIT::Opcode::kMovr,
             (chainReg + 1) % 3, (chainReg + 2) % 3});
         // Last instruction is a load into the last reg in the chain.
-        REQUIRE(jit.instructions()[3] == VirtualJIT::Inst{ VirtualJIT::Opcodes::kLdrL, (chainReg + 2) % 3,
+        REQUIRE(jit.instructions()[3] == VirtualJIT::Inst{ VirtualJIT::Opcode::kLdrL, (chainReg + 2) % 3,
             JIT::kStackPointerReg });
     }
 }

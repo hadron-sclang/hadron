@@ -239,11 +239,6 @@ void LighteningJIT::reti(int value) {
     jit_reti(m_state, value);
 }
 
-JIT::Label LighteningJIT::label() {
-    m_labels.emplace_back(jit_emit_addr(m_state));
-    return m_labels.size() - 1;
-}
-
 JIT::Address LighteningJIT::address() {
     JIT::Address addressIndex = m_addresses.size();
     m_addresses.emplace_back(jit_address(m_state));

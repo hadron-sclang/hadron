@@ -50,7 +50,6 @@ public:
     void ret() override;
     void retr(Reg r) override;
     void reti(int value) override;
-    Label label() override;
     Address address() override;
     void patchHere(Label label) override;
     void patchThere(Label target, Address location) override;
@@ -58,7 +57,7 @@ public:
 private:
     int m_maxRegisters;
     int m_maxFloatRegisters;
-    OpcodeIterator m_iterator;
+    OpcodeWriteIterator m_iterator;
     // Labels are pointers into the bytecode with room reserved for patching the bytecode with address values.
     std::vector<uint8_t*> m_labels;
     // Addresses are pointers into the bytecode with no room reserved for patching the bytecode.

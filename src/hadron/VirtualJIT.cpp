@@ -55,154 +55,107 @@ int VirtualJIT::getFloatRegisterCount() const {
 }
 
 void VirtualJIT::addr(Reg target, Reg a, Reg b) {
-    m_iterator.addAddr(target, a, b);
+    m_iterator.addr(target, a, b);
 }
 
 void VirtualJIT::addi(Reg target, Reg a, Word b) {
-    m_iterator.addAddi(target, a, b);
+    m_iterator.addi(target, a, b);
 }
 
 void VirtualJIT::andi(Reg target, Reg a, UWord b) {
-    m_iterator.addAndi(target, a, b);
+    m_iterator.andi(target, a, b);
 }
 
 void VirtualJIT::ori(Reg target, Reg a, UWord b) {
-    m_iterator.addOri(target, a, b);
+    m_iterator.ori(target, a, b);
 }
 
 void VirtualJIT::xorr(Reg target, Reg a, Reg b) {
-    m_iterator.addXorr(target, a, b);
+    m_iterator.xorr(target, a, b);
 }
 
 void VirtualJIT::movr(Reg target, Reg value) {
     if (target != value) {
-        m_iterator.addMovr(target, value);
+        m_iterator.movr(target, value);
     }
 }
 
 void VirtualJIT::movi(Reg target, Word value) {
-    m_iterator.addMovi(target, value);
+    m_iterator.movi(target, value);
 }
 
 JIT::Label VirtualJIT::bgei(Reg a, Word b) {
-    m_iterator.addByte(Opcodes::kBgei);
-    m_iterator.addByte(reg(a));
-    m_iterator.addWord(b);
     JIT::Label label = m_labels.size();
-    m_labels.emplace_back(m_iterator.getCurrent());
-    // Write an empty address into the bytecode, saving room for a patched address.
-    m_iterator.addWord(0);
+    m_labels.emplace_back(m_iterator.bgei(a, b));
     return label;
 }
 
 JIT::Label VirtualJIT::beqi(Reg a, Word b) {
-    m_iterator.addByte(Opcodes::kBeqi);
-    m_iterator.addByte(reg(a));
-    m_iterator.addWord(b);
     JIT::Label label = m_labels.size();
-    m_labels.emplace_back(m_iterator.getCurrent());
-    m_iterator.addWord(0);
+    m_labels.emplace_back(m_iterator.beqi(a, b));
     return label;
 }
 
 JIT::Label VirtualJIT::jmp() {
-    m_iterator.addByte(Opcodes::kJmp);
     JIT::Label label = m_labels.size();
-    m_labels.emplace_back(m_iterator.getCurrent());
-    m_iterator.addWord(0);
+    m_labels.emplace_back(m_iterator.jmp());
     return label;
 }
 
 void VirtualJIT::jmpr(Reg r) {
-    m_iterator.addByte(Opcodes::kJmpr);
-    m_iterator.addByte(reg(r));
+    m_iterator.jmpr(r);
 }
 
 void VirtualJIT::jmpi(Address location) {
-    m_iterator.addByte(Opcodes::kJmpi);
-    m_iterator.addUWord(location);
+    m_iterator.jmpi(location);
 }
 
 void VirtualJIT::ldr_l(Reg target, Reg address) {
-    m_iterator.addByte(Opcodes::kLdrL);
-    m_iterator.addByte(reg(target));
-    m_iterator.addByte(reg(address));
+    m_iterator.ldr_l(target, address);
 }
 
 void VirtualJIT::ldxi_w(Reg target, Reg address, int offset) {
-    m_iterator.addByte(Opcodes::kLdxiW);
-    m_iterator.addByte(reg(target));
-    m_iterator.addByte(reg(address));
-    m_iterator.addInt(offset);
+    m_iterator.ldxi_w(target, address, offset);
 }
 
 void VirtualJIT::ldxi_i(Reg target, Reg address, int offset) {
-    m_iterator.addByte(Opcodes::kLdxiI);
-    m_iterator.addByte(reg(target));
-    m_iterator.addByte(reg(address));
-    m_iterator.addInt(offset);
+    m_iterator.ldxi_i(target, address, offset);
 }
 
 void VirtualJIT::ldxi_l(Reg target, Reg address, int offset) {
-    m_iterator.addByte(Opcodes::kLdxiL);
-    m_iterator.addByte(reg(target));
-    m_iterator.addByte(reg(address));
-    m_iterator.addInt(offset);
+    m_iterator.ldxi_l(target, address, offset);
 }
 
 void VirtualJIT::str_i(Reg address, Reg value) {
-    m_iterator.addByte(Opcodes::kStrI);
-    m_iterator.addByte(reg(address));
-    m_iterator.addByte(reg(value));
+    m_iterator.str_i(address, value);
 }
 
 void VirtualJIT::str_l(Reg address, Reg value) {
-    m_iterator.addByte(Opcodes::kStrL);
-    m_iterator.addByte(reg(address));
-    m_iterator.addByte(reg(value));
+    m_iterator.str_l(address, value);
 }
 
 void VirtualJIT::stxi_w(int offset, Reg address, Reg value) {
-    m_iterator.addByte(Opcodes::kStxiW);
-    m_iterator.addInt(offset);
-    m_iterator.addByte(reg(address));
-    m_iterator.addByte(reg(value));
+    m_iterator.stxi_w(offset, address, value);
 }
 
 void VirtualJIT::stxi_i(int offset, Reg address, Reg value) {
-    m_iterator.addByte(Opcodes::kStxiI);
-    m_iterator.addInt(offset);
-    m_iterator.addByte(reg(address));
-    m_iterator.addByte(reg(value));
+    m_iterator.stxi_i(offset, address, value);
 }
 
 void VirtualJIT::stxi_l(int offset, Reg address, Reg value) {
-    m_iterator.addByte(Opcodes::kStxiL);
-    m_iterator.addInt(offset);
-    m_iterator.addByte(reg(address));
-    m_iterator.addByte(reg(value));
+    m_iterator.stxi_l(offset, address, value);
 }
 
 void VirtualJIT::ret() {
-    m_iterator.addByte(Opcodes::kRet);
+    m_iterator.ret();
 }
 
 void VirtualJIT::retr(Reg r) {
-    m_iterator.addByte(Opcodes::kRetr);
-    m_iterator.addByte(reg(r));
+    m_iterator.retr(r);
 }
 
 void VirtualJIT::reti(int value) {
-    m_iterator.addByte(Opcodes::kReti);
-    m_iterator.addInt(value);
-}
-
-JIT::Label VirtualJIT::label() {
-    m_iterator.addByte(Opcodes::kLabel);
-    JIT::Label label = m_labels.size();
-    m_labels.emplace_back(m_iterator.getCurrent());
-    m_iterator.addWord(0);
-    return label;
+    m_iterator.reti(value);
 }
 
 JIT::Address VirtualJIT::address() {

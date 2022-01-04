@@ -70,7 +70,6 @@ public:
     void ret() override;
     void retr(Reg r) override;
     void reti(int value) override;
-    Label label() override;
     Address address() override;
     void patchHere(Label label) override;
     void patchThere(Label target, Address location) override;

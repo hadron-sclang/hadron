@@ -9,7 +9,7 @@
 
 namespace hadron {
 
-enum Opcodes : uint8_t {
+enum Opcode : uint8_t {
     kAddr       = 0x01,
     kAddi       = 0x02,
     kAndi       = 0x03,
@@ -38,33 +38,47 @@ enum Opcodes : uint8_t {
     kAddress    = 0x1a,
     kPatchHere  = 0x1b,
     kPatchThere = 0x1c,
+
+    kInvalid    = 0xff
 };
 
-class OpcodeIterator {
+class OpcodeWriteIterator {
 public:
-    OpcodeIterator() = default;
-    ~OpcodeIterator() = default;
+    OpcodeWriteIterator() = default;
+    OpcodeWriteIterator(uint8_t* address, size_t size);
+    ~OpcodeWriteIterator() = default;
 
     void setBuffer(uint8_t* address, size_t size);
     void reset();
 
     // All the serialization methods return a boolean if there was capacity to add the element or no.
-    bool addAddr(JIT::Reg target, JIT::Reg a, JIT::Reg b);
-    bool addAddi(JIT::Reg target, JIT::Reg a, Word b);
-    bool addAndi(JIT::Reg target, JIT::Reg a, UWord b);
-    bool addOri(JIT::Reg target, JIT::Reg a, UWord b);
-    bool addXorr(JIT::Reg target, JIT::Reg a, JIT::Reg b);
-    bool addMovr(JIT::Reg target, JIT::Reg value);
-    bool addMovi(JIT::Reg target, Word value);
+    bool addr(JIT::Reg target, JIT::Reg a, JIT::Reg b);
+    bool addi(JIT::Reg target, JIT::Reg a, Word b);
+    bool andi(JIT::Reg target, JIT::Reg a, UWord b);
+    bool ori(JIT::Reg target, JIT::Reg a, UWord b);
+    bool xorr(JIT::Reg target, JIT::Reg a, JIT::Reg b);
+    bool movr(JIT::Reg target, JIT::Reg value);
+    bool movi(JIT::Reg target, Word value);
     // Returns the location of the branch address for later use with patchWord() or nullptr if in overflow.
-    uint8_t* addBgei(JIT::Reg a, Word b);
-
+    uint8_t* bgei(JIT::Reg a, Word b);
+    uint8_t* beqi(JIT::Reg a, Word b);
+    uint8_t* jmp();
+    bool jmpr(JIT::Reg r);
+    bool jmpi(UWord location);
+    bool ldr_l(JIT::Reg target, JIT::Reg address);
+    bool ldxi_w(JIT::Reg target, JIT::Reg address, int offset);
+    bool ldxi_i(JIT::Reg target, JIT::Reg address, int offset);
+    bool ldxi_l(JIT::Reg target, JIT::Reg address, int offset);
+    bool str_i(JIT::Reg address, JIT::Reg value);
+    bool str_l(JIT::Reg address, JIT::Reg value);
+    bool stxi_w(int offset, JIT::Reg address, JIT::Reg value);
+    bool stxi_i(int offset, JIT::Reg address, JIT::Reg value);
+    bool stxi_l(int offset, JIT::Reg address, JIT::Reg value);
+    bool ret();
+    bool retr(JIT::Reg r);
+    bool reti(int value);
     // |location| needs to be within the buffer. Overwrites whatever is there with |value|.
     bool patchWord(uint8_t* location, Word value);
-
-    // Responses for the read commands are undefined if hasOverflow() is true.
-    uint8_t readByte();
-
 
     uint8_t* getCurrent() const { return m_currentBytecode; }
     bool hasOverflow() const { return m_currentBytecode >= m_endOfBytecode; }
@@ -81,6 +95,59 @@ private:
     uint8_t* m_startOfBytecode = nullptr;
     uint8_t* m_currentBytecode = nullptr;
     uint8_t* m_endOfBytecode = nullptr;
+};
+
+class OpcodeReadIterator {
+public:
+    OpcodeReadIterator() = default;
+    OpcodeReadIterator(const uint8_t* buffer, size_t size);
+    ~OpcodeReadIterator() = default;
+
+    void setBuffer(const uint8_t* address, size_t size);
+    void reset();
+
+    // Returns opcode at current() or kInvalid if outside of buffer.
+    Opcode peek();
+    bool addr(JIT::Reg& target, JIT::Reg& a, JIT::Reg& b);
+    bool addi(JIT::Reg& target, JIT::Reg& a, Word& b);
+    bool andi(JIT::Reg& target, JIT::Reg& a, UWord& b);
+    bool ori(JIT::Reg& target, JIT::Reg& a, UWord& b);
+    bool xorr(JIT::Reg& target, JIT::Reg& a, JIT::Reg& b);
+    bool movr(JIT::Reg& target, JIT::Reg& value);
+    bool movi(JIT::Reg& target, Word& value);
+    bool bgei(JIT::Reg& a, Word& b, const uint8_t*& address);
+    bool beqi(JIT::Reg& a, Word& b, const uint8_t*& address);
+    bool jmp(const uint8_t*& address);
+    bool jmpr(JIT::Reg& r);
+    bool jmpi(UWord& location);
+    bool ldr_l(JIT::Reg& target, JIT::Reg& address);
+    bool ldxi_w(JIT::Reg& target, JIT::Reg& address, int& offset);
+    bool ldxi_i(JIT::Reg& target, JIT::Reg& address, int& offset);
+    bool ldxi_l(JIT::Reg& target, JIT::Reg& address, int& offset);
+    bool str_i(JIT::Reg& address, JIT::Reg& value);
+    bool str_l(JIT::Reg& address, JIT::Reg& value);
+    bool stxi_w(int& offset, JIT::Reg& address, JIT::Reg& value);
+    bool stxi_i(int& offset, JIT::Reg& address, JIT::Reg& value);
+    bool stxi_l(int& offset, JIT::Reg& address, JIT::Reg& value);
+    bool ret();
+    bool retr(JIT::Reg& r);
+    bool reti(int& value);
+
+    const uint8_t* getCurrent() const { return m_currentBytecode; }
+    bool hasOverflow() const { return m_currentBytecode >= m_endOfBytecode; }
+    // This can return values larger than |size| in the event of an overflow.
+    size_t getSize() const { return m_currentBytecode - m_startOfBytecode; }
+
+private:
+    JIT::Reg reg(uint8_t r);
+    uint8_t readByte();
+    Word readWord();
+    UWord readUWord();
+    int readInt();
+
+    const uint8_t* m_startOfBytecode = nullptr;
+    const uint8_t* m_currentBytecode = nullptr;
+    const uint8_t* m_endOfBytecode = nullptr;
 };
 
 } // namespace hadron
