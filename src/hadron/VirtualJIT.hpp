@@ -56,8 +56,6 @@ public:
     void patchThere(Label target, Address location) override;
 
 private:
-    uint8_t reg(Reg r);
-
     int m_maxRegisters;
     int m_maxFloatRegisters;
     OpcodeIterator m_iterator;

@@ -55,52 +55,33 @@ int VirtualJIT::getFloatRegisterCount() const {
 }
 
 void VirtualJIT::addr(Reg target, Reg a, Reg b) {
-    m_iterator.addByte(Opcodes::kAddr);
-    m_iterator.addByte(reg(target));
-    m_iterator.addByte(reg(a));
-    m_iterator.addByte(reg(b));
+    m_iterator.addAddr(target, a, b);
 }
 
 void VirtualJIT::addi(Reg target, Reg a, Word b) {
-    m_iterator.addByte(Opcodes::kAddi);
-    m_iterator.addByte(reg(target));
-    m_iterator.addByte(reg(a));
-    m_iterator.addWord(b);
+    m_iterator.addAddi(target, a, b);
 }
 
 void VirtualJIT::andi(Reg target, Reg a, UWord b) {
-    m_iterator.addByte(Opcodes::kAndi);
-    m_iterator.addByte(reg(target));
-    m_iterator.addByte(reg(a));
-    m_iterator.addUWord(b);
+    m_iterator.addAndi(target, a, b);
 }
 
 void VirtualJIT::ori(Reg target, Reg a, UWord b) {
-    m_iterator.addByte(Opcodes::kOri);
-    m_iterator.addByte(reg(target));
-    m_iterator.addByte(reg(a));
-    m_iterator.addUWord(b);
+    m_iterator.addOri(target, a, b);
 }
 
 void VirtualJIT::xorr(Reg target, Reg a, Reg b) {
-    m_iterator.addByte(Opcodes::kXorr);
-    m_iterator.addByte(reg(target));
-    m_iterator.addByte(reg(a));
-    m_iterator.addByte(reg(b));
+    m_iterator.addXorr(target, a, b);
 }
 
 void VirtualJIT::movr(Reg target, Reg value) {
     if (target != value) {
-        m_iterator.addByte(Opcodes::kMovr);
-        m_iterator.addByte(reg(target));
-        m_iterator.addByte(reg(value));
+        m_iterator.addMovr(target, value);
     }
 }
 
 void VirtualJIT::movi(Reg target, Word value) {
-    m_iterator.addByte(Opcodes::kMovi);
-    m_iterator.addByte(reg(target));
-    m_iterator.addWord(value);
+    m_iterator.addMovi(target, value);
 }
 
 JIT::Label VirtualJIT::bgei(Reg a, Word b) {
@@ -239,11 +220,6 @@ void VirtualJIT::patchThere(Label target, Address location) {
     assert(target < static_cast<Label>(m_labels.size()));
     assert(location < static_cast<Address>(m_addresses.size()));
     m_iterator.patchWord(m_labels[target], reinterpret_cast<Word>(m_addresses[location]));
-}
-
-uint8_t VirtualJIT::reg(Reg r) {
-    assert(r >= -2 && r <= 253);
-    return static_cast<uint8_t>(r);
 }
 
 } // namespace hadron
