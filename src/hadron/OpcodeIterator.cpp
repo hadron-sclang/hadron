@@ -352,25 +352,120 @@ bool OpcodeReadIterator::jmp(const uint8_t*& address) {
 }
 
 bool OpcodeReadIterator::jmpr(JIT::Reg& r) {
+    assert(peek() == Opcode::kJmpr);
+    ++m_currentBytecode; // kJmpr
+    r = reg(readByte());
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::jmpi(UWord& location) {
+    assert(peek() == Opcode::kJmpi);
+    ++m_currentBytecode; // kJmpi
+    location = readUWord();
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::ldr_l(JIT::Reg& target, JIT::Reg& address) {
+    assert(peek() == Opcode::kLdrL);
+    ++m_currentBytecode; // kLdrL
+    target = reg(readByte());
+    address = reg(readByte());
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::ldxi_w(JIT::Reg& target, JIT::Reg& address, int& offset) {
+    assert(peek() == Opcode::kLdxiW);
+    ++m_currentBytecode; // kLdxiW
+    target = reg(readByte());
+    address = reg(readByte());
+    offset = readInt();
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::ldxi_i(JIT::Reg& target, JIT::Reg& address, int& offset) {
+    assert(peek() == Opcode::kLdxiI);
+    ++m_currentBytecode; // kLdxiI
+    target = reg(readByte());
+    address = reg(readByte());
+    offset = readInt();
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::ldxi_l(JIT::Reg& target, JIT::Reg& address, int& offset) {
+    assert(peek() == Opcode::kLdxiL);
+    ++m_currentBytecode; // kLdxiL
+    target = reg(readByte());
+    address = reg(readByte());
+    offset = readInt();
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::str_i(JIT::Reg& address, JIT::Reg& value) {
+    assert(peek() == Opcode::kStrI);
+    ++m_currentBytecode; // kStrI
+    address = reg(readByte());
+    value = reg(readByte());
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::str_l(JIT::Reg& address, JIT::Reg& value) {
+    assert(peek() == Opcode::kStrL);
+    ++m_currentBytecode; // kStrL
+    address = reg(readByte());
+    value = reg(readByte());
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::stxi_w(int& offset, JIT::Reg& address, JIT::Reg& value) {
+    assert(peek() == Opcode::kStxiW);
+    ++m_currentBytecode; // kStxiW
+    offset = readInt();
+    address = reg(readByte());
+    value = reg(readByte());
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::stxi_i(int& offset, JIT::Reg& address, JIT::Reg& value) {
+    assert(peek() == Opcode::kStxiI);
+    ++m_currentBytecode; // kStxiI
+    offset = readInt();
+    address = reg(readByte());
+    value = reg(readByte());
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::stxi_l(int& offset, JIT::Reg& address, JIT::Reg& value) {
+    assert(peek() == Opcode::kStxiL);
+    ++m_currentBytecode; // kStxiL
+    offset = readInt();
+    address = reg(readByte());
+    value = reg(readByte());
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::ret() {
+    assert(peek() == Opcode::kRet);
+    ++m_currentBytecode; // kRet
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::retr(JIT::Reg& r) {
+    assert(peek() == Opcode::kRetr);
+    ++m_currentBytecode; // kRetr
+    r = reg(readByte());
+    return !hasOverflow();
 
 }
 
-bool OpcodeReadIterator::jmpi(UWord& location);
-bool OpcodeReadIterator::ldr_l(JIT::Reg& target, JIT::Reg& address);
-bool OpcodeReadIterator::ldxi_w(JIT::Reg& target, JIT::Reg& address, int& offset);
-bool OpcodeReadIterator::ldxi_i(JIT::Reg& target, JIT::Reg& address, int& offset);
-bool OpcodeReadIterator::ldxi_l(JIT::Reg& target, JIT::Reg& address, int& offset);
-bool OpcodeReadIterator::str_i(JIT::Reg& address, JIT::Reg& value);
-bool OpcodeReadIterator::str_l(JIT::Reg& address, JIT::Reg& value);
-bool OpcodeReadIterator::stxi_w(int& offset, JIT::Reg& address, JIT::Reg& value);
-bool OpcodeReadIterator::stxi_i(int& offset, JIT::Reg& address, JIT::Reg& value);
-bool OpcodeReadIterator::stxi_l(int& offset, JIT::Reg& address, JIT::Reg& value);
-bool OpcodeReadIterator::ret();
-bool OpcodeReadIterator::retr(JIT::Reg& r);
-bool OpcodeReadIterator::reti(int& value);
+bool OpcodeReadIterator::reti(int& value) {
+    assert(peek() == Opcode::kReti);
+    ++m_currentBytecode; // kReti
+    value = readInt();
+    return !hasOverflow();
+}
 
 uint8_t OpcodeReadIterator::readByte() {
-    uint8_t val = hasOverflow() ? 0 : *m_currentBytecode;
+    uint8_t val = (m_currentBytecode >= m_endOfBytecode) ? 0 : *m_currentBytecode;
     ++m_currentBytecode;
     return val;
 }

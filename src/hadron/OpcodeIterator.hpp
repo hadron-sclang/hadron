@@ -81,7 +81,7 @@ public:
     bool patchWord(uint8_t* location, Word value);
 
     uint8_t* getCurrent() const { return m_currentBytecode; }
-    bool hasOverflow() const { return m_currentBytecode >= m_endOfBytecode; }
+    bool hasOverflow() const { return m_currentBytecode > m_endOfBytecode; }
     // This can return values larger than |size| in the event of an overflow.
     size_t getSize() const { return m_currentBytecode - m_startOfBytecode; }
 
@@ -134,7 +134,7 @@ public:
     bool reti(int& value);
 
     const uint8_t* getCurrent() const { return m_currentBytecode; }
-    bool hasOverflow() const { return m_currentBytecode >= m_endOfBytecode; }
+    bool hasOverflow() const { return m_currentBytecode > m_endOfBytecode; }
     // This can return values larger than |size| in the event of an overflow.
     size_t getSize() const { return m_currentBytecode - m_startOfBytecode; }
 
