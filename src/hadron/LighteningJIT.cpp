@@ -1,7 +1,5 @@
 #include "hadron/LighteningJIT.hpp"
 
-#include "hadron/ErrorReporter.hpp"
-
 #include "fmt/format.h"
 #include "spdlog/spdlog.h"
 
@@ -31,9 +29,8 @@ namespace {
 namespace hadron {
 
 
-LighteningJIT::LighteningJIT(std::shared_ptr<ErrorReporter> errorReporter):
-    JIT(errorReporter),
-    m_stackBase(0) {
+LighteningJIT::LighteningJIT():
+    JIT() {
     m_state = jit_new_state(malloc, free);
 }
 
@@ -54,37 +51,6 @@ bool LighteningJIT::markThreadForJITCompilation() {
 // static
 void LighteningJIT::markThreadForJITExecution() {
     pthread_jit_write_protect_np(true);
-}
-
-// static
-int LighteningJIT::physicalRegisterCount() {
-    // Two registers always reserved for context pointer and stack pointer.
-#   if defined(__i386__)
-    return 8 - 2;
-#   elif defined(__x86_64__)
-    return 16 - 2;
-#   elif defined(__arm__)
-    return 16 - 2;
-#   elif defined(__aarch64__)
-    return 32 - 2;
-#   else
-#   error "Undefined chipset"
-#   endif
-}
-
-// static
-int LighteningJIT::physicalFloatRegisterCount() {
-#   if defined(__i386__)
-    return 8;
-#   elif defined(__x86_64__)
-    return 16;
-#   elif defined(__arm__)
-    return 32;
-#   elif defined(__aarch64__)
-    return 32;
-#   else
-#   error "Undefined chipset"
-#   endif
 }
 
 void LighteningJIT::begin(uint8_t* buffer, size_t size) {
@@ -157,11 +123,11 @@ LighteningJIT::FunctionPointer LighteningJIT::addressToFunctionPointer(Address a
 }
 
 int LighteningJIT::getRegisterCount() const {
-    return physicalRegisterCount();
+    return kNumberOfPhysicalRegisters;
 }
 
 int LighteningJIT::getFloatRegisterCount() const {
-    return physicalFloatRegisterCount();
+    return kNumberOfPhysicalFloatRegisters;
 }
 
 void LighteningJIT::addr(Reg target, Reg a, Reg b) {
@@ -273,11 +239,6 @@ void LighteningJIT::reti(int value) {
     jit_reti(m_state, value);
 }
 
-JIT::Label LighteningJIT::label() {
-    m_labels.emplace_back(jit_emit_addr(m_state));
-    return m_labels.size() - 1;
-}
-
 JIT::Address LighteningJIT::address() {
     JIT::Address addressIndex = m_addresses.size();
     m_addresses.emplace_back(jit_address(m_state));
@@ -290,6 +251,11 @@ void LighteningJIT::patchHere(Label label) {
 
 void LighteningJIT::patchThere(Label target, Address location) {
     jit_patch_there(m_state, m_labels[target], m_addresses[location]);
+}
+
+// static
+void LighteningJIT::initJITGlobals() {
+    init_jit();
 }
 
 jit_gpr_t LighteningJIT::reg(Reg r) const {

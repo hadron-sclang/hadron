@@ -56,9 +56,20 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             // Presence of a ConstantHIR this late in compilation must mean the constant value is needed in the
             // allocated register, so transfer it there.
             const auto constant = reinterpret_cast<const hir::ConstantHIR*>(hir);
-            // Note the assumption this is an integer constant.
-            assert(constant->constant.getType() == Type::kInteger);
-            jit->movi(constant->valueLocations.at(constant->value.number), constant->constant.getInt32());
+            switch (constant->constant.getType()) {
+            case Type::kNil:
+                jit->movi(constant->valueLocations.at(constant->value.number), Slot::kNilTag);
+                break;
+            case Type::kInteger:
+                jit->movi(constant->valueLocations.at(constant->value.number), constant->constant.getInt32());
+                break;
+            case Type::kBoolean:
+                jit->movi(constant->valueLocations.at(constant->value.number), constant->constant.getBool() ? 1 : 0);
+                break;
+            default:
+                assert(false);
+                break;
+            }
         } break;
 
         case hir::Opcode::kStoreReturn: {

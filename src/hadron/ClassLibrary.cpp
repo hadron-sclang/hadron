@@ -1,9 +1,12 @@
 #include "hadron/ClassLibrary.hpp"
 
-#include "hadron/ErrorReporter.hpp"
+#include "hadron/Arch.hpp"
+#include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
+#include "hadron/ErrorReporter.hpp"
+#include "hadron/Frame.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/Keywords.hpp"
@@ -181,7 +184,7 @@ hadron::Slot ClassLibrary::buildMethod(ThreadContext* context, library::Class* c
     BlockBuilder blockBuilder(lexer, m_errorReporter);
     auto frame = blockBuilder.buildFrame(methodNode->body.get());
     BlockSerializer blockSerializer;
-    auto linearBlock = blockSerializer.serialize(std::move(frame), LighteningJIT::physicalRegisterCount());
+    auto linearBlock = blockSerializer.serialize(std::move(frame), kNumberOfPhysicalRegisters);
     LifetimeAnalyzer lifetimeAnalyzer;
     lifetimeAnalyzer.buildLifetimes(linearBlock.get());
     RegisterAllocator registerAllocator;
@@ -194,7 +197,7 @@ hadron::Slot ClassLibrary::buildMethod(ThreadContext* context, library::Class* c
     size_t jitSize = (linearBlock->instructions.size() * 16) + sizeof(library::Int8Array);
     size_t jitAllocationSize = 0;
     library::Int8Array* jitArray = context->heap->allocateJIT(jitSize, jitAllocationSize);
-    LighteningJIT jit(m_errorReporter);
+    LighteningJIT jit;
     jit.begin(reinterpret_cast<uint8_t*>(jitArray) + sizeof(library::Int8Array),
             jitAllocationSize - sizeof(library::Int8Array));
     Emitter emitter;

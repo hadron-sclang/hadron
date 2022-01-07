@@ -1,13 +1,16 @@
 #include "server/HadronServer.hpp"
 
+#include "hadron/Arch.hpp"
+#include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
 #include "hadron/ErrorReporter.hpp"
+#include "hadron/Frame.hpp"
 #include "hadron/Lexer.hpp"
-#include "hadron/LinearBlock.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
+#include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
@@ -34,11 +37,13 @@ int HadronServer::runLoop() {
 }
 
 void HadronServer::initialize(std::optional<lsp::ID> id) {
+/*
     if (!m_runtime->initialize()) {
         m_jsonTransport->sendErrorResponse(id, JSONTransport::ErrorCode::kInternalError,
                 "Failed to initialize Hadron runtime.");
         return;
     }
+*/
     m_state = kRunning;
     m_jsonTransport->sendInitializeResult(id);
 }
@@ -127,16 +132,18 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
 
 void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lexer,
         const hadron::parse::BlockNode* blockNode, std::vector<CompilationUnit>& units) {
+    // TODO: can this be refactored to use hadron::Pipeline?
     SPDLOG_TRACE("Compile Diagnostics Block Builder {}", name);
     hadron::BlockBuilder blockBuilder(lexer, m_errorReporter);
     auto frame = blockBuilder.buildFrame(blockNode);
 
     SPDLOG_TRACE("Compile Diagnostics Block Serializer {}", name);
     hadron::BlockSerializer blockSerializer;
-    auto linearBlock = blockSerializer.serialize(std::move(frame), hadron::LighteningJIT::physicalRegisterCount());
+    auto linearBlock = blockSerializer.serialize(std::move(frame), hadron::kNumberOfPhysicalRegisters);
 
     SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer {}", name);
     hadron::LifetimeAnalyzer lifetimeAnalyzer;
+
     lifetimeAnalyzer.buildLifetimes(linearBlock.get());
 
     SPDLOG_TRACE("Compile Diagnostics Register Allocator {}", name);
@@ -149,15 +156,21 @@ void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lex
 
     SPDLOG_TRACE("Compile Diagnostics Emitter {}", name);
     hadron::Emitter emitter;
-    auto virtualJIT = std::make_unique<hadron::VirtualJIT>();
-    emitter.emit(linearBlock.get(), virtualJIT.get());
+    hadron::VirtualJIT jit;
+    size_t byteCodeSize = linearBlock->instructions.size() * 16;
+    auto byteCode = std::make_unique<uint8_t[]>(byteCodeSize);
+    jit.begin(byteCode.get(), byteCodeSize);
+    emitter.emit(linearBlock.get(), &jit);
+    size_t finalSize = 0;
+    jit.end(&finalSize);
+    assert(finalSize < byteCodeSize);
 
     // Rebuid frame to include in diagnostics.
     hadron::BlockBuilder blockRebuilder(lexer, m_errorReporter);
     frame = blockRebuilder.buildFrame(blockNode);
 
     units.emplace_back(CompilationUnit{name, blockNode, std::move(frame), std::move(linearBlock),
-            std::move(virtualJIT)});
+            std::move(byteCode), byteCodeSize});
 }
 
 } // namespace server

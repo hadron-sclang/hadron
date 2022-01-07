@@ -20,24 +20,11 @@ namespace hadron {
 
 class LighteningJIT : public JIT {
 public:
-    LighteningJIT(std::shared_ptr<ErrorReporter> errorReporter);
-    LighteningJIT() = delete;
+    LighteningJIT();
     virtual ~LighteningJIT();
 
     static bool markThreadForJITCompilation();
     static void markThreadForJITExecution();
-    static int physicalRegisterCount();
-    static int physicalFloatRegisterCount();
-
-    // Call this stuff from Compiler, which knows it has a LighteningJIT.
-    // Begin recording jit bytecode into the provideed buffer, of maximum size.
-    void begin(uint8_t* buffer, size_t size);
-    // returns true if the bytecode didn't fit into the provided buffer size.
-    bool hasJITBufferOverflow();
-    // Set pointer back to beginning of buffer.
-    void reset();
-    // End recording jit bytecode into the buffer, writes the final size to sizeOut. Returns the jit address to begin().
-    Address end(size_t* sizeOut);
 
     // Save current state from the calling C-style stack frame, including all callee-save registers, and update the
     // C stack pointer (modulo alignment) to point just below this. Returns the number of bytes pushed on to the stack,
@@ -52,6 +39,10 @@ public:
     FunctionPointer addressToFunctionPointer(Address a);
 
     // ==== JIT overrides
+    void begin(uint8_t* buffer, size_t size) override;
+    bool hasJITBufferOverflow() override;
+    void reset() override;
+    Address end(size_t* sizeOut) override;
     int getRegisterCount() const override;
     int getFloatRegisterCount() const override;
 
@@ -79,12 +70,12 @@ public:
     void ret() override;
     void retr(Reg r) override;
     void reti(int value) override;
-    Label label() override;
     Address address() override;
     void patchHere(Label label) override;
     void patchThere(Label target, Address location) override;
 
-    // Lightening requires a call to a global setup function before emitting any JIT bytecode.
+    // Lightening requires a call to a global setup function before emitting any JIT bytecode. Repeated calls are
+    // harmless.
     static void initJITGlobals();
 
     const uint8_t* getAddress(Address a) const { return static_cast<const uint8_t*>(m_addresses[a]); }
@@ -96,8 +87,6 @@ private:
     std::vector<jit_pointer_t> m_addresses;
     // Non-owning pointers to nodes within the jit_state struct, used for labels.
     std::vector<jit_reloc_t> m_labels;
-    // Offset in bytes from the stack frame pointer where the stack begins.
-    int m_stackBase;
 };
 
 }

@@ -1,10 +1,13 @@
 #include "server/JSONTransport.hpp"
 
+#include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
+#include "hadron/Frame.hpp"
 #include "hadron/HIR.hpp"
 #include "hadron/internal/BuildInfo.hpp"
 #include "hadron/LifetimeInterval.hpp"
 #include "hadron/LinearBlock.hpp"
+#include "hadron/OpcodeIterator.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/VirtualJIT.hpp"
 #include "server/HadronServer.hpp"
@@ -54,7 +57,8 @@ private:
             rapidjson::Document& document);
     void serializeLinearBlock(const hadron::LinearBlock* linearBlock, rapidjson::Value& jsonBlock,
             rapidjson::Document& document);
-    void serializeJIT(const hadron::VirtualJIT* virtualJIT, rapidjson::Value& jsonJIT, rapidjson::Document& document);
+    void serializeJIT(const uint8_t* byteCode, size_t byteCodeSize, rapidjson::Value& jsonJIT,
+            rapidjson::Document& document);
     void serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR, rapidjson::Document& document);
     void serializeValue(hadron::Value value, rapidjson::Value& jsonValue, rapidjson::Document& document);
     void serializeLifetimeIntervals(const std::vector<std::vector<hadron::LifetimeInterval>>& lifetimeIntervals,
@@ -320,7 +324,7 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id,
         jsonUnit.AddMember("linearBlock", jsonBlock, document.GetAllocator());
 
         rapidjson::Value jsonJIT;
-        serializeJIT(unit.virtualJIT.get(), jsonJIT, document);
+        serializeJIT(unit.byteCode.get(), unit.byteCodeSize, jsonJIT, document);
         jsonUnit.AddMember("machineCode", jsonJIT, document.GetAllocator());
 
         jsonUnits.PushBack(jsonUnit, document.GetAllocator());
@@ -891,110 +895,113 @@ void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::Linear
             document.GetAllocator());
 }
 
-void JSONTransport::JSONTransportImpl::serializeJIT(const hadron::VirtualJIT* virtualJIT, rapidjson::Value& jsonJIT,
-        rapidjson::Document& document) {
+void JSONTransport::JSONTransportImpl::serializeJIT(const uint8_t* byteCode, size_t byteCodeSize,
+        rapidjson::Value& jsonJIT, rapidjson::Document& document) {
     jsonJIT.SetObject();
     rapidjson::Value instructions;
     instructions.SetArray();
-    for (const auto& inst : virtualJIT->instructions()) {
+    hadron::OpcodeReadIterator it(byteCode, byteCodeSize);
+    while (it.getSize() < byteCodeSize) {
         rapidjson::Value opcode;
         opcode.SetArray();
-        switch(inst[0]) {
-        case hadron::VirtualJIT::Opcodes::kAddr:
+        switch(it.peek()) {
+        case hadron::Opcode::kAddr: {
             opcode.PushBack("addr", document.GetAllocator());
-            break;
-        case hadron::VirtualJIT::Opcodes::kAddi:
+            hadron::JIT::Reg target, a, b;
+            it.addr(target, a, b);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(a, document.GetAllocator());
+            opcode.PushBack(b, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kAddi:
             opcode.PushBack("addi", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kAndi:
+        case hadron::Opcode::kAndi:
             opcode.PushBack("andi", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kOri:
+        case hadron::Opcode::kOri:
             opcode.PushBack("ori", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kXorr:
+        case hadron::Opcode::kXorr:
             opcode.PushBack("xorr", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kMovr:
+        case hadron::Opcode::kMovr:
             opcode.PushBack("movr", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kMovi:
+        case hadron::Opcode::kMovi:
             opcode.PushBack("movi", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kBgei:
+        case hadron::Opcode::kBgei:
             opcode.PushBack("bgei", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kBeqi:
+        case hadron::Opcode::kBeqi:
             opcode.PushBack("beqi", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kJmp:
+        case hadron::Opcode::kJmp:
             opcode.PushBack("jmp", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kJmpr:
+        case hadron::Opcode::kJmpr:
             opcode.PushBack("jmpr", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kJmpi:
+        case hadron::Opcode::kJmpi:
             opcode.PushBack("jmpi", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kLdrL:
+        case hadron::Opcode::kLdrL:
             opcode.PushBack("ldr_l", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kLdxiW:
+        case hadron::Opcode::kLdxiW:
             opcode.PushBack("ldxi_w", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kLdxiI:
+        case hadron::Opcode::kLdxiI:
             opcode.PushBack("ldxi_i", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kLdxiL:
+        case hadron::Opcode::kLdxiL:
             opcode.PushBack("ldxi_l", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kStrI:
+        case hadron::Opcode::kStrI:
             opcode.PushBack("str_i", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kStrL:
+        case hadron::Opcode::kStrL:
             opcode.PushBack("str_l", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kStxiW:
+        case hadron::Opcode::kStxiW:
             opcode.PushBack("stxi_w", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kStxiI:
+        case hadron::Opcode::kStxiI:
             opcode.PushBack("stxi_i", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kStxiL:
+        case hadron::Opcode::kStxiL:
             opcode.PushBack("stxi_l", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kRet:
+        case hadron::Opcode::kRet:
             opcode.PushBack("ret", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kRetr:
+        case hadron::Opcode::kRetr:
             opcode.PushBack("retr", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kReti:
+        case hadron::Opcode::kReti:
             opcode.PushBack("reti", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kLabel:
+        case hadron::Opcode::kLabel:
             opcode.PushBack("label", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kAddress:
+        case hadron::Opcode::kAddress:
             opcode.PushBack("address", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kPatchHere:
+        case hadron::Opcode::kPatchHere:
             opcode.PushBack("patch_here", document.GetAllocator());
             break;
-        case hadron::VirtualJIT::Opcodes::kPatchThere:
+        case hadron::Opcode::kPatchThere:
             opcode.PushBack("patch_there", document.GetAllocator());
             break;
         default:
-            SPDLOG_WARN("Encountered unknown opcode {:x} in virtualJIT serialization", inst[0]);
+            SPDLOG_WARN("Encountered unknown opcode {:x} in virtualJIT serialization", it.peek());
             break;
         }
-        opcode.PushBack(rapidjson::Value(inst[1]), document.GetAllocator());
-        opcode.PushBack(rapidjson::Value(inst[2]), document.GetAllocator());
-        opcode.PushBack(rapidjson::Value(inst[3]), document.GetAllocator());
         instructions.PushBack(opcode, document.GetAllocator());
     }
     jsonJIT.AddMember("instructions", instructions, document.GetAllocator());
-
+/*
     rapidjson::Value labels;
     labels.SetArray();
     for (auto label : virtualJIT->labels()) {
@@ -1008,6 +1015,7 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const hadron::VirtualJIT* vi
         uwords.PushBack(uword, document.GetAllocator());
     }
     jsonJIT.AddMember("uwords", uwords, document.GetAllocator());
+*/
 }
 
 

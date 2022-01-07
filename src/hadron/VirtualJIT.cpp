@@ -1,9 +1,8 @@
 #include "hadron/VirtualJIT.hpp"
 
-#include "hadron/ErrorReporter.hpp"
-
 #include "fmt/format.h"
 
+#include <cassert>
 #include <iostream>
 #include <limits>
 #include <sstream>
@@ -11,26 +10,43 @@
 namespace hadron {
 
 VirtualJIT::VirtualJIT():
-    JIT(std::make_shared<ErrorReporter>()),
+    JIT(),
     m_maxRegisters(64),
-    m_maxFloatRegisters(64),
-    m_addressCount(0) {}
+    m_maxFloatRegisters(64) {}
 
-VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter):
-    JIT(errorReporter),
-    m_maxRegisters(std::numeric_limits<int32_t>::max()),
-    m_maxFloatRegisters(std::numeric_limits<int32_t>::max()),
-    m_addressCount(0) {}
 
-VirtualJIT::VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter, int maxRegisters, int maxFloatRegisters):
-    JIT(errorReporter),
+VirtualJIT::VirtualJIT(int maxRegisters, int maxFloatRegisters):
+    JIT(),
     m_maxRegisters(maxRegisters),
-    m_maxFloatRegisters(maxFloatRegisters) { }
+    m_maxFloatRegisters(maxFloatRegisters) {
+        assert(m_maxRegisters >= 3);
+}
+
+void VirtualJIT::begin(uint8_t* buffer, size_t size) {
+    m_iterator.setBuffer(buffer, size);
+    address();
+}
+
+bool VirtualJIT::hasJITBufferOverflow() {
+    return m_iterator.hasOverflow();
+}
+
+void VirtualJIT::reset() {
+    m_iterator.reset();
+    m_labels.clear();
+    m_addresses.clear();
+    address();
+}
+
+JIT::Address VirtualJIT::end(size_t* sizeOut) {
+    if (sizeOut) {
+        *sizeOut = m_iterator.getSize();
+    }
+    // We always save the starting address as address 0.
+    return 0;
+}
 
 int VirtualJIT::getRegisterCount() const {
-    if (m_maxRegisters < 3) {
-        m_errorReporter->addInternalError("VirtualJIT instantiated with {} registers, requires a minimum of 3.");
-    }
     return m_maxRegisters;
 }
 
@@ -39,146 +55,124 @@ int VirtualJIT::getFloatRegisterCount() const {
 }
 
 void VirtualJIT::addr(Reg target, Reg a, Reg b) {
-    m_instructions.emplace_back(Inst{Opcodes::kAddr, target, a, b});
+    m_iterator.addr(target, a, b);
 }
 
 void VirtualJIT::addi(Reg target, Reg a, Word b) {
-    m_instructions.emplace_back(Inst{Opcodes::kAddi, target, a, b});
+    m_iterator.addi(target, a, b);
 }
 
 void VirtualJIT::andi(Reg target, Reg a, UWord b) {
-    Word uwordIndex = m_uwords.size();
-    m_uwords.emplace_back(b);
-    m_instructions.emplace_back(Inst{Opcodes::kAndi, target, a, uwordIndex});
+    m_iterator.andi(target, a, b);
 }
 
 void VirtualJIT::ori(Reg target, Reg a, UWord b) {
-    Word uwordIndex = m_uwords.size();
-    m_uwords.emplace_back(b);
-    m_instructions.emplace_back(Inst{Opcodes::kOri, target, a, uwordIndex});
+    m_iterator.ori(target, a, b);
 }
 
 void VirtualJIT::xorr(Reg target, Reg a, Reg b) {
-    m_instructions.emplace_back(Inst{Opcodes::kXorr, target, a, b});
+    m_iterator.xorr(target, a, b);
 }
 
 void VirtualJIT::movr(Reg target, Reg value) {
     if (target != value) {
-        m_instructions.emplace_back(Inst{Opcodes::kMovr, target, value});
+        m_iterator.movr(target, value);
     }
 }
 
 void VirtualJIT::movi(Reg target, Word value) {
-    m_instructions.emplace_back(Inst{Opcodes::kMovi, target, value});
+    m_iterator.movi(target, value);
 }
 
 JIT::Label VirtualJIT::bgei(Reg a, Word b) {
     JIT::Label label = m_labels.size();
-    m_labels.emplace_back(m_instructions.size());
-    m_instructions.emplace_back(Inst{Opcodes::kBgei, a, b, label});
+    m_labels.emplace_back(m_iterator.bgei(a, b));
     return label;
 }
 
 JIT::Label VirtualJIT::beqi(Reg a, Word b) {
     JIT::Label label = m_labels.size();
-    m_labels.emplace_back(m_instructions.size());
-    m_instructions.emplace_back(Inst{Opcodes::kBeqi, a, b, label});
+    m_labels.emplace_back(m_iterator.beqi(a, b));
     return label;
 }
 
 JIT::Label VirtualJIT::jmp() {
     JIT::Label label = m_labels.size();
-    m_labels.emplace_back(m_instructions.size());
-    m_instructions.emplace_back(Inst{Opcodes::kJmp, label});
+    m_labels.emplace_back(m_iterator.jmp());
     return label;
 }
 
 void VirtualJIT::jmpr(Reg r) {
-    m_instructions.emplace_back(Inst{Opcodes::kJmpr, r});
+    m_iterator.jmpr(r);
 }
 
 void VirtualJIT::jmpi(Address location) {
-    m_instructions.emplace_back(Inst{Opcodes::kJmpi, location});
+    m_iterator.jmpi(location);
 }
 
 void VirtualJIT::ldr_l(Reg target, Reg address) {
-    m_instructions.emplace_back(Inst{Opcodes::kLdrL, target, address});
+    m_iterator.ldr_l(target, address);
 }
 
 void VirtualJIT::ldxi_w(Reg target, Reg address, int offset) {
-    m_instructions.emplace_back(Inst{Opcodes::kLdxiW, target, address, offset});
+    m_iterator.ldxi_w(target, address, offset);
 }
 
 void VirtualJIT::ldxi_i(Reg target, Reg address, int offset) {
-    m_instructions.emplace_back(Inst{Opcodes::kLdxiI, target, address, offset});
+    m_iterator.ldxi_i(target, address, offset);
 }
 
 void VirtualJIT::ldxi_l(Reg target, Reg address, int offset) {
-    m_instructions.emplace_back(Inst{Opcodes::kLdxiL, target, address, offset});
+    m_iterator.ldxi_l(target, address, offset);
 }
 
 void VirtualJIT::str_i(Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStrI, address, value});
+    m_iterator.str_i(address, value);
 }
 
 void VirtualJIT::str_l(Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStrL, address, value});
+    m_iterator.str_l(address, value);
 }
 
 void VirtualJIT::stxi_w(int offset, Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStxiW, offset, address, value});
+    m_iterator.stxi_w(offset, address, value);
 }
 
 void VirtualJIT::stxi_i(int offset, Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStxiI, offset, address, value});
+    m_iterator.stxi_i(offset, address, value);
 }
 
 void VirtualJIT::stxi_l(int offset, Reg address, Reg value) {
-    m_instructions.emplace_back(Inst{Opcodes::kStxiL, offset, address, value});
+    m_iterator.stxi_l(offset, address, value);
 }
 
 void VirtualJIT::ret() {
-    m_instructions.emplace_back(Inst{Opcodes::kRet});
+    m_iterator.ret();
 }
 
 void VirtualJIT::retr(Reg r) {
-    m_instructions.emplace_back(Inst{Opcodes::kRetr, r});
+    m_iterator.retr(r);
 }
 
 void VirtualJIT::reti(int value) {
-    m_instructions.emplace_back(Inst{Opcodes::kReti, value});
-}
-
-JIT::Label VirtualJIT::label() {
-    m_labels.emplace_back(m_instructions.size());
-    m_instructions.emplace_back(Inst{Opcodes::kLabel});
-    return m_labels.size() - 1;
+    m_iterator.reti(value);
 }
 
 JIT::Address VirtualJIT::address() {
-    JIT::Address addressIndex = m_addressCount;
-    ++m_addressCount;
-    return addressIndex;
+    JIT::Address a = m_addresses.size();
+    m_addresses.emplace_back(m_iterator.getCurrent());
+    return a;
 }
 
 void VirtualJIT::patchHere(Label label) {
-    if (label < static_cast<int>(m_labels.size())) {
-        m_labels[label] = m_instructions.size();
-        m_instructions.emplace_back(Inst{Opcodes::kPatchHere, label});
-    } else {
-        m_errorReporter->addInternalError(fmt::format("VirtualJIT patch label_{} contains out-of-bounds label argument "
-            "as there are only {} labels", label, m_labels.size()));
-    }
+    assert(label < static_cast<int>(m_labels.size()));
+    m_iterator.patchWord(m_labels[label], reinterpret_cast<Word>(m_iterator.getCurrent()));
 }
 
 void VirtualJIT::patchThere(Label target, Address location) {
-    if (target < static_cast<int>(m_labels.size()) && location < static_cast<int>(m_labels.size())) {
-        m_labels[target] = m_labels[location];
-        m_instructions.emplace_back(Inst{Opcodes::kPatchThere, target, location});
-    } else {
-        m_errorReporter->addInternalError(fmt::format("VirtualJIT patchat label_{} label_{} contains out-of-bounds "
-            "label argument as there are only {} labels", target, location, m_labels.size()));
-    }
+    assert(target < static_cast<Label>(m_labels.size()));
+    assert(location < static_cast<Address>(m_addresses.size()));
+    m_iterator.patchWord(m_labels[target], reinterpret_cast<Word>(m_addresses[location]));
 }
 
 } // namespace hadron

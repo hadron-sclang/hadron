@@ -1,6 +1,8 @@
 #include "hadron/BlockBuilder.hpp"
 
+#include "hadron/Block.hpp"
 #include "hadron/ErrorReporter.hpp"
+#include "hadron/Frame.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LinearBlock.hpp"
@@ -42,8 +44,8 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(const parse::BlockNode* block
 
     // Build argument name list and default values.
 
-    // Hack to always append *this* which actually has a known type, interesting.
-    // TODO: where is the promised hack?
+    // The *this* pointer is always the first argument to every block.
+    frame->argumentOrder.emplace_back(kThisHash);
 
     const parse::ArgListNode* argList = blockNode->arguments.get();
     int32_t argIndex = 0;

@@ -13,15 +13,17 @@ struct ThreadContext;
 // Owns all of the objects required to compile and run SC code, including the Heap, ThreadContext, and ClassLibrary.
 class Runtime {
 public:
-    explicit Runtime(std::shared_ptr<ErrorReporter> errorReporter);
     Runtime() = delete;
+    explicit Runtime(std::shared_ptr<ErrorReporter> errorReporter);
     ~Runtime();
 
-    // First time compilation of class library, then create Kernel runtime objects like Interpreter and Process.
-    bool initialize();
+    // Compile (or re-compile) class library.
+    bool compileClassLibrary();
+    // Finalize members in ThreadContext, initialize language globals needed for the Interpreter. Requires a valid
+    // class library compile.
+    bool initInterpreter();
 
-    // Lazy recompilation of class library?
-    bool recompileClassLibrary();
+    ThreadContext* context() { return m_threadContext.get(); }
 
 private:
     bool buildTrampolines();

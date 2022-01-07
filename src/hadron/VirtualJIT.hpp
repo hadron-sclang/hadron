@@ -2,9 +2,8 @@
 #define SRC_COMPILER_INCLUDE_HADRON_VIRTUAL_JIT_HPP_
 
 #include "hadron/JIT.hpp"
+#include "hadron/OpcodeIterator.hpp"
 
-#include <array>
-#include <string>
 #include <vector>
 
 namespace hadron {
@@ -14,12 +13,16 @@ class VirtualJIT : public JIT {
 public:
     // For unit testing, the empty constructor sets reasonable limits on virtual registers.
     VirtualJIT();
-    // Default constructor allows for approximately infinite registers.
-    VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter);
     // Constructor for testing allows control over register counts to test register allocation.
-    VirtualJIT(std::shared_ptr<ErrorReporter> errorReporter, int maxRegisters, int maxFloatRegisters);
+    VirtualJIT(int maxRegisters, int maxFloatRegisters);
     virtual ~VirtualJIT() = default;
 
+    void begin(uint8_t* buffer, size_t size) override;
+    bool hasJITBufferOverflow() override;
+    void reset() override;
+    // Because the iterator can continue to record sizes even after overflow, if the buffer has overflowed this will
+    // return a |sizeOut| greater than the supplied buffer size.
+    Address end(size_t* sizeOut) override;
     int getRegisterCount() const override;
     int getFloatRegisterCount() const override;
 
@@ -47,54 +50,18 @@ public:
     void ret() override;
     void retr(Reg r) override;
     void reti(int value) override;
-    Label label() override;
     Address address() override;
     void patchHere(Label label) override;
     void patchThere(Label target, Address location) override;
 
-    enum Opcodes : Word {
-        kAddr       = 0x0100,
-        kAddi       = 0x0200,
-        kAndi       = 0x0201,
-        kOri        = 0x0202,
-        kXorr       = 0x0300,
-        kMovr       = 0x0400,
-        kMovi       = 0x0500,
-        kBgei       = 0x0600,
-        kBeqi       = 0x0601,
-        kJmp        = 0x0700,
-        kJmpr       = 0x0800,
-        kJmpi       = 0x0801,
-        kLdrL       = 0x0802,
-        kLdxiW      = 0x0900,
-        kLdxiI      = 0x0a00,
-        kLdxiL      = 0x0b00,
-        kStrI       = 0x0c00,
-        kStrL       = 0x0c01,
-        kStxiW      = 0x0d00,
-        kStxiI      = 0x0e00,
-        kStxiL      = 0x0f00,
-        kRet        = 0x1000,
-        kRetr       = 0x1100,
-        kReti       = 0x1200,
-        kLabel      = 0x1400,
-        kAddress    = 0x1500,
-        kPatchHere  = 0x1600,
-        kPatchThere = 0x1700,
-    };
-
-    using Inst = std::array<Word, 4>;
-    const std::vector<Inst>& instructions() const { return m_instructions; }
-    const std::vector<size_t>& labels() const { return m_labels; }
-    const std::vector<UWord>& uwords() const { return m_uwords; }
-
 private:
     int m_maxRegisters;
     int m_maxFloatRegisters;
-    std::vector<Inst> m_instructions;
-    std::vector<size_t> m_labels;  // indices in the m_instructions table.
-    std::vector<UWord> m_uwords; // store unsigned words separately
-    int m_addressCount; // keep a count of requests to address() so we can refer to them by index.
+    OpcodeWriteIterator m_iterator;
+    // Labels are pointers into the bytecode with room reserved for patching the bytecode with address values.
+    std::vector<uint8_t*> m_labels;
+    // Addresses are pointers into the bytecode with no room reserved for patching the bytecode.
+    std::vector<uint8_t*> m_addresses;
 };
 
 } // namespace hadron
