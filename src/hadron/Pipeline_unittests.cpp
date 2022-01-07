@@ -33,7 +33,7 @@ private:
 // any interesting stage of the pipeline.
 TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline nil block") {
     Pipeline p;
-    REQUIRE(p.compileBlock(context(), "nil"));
+    REQUIRE_NE(p.compileBlock(context(), "nil"), Slot());
 }
 
 } // namespace hadron

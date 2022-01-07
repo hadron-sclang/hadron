@@ -7,7 +7,6 @@
 namespace hadron {
 struct Frame;
 struct LinearBlock;
-class VirtualJIT;
 namespace parse {
 struct BlockNode;
 } // namespace parse
@@ -20,7 +19,8 @@ struct CompilationUnit {
     const hadron::parse::BlockNode* blockNode;
     std::unique_ptr<hadron::Frame> frame;
     std::unique_ptr<hadron::LinearBlock> linearBlock;
-    std::unique_ptr<hadron::VirtualJIT> virtualJIT;
+    std::unique_ptr<uint8_t[]> byteCode;
+    size_t byteCodeSize;
 };
 
 } // namespace server

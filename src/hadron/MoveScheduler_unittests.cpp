@@ -53,7 +53,7 @@ TEST_CASE("MoveScheduler simple") {
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
         jit.end(&finalSize);
-        REQUIRE_EQ(finalSize, 6);
+        REQUIRE_EQ(finalSize, 7);
 
         OpcodeReadIterator it(jitBuffer.data(), jitBuffer.size());
         REQUIRE_EQ(it.peek(), Opcode::kStxiL);
@@ -74,7 +74,7 @@ TEST_CASE("MoveScheduler simple") {
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
         jit.end(&finalSize);
-        REQUIRE_EQ(finalSize, 6);
+        REQUIRE_EQ(finalSize, 7);
 
         OpcodeReadIterator it(jitBuffer.data(), jitBuffer.size());
         REQUIRE_EQ(it.peek(), Opcode::kLdxiL);

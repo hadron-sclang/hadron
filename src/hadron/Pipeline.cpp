@@ -104,6 +104,8 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
     if (!afterResolver(linearBlock.get())) { return nullptr; }
 #endif // HADRON_PIPELINE_VALIDATE
 
+    LighteningJIT::markThreadForJITCompilation();
+
     size_t jitMaxSize = sizeof(library::Int8Array);
     for (const auto& hir : linearBlock->instructions) {
         jitMaxSize += 16 + (16 * hir->moves.size());

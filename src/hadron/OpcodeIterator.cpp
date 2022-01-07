@@ -208,8 +208,8 @@ bool OpcodeWriteIterator::patchWord(uint8_t* location, Word value) {
 }
 
 uint8_t OpcodeWriteIterator::reg(JIT::Reg r) {
-    assert(r >= -2 && r <= 253);
-    return static_cast<uint8_t>(r);
+    assert(r >= -2 && r <= 125);
+    return static_cast<uint8_t>(r + 2);
 }
 
 bool OpcodeWriteIterator::addByte(uint8_t byte) {
@@ -462,6 +462,10 @@ bool OpcodeReadIterator::reti(int& value) {
     ++m_currentBytecode; // kReti
     value = readInt();
     return !hasOverflow();
+}
+
+JIT::Reg OpcodeReadIterator::reg(uint8_t r) {
+    return static_cast<JIT::Reg>(r) - 2;
 }
 
 uint8_t OpcodeReadIterator::readByte() {
