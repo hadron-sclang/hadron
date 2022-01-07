@@ -104,8 +104,6 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
     if (!afterResolver(linearBlock.get())) { return nullptr; }
 #endif // HADRON_PIPELINE_VALIDATE
 
-    LighteningJIT::markThreadForJITCompilation();
-
     size_t jitMaxSize = sizeof(library::Int8Array);
     for (const auto& hir : linearBlock->instructions) {
         jitMaxSize += 16 + (16 * hir->moves.size());
@@ -119,6 +117,7 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
         jitMaxSize = context->heap->getAllocationSize(bytecodeArray);
     } else {
         jit = std::make_unique<LighteningJIT>();
+        LighteningJIT::markThreadForJITCompilation();
         bytecodeArray = context->heap->allocateJIT(jitMaxSize, jitMaxSize);
     }
     jit->begin(reinterpret_cast<uint8_t*>(bytecodeArray) + sizeof(library::Int8Array),
