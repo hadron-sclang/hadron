@@ -225,7 +225,7 @@ bool OpcodeWriteIterator::addByte(uint8_t byte) {
 bool OpcodeWriteIterator::addWord(Word word) {
     bool nonOverflow = true;
     for (size_t i = 0; i < sizeof(Word); ++i) {
-        nonOverflow &= addByte((word >> i) & 0xff);
+        nonOverflow &= addByte((word >> (i * 8)) & 0xff);
     }
     return nonOverflow;
 }
@@ -233,7 +233,7 @@ bool OpcodeWriteIterator::addWord(Word word) {
 bool OpcodeWriteIterator::addUWord(UWord word) {
     bool nonOverflow = true;
     for (size_t i = 0; i < sizeof(UWord); ++i) {
-        nonOverflow &= addByte((word >> i) & 0xff);
+        nonOverflow &= addByte((word >> (i * 8)) & 0xff);
     }
     return nonOverflow;
 }
@@ -241,7 +241,7 @@ bool OpcodeWriteIterator::addUWord(UWord word) {
 bool OpcodeWriteIterator::addInt(int integer) {
     bool nonOverflow = true;
     for (size_t i = 0; i < sizeof(int); ++i) {
-        nonOverflow &= addByte((integer >> i) & 0xff);
+        nonOverflow &= addByte((integer >> (i * 8)) & 0xff);
     }
     return nonOverflow;
 }
@@ -477,8 +477,8 @@ uint8_t OpcodeReadIterator::readByte() {
 Word OpcodeReadIterator::readWord() {
     Word word = 0;
     for (size_t i = 0; i < sizeof(Word); ++i) {
-        word = word << 8;
-        word = word | readByte();
+        word = word >> 8;
+        word = word | (static_cast<Word>(readByte()) << (8 * (sizeof(Word) - 1)));
     }
     return word;
 }
@@ -486,8 +486,8 @@ Word OpcodeReadIterator::readWord() {
 UWord OpcodeReadIterator::readUWord() {
     UWord uword = 0;
     for (size_t i = 0; i < sizeof(UWord); ++i) {
-        uword = uword << 8;
-        uword = uword | readByte();
+        uword = uword >> 8;
+        uword = uword | (static_cast<UWord>(readByte()) << (8 * (sizeof(UWord) - 1)));
     }
     return uword;
 }
@@ -495,8 +495,8 @@ UWord OpcodeReadIterator::readUWord() {
 int OpcodeReadIterator::readInt() {
     int integer = 0;
     for (size_t i = 0; i < sizeof(int); ++i) {
-        integer = integer << 8;
-        integer = integer | readByte();
+        integer = integer >> 8;
+        integer = integer | (static_cast<int>(readByte()) << (8 * (sizeof(int) - 1)));
     }
     return integer;
 }

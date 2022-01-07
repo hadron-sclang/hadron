@@ -224,6 +224,7 @@ set(HADRON_COMPILER_UNITTESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/Lexer_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/LifetimeInterval_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MoveScheduler_unittests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/OpcodeIterator_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Parser_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Pipeline_unittests.cpp
     PARENT_SCOPE
