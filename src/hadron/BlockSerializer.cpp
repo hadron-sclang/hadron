@@ -13,7 +13,7 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
     auto linearBlock = std::make_unique<LinearBlock>();
     linearBlock->blockOrder.reserve(baseFrame->numberOfBlocks);
     linearBlock->blockRanges.resize(baseFrame->numberOfBlocks, std::make_pair(0, 0));
-    linearBlock->valueLifetimes.reserve(baseFrame->numberOfValues);
+    linearBlock->valueLifetimes.resize(baseFrame->numberOfValues);
     for (size_t i = 0; i < baseFrame->numberOfValues; ++i) {
         linearBlock->valueLifetimes[i].emplace_back(std::make_unique<LifetimeInterval>());
         linearBlock->valueLifetimes[i][0]->valueNumber = i;

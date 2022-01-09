@@ -98,7 +98,10 @@ struct IntervalCompare {
 
 namespace hadron {
 
-RegisterAllocator::RegisterAllocator(size_t numberOfRegisters): m_numberOfRegisters(numberOfRegisters) {}
+RegisterAllocator::RegisterAllocator(size_t numberOfRegisters): m_numberOfRegisters(numberOfRegisters) {
+    m_active.resize(m_numberOfRegisters);
+    m_inactive.resize(m_numberOfRegisters);
+}
 
 void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     // We build a min-heap of nonemtpy value lifetimes, ordered by start time. Higher-number values are likely to start
@@ -119,10 +122,11 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     // of the program, useful for minimizing corner cases in calculation of register next usage during allocation.
     size_t numberOfInstructions = linearBlock->instructions.size();
     for (size_t i = 0; i < m_numberOfRegisters; ++i) {
-        auto iter = m_inactive.emplace(std::make_pair(i, std::make_unique<LifetimeInterval>())).first;
-        iter->second->registerNumber = i;
-        iter->second->usages.emplace(numberOfInstructions);
-        iter->second->addLiveRange(numberOfInstructions, numberOfInstructions + 1);
+        auto regLifetime = std::make_unique<LifetimeInterval>();
+        regLifetime->registerNumber = i;
+        regLifetime->usages.emplace(numberOfInstructions);
+        regLifetime->addLiveRange(numberOfInstructions, numberOfInstructions + 1);
+        m_inactive[i].emplace_back(std::move(regLifetime));
     }
     // Iterate through all instructions and add additional reservations as needed.
     for (size_t i = 0; i < numberOfInstructions; ++i) {
@@ -130,10 +134,9 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         if (reservedRegisters < 0) { reservedRegisters = m_numberOfRegisters; }
         assert(reservedRegisters <= static_cast<int>(m_numberOfRegisters));
         for (int j = 0; j < reservedRegisters; ++j) {
-            auto iter = m_inactive.find(m_numberOfRegisters - j - 1);
-            assert(iter != m_inactive.end());
-            iter->second->addLiveRange(i, i + 1);
-            iter->second->usages.emplace(i);
+            auto regLifetime = m_inactive[m_numberOfRegisters - j - 1][0].get();
+            regLifetime->addLiveRange(i, i + 1);
+            regLifetime->usages.emplace(i);
         }
     }
 
@@ -142,52 +145,57 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         // current = pick and remove first interval from unhandled
         std::pop_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
         m_current = std::move(m_unhandled.back());
+        SPDLOG_INFO("current interval value: {} start: {} end: {}, with {} ranges and {} usages.",
+                m_current->valueNumber, m_current->start(), m_current->end(), m_current->ranges.size(),
+                m_current->usages.size());
         m_unhandled.pop_back();
         assert(!m_current->isEmpty());
 
         // position = start position of current
         size_t position = m_current->start();
-        std::unordered_map<size_t, LtIRef> activeToInactive;
 
         // check for intervals in active that are handled or inactive
         // for each interval it in active do
-        auto iter = m_active.begin();
-        while (iter != m_active.end()) {
+        for (size_t reg = 0; reg < m_active.size(); ++reg) {
+            if (!m_active[reg]) { continue; }
             // if it ends before position then
-            if (iter->second->end() <= position) {
+            if (m_active[reg]->end() <= position) {
                 // move it from active to handled
-                handled(std::move(iter->second), linearBlock);
-                iter = m_active.erase(iter);
+                SPDLOG_INFO("* at position {} moving value {} from active to handled", position,
+                        m_active[reg]->valueNumber);
+                handled(std::move(m_active[reg]), linearBlock);
+                m_active[reg] = nullptr;
             } else {
-                auto nextIter = iter;
-                ++nextIter;
                 // else if it does not cover position then
-                if (!iter->second->covers(position)) {
+                if (!m_active[reg]->covers(position)) {
                     // move it from active to inactive
-                    activeToInactive.insert(m_active.extract(iter));
+                    m_inactive[reg].emplace_back(std::move(m_active[reg]));
+                    m_active[reg] = nullptr;
                 }
-                iter = nextIter;
             }
         }
 
         // check for intervals in inactive that are handled or active
         // for each interval it in inactive do
-        iter = m_inactive.begin();
-        while (iter != m_inactive.end()) {
-            // if it ends before position then
-            if (iter->second->end() <= position) {
-                // move it from inactive to handled
-                handled(std::move(iter->second), linearBlock);
-                iter = m_inactive.erase(iter);
-            } else {
-                auto nextIter = iter;
-                ++nextIter;
-                // else if it covers position then
-                if (iter->second->covers(position)) {
-                    // move it from inactive to active
-                    m_active.insert(m_inactive.extract(iter));
+        for (size_t reg = 0; reg < m_inactive.size(); ++reg) {
+            for (size_t i = 0; i < m_inactive[reg].size(); ++i) {
+                // if it ends before position then
+                if (iter->second->end() <= position) {
+                    // move it from inactive to handled
+                    SPDLOG_INFO("* at position {} moving value {} from inactive to handled", position,
+                            iter->second->valueNumber);
+                    handled(std::move(iter->second), linearBlock);
+                    iter = m_inactive.erase(iter);
+                } else {
+                    auto nextIter = iter;
+                    ++nextIter;
+                    // else if it covers position then
+                    if (iter->second->covers(position)) {
+                        // move it from inactive to active
+                        m_active.insert(m_inactive.extract(iter));
+                    }
+                    iter = nextIter;
                 }
-                iter = nextIter;
             }
         }
 
@@ -227,6 +235,8 @@ bool RegisterAllocator::tryAllocateFreeReg() {
 
     // for each interval it in inactive intersecting with current do
     for (const auto& it : m_inactive) {
+        // skip registers that are also in m_active
+        if (m_active.find(it.first) != m_active.end()) { continue; }
         size_t nextIntersection = 0;
         if (it.second->findFirstIntersection(m_current.get(), nextIntersection)) {
             // freeUntilPos[it.reg] = next intersection of it with current
@@ -236,7 +246,7 @@ bool RegisterAllocator::tryAllocateFreeReg() {
 
     // reg = register with highest freeUntilPos
     size_t reg = 0;
-    size_t highestFreeUntilPos = 0;
+    size_t highestFreeUntilPos = freeUntilPos[0];
     for (size_t i = 0; i < freeUntilPos.size(); ++i) {
         if (freeUntilPos[i] > highestFreeUntilPos) {
             reg = i;
@@ -244,12 +254,16 @@ bool RegisterAllocator::tryAllocateFreeReg() {
         }
     }
 
+    SPDLOG_INFO("* tryAllocate register: {} freeUntilPos: {}", reg, highestFreeUntilPos);
+
     // if freeUntilPos[reg] = 0 then
     if (highestFreeUntilPos == 0) {
+        SPDLOG_INFO("* tryAllocate found no register available");
         // no register available without spilling
         // allocation failed
         return false;
     } else if (m_current->end() <= highestFreeUntilPos) {
+        SPDLOG_INFO("* tryAllocate found available register {}", reg);
         // else if current ends before freeUntilPos[reg] then
         //   // register available for the whole interval
         //   current.reg = reg
@@ -261,6 +275,8 @@ bool RegisterAllocator::tryAllocateFreeReg() {
         m_current->registerNumber = reg;
         // split current before freeUntilPos[reg]
         m_unhandled.emplace_back(m_current->splitAt(highestFreeUntilPos));
+        SPDLOG_INFO("* tryAllocate found split, current start: {} end: {}, unhandled start: {}, end: {}",
+                m_current->start(), m_current->end(), m_unhandled.back()->start(), m_unhandled.back()->end());
         std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
     }
 
@@ -288,6 +304,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
 
     // for each interval it in inactive intersecting with current do
     for (const auto& it : m_inactive) {
+        if (m_active.find(it.first) != m_active.end()) { continue; }
         size_t nextIntersection = 0;
         if (it.second->findFirstIntersection(m_current.get(), nextIntersection)) {
             // nextUsePos[it.reg] = next use of it after start of current
@@ -310,14 +327,20 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
         }
     }
 
-    // if first usage of current is after nextUsePos[reg] then
+        // if first usage of current is after nextUsePos[reg] then
     assert(m_current->usages.size());
     size_t currentFirstUsage = *(m_current->usages.begin());
+
+    SPDLOG_INFO("* allocateBlocked choosing reg {} with highest next use {}, current first use {}", reg,
+            highestNextUsePos, currentFirstUsage);
+
     if (currentFirstUsage > highestNextUsePos) {
         // all other intervals are used before current, so it is best to spill current itself
         // assign spill slot to current
         // split current before its first use position that requires a register
         m_unhandled.emplace_back(m_current->splitAt(currentFirstUsage));
+        SPDLOG_INFO("* allocateBlocked spilling current, new start: {} end: {}, unhandled start: {}, end: {}",
+                m_current->start(), m_current->end(), m_unhandled.back()->start(), m_unhandled.back()->end());
         std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
         spill(std::move(m_current), linearBlock);
         m_current = nullptr;
@@ -330,6 +353,9 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
         if (iter != m_active.end()) {
             // split active interval for reg at position
             auto activeSpill = iter->second->splitAt(m_current->start());
+            SPDLOG_INFO("* allocateBlocked split active interval for {} at {}, new start: {} end: {}, unhandled "
+                    "start: {} end: {}", reg, m_current->start(), iter->second->start(), iter->second->end(),
+                    activeSpill->start(), activeSpill->end());
             handled(std::move(iter->second), linearBlock);
             m_unhandled.emplace_back(activeSpill->splitAt(highestNextUsePos));
             std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
@@ -341,6 +367,10 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
             assert(iter != m_inactive.end());
             // split any inactive interval for reg at the end of its lifetime hole
             auto inactiveSpill = iter->second->splitAt(m_current->start());
+            SPDLOG_INFO("* allocateBlocked split inactive interval for {} at {}, new start: {} end: {}, unhandled "
+                    "start: {} end: {}", reg, m_current->start(), iter->second->start(), iter->second->end(),
+                    inactiveSpill->start(), inactiveSpill->end());
+
             handled(std::move(iter->second), linearBlock);
             // TODO: any harm in splitting here instead of at the start of the lifetime hole?
             m_unhandled.emplace_back(inactiveSpill->splitAt(highestNextUsePos));
@@ -367,6 +397,10 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
 }
 
 void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
+    SPDLOG_INFO("** spill interval value: {} reg: {} start: {} end: {}, with {} ranges and {} usages.",
+            interval->valueNumber, interval->registerNumber, interval->start(), interval->end(),
+            interval->ranges.size(), interval->usages.size());
+
     // Update our active spill map in case we can re-use any spill slot no longer needed.
     auto iter = m_activeSpills.begin();
     while (iter != m_activeSpills.end()) {
@@ -398,6 +432,9 @@ void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
 }
 
 void RegisterAllocator::handled(LtIRef interval, LinearBlock* linearBlock) {
+    SPDLOG_INFO("** handled interval value: {} reg: {} start: {} end: {}, with {} ranges and {} usages.",
+            interval->valueNumber, interval->registerNumber, interval->start(), interval->end(),
+            interval->ranges.size(), interval->usages.size());
     assert(!interval->isSpill);
     assert(!interval->isEmpty());
 

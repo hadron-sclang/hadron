@@ -3,7 +3,6 @@
 
 #include "hadron/LifetimeInterval.hpp"
 
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -33,9 +32,9 @@ private:
 
     LtIRef m_current;
     std::vector<LtIRef> m_unhandled;
-    std::unordered_map<size_t, LtIRef> m_active;
-    std::unordered_map<size_t, LtIRef> m_inactive;
-    std::unordered_map<size_t, LtIRef> m_activeSpills;
+    std::vector<LtIRef> m_active;
+    std::vector<std::vector<LtIRef>> m_inactive;
+    std::vector<LtIRef> m_activeSpills;
     std::unordered_set<size_t> m_freeSpills;
     size_t m_numberOfRegisters;
 };
