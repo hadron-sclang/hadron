@@ -132,13 +132,19 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     for (size_t i = 0; i < numberOfInstructions; ++i) {
         int reservedRegisters = linearBlock->instructions[i]->numberOfReservedRegisters();
         if (reservedRegisters < 0) { reservedRegisters = m_numberOfRegisters; }
-        assert(reservedRegisters <= static_cast<int>(m_numberOfRegisters));
+        // A HIR cannot reserve and read more registers than are available on the machine. This is a sign of a flaw in
+        // the HIR design, and probably means the HIR needs to be broken out to more instructions that can handle the
+        // values separately. Register allocation will fail at any instruction requiring more registers than available.
+        assert(reservedRegisters + static_cast<int>(linearBlock->instructions[i]->reads.size()) <=
+                static_cast<int>(m_numberOfRegisters));
         for (int j = 0; j < reservedRegisters; ++j) {
-            auto regLifetime = m_inactive[m_numberOfRegisters - j - 1][0].get();
+            auto regLifetime = m_inactive[m_numberOfRegisters - j - 1].back().get();
             regLifetime->addLiveRange(i, i + 1);
             regLifetime->usages.emplace(i);
         }
     }
+
+    m_activeSpills.resize(linearBlock->numberOfSpillSlots);
 
     // while unhandled =/= { } do
     while (m_unhandled.size()) {
@@ -178,30 +184,25 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         // check for intervals in inactive that are handled or active
         // for each interval it in inactive do
         for (size_t reg = 0; reg < m_inactive.size(); ++reg) {
-            for (size_t i = 0; i < m_inactive[reg].size(); ++i) {
+            auto iter = m_inactive[reg].begin();
+            while (iter != m_inactive[reg].end()) {
                 // if it ends before position then
-                if (iter->second->end() <= position) {
+                if ((*iter)->end() <= position) {
                     // move it from inactive to handled
                     SPDLOG_INFO("* at position {} moving value {} from inactive to handled", position,
-                            iter->second->valueNumber);
-                    handled(std::move(iter->second), linearBlock);
-                    iter = m_inactive.erase(iter);
+                            (*iter)->valueNumber);
+                    handled(std::move(*iter), linearBlock);
+                    iter = m_inactive[reg].erase(iter);
                 } else {
-                    auto nextIter = iter;
-                    ++nextIter;
                     // else if it covers position then
-                    if (iter->second->covers(position)) {
-                        // move it from inactive to active
-                        m_active.insert(m_inactive.extract(iter));
-                    }
-                    iter = nextIter;
+                    if ((*iter)->covers(position)) {
+                        assert(m_active[reg] == nullptr);
+                        m_active[reg] = std::move(*iter);
+                        iter = m_inactive[reg].erase(iter);
+                    } else { ++iter; }
                 }
             }
         }
-
-        // We save the intervals moving from active to inactive to a temporary map, to avoid a redundant check on those
-        // intervals while going through the inactive map. Now move them back to the inactive map.
-        m_inactive.merge(std::move(activeToInactive));
 
         // find a register for current
         // TRYALLOCATEFREEREG
@@ -212,15 +213,24 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     }
 
     // Append any final lifetimes to the linearBlock.
-    for (auto& iter : m_active) {
-        handled(std::move(iter.second), linearBlock);
+    for (size_t reg = 0; reg < m_active.size(); ++reg) {
+        if (m_active[reg]) {
+            handled(std::move(m_active[reg]), linearBlock);
+            m_active[reg] = nullptr;
+        }
+        for (auto& iter : m_inactive[reg]) {
+            handled(std::move(iter), linearBlock);
+        }
+        m_inactive[reg].clear();
     }
-    for (auto& iter : m_inactive) {
-        handled(std::move(iter.second), linearBlock);
+    for (size_t spill = 1; spill < m_activeSpills.size(); ++spill) {
+        if (m_activeSpills[spill] != nullptr) {
+            linearBlock->valueLifetimes[m_activeSpills[spill]->valueNumber].emplace_back(
+                    std::move(m_activeSpills[spill]));
+            m_activeSpills[spill] = nullptr;
+        }
     }
-    for (auto& iter : m_activeSpills) {
-        linearBlock->valueLifetimes[iter.second->valueNumber].emplace_back(std::move(iter.second));
-    }
+    linearBlock->numberOfSpillSlots = m_activeSpills.size();
 }
 
 bool RegisterAllocator::tryAllocateFreeReg() {
@@ -228,19 +238,19 @@ bool RegisterAllocator::tryAllocateFreeReg() {
     std::vector<size_t> freeUntilPos(m_numberOfRegisters, std::numeric_limits<size_t>::max());
 
     // for each interval it in active do
-    for (const auto& it : m_active) {
-        // freeUntilPos[it.reg] = 0
-        freeUntilPos[it.first] = 0;
-    }
-
-    // for each interval it in inactive intersecting with current do
-    for (const auto& it : m_inactive) {
-        // skip registers that are also in m_active
-        if (m_active.find(it.first) != m_active.end()) { continue; }
-        size_t nextIntersection = 0;
-        if (it.second->findFirstIntersection(m_current.get(), nextIntersection)) {
-            // freeUntilPos[it.reg] = next intersection of it with current
-            freeUntilPos[it.first] = nextIntersection;
+    for (size_t i = 0; i < m_numberOfRegisters; ++i) {
+        if (m_active[i]) {
+            // freeUntilPos[it.reg] = 0
+            freeUntilPos[i] = 0;
+        } else {
+            // for each interval it in inactive intersecting with current do
+            for (auto& it : m_inactive[i]) {
+                size_t nextIntersection = 0;
+                if (it->findFirstIntersection(m_current.get(), nextIntersection)) {
+                    // freeUntilPos[it.reg] = next intersection of it with current
+                    freeUntilPos[i] = std::min(freeUntilPos[i], nextIntersection);
+                }
+            }
         }
     }
 
@@ -280,7 +290,8 @@ bool RegisterAllocator::tryAllocateFreeReg() {
         std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
     }
 
-    m_active.emplace(std::make_pair(reg, std::move(m_current)));
+    assert(m_active[reg] == nullptr);
+    m_active[reg] = std::move(m_current);
     m_current = nullptr;
     return true;
 }
@@ -290,29 +301,30 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
     std::vector<size_t> nextUsePos(m_numberOfRegisters, std::numeric_limits<size_t>::max());
 
     // for each interval it in active do
-    for (const auto& it : m_active) {
-        // nextUsePos[it.reg] = next use of it after start of current
-        auto nextUse = it.second->usages.upper_bound(m_current->start());
-        if (nextUse != it.second->usages.end()) {
-            nextUsePos[it.first] = *nextUse;
-        } else {
-            // If there's not a usage but the register is marked as active, use the end of the active interval to
-            // approximate the next use. Could happen at the end of a loop block, for instance.
-            nextUsePos[it.first] = it.second->end();
-        }
-    }
-
-    // for each interval it in inactive intersecting with current do
-    for (const auto& it : m_inactive) {
-        if (m_active.find(it.first) != m_active.end()) { continue; }
-        size_t nextIntersection = 0;
-        if (it.second->findFirstIntersection(m_current.get(), nextIntersection)) {
+    for (size_t i = 0; i < m_numberOfRegisters; ++i) {
+        if (m_active[i]) {
             // nextUsePos[it.reg] = next use of it after start of current
-            auto nextUse = it.second->usages.upper_bound(m_current->start());
-            if (nextUse != it.second->usages.end()) {
-                nextUsePos[it.first] = *nextUse;
+            auto nextUse = m_active[i]->usages.upper_bound(m_current->start());
+            if (nextUse != m_active[i]->usages.end()) {
+                nextUsePos[i] = *nextUse;
             } else {
-                nextUsePos[it.first] = it.second->end();
+                // If there's not a usage but the register is marked as active, use the end of the active interval to
+                // approximate the next use. Could happen at the end of a loop block, for instance.
+                nextUsePos[i] = m_active[i]->end();
+            }
+        } else {
+            // for each interval it in inactive intersecting with current do
+            for (auto& it : m_inactive[i]) {
+                size_t nextIntersection = 0;
+                if (it->findFirstIntersection(m_current.get(), nextIntersection)) {
+                    // nextUsePos[it.reg] = next use of it after start of current
+                    auto nextUse = it->usages.upper_bound(m_current->start());
+                    if (nextUse != it->usages.end()) {
+                        nextUsePos[i] = std::min(nextUsePos[i], *nextUse);
+                    } else {
+                        nextUsePos[i] = std::min(nextUsePos[i], it->end());
+                    }
+                }
             }
         }
     }
@@ -327,7 +339,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
         }
     }
 
-        // if first usage of current is after nextUsePos[reg] then
+    // if first usage of current is after nextUsePos[reg] then
     assert(m_current->usages.size());
     size_t currentFirstUsage = *(m_current->usages.begin());
 
@@ -349,36 +361,49 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
         // spill intervals that currently block reg
         // current.reg = reg
         m_current->registerNumber = reg;
-        auto iter = m_active.find(reg);
-        if (iter != m_active.end()) {
-            // split active interval for reg at position
-            auto activeSpill = iter->second->splitAt(m_current->start());
-            SPDLOG_INFO("* allocateBlocked split active interval for {} at {}, new start: {} end: {}, unhandled "
-                    "start: {} end: {}", reg, m_current->start(), iter->second->start(), iter->second->end(),
-                    activeSpill->start(), activeSpill->end());
-            handled(std::move(iter->second), linearBlock);
-            m_unhandled.emplace_back(activeSpill->splitAt(highestNextUsePos));
-            std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
-            spill(std::move(activeSpill), linearBlock);
-            iter->second = std::move(m_current);
-            m_current = nullptr;
-        } else {
-            iter = m_inactive.find(reg);
-            assert(iter != m_inactive.end());
-            // split any inactive interval for reg at the end of its lifetime hole
-            auto inactiveSpill = iter->second->splitAt(m_current->start());
-            SPDLOG_INFO("* allocateBlocked split inactive interval for {} at {}, new start: {} end: {}, unhandled "
-                    "start: {} end: {}", reg, m_current->start(), iter->second->start(), iter->second->end(),
-                    inactiveSpill->start(), inactiveSpill->end());
+        if (m_active[reg]) {
+            SPDLOG_INFO("* allocateBlocked split active interval for reg {} at {}, start: {} end: {}",
+                    reg, m_current->start(), m_active[reg]->start(), m_active[reg]->end());
 
-            handled(std::move(iter->second), linearBlock);
-            // TODO: any harm in splitting here instead of at the start of the lifetime hole?
-            m_unhandled.emplace_back(inactiveSpill->splitAt(highestNextUsePos));
-            std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
-            spill(std::move(inactiveSpill), linearBlock);
-            m_active.emplace(std::make_pair(reg, std::move(m_current)));
+            // split active interval for reg at position
+            auto activeSpill = m_active[reg]->splitAt(m_current->start());
+            // It's possible that position was the first use time for m_active[reg] and so the split is now empty.
+            assert(!m_active[reg]->isEmpty());
+//            if (!m_active[reg]->isEmpty()) {
+                handled(std::move(m_active[reg]), linearBlock);
+//            }
+            m_active[reg] = std::move(m_current);
             m_current = nullptr;
-            m_inactive.erase(iter);
+
+            assert(!activeSpill->isEmpty());
+            SPDLOG_INFO("* allocateBlocked splitting spilled region start: {} end: {} at {}", activeSpill->start(),
+                    activeSpill->end(), highestNextUsePos);
+            auto afterSpill = activeSpill->splitAt(highestNextUsePos);
+            assert(!afterSpill->isEmpty());
+//            if (!afterSpill->isEmpty()) {
+                m_unhandled.emplace_back(std::move(afterSpill));
+                std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
+//            }
+            spill(std::move(activeSpill), linearBlock);
+        } else {
+            for (auto& it : m_inactive[reg]) {
+                // split any inactive interval for reg at the end of its lifetime hole
+                auto inactiveSpill = it->splitAt(m_current->start());
+                assert(!inactiveSpill->isEmpty());
+                SPDLOG_INFO("* allocateBlocked split inactive interval for {} at {}, new start: {} end: {}, unhandled "
+                        "start: {} end: {}", reg, m_current->start(), it->start(), it->end(),
+                        inactiveSpill->start(), inactiveSpill->end());
+/*
+                handled(std::move(*it), linearBlock);
+                // TODO: any harm in splitting here instead of at the start of the lifetime hole?
+                m_unhandled.emplace_back(inactiveSpill->splitAt(highestNextUsePos));
+                std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
+                spill(std::move(inactiveSpill), linearBlock);
+                m_active.emplace(std::make_pair(reg, std::move(m_current)));
+                m_current = nullptr;
+                m_inactive.erase(iter);
+*/
+            }
         }
 
         // The following pseudocode fixes up a register assignment to current in the event that it collides with a
@@ -401,23 +426,23 @@ void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
             interval->valueNumber, interval->registerNumber, interval->start(), interval->end(),
             interval->ranges.size(), interval->usages.size());
 
+    size_t spillSlot = 0;
     // Update our active spill map in case we can re-use any spill slot no longer needed.
-    auto iter = m_activeSpills.begin();
-    while (iter != m_activeSpills.end()) {
-        if (iter->second->end() <= interval->start()) {
-            m_freeSpills.emplace(iter->first);
-            linearBlock->valueLifetimes[iter->second->valueNumber].emplace_back(std::move(iter->second));
-            iter = m_activeSpills.erase(iter);
+    for (size_t i = 1; i < m_activeSpills.size(); ++i) {
+        if (m_activeSpills[i]) {
+            if (m_activeSpills[i]->end() <= interval->start()) {
+                linearBlock->valueLifetimes[m_activeSpills[i]->valueNumber].emplace_back(std::move(m_activeSpills[i]));
+                m_activeSpills[i] = nullptr;
+                spillSlot = i;
+            }
+        } else {
+            spillSlot = i;
         }
     }
-    // Find a free (or create a new) spill slot.
-    size_t spillSlot = 0;
-    if (m_freeSpills.size()) {
-        spillSlot = *m_freeSpills.begin();
-        m_freeSpills.erase(m_freeSpills.begin());
-    } else {
-        spillSlot = linearBlock->numberOfSpillSlots;
-        ++linearBlock->numberOfSpillSlots;
+    // Create a new spillSlot if needed.
+    if (spillSlot == 0) {
+        spillSlot = m_activeSpills.size();
+        m_activeSpills.emplace_back(nullptr);
     }
     // Ensure we are reserving spill slot 0 for move cycles.
     assert(spillSlot > 0);
@@ -428,7 +453,7 @@ void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
 
     interval->isSpill = true;
     interval->spillSlot = spillSlot;
-    m_activeSpills.emplace(std::make_pair(spillSlot, std::move(interval)));
+    m_activeSpills[spillSlot] = std::move(interval);
 }
 
 void RegisterAllocator::handled(LtIRef interval, LinearBlock* linearBlock) {

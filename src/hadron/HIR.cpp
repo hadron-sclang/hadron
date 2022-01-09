@@ -241,34 +241,77 @@ bool Dispatch::isEquivalent(const HIR* /* hir */) const {
 }
 
 ///////////////////////////////
+// DispatchSetupStackHIR
+DispatchSetupStackHIR::DispatchSetupStackHIR(int numArgs, int numKeyArgs):
+        Dispatch(kDispatchSetupStack), numberOfArguments(numArgs), numberOfKeywordArguments(numKeyArgs) {}
+
+Value DispatchSetupStackHIR::proposeValue(uint32_t /* number */) {
+    value.number = 0;
+    value.typeFlags = 0;
+    return value;
+}
+
+int DispatchSetupStackHIR::numberOfReservedRegisters() const {
+    // We save one for the frame pointer
+    return 1;
+}
+
+///////////////////////////////
+// DispatchStoreArgHIR
+DispatchStoreArgHIR::DispatchStoreArgHIR(int argNum, std::pair<Value, Value> argVal):
+        Dispatch(kDispatchStoreArg),
+        argumentNumber(argNum),
+        argumentValue(argVal) {
+    reads.emplace(argumentValue.first);
+    reads.emplace(argumentValue.second);
+}
+
+Value DispatchStoreArgHIR::proposeValue(uint32_t /* number */) {
+    value.number = 0;
+    value.typeFlags = 0;
+    return value;
+}
+
+int DispatchStoreArgHIR::numberOfReservedRegisters() const {
+    // Still saving one for the frame pointer
+    return 1;
+}
+
+///////////////////////////////
+// DispatchStoreKeyArgHIR
+DispatchStoreKeyArgHIR::DispatchStoreKeyArgHIR(int keyArgNum, std::pair<Value, Value> key,
+        std::pair<Value, Value> keyVal):
+        Dispatch(kDispatchStoreKeyArg),
+        keywordArgumentNumber(keyArgNum),
+        keyword(key),
+        keywordValue(keyVal) {
+    reads.emplace(keyword.first);
+    reads.emplace(keyword.second);
+    reads.emplace(keyVal.first);
+    reads.emplace(keyVal.second);
+}
+
+Value DispatchStoreKeyArgHIR::proposeValue(uint32_t /* number */) {
+    value.number = 0;
+    value.typeFlags = 0;
+    return value;
+}
+
+int DispatchStoreKeyArgHIR::numberOfReservedRegisters() const {
+    // Still hopefully saving one for the frame pointer
+    return 1;
+}
+
+///////////////////////////////
 // DispatchCallHIR
-void DispatchCallHIR::addKeywordArgument(std::pair<Value, Value> key, std::pair<Value, Value> keyValue) {
-    reads.insert(key.first);
-    keywordArguments.emplace_back(key.first);
-    reads.insert(key.second);
-    keywordArguments.emplace_back(key.second);
-    reads.insert(keyValue.first);
-    keywordArguments.emplace_back(keyValue.first);
-    reads.insert(keyValue.second);
-    keywordArguments.emplace_back(keyValue.second);
-}
-
-void DispatchCallHIR::addArgument(std::pair<Value, Value> argument) {
-    reads.insert(argument.first);
-    arguments.emplace_back(argument.first);
-    reads.insert(argument.second);
-    arguments.emplace_back(argument.second);
-}
-
-Value DispatchCallHIR::proposeValue(uint32_t number) {
-    value.number = number;
-    assert(arguments.size());
-    value.typeFlags = arguments[0].typeFlags;
+Value DispatchCallHIR::proposeValue(uint32_t /* number */) {
+    value.number = 0;
+    value.typeFlags = 0;
     return value;
 }
 
 int DispatchCallHIR::numberOfReservedRegisters() const {
-    // Launch every ZERG! For great Justice!
+    // Mark ever register as reserved, to force the allocator to preserve every active value in the stack.
     return -1;
 }
 

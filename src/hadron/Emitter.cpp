@@ -126,8 +126,16 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             // Should handle labels before move predicates, making them no-ops here.
             break;
 
+        case hir::Opcode::kDispatchSetupStack: {
+        } break;
+
+        case hir::Opcode::kDispatchStoreArg: {
+        } break;
+
+        case hir::Opcode::kDispatchStoreKeyArg: {
+        } break;
+
         case hir::Opcode::kDispatchCall: {
-            // TODO: dispatch code.
         } break;
 
         case hir::Opcode::kDispatchLoadReturn: {

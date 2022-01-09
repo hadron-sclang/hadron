@@ -6,7 +6,6 @@
 #include "hadron/Slot.hpp"
 
 #include <memory>
-#include <vector>
 
 namespace hadron {
 
@@ -14,6 +13,7 @@ struct Block;
 class ErrorReporter;
 struct Frame;
 class Lexer;
+struct ThreadContext;
 
 namespace parse {
 struct BlockNode;
@@ -30,18 +30,18 @@ public:
     BlockBuilder(const Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);
     ~BlockBuilder();
 
-    std::unique_ptr<Frame> buildFrame(const parse::BlockNode* blockNode);
+    std::unique_ptr<Frame> buildFrame(ThreadContext* context, const parse::BlockNode* blockNode);
 
 private:
-    std::unique_ptr<Frame> buildSubframe(const parse::BlockNode* blockNode);
+    std::unique_ptr<Frame> buildSubframe(ThreadContext* context, const parse::BlockNode* blockNode);
 
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not
     // iterate to process the |node->next| pointer. Call buildFinalValue() to do that.
-    std::pair<Value, Value> buildValue(const parse::Node* node);
-    std::pair<Value, Value> buildFinalValue(const parse::Node* node);
-    std::pair<Value, Value> buildDispatch(const parse::Node* target, Hash selector, const parse::Node* arguments,
-            const parse::KeyValueNode* keywordArguments);
+    std::pair<Value, Value> buildValue(ThreadContext* context, const parse::Node* node);
+    std::pair<Value, Value> buildFinalValue(ThreadContext* context, const parse::Node* node);
+    std::pair<Value, Value> buildDispatch(ThreadContext* context, const parse::Node* target, Hash selector,
+            const parse::Node* arguments, const parse::KeyValueNode* keywordArguments);
 
     // Algorithm is to iterate through all previously defined values *in the block* to see if they have already defined
     // an identical value. Returns the value either inserted or re-used. Takes ownership of hir.

@@ -66,7 +66,7 @@ void Pipeline::setDefaults() {
 
 Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer) {
     hadron::BlockBuilder builder(lexer, m_errorReporter);
-    auto frame = builder.buildFrame(blockNode);
+    auto frame = builder.buildFrame(context, blockNode);
     if (!frame) { return nullptr; }
 #if HADRON_PIPELINE_VALIDATE
     if (!validateFrame(frame.get(), blockNode, lexer)) { return nullptr; }

@@ -69,10 +69,13 @@ enum Opcode {
     kLabel,
 
     // Method calling.
-    kDispatchCall,  // save all registers, set up calling stack, represents a modification of the target
+    kDispatchSetupStack, // Initialize the stack for a method call.
+    kDispatchStoreArg, // Save the provided argument value and type to the call stack.
+    kDispatchStoreKeyArg, // Save the provided keyword argument to the call stack.
+    kDispatchCall,  // Force save all registers, the instruction pointer, and jmp to the dispatch code.
     kDispatchLoadReturn,  // just like LoadArgument, can get type or value from stack, call before Cleanup
     kDispatchLoadReturnType,
-    kDispatchCleanup, // must be called after a kDispatch
+    kDispatchCleanup, // must be called after a kDispatch, restores the stack state to the calling function
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in
@@ -232,18 +235,48 @@ protected:
     Dispatch(Opcode op): HIR(op) {}
 };
 
+struct DispatchSetupStackHIR : public Dispatch {
+    DispatchSetupStackHIR() = delete;
+    DispatchSetupStackHIR(int numArgs, int numKeyArgs);
+    virtual ~DispatchSetupStackHIR() = default;
+
+    int numberOfArguments;
+    int numberOfKeywordArguments;
+
+    Value proposeValue(uint32_t number) override;
+    int numberOfReservedRegisters() const override;
+};
+
+// Argument value and type is stored in |reads|
+struct DispatchStoreArgHIR : public Dispatch {
+    DispatchStoreArgHIR() = delete;
+    DispatchStoreArgHIR(int argNum, std::pair<Value, Value> argVal);
+    virtual ~DispatchStoreArgHIR() = default;
+
+    int argumentNumber;
+    std::pair<Value, Value> argumentValue;
+
+    Value proposeValue(uint32_t number) override;
+    int numberOfReservedRegisters() const override;
+};
+
+struct DispatchStoreKeyArgHIR : public Dispatch {
+    DispatchStoreKeyArgHIR() = delete;
+    DispatchStoreKeyArgHIR(int keyArgNum, std::pair<Value, Value> key, std::pair<Value, Value> keyVal);
+    virtual ~DispatchStoreKeyArgHIR() = default;
+
+    int keywordArgumentNumber;
+    std::pair<Value, Value> keyword;
+    std::pair<Value, Value> keywordValue;
+
+    Value proposeValue(uint32_t number) override;
+    int numberOfReservedRegisters() const override;
+};
+
 struct DispatchCallHIR : public Dispatch {
     DispatchCallHIR(): Dispatch(kDispatchCall) {}
     virtual ~DispatchCallHIR() = default;
 
-    // Convenience routines that add to respective vectors but also add to the <reads> structure.
-    void addKeywordArgument(std::pair<Value, Value> key, std::pair<Value, Value> keyValue);
-    void addArgument(std::pair<Value, Value> argument);
-
-    std::vector<Value> keywordArguments;
-    std::vector<Value> arguments;
-
-    // Copies the type of its first argument, which is the this pointer for the dispatch, and doesn't change.
     Value proposeValue(uint32_t number) override;
     int numberOfReservedRegisters() const override;
 };
