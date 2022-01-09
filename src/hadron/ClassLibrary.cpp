@@ -184,10 +184,10 @@ hadron::Slot ClassLibrary::buildMethod(ThreadContext* context, library::Class* c
     BlockBuilder blockBuilder(lexer, m_errorReporter);
     auto frame = blockBuilder.buildFrame(methodNode->body.get());
     BlockSerializer blockSerializer;
-    auto linearBlock = blockSerializer.serialize(std::move(frame), kNumberOfPhysicalRegisters);
+    auto linearBlock = blockSerializer.serialize(std::move(frame));
     LifetimeAnalyzer lifetimeAnalyzer;
     lifetimeAnalyzer.buildLifetimes(linearBlock.get());
-    RegisterAllocator registerAllocator;
+    RegisterAllocator registerAllocator(kNumberOfPhysicalRegisters);
     registerAllocator.allocateRegisters(linearBlock.get());
     Resolver resolver;
     resolver.resolve(linearBlock.get());

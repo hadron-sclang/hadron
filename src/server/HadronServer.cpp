@@ -139,7 +139,7 @@ void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lex
 
     SPDLOG_TRACE("Compile Diagnostics Block Serializer {}", name);
     hadron::BlockSerializer blockSerializer;
-    auto linearBlock = blockSerializer.serialize(std::move(frame), hadron::kNumberOfPhysicalRegisters);
+    auto linearBlock = blockSerializer.serialize(std::move(frame));
 
     SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer {}", name);
     hadron::LifetimeAnalyzer lifetimeAnalyzer;
@@ -147,7 +147,7 @@ void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lex
     lifetimeAnalyzer.buildLifetimes(linearBlock.get());
 
     SPDLOG_TRACE("Compile Diagnostics Register Allocator {}", name);
-    hadron::RegisterAllocator registerAllocator;
+    hadron::RegisterAllocator registerAllocator(hadron::kNumberOfPhysicalRegisters);
     registerAllocator.allocateRegisters(linearBlock.get());
 
     SPDLOG_TRACE("Compile Diagnostics Resolver {}", name);

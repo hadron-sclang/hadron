@@ -1,8 +1,11 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_LIFETIME_INTERVAL_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_LIFETIME_INTERVAL_HPP_
 
+#include "hadron/HIR.hpp"
+
 #include <cassert>
 #include <list>
+#include <memory>
 #include <set>
 
 namespace hadron {
@@ -22,6 +25,9 @@ struct LiveRange {
     size_t to;
 };
 
+struct LifetimeInterval;
+using LtIRef = std::unique_ptr<LifetimeInterval>;
+
 struct LifetimeInterval {
     LifetimeInterval() = default;
     ~LifetimeInterval() = default;
@@ -31,14 +37,14 @@ struct LifetimeInterval {
 
     // Keeps all ranges before |splitTime|, return a new LifetimeInterval with all ranges after |splitTime|. If
     // |splitTime| is within a LiveRange it will also be split. Also splits the usages set.
-    LifetimeInterval splitAt(size_t splitTime);
+    LtIRef splitAt(size_t splitTime);
 
     // Returns true if p is within a LiveRange inside this LifetimeInterval.
     bool covers(size_t p) const;
 
     // Returns true if this and |lt| intersect, meaning there is some value |first| contained in a LiveRange for
     // both objects. Will set |first| to that value if true, will not modify first if false.
-    bool findFirstIntersection(const LifetimeInterval& lt, size_t& first) const;
+    bool findFirstIntersection(const LifetimeInterval* lt, size_t& first) const;
 
     bool isEmpty() const { return ranges.size() == 0; }
     size_t start() const { assert(!isEmpty()); return ranges.front().from; }
@@ -47,7 +53,7 @@ struct LifetimeInterval {
     std::list<LiveRange> ranges;
     std::set<size_t> usages;
 
-    size_t valueNumber = 0;
+    size_t valueNumber = kInvalidValue;
     size_t registerNumber = 0;
     bool isSplit = false;
     bool isSpill = false;

@@ -47,19 +47,19 @@ void LifetimeInterval::addLiveRange(size_t from, size_t to) {
     }
 }
 
-LifetimeInterval LifetimeInterval::splitAt(size_t splitTime) {
-    LifetimeInterval split;
-    split.valueNumber = valueNumber;
-    split.isSplit = true;
+LtIRef LifetimeInterval::splitAt(size_t splitTime) {
+    auto split = std::make_unique<LifetimeInterval>();
+    split->valueNumber = valueNumber;
+    split->isSplit = true;
 
     if (isEmpty() || end() <= splitTime) {
         return split;
     }
 
     if (splitTime <= start()) {
-        split.ranges = std::move(ranges);
+        split->ranges = std::move(ranges);
         ranges = std::list<LiveRange>();
-        split.usages = std::move(usages);
+        split->usages = std::move(usages);
         usages = std::set<size_t>();
         return split;
     }
@@ -78,16 +78,16 @@ LifetimeInterval LifetimeInterval::splitAt(size_t splitTime) {
     }
 
     // Transfer rest of list to the split lifetime.
-    split.ranges.splice(split.ranges.end(), ranges, firstIter, ranges.end());
+    split->ranges.splice(split->ranges.end(), ranges, firstIter, ranges.end());
     if (splitWithin) {
-        ranges.emplace_back(LiveRange(split.start(), splitTime));
-        split.ranges.begin()->from = splitTime;
+        ranges.emplace_back(LiveRange(split->start(), splitTime));
+        split->ranges.begin()->from = splitTime;
     }
 
     // Divide the usages sets.
     auto lowerBound = usages.lower_bound(splitTime);
     while (lowerBound != usages.end()) {
-        split.usages.insert(usages.extract(lowerBound));
+        split->usages.insert(usages.extract(lowerBound));
         lowerBound = usages.lower_bound(splitTime);
     }
 
@@ -110,20 +110,22 @@ bool LifetimeInterval::covers(size_t p) const {
     return false;
 }
 
-bool LifetimeInterval::findFirstIntersection(const LifetimeInterval& lt, size_t& first) const {
+bool LifetimeInterval::findFirstIntersection(const LifetimeInterval* lt, size_t& first) const {
+    assert(lt);
+
     // Early-out for either Interval empty.
-    if (isEmpty() || lt.isEmpty()) {
+    if (isEmpty() || lt->isEmpty()) {
         return false;
     }
 
     // Early-out for no intersection between the intervals.
-    if (end() <= lt.start() || lt.end() <= start()) {
+    if (end() <= lt->start() || lt->end() <= start()) {
         return false;
     }
 
     auto a = ranges.begin();
-    auto b = lt.ranges.begin();
-    while (a != ranges.end() && b != lt.ranges.end()) {
+    auto b = lt->ranges.begin();
+    while (a != ranges.end() && b != lt->ranges.end()) {
         if (a->to <= b->from) {
             ++a;
         } else if (b->to <= a->from) {

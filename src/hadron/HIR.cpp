@@ -20,6 +20,10 @@ Value LoadArgumentHIR::proposeValue(uint32_t number) {
     return value;
 }
 
+int LoadArgumentHIR::numberOfReservedRegisters() const {
+    return 0;
+}
+
 ///////////////////////////////
 // LoadArgumentTypeHIR
 bool LoadArgumentTypeHIR::isEquivalent(const HIR* hir) const {
@@ -36,6 +40,11 @@ Value LoadArgumentTypeHIR::proposeValue(uint32_t number) {
     return value;
 }
 
+int LoadArgumentTypeHIR::numberOfReservedRegisters() const {
+    return 0;
+}
+
+
 ///////////////////////////////
 // ConstantHIR
 bool ConstantHIR::isEquivalent(const HIR* hir) const {
@@ -50,6 +59,10 @@ Value ConstantHIR::proposeValue(uint32_t number) {
     value.number = number;
     value.typeFlags = constant.getType();
     return value;
+}
+
+int ConstantHIR::numberOfReservedRegisters() const {
+    return 0;
 }
 
 ///////////////////////////////
@@ -74,6 +87,10 @@ Value StoreReturnHIR::proposeValue(uint32_t /* number */) {
     return value;
 }
 
+int StoreReturnHIR::numberOfReservedRegisters() const {
+    return 0;
+}
+
 ///////////////////////////////
 // ResolveTypeHIR
 bool ResolveTypeHIR::isEquivalent(const HIR* hir) const {
@@ -88,6 +105,10 @@ Value ResolveTypeHIR::proposeValue(uint32_t number) {
     value.number = number;
     value.typeFlags = Type::kType;
     return value;
+}
+
+int ResolveTypeHIR::numberOfReservedRegisters() const {
+    return 0;
 }
 
 ///////////////////////////////
@@ -152,6 +173,10 @@ bool PhiHIR::isEquivalent(const HIR* hir) const {
     return true;
 }
 
+int PhiHIR::numberOfReservedRegisters() const {
+    return 0;
+}
+
 ///////////////////////////////
 // BranchHIR
 Value BranchHIR::proposeValue(uint32_t /* number */) {
@@ -162,6 +187,10 @@ Value BranchHIR::proposeValue(uint32_t /* number */) {
 
 bool BranchHIR::isEquivalent(const HIR* /* hir */) const {
     return false;
+}
+
+int BranchHIR::numberOfReservedRegisters() const {
+    return 0;
 }
 
 ///////////////////////////////
@@ -181,6 +210,10 @@ bool BranchIfZeroHIR::isEquivalent(const HIR* /* hir */) const {
     return false;
 }
 
+int BranchIfZeroHIR::numberOfReservedRegisters() const {
+    return 0;
+}
+
 ///////////////////////////////
 // LabelHIR
 bool LabelHIR::isEquivalent(const HIR* hir) const {
@@ -195,6 +228,10 @@ Value LabelHIR::proposeValue(uint32_t /* number */) {
     value.number = 0;
     value.typeFlags = 0;
     return value;
+}
+
+int LabelHIR::numberOfReservedRegisters() const {
+    return 0;
 }
 
 ///////////////////////////////
@@ -230,12 +267,21 @@ Value DispatchCallHIR::proposeValue(uint32_t number) {
     return value;
 }
 
+int DispatchCallHIR::numberOfReservedRegisters() const {
+    // Launch every ZERG! For great Justice!
+    return -1;
+}
+
 ///////////////////////////////
 // DispatchLoadReturnHIR
 Value DispatchLoadReturnHIR::proposeValue(uint32_t number) {
     value.number = number;
     value.typeFlags = Type::kAny;
     return value;
+}
+
+int DispatchLoadReturnHIR::numberOfReservedRegisters() const {
+    return 0;
 }
 
 ///////////////////////////////
@@ -246,6 +292,10 @@ Value DispatchLoadReturnTypeHIR::proposeValue(uint32_t number) {
     return value;
 }
 
+int DispatchLoadReturnTypeHIR::numberOfReservedRegisters() const {
+    return 0;
+}
+
 ///////////////////////////////
 // DispatchCleanupHIR
 Value DispatchCleanupHIR::proposeValue(uint32_t /* number */) {
@@ -254,6 +304,9 @@ Value DispatchCleanupHIR::proposeValue(uint32_t /* number */) {
     return value;
 }
 
+int DispatchCleanupHIR::numberOfReservedRegisters() const {
+    return 0;
+}
 
 } // namespace hir
 

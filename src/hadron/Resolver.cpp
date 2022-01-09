@@ -116,11 +116,11 @@ void Resolver::resolve(LinearBlock* linearBlock) {
 
 bool Resolver::findAt(size_t valueNumber, LinearBlock* linearBlock, size_t line, int& location) {
     for (const auto& lifetime : linearBlock->valueLifetimes[valueNumber]) {
-        if (lifetime.start() <= line && line < lifetime.end()) {
-            if (!lifetime.isSpill) {
-                location = static_cast<int>(lifetime.registerNumber);
+        if (lifetime->start() <= line && line < lifetime->end()) {
+            if (!lifetime->isSpill) {
+                location = static_cast<int>(lifetime->registerNumber);
             } else {
-                location = -1 - static_cast<int>(lifetime.spillSlot);
+                location = -1 - static_cast<int>(lifetime->spillSlot);
             }
             return true;
         }

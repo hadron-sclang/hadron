@@ -21,7 +21,7 @@ BlockBuilder::BlockBuilder(const Lexer* lexer, std::shared_ptr<ErrorReporter> er
     m_frame(nullptr),
     m_block(nullptr),
     m_blockSerial(0),
-    m_valueSerial(1) { }
+    m_valueSerial(0) { }
 
 BlockBuilder::~BlockBuilder() { }
 

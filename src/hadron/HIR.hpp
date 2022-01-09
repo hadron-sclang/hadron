@@ -14,14 +14,16 @@
 
 namespace hadron {
 
+static constexpr uint32_t kInvalidValue = std::numeric_limits<uint32_t>::max();
+
 // Represents a pair of value number (for Local Value Numbering during SSA form construction) and Type flags created
 // by ORing the Types of variables together across Phi nodes.
 struct Value {
-    // A typeFlag of 0 represents an invalid Value, as does a value number of 0.
-    Value(): number(0), typeFlags(0) {}
+    // A typeFlag of 0 represents an invalid Value.
+    Value(): number(kInvalidValue), typeFlags(0) {}
     Value(uint32_t num, uint32_t flags): number(num), typeFlags(flags) {}
     ~Value() = default;
-    bool isValid() const { return number != 0 && typeFlags != 0; }
+    bool isValid() const { return number != kInvalidValue && typeFlags != 0; }
     bool operator==(const Value& v) const { return number == v.number; }
     bool operator!=(const Value& v) const { return number != v.number; }
 
@@ -96,10 +98,16 @@ struct HIR {
 
     // Recommended way to set the |value| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
-    // that this operation is read-only.
+    // that this operation only consumes values but doesn't generate any new one.
     virtual Value proposeValue(uint32_t number) = 0;
     // Compare two HIR objects and return true if they are *semantically* the same.
     virtual bool isEquivalent(const HIR* hir) const = 0;
+
+    // Returns how many additional registers this HIR will need. A negative value means that all registers should be
+    // reserved, typically used for register preservation during a function call. Reserved registers are allocated from
+    // the highest number down, in the hopes they will not interfere with value register allocation, which starts at
+    // register 0.
+    virtual int numberOfReservedRegisters() const = 0;
 };
 
 // Loads the argument at |index| from the stack.
@@ -111,6 +119,7 @@ struct LoadArgumentHIR : public HIR {
     // Forces the kAny type for all arguments.
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
+    int numberOfReservedRegisters() const override;
 };
 
 // Represents the type associated with the value at |index|.
@@ -122,6 +131,7 @@ struct LoadArgumentTypeHIR : public HIR {
     // Forces the kType type for all arguments.
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
+    int numberOfReservedRegisters() const override;
 };
 
 struct ConstantHIR : public HIR {
@@ -132,6 +142,7 @@ struct ConstantHIR : public HIR {
     // Forces the type of the |constant| Slot.
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
+    int numberOfReservedRegisters() const override;
 };
 
 struct StoreReturnHIR : public HIR {
@@ -142,6 +153,7 @@ struct StoreReturnHIR : public HIR {
     // Always returns an invalid value, as this is a read-only operation.
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
+    int numberOfReservedRegisters() const override;
 };
 
 struct ResolveTypeHIR : public HIR {
@@ -155,6 +167,7 @@ struct ResolveTypeHIR : public HIR {
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
+    int numberOfReservedRegisters() const override;
 };
 
 struct PhiHIR : public HIR {
@@ -168,6 +181,7 @@ struct PhiHIR : public HIR {
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
+    int numberOfReservedRegisters() const override;
 };
 
 struct BranchHIR : public HIR {
@@ -177,6 +191,7 @@ struct BranchHIR : public HIR {
     int blockNumber;
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
+    int numberOfReservedRegisters() const override;
 };
 
 struct BranchIfZeroHIR : public HIR {
@@ -189,6 +204,7 @@ struct BranchIfZeroHIR : public HIR {
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
+    int numberOfReservedRegisters() const override;
 };
 
 struct LabelHIR : public HIR {
@@ -202,6 +218,7 @@ struct LabelHIR : public HIR {
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;
+    int numberOfReservedRegisters() const override;
 };
 
 // Private struct to provide the overrides around equivalence, which are all the same for the Dispatch HIR objects.
@@ -228,6 +245,7 @@ struct DispatchCallHIR : public Dispatch {
 
     // Copies the type of its first argument, which is the this pointer for the dispatch, and doesn't change.
     Value proposeValue(uint32_t number) override;
+    int numberOfReservedRegisters() const override;
 };
 
 // TODO: Could make this "read" the return value of the DispatchCall, to make the dependency clear, although a bit
@@ -238,6 +256,7 @@ struct DispatchLoadReturnHIR : public Dispatch {
 
     // Forces the kAny type for the return.
     Value proposeValue(uint32_t number) override;
+    int numberOfReservedRegisters() const override;
 };
 
 struct DispatchLoadReturnTypeHIR : public Dispatch {
@@ -245,6 +264,7 @@ struct DispatchLoadReturnTypeHIR : public Dispatch {
     virtual ~DispatchLoadReturnTypeHIR() = default;
 
     Value proposeValue(uint32_t number) override;
+    int numberOfReservedRegisters() const override;
 };
 
 struct DispatchCleanupHIR : public Dispatch {
@@ -253,6 +273,7 @@ struct DispatchCleanupHIR : public Dispatch {
 
     // Always returns an invalid value, as this is a read-only operation.
     Value proposeValue(uint32_t number) override;
+    int numberOfReservedRegisters() const override;
 };
 
 } // namespace hir
