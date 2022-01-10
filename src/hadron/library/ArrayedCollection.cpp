@@ -105,33 +105,43 @@ Slot ArrayedCollection::_BasicAt(ThreadContext* /* context */, Slot _this, Slot 
     size_t numberOfElements = (arrayObject->_sizeInBytes - sizeof(ObjectHeader)) / elementSize;
     if (!index.isInt32()) {
         // TODO: non-integral index on ArrayedCollection
+        assert(false);
         return Slot();
     }
     int32_t intIndex = index.getInt32();
     if (intIndex < 0 || static_cast<size_t>(intIndex) >= numberOfElements) {
         return Slot();
     }
-    ObjectHeader* startOfElements = arrayObject + 1;
+    uint8_t* startOfElements = reinterpret_cast<uint8_t*>(arrayObject) + sizeof(library::ArrayedCollection);
 
     switch (className.getHash()) {
     case kInt8ArrayHash:
-        return Slot(reinterpret_cast<char*>(startOfElements)[numberOfElements]);
+        return Slot(reinterpret_cast<char*>(startOfElements)[intIndex]);
 
     case kInt16ArrayHash:
-        return static_cast<int32_t>(reinterpret_cast<int16_t*>(startOfElements)[numberOfElements]);
+        return static_cast<int32_t>(reinterpret_cast<int16_t*>(startOfElements)[intIndex]);
 
     case kInt32ArrayHash:
-        return Slot(reinterpret_cast<int32_t*>(startOfElements)[numberOfElements]);
+        return Slot(reinterpret_cast<int32_t*>(startOfElements)[intIndex]);
 
     case kFloatArrayHash:
-        return Slot(static_cast<double>(reinterpret_cast<float*>(startOfElements)[numberOfElements]));
+        return Slot(static_cast<double>(reinterpret_cast<float*>(startOfElements)[intIndex]));
 
     case kDoubleArrayHash:
     case kSymbolArrayHash:
     case kArrayHash:
     default:
-        return reinterpret_cast<Slot*>(startOfElements)[numberOfElements];
+        return reinterpret_cast<Slot*>(startOfElements)[intIndex];
     }
+}
+
+// static
+Slot ArrayedCollection::_BasicSize(ThreadContext* /* context */, Slot _this) {
+    assert(_this.isPointer());
+    auto arrayObject = _this.getPointer();
+    auto elementSize = arrayElementSize(arrayObject->_className);
+    int32_t numberOfElements = (arrayObject->_sizeInBytes - sizeof(ObjectHeader)) / elementSize;
+    return Slot(numberOfElements);
 }
 
 } // namespace library

@@ -38,7 +38,7 @@ Pipeline::Pipeline(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporte
 
 Pipeline::~Pipeline() {}
 
-Slot Pipeline::compileBlock(ThreadContext* context, std::string_view code) {
+Slot Pipeline::compileCode(ThreadContext* context, std::string_view code) {
     Lexer lexer(code, m_errorReporter);
     if (!lexer.lex()) { return nullptr; }
 
@@ -48,6 +48,10 @@ Slot Pipeline::compileBlock(ThreadContext* context, std::string_view code) {
     assert(parser.root()->nodeType == parse::NodeType::kBlock);
 
     return buildBlock(context, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer);
+}
+
+Slot Pipeline::compileBlock(ThreadContext* context, parse::BlockNode* blockNode, const Lexer* lexer) {
+    return buildBlock(context, blockNode, lexer);
 }
 
 #if HADRON_PIPELINE_VALIDATE
@@ -66,17 +70,17 @@ void Pipeline::setDefaults() {
 
 Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer) {
     hadron::BlockBuilder builder(lexer, m_errorReporter);
-    auto frame = builder.buildFrame(blockNode);
+    auto frame = builder.buildFrame(context, blockNode);
     if (!frame) { return nullptr; }
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateFrame(frame.get(), blockNode, lexer)) { return nullptr; }
+    if (!validateFrame(context, frame.get(), blockNode, lexer)) { return nullptr; }
     if (!afterBlockBuilder(frame.get(), blockNode, lexer)) { return nullptr; }
     size_t numberOfBlocks = static_cast<size_t>(frame->numberOfBlocks);
     size_t numberOfValues = frame->numberOfValues;
 #endif // HADRON_PIPELINE_VALIDATE
 
     BlockSerializer serializer;
-    auto linearBlock = serializer.serialize(std::move(frame), m_numberOfRegisters);
+    auto linearBlock = serializer.serialize(std::move(frame));
     if (!linearBlock) { return nullptr; }
 #if HADRON_PIPELINE_VALIDATE
     if (!validateSerializedBlock(linearBlock.get(), numberOfBlocks, numberOfValues)) { return nullptr; }
@@ -90,7 +94,7 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
     if (!afterLifetimeAnalyzer(linearBlock.get())) { return nullptr; }
 #endif // HADRON_PIPELINE_VALIDATE
 
-    RegisterAllocator allocator;
+    RegisterAllocator allocator(m_numberOfRegisters);
     allocator.allocateRegisters(linearBlock.get());
 #if HADRON_PIPELINE_VALIDATE
     if (!validateAllocation(linearBlock.get())) { return nullptr; }
@@ -116,9 +120,11 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
                 jitMaxSize));
         jitMaxSize = context->heap->getAllocationSize(bytecodeArray);
     } else {
-        jit = std::make_unique<LighteningJIT>();
         LighteningJIT::markThreadForJITCompilation();
-        bytecodeArray = context->heap->allocateJIT(jitMaxSize, jitMaxSize);
+        jit = std::make_unique<LighteningJIT>();
+        size_t allocationSize = 0;
+        bytecodeArray = context->heap->allocateJIT(jitMaxSize, allocationSize);
+        jitMaxSize = allocationSize;
     }
     jit->begin(reinterpret_cast<uint8_t*>(bytecodeArray) + sizeof(library::Int8Array),
         jitMaxSize - sizeof(library::Int8Array));
@@ -139,24 +145,41 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
 }
 
 #if HADRON_PIPELINE_VALIDATE
-bool Pipeline::validateFrame(const Frame* frame, const parse::BlockNode* blockNode, const Lexer* lexer) {
-    if (frame->argumentOrder.size() < 1 || frame->argumentOrder[0] != kThisHash) {
-        SPDLOG_ERROR("First argument to Frame either absent or not 'this'");
+bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
+        const Lexer* lexer ) {
+    int32_t argumentOrderArraySize = library::ArrayedCollection::_BasicSize(context, frame->argumentOrder).getInt32();
+    int32_t argumentDefaultsArraySize = library::ArrayedCollection::_BasicSize(context,
+            frame->argumentDefaults).getInt32();
+    if (argumentOrderArraySize != argumentDefaultsArraySize) {
+        SPDLOG_ERROR("Frame has mismatched argument order and defaults array sizes of {} and {} respectively",
+            argumentOrderArraySize, argumentDefaultsArraySize);
+        return false;
+    }
+
+    if (argumentOrderArraySize < 1) {
+        SPDLOG_ERROR("First argument to Frame absent.");
+        return false;
+    }
+
+    if (library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, 0) != Slot(kThisHash)) {
+        SPDLOG_ERROR("First argument to Frame {:16x} not 'this' {:16x}",
+                library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, 0).getHash(),
+                Slot(kThisHash).getHash());
         return false;
     }
 
     // Check argument count and ordering against frame.
-    size_t numberOfArguments = 1;
+    int32_t numberOfArguments = 1;
     if (blockNode->arguments && blockNode->arguments->varList) {
         const hadron::parse::VarDefNode* varDef = blockNode->arguments->varList->definitions.get();
         while (varDef) {
             auto nameHash = hadron::hash(lexer->tokens()[varDef->tokenIndex].range);
-            if (frame->argumentOrder.size() < numberOfArguments) {
+            if (argumentOrderArraySize < numberOfArguments) {
                 SPDLOG_ERROR("Missing argument number {} named {} from Frame", numberOfArguments,
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
             }
-            if (frame->argumentOrder[numberOfArguments] != nameHash) {
+            if (library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, numberOfArguments) != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for argument number {} named {}", numberOfArguments,
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
@@ -165,9 +188,9 @@ bool Pipeline::validateFrame(const Frame* frame, const parse::BlockNode* blockNo
             varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
         }
     }
-    if (frame->argumentOrder.size() != numberOfArguments) {
+    if (argumentOrderArraySize != numberOfArguments) {
         SPDLOG_ERROR("Mismatched argument count in Frame, parse tree has {}, Frame has {}", numberOfArguments,
-            frame->argumentOrder.size());
+            argumentOrderArraySize);
         return false;
     }
 
@@ -230,9 +253,11 @@ bool Pipeline::validateSubFrame(const Frame* frame, const Frame* parent,
 bool Pipeline::validateFrameHIR(const hir::HIR* hir, std::unordered_map<uint32_t, uint32_t>& values,
         const Block* block) {
     // Unique values should only be written to once.
-    if (values.find(hir->value.number) != values.end()) {
-        SPDLOG_ERROR("Value number {} written more than once", hir->value.number);
-        return false;
+    if (hir->value.isValid()) {
+        if (values.find(hir->value.number) != values.end()) {
+            SPDLOG_ERROR("Value {} written more than once", hir->value.number);
+            return false;
+        }
     }
     for (const auto& read : hir->reads) {
         // Read values should all exist already and with the same type ornamentation.
@@ -252,7 +277,9 @@ bool Pipeline::validateFrameHIR(const hir::HIR* hir, std::unordered_map<uint32_t
         }
     }
 
-    values.emplace(std::make_pair(hir->value.number, hir->value.typeFlags));
+    if (hir->value.isValid()) {
+        values.emplace(std::make_pair(hir->value.number, hir->value.typeFlags));
+    }
     return true;
 }
 
@@ -316,7 +343,7 @@ bool Pipeline::validateSerializedBlock(const LinearBlock* linearBlock, size_t nu
             SPDLOG_ERROR("Expected 1 lifetime per value, value {} has {}", i, linearBlock->valueLifetimes[i].size());
             return false;
         }
-        if (!linearBlock->valueLifetimes[i][0].isEmpty()) {
+        if (!linearBlock->valueLifetimes[i][0]->isEmpty()) {
             SPDLOG_ERROR("Non-empty value lifetime at value {}", i);
             return false;
         }
@@ -328,47 +355,6 @@ bool Pipeline::validateSerializedBlock(const LinearBlock* linearBlock, size_t nu
         if (linearBlock->instructions[i]->opcode == hadron::hir::Opcode::kDispatchCall) {
             dispatchHIRIndices.emplace_back(i);
         }
-    }
-
-    // There should be a single lifetime for each register, and it should be reserved for each Dispatch opcode as well
-    // as the first instruction past the end of the program.
-    if (linearBlock->registerLifetimes.size() != m_numberOfRegisters) {
-        SPDLOG_ERROR("Register lifetime count mismatch, got {}, expected {}", linearBlock->registerLifetimes.size(),
-                m_numberOfRegisters);
-        return false;
-    }
-    for (size_t reg = 0; reg < m_numberOfRegisters; ++reg) {
-        if (linearBlock->registerLifetimes[reg].size() != 1) {
-            SPDLOG_ERROR("Register number {} has {} lifetimes, expected 1", linearBlock->registerLifetimes[reg].size());
-            return false;
-        }
-        if (linearBlock->registerLifetimes[reg][0].registerNumber != reg) {
-            SPDLOG_ERROR("Register number mismatch on lifetime for register {}", reg);
-            return false;
-        }
-        if (linearBlock->registerLifetimes[reg][0].ranges.size() != dispatchHIRIndices.size() + 1) {
-            SPDLOG_ERROR("Register lifetime range count not matching expected range count");
-            return false;
-        }
-        auto rangeIter = linearBlock->registerLifetimes[reg][0].ranges.begin();
-        for (auto index : dispatchHIRIndices) {
-            if (rangeIter->from != index || rangeIter->to != index + 1) {
-                SPDLOG_ERROR("Register range not covering DispatchHIR");
-                return false;
-            }
-            ++rangeIter;
-        }
-        if (rangeIter->from != linearBlock->instructions.size() ||
-            rangeIter->to != linearBlock->instructions.size() + 1) {
-            SPDLOG_ERROR("Final register reservation not at end of instructions");
-            return false;
-        }
-    }
-
-    // Spill lifetimes are empty until we finish register allocation.
-    if (linearBlock->spillLifetimes.size() != 0) {
-        SPDLOG_ERROR("Spill lifetimes should be empty until register allocation");
-        return false;
     }
 
     // The spill slot counter should remain at the default until register allocation.
@@ -395,23 +381,23 @@ bool Pipeline::validateLifetimes(const LinearBlock* linearBlock) {
     for (size_t i = 0; i < linearBlock->instructions.size(); ++i) {
         const auto hir = linearBlock->instructions[i].get();
         if (hir->value.isValid()) {
-            if (!linearBlock->valueLifetimes[hir->value.number][0].covers(i)) {
+            if (!linearBlock->valueLifetimes[hir->value.number][0]->covers(i)) {
                 SPDLOG_ERROR("value {} written outside of lifetime", hir->value.number);
                 return false;
             }
-            if (linearBlock->valueLifetimes[hir->value.number][0].usages.count(i) != 1) {
+            if (linearBlock->valueLifetimes[hir->value.number][0]->usages.count(i) != 1) {
                 SPDLOG_ERROR("value {} written but not marked as used", hir->value.number);
                 return false;
             }
             ++usageCounts[hir->value.number];
         }
         for (const auto& value : hir->reads) {
-            if (!linearBlock->valueLifetimes[value.number][0].covers(i)) {
-                SPDLOG_ERROR("value {} read outside of lifetime", value.number);
+            if (!linearBlock->valueLifetimes[value.number][0]->covers(i)) {
+                SPDLOG_ERROR("value {} read outside of lifetime at instruction {}", value.number, i);
                 return false;
             }
-            if (linearBlock->valueLifetimes[value.number][0].usages.count(i) != 1) {
-                SPDLOG_ERROR("value {} read without being marked as used", value.number);
+            if (linearBlock->valueLifetimes[value.number][0]->usages.count(i) != 1) {
+                SPDLOG_ERROR("value {} read without being marked as used at instruction {}", value.number, i);
                 return false;
             }
             ++usageCounts[value.number];
@@ -419,11 +405,11 @@ bool Pipeline::validateLifetimes(const LinearBlock* linearBlock) {
     }
 
     for (size_t i = 0; i < linearBlock->valueLifetimes.size(); ++i) {
-        if (linearBlock->valueLifetimes[i][0].valueNumber != i) {
+        if (linearBlock->valueLifetimes[i][0]->valueNumber != i) {
             SPDLOG_ERROR("Value number mismatch at value {}", i);
             return false;
         }
-        if (linearBlock->valueLifetimes[i][0].usages.size() != usageCounts[i]) {
+        if (linearBlock->valueLifetimes[i][0]->usages.size() != usageCounts[i]) {
             SPDLOG_ERROR("Usage count mismatch on value {}", i);
             return false;
         }
@@ -438,33 +424,45 @@ bool Pipeline::validateRegisterCoverage(const LinearBlock* linearBlock, size_t i
     int valueCovered = 0;
     size_t reg = 0;
     for (const auto& lt : linearBlock->valueLifetimes[vReg]) {
-        if (lt.covers(i)) {
-            if (lt.usages.count(i) != 1) {
+        if (lt->isSpill) { continue; }
+        if (lt->covers(i)) {
+            if (lt->usages.count(i) != 1) {
                 SPDLOG_ERROR("Value live but no usage at {}", i);
                 return false;
             }
             ++valueCovered;
-            reg = lt.registerNumber;
+            reg = lt->registerNumber;
         }
     }
     if (valueCovered != 1) {
         SPDLOG_ERROR("Value {} not covered (or over-covered) at {}", vReg, i);
         return false;
     }
-
-    int regCovered = 0;
-    for (const auto& lt : linearBlock->registerLifetimes[reg]) {
-        if (lt.covers(i)) {
-            if (lt.usages.count(i) != 1) {
-                SPDLOG_ERROR("Register {} live but not used for value {} at {}", reg, vReg, i);
-                return false;
-            }
-            ++regCovered;
-        }
-    }
-    if (regCovered != 1) {
-        SPDLOG_ERROR("Register {} missing or over coverage for value {} at {}", reg, vReg, i);
+    if (reg >= m_numberOfRegisters) {
+        SPDLOG_ERROR("Bad register number {} for value {} at instruction {}", reg, vReg, i);
         return false;
+    }
+
+    // Check the valueLocations map at the instruction to make sure it's accurate.
+    auto iter = linearBlock->instructions[i]->valueLocations.find(vReg);
+    if (iter == linearBlock->instructions[i]->valueLocations.end() || reg != static_cast<size_t>(iter->second)) {
+        SPDLOG_ERROR("Value {} at register {} absent or different in map at instruction {}", vReg, reg, i);
+        return false;
+    }
+
+    // Ensure no other values at this instruction are allocated to this same register.
+    for (size_t j = 0; j < linearBlock->valueLifetimes.size(); ++j) {
+        if (j == vReg) { continue; }
+        for (const auto& lt : linearBlock->valueLifetimes[j]) {
+            if (lt->isSpill) { continue; }
+            if (lt->covers(i)) {
+                if (lt->registerNumber == reg) {
+                    SPDLOG_ERROR("Duplicate register allocation for register {}, values {} and {}, at instruction {}",
+                            reg, vReg, j, i);
+                    return false;
+                }
+            }
+        }
     }
 
     return true;
@@ -474,17 +472,9 @@ bool Pipeline::validateAllocation(const hadron::LinearBlock* linearBlock) {
     // Value numbers should align across the valueLifetimes arrays.
     for (size_t i = 0; i < linearBlock->valueLifetimes.size(); ++i) {
         for (const auto& lt : linearBlock->valueLifetimes[i]) {
-            if (lt.valueNumber != i) {
+            if (lt->valueNumber != i) {
                 SPDLOG_ERROR("Mismatch value number at {}", i);
                 return false;
-            }
-        }
-    }
-    // Register numbers should align across the registerLifetimes arrays.
-    for (size_t i = 0; i < linearBlock->registerLifetimes.size(); ++i) {
-        for (const auto& lt : linearBlock->registerLifetimes[i]) {
-            if (lt.registerNumber != i) {
-                SPDLOG_ERROR("Mismatch register number at {}", i);
             }
         }
     }

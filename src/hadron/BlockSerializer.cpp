@@ -8,18 +8,15 @@
 
 namespace hadron {
 
-std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> baseFrame, size_t numberOfRegisters) {
-    // Prepare the LinearBlock for recording of lifetimes in both values and registers.
+std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> baseFrame) {
+    // Prepare the LinearBlock for recording of value lifetimes.
     auto linearBlock = std::make_unique<LinearBlock>();
     linearBlock->blockOrder.reserve(baseFrame->numberOfBlocks);
     linearBlock->blockRanges.resize(baseFrame->numberOfBlocks, std::make_pair(0, 0));
-    linearBlock->valueLifetimes.resize(baseFrame->numberOfValues, std::vector<LifetimeInterval>(1));
-    linearBlock->registerLifetimes.resize(numberOfRegisters, std::vector<LifetimeInterval>(1));
+    linearBlock->valueLifetimes.resize(baseFrame->numberOfValues);
     for (size_t i = 0; i < baseFrame->numberOfValues; ++i) {
-        linearBlock->valueLifetimes[i][0].valueNumber = i;
-    }
-    for (size_t i = 0; i < numberOfRegisters; ++i) {
-        linearBlock->registerLifetimes[i][0].registerNumber = i;
+        linearBlock->valueLifetimes[i].emplace_back(std::make_unique<LifetimeInterval>());
+        linearBlock->valueLifetimes[i][0]->valueNumber = i;
     }
 
     m_blocks.resize(baseFrame->numberOfBlocks, nullptr);
@@ -44,22 +41,13 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> b
 
         // Start the block with a label and then append all contained instructions.
         linearBlock->instructions.emplace_back(std::move(label));
-        for (auto& hir : block->statements) {
-            // Mark all registers as in-use for any dispatch, to later force the register allocator to save all active
-            // register values.
-            if (hir->opcode == hir::kDispatchCall) {
-                reserveRegisters(linearBlock.get());
-            }
-            linearBlock->instructions.emplace_back(std::move(hir));
-        }
+        std::move(block->statements.begin(), block->statements.end(), std::back_inserter(linearBlock->instructions));
 
+        // Update end range on the block now that it's complete.
         blockRange.second = linearBlock->instructions.size();
         linearBlock->blockRanges[block->number] = std::move(blockRange);
     }
 
-    // Add a block on all physical registers after the last instruction. This simplifies code in the Linear Scan
-    // algorithm by ensuring there's always at least one allocation of every register.
-    reserveRegisters(linearBlock.get());
     return linearBlock;
 }
 
@@ -72,15 +60,6 @@ void BlockSerializer::orderBlocks(Block* block, std::vector<int>& blockOrder) {
         }
     }
     blockOrder.emplace_back(block->number);
-}
-
-void BlockSerializer::reserveRegisters(LinearBlock* linearBlock) {
-    size_t from = linearBlock->instructions.size();
-    size_t to = from + 1;
-    for (size_t i = 0; i < linearBlock->registerLifetimes.size(); ++i) {
-        linearBlock->registerLifetimes[i][0].addLiveRange(from, to);
-        linearBlock->registerLifetimes[i][0].usages.emplace(from);
-    }
 }
 
 } // namespace hadron

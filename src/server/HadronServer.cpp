@@ -135,11 +135,11 @@ void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lex
     // TODO: can this be refactored to use hadron::Pipeline?
     SPDLOG_TRACE("Compile Diagnostics Block Builder {}", name);
     hadron::BlockBuilder blockBuilder(lexer, m_errorReporter);
-    auto frame = blockBuilder.buildFrame(blockNode);
+    auto frame = blockBuilder.buildFrame(m_runtime->context(), blockNode);
 
     SPDLOG_TRACE("Compile Diagnostics Block Serializer {}", name);
     hadron::BlockSerializer blockSerializer;
-    auto linearBlock = blockSerializer.serialize(std::move(frame), hadron::kNumberOfPhysicalRegisters);
+    auto linearBlock = blockSerializer.serialize(std::move(frame));
 
     SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer {}", name);
     hadron::LifetimeAnalyzer lifetimeAnalyzer;
@@ -147,7 +147,7 @@ void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lex
     lifetimeAnalyzer.buildLifetimes(linearBlock.get());
 
     SPDLOG_TRACE("Compile Diagnostics Register Allocator {}", name);
-    hadron::RegisterAllocator registerAllocator;
+    hadron::RegisterAllocator registerAllocator(hadron::kNumberOfPhysicalRegisters);
     registerAllocator.allocateRegisters(linearBlock.get());
 
     SPDLOG_TRACE("Compile Diagnostics Resolver {}", name);
@@ -167,7 +167,7 @@ void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lex
 
     // Rebuid frame to include in diagnostics.
     hadron::BlockBuilder blockRebuilder(lexer, m_errorReporter);
-    frame = blockRebuilder.buildFrame(blockNode);
+    frame = blockRebuilder.buildFrame(m_runtime->context(), blockNode);
 
     units.emplace_back(CompilationUnit{name, blockNode, std::move(frame), std::move(linearBlock),
             std::move(byteCode), byteCodeSize});

@@ -1,11 +1,11 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_LINEAR_BLOCK_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_LINEAR_BLOCK_HPP_
 
+#include "hadron/LifetimeInterval.hpp"
+
 #include <vector>
 
 namespace hadron {
-
-struct LifetimeInterval;
 
 struct LinearBlock {
     LinearBlock() = default;
@@ -18,12 +18,8 @@ struct LinearBlock {
     // TODO: refactor to use Lifetime::Interval
     // index is block number, value is [start, end) of block instructions.
     std::vector<std::pair<size_t, size_t>> blockRanges;
-    // index is value number
-    std::vector<std::vector<LifetimeInterval>> valueLifetimes;
-    // index is register number
-    std::vector<std::vector<LifetimeInterval>> registerLifetimes;
-    // index is spill slot number
-    std::vector<std::vector<LifetimeInterval>> spillLifetimes;
+    // Index is value number
+    std::vector<std::vector<LtIRef>> valueLifetimes;
     // Number of spill slots set after register allocation. We reserve spill slot 0 for temporary storage when breaking
     // copy cycles.
     size_t numberOfSpillSlots = 1;

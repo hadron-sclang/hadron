@@ -41,10 +41,6 @@ LighteningJIT::~LighteningJIT() {
 // static
 bool LighteningJIT::markThreadForJITCompilation() {
     pthread_jit_write_protect_np(false);
-    if (!init_jit()) {
-        SPDLOG_ERROR("Failed to initialize thread-specific Lightening JIT data.");
-        return false;
-    }
     return true;
 }
 

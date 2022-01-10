@@ -23,7 +23,7 @@ public:
     ~BlockSerializer() = default;
 
     // Destructively modify baseFrame to produce a single LinearBlock with blocks serialized in the required order.
-    std::unique_ptr<LinearBlock> serialize(std::unique_ptr<Frame> baseFrame, size_t numberOfRegisters);
+    std::unique_ptr<LinearBlock> serialize(std::unique_ptr<Frame> baseFrame);
 
 private:
     // Map of block number to Block struct, useful when recursing through control flow graph.
@@ -31,8 +31,6 @@ private:
 
     // Does the recursive postorder traversal of the blocks and saves the output in |blockOrder|.
     void orderBlocks(Block* block, std::vector<int>& blockOrder);
-    // Mark all register lifetimes as in use for one instruction past the last instruction in |linearBlock|.
-    void reserveRegisters(LinearBlock* linearBlock);
 };
 
 } // namespace hadron

@@ -61,7 +61,7 @@ private:
             rapidjson::Document& document);
     void serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR, rapidjson::Document& document);
     void serializeValue(hadron::Value value, rapidjson::Value& jsonValue, rapidjson::Document& document);
-    void serializeLifetimeIntervals(const std::vector<std::vector<hadron::LifetimeInterval>>& lifetimeIntervals,
+    void serializeLifetimeIntervals(const std::vector<std::vector<hadron::LtIRef>>& lifetimeIntervals,
             rapidjson::Value& jsonIntervals, rapidjson::Document& document);
 
     FILE* m_inputStream;
@@ -883,14 +883,6 @@ void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::Linear
     serializeLifetimeIntervals(linearBlock->valueLifetimes, valueLifetimes, document);
     jsonBlock.AddMember("valueLifetimes", valueLifetimes, document.GetAllocator());
 
-    rapidjson::Value registerLifetimes;
-    serializeLifetimeIntervals(linearBlock->registerLifetimes, registerLifetimes, document);
-    jsonBlock.AddMember("registerLifetimes", registerLifetimes, document.GetAllocator());
-
-    rapidjson::Value spillLifetimes;
-    serializeLifetimeIntervals(linearBlock->spillLifetimes, spillLifetimes, document);
-    jsonBlock.AddMember("spillLifetimes", spillLifetimes, document.GetAllocator());
-
     jsonBlock.AddMember("numberOfSpillSlots", rapidjson::Value(static_cast<uint64_t>(linearBlock->numberOfSpillSlots)),
             document.GetAllocator());
 }
@@ -1153,26 +1145,18 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
         }
         jsonHIR.AddMember("liveIns", liveIns, document.GetAllocator());
     } break;
-    case hadron::hir::Opcode::kDispatchCall: {
-        const auto call = reinterpret_cast<const hadron::hir::DispatchCallHIR*>(hir);
+    case hadron::hir::Opcode::kDispatchSetupStack:
+        jsonHIR.AddMember("opcode", "DispatchSetupStack", document.GetAllocator());
+        break;
+    case hadron::hir::Opcode::kDispatchStoreArg:
+        jsonHIR.AddMember("opcode", "DispatchStoreArg", document.GetAllocator());
+        break;
+    case hadron::hir::Opcode::kDispatchStoreKeyArg:
+        jsonHIR.AddMember("opcode", "DispatchStoreKeyArg", document.GetAllocator());
+        break;
+    case hadron::hir::Opcode::kDispatchCall:
         jsonHIR.AddMember("opcode", "DispatchCall", document.GetAllocator());
-        rapidjson::Value keywordArguments;
-        keywordArguments.SetArray();
-        for (auto arg : call->keywordArguments) {
-            rapidjson::Value value;
-            serializeValue(arg, value, document);
-            keywordArguments.PushBack(value, document.GetAllocator());
-        }
-        jsonHIR.AddMember("keywordArguments", keywordArguments, document.GetAllocator());
-        rapidjson::Value arguments;
-        arguments.SetArray();
-        for (auto arg : call->arguments) {
-            rapidjson::Value value;
-            serializeValue(arg, value, document);
-            arguments.PushBack(value, document.GetAllocator());
-        }
-        jsonHIR.AddMember("arguments", arguments, document.GetAllocator());
-    } break;
+        break;
     case hadron::hir::Opcode::kDispatchLoadReturn:
         jsonHIR.AddMember("opcode", "DispatchLoadReturn", document.GetAllocator());
         break;
@@ -1225,7 +1209,7 @@ void JSONTransport::JSONTransportImpl::serializeValue(hadron::Value value, rapid
 }
 
 void JSONTransport::JSONTransportImpl::serializeLifetimeIntervals(
-        const std::vector<std::vector<hadron::LifetimeInterval>>&lifetimeIntervals,
+        const std::vector<std::vector<hadron::LtIRef>>&lifetimeIntervals,
         rapidjson::Value& jsonIntervals, rapidjson::Document& document) {
     jsonIntervals.SetArray();
     for (const auto& value : lifetimeIntervals) {
@@ -1236,7 +1220,7 @@ void JSONTransport::JSONTransportImpl::serializeLifetimeIntervals(
             interval.SetObject();
             rapidjson::Value ranges;
             ranges.SetArray();
-            for (const auto& range : lifetimeInterval.ranges) {
+            for (const auto& range : lifetimeInterval->ranges) {
                 rapidjson::Value jsonRange;
                 jsonRange.SetObject();
                 jsonRange.AddMember("from", rapidjson::Value(static_cast<uint64_t>(range.from)),
@@ -1248,18 +1232,18 @@ void JSONTransport::JSONTransportImpl::serializeLifetimeIntervals(
 
             rapidjson::Value usages;
             usages.SetArray();
-            for (auto usage : lifetimeInterval.usages) {
+            for (auto usage : lifetimeInterval->usages) {
                 usages.PushBack(rapidjson::Value(static_cast<uint64_t>(usage)), document.GetAllocator());
             }
             interval.AddMember("usages", usages, document.GetAllocator());
 
-            interval.AddMember("valueNumber", static_cast<uint64_t>(lifetimeInterval.valueNumber),
+            interval.AddMember("valueNumber", static_cast<uint64_t>(lifetimeInterval->valueNumber),
                     document.GetAllocator());
-            interval.AddMember("registerNumber", static_cast<uint64_t>(lifetimeInterval.registerNumber),
+            interval.AddMember("registerNumber", static_cast<uint64_t>(lifetimeInterval->registerNumber),
                     document.GetAllocator());
-            interval.AddMember("isSplit", rapidjson::Value(lifetimeInterval.isSplit), document.GetAllocator());
-            interval.AddMember("isSpill", rapidjson::Value(lifetimeInterval.isSpill), document.GetAllocator());
-            interval.AddMember("spillSlot", rapidjson::Value(static_cast<uint64_t>(lifetimeInterval.spillSlot)),
+            interval.AddMember("isSplit", rapidjson::Value(lifetimeInterval->isSplit), document.GetAllocator());
+            interval.AddMember("isSpill", rapidjson::Value(lifetimeInterval->isSpill), document.GetAllocator());
+            interval.AddMember("spillSlot", rapidjson::Value(static_cast<uint64_t>(lifetimeInterval->spillSlot)),
                     document.GetAllocator());
             valueIntervals.PushBack(interval, document.GetAllocator());
         }

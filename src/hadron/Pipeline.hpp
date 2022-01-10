@@ -46,9 +46,12 @@ public:
     size_t numberOfRegisters() const { return m_numberOfRegisters; }
     void setNumberOfRegisters(size_t n) { m_numberOfRegisters = n; }
 
+    bool jitToVirtualMachine() const { return m_jitToVirtualMachine; }
+    void setJitToVirtualMachine(bool useVM) { m_jitToVirtualMachine = useVM; }
+
     // For interpreter code only, returns an Int8Array with JIT bytecode, or nil on error.
-    Slot compileBlock(ThreadContext* context, std::string_view code);
-    // bool compileMethod(const parse::MethodNode* method, ) ??
+    Slot compileCode(ThreadContext* context, std::string_view code);
+    Slot compileBlock(ThreadContext* context, parse::BlockNode* blockNode, const Lexer* lexer);
 
 #if HADRON_PIPELINE_VALIDATE
     // With pipeline validation on these methods are called after internal validation of each step. Their default
@@ -69,7 +72,8 @@ protected:
 
 #if HADRON_PIPELINE_VALIDATE
     // Checks for valid SSA form and that all members of Frame and contained Blocks are valid.
-    bool validateFrame(const Frame* frame, const parse::BlockNode* blockNode, const Lexer* lexer);
+    bool validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
+            const Lexer* lexer);
     bool validateSubFrame(const Frame* frame, const Frame* parent, std::unordered_map<uint32_t, uint32_t>& values,
             std::unordered_set<int>& blockNumbers);
     bool validateFrameHIR(const hir::HIR* hir, std::unordered_map<uint32_t, uint32_t>& values, const Block* block);

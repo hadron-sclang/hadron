@@ -3,11 +3,20 @@
 #include "hadron/Block.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
+#include "hadron/Heap.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Slot.hpp"
+#include "hadron/ThreadContext.hpp"
+
+#include "schema/Common/Core/Object.hpp"
+#include "schema/Common/Core/Kernel.hpp"
+#include "schema/Common/Collections/Collection.hpp"
+#include "schema/Common/Collections/SequenceableCollection.hpp"
+#include "schema/Common/Collections/ArrayedCollection.hpp"
+#include "schema/Common/Collections/Array.hpp"
 
 #include "fmt/format.h"
 
@@ -21,18 +30,18 @@ BlockBuilder::BlockBuilder(const Lexer* lexer, std::shared_ptr<ErrorReporter> er
     m_frame(nullptr),
     m_block(nullptr),
     m_blockSerial(0),
-    m_valueSerial(1) { }
+    m_valueSerial(0) { }
 
 BlockBuilder::~BlockBuilder() { }
 
-std::unique_ptr<Frame> BlockBuilder::buildFrame(const parse::BlockNode* blockNode) {
-    auto frame = buildSubframe(blockNode);
+std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const parse::BlockNode* blockNode) {
+    auto frame = buildSubframe(context, blockNode);
     frame->numberOfBlocks = m_blockSerial;
     frame->numberOfValues = m_valueSerial;
     return frame;
 }
 
-std::unique_ptr<Frame> BlockBuilder::buildSubframe(const parse::BlockNode* blockNode) {
+std::unique_ptr<Frame> BlockBuilder::buildSubframe(ThreadContext* context, const parse::BlockNode* blockNode) {
     assert(blockNode);
     auto frame = std::make_unique<Frame>();
     frame->parent = m_frame;
@@ -43,12 +52,19 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(const parse::BlockNode* block
     m_block = frame->blocks.begin()->get();
 
     // Build argument name list and default values.
-
+    int argIndex = 0;
     // The *this* pointer is always the first argument to every block.
-    frame->argumentOrder.emplace_back(kThisHash);
+    frame->argumentOrder = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
+    frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder, kThisHash);
+    frame->argumentDefaults = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
+    frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults, Slot());
+    m_block->revisions[kThisHash] = std::make_pair(
+            insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
+            insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
+    ++argIndex;
 
+    // Build the rest of the argument order.
     const parse::ArgListNode* argList = blockNode->arguments.get();
-    int32_t argIndex = 0;
     while (argList) {
         assert(argList->nodeType == parse::NodeType::kArgList);
         const parse::VarListNode* varList = argList->varList.get();
@@ -58,19 +74,21 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(const parse::BlockNode* block
             while (varDef) {
                 assert(varDef->nodeType == parse::NodeType::kVarDef);
                 auto name = m_lexer->tokens()[varDef->tokenIndex].hash;
-                frame->argumentOrder.emplace_back(name);
-                // TODO: for the ARG keyword the initial value can be *any* valid expr parse. For the | pair argument
-                // delimiters valid syntax is any slotliteral, so basically anything that can be trivially packed
-                // into a Slot. This seems a much more tractable way to describe initial values, so investigate
-                // locking the parser down to only accept those for both argument styles. My suspicion is that
-                // complex expressions using the `arg` syntax may parse but probably won't survive later compilation
-                // stages in LSC anyway, so this may just represent making a de-facto LSC error into an explicit
-                // parse error. Or, there's going to have to be an *if* block added to each variable in turn with
-                // something like `if variable missing then do init expr` which just seems terrible.
-                // For now we just do assignments with the LoadArgument opcode.
+                frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder, name);
+                Slot initialValue;
+                if (varDef->initialValue) {
+                    if (varDef->initialValue->nodeType == parse::NodeType::kLiteral) {
+                        const auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
+                        initialValue = literal->value;
+                    } else {
+                        // TODO: add to list for if-block processing
+                    }
+                }
+                frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults,
+                        initialValue);
                 m_block->revisions[name] = std::make_pair(
-                    insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
-                    insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
+                     insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
+                     insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
                 ++argIndex;
                 varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
             }
@@ -83,13 +101,16 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(const parse::BlockNode* block
     // sequences in the main body.
     std::pair<Value, Value> finalValue;
     if (blockNode->variables) {
-        finalValue = buildFinalValue(blockNode->variables.get());
-    }
-    if (blockNode->body) {
-        finalValue = buildFinalValue(blockNode->body.get());
+        finalValue = buildFinalValue(context, blockNode->variables.get());
     }
 
-    // If this is the root Frame we insert a return value.
+    // ** TODO: insert any non-literal value initalizations here as ifNil blocks.
+
+    if (blockNode->body) {
+        finalValue = buildFinalValue(context, blockNode->body.get());
+    }
+
+    // If this is the root Frame we insert a return value, if not already inserted.
     if (frame->parent == nullptr) {
         findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(finalValue));
     }
@@ -97,7 +118,7 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(const parse::BlockNode* block
     return frame;
 }
 
-std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
+std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const parse::Node* node) {
     std::pair<Value, Value> nodeValue;
 
     switch(node->nodeType) {
@@ -110,7 +131,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
         auto nameToken = m_lexer->tokens()[varDef->tokenIndex];
         // TODO: error reporting for variable redefinition
         if (varDef->initialValue) {
-            nodeValue = buildFinalValue(varDef->initialValue.get());
+            nodeValue = buildFinalValue(context, varDef->initialValue.get());
             m_block->revisions[nameToken.hash] = nodeValue;
         } else {
             nodeValue.first = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot()));
@@ -122,7 +143,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
     case parse::NodeType::kVarList: {
         const auto varList = reinterpret_cast<const parse::VarListNode*>(node);
         if (varList->definitions) {
-            nodeValue = buildFinalValue(varList->definitions.get());
+            nodeValue = buildFinalValue(context, varList->definitions.get());
         }
     } break;
 
@@ -136,7 +157,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
     case parse::NodeType::kReturn: {
         const auto returnNode = reinterpret_cast<const parse::ReturnNode*>(node);
         assert(returnNode->valueExpr);
-        nodeValue = buildFinalValue(returnNode->valueExpr.get());
+        nodeValue = buildFinalValue(context, returnNode->valueExpr.get());
         findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(nodeValue));
     } break;
 
@@ -158,7 +179,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
         Block* lastBlock = m_block;
 
         // Recursively build the subframe.
-        auto subFrame = buildSubframe(blockNode);
+        auto subFrame = buildSubframe(context, blockNode);
 
         // Wire the entry block in the new frame as a successor in the block graph.
         Block* frameEntryBlock = subFrame->blocks.front().get();
@@ -199,14 +220,14 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
     case parse::NodeType::kExprSeq: {
         const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(node);
         assert(exprSeq->expr);
-        nodeValue = buildFinalValue(exprSeq->expr.get());
+        nodeValue = buildFinalValue(context, exprSeq->expr.get());
     } break;
 
     case parse::NodeType::kAssign: {
         const auto assign = reinterpret_cast<const parse::AssignNode*>(node);
         assert(assign->name);
         assert(assign->value);
-        nodeValue = buildFinalValue(assign->value.get());
+        nodeValue = buildFinalValue(context, assign->value.get());
         auto name = m_lexer->tokens()[assign->name->tokenIndex].hash;
         m_block->revisions[name] = nodeValue;
     } break;
@@ -218,7 +239,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
         // Rehash selector with the _ character appended.
         auto selectorToken = m_lexer->tokens()[setter->tokenIndex];
         auto selector = hash(fmt::format("{}_", selectorToken.range));
-        nodeValue = buildDispatch(setter->target.get(), selector, setter->value.get(), nullptr);
+        nodeValue = buildDispatch(context, setter->target.get(), selector, setter->value.get(), nullptr);
     } break;
 
     case parse::NodeType::kKeyValue:
@@ -228,13 +249,14 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
     case parse::NodeType::kCall: {
         const auto call = reinterpret_cast<const parse::CallNode*>(node);
         auto selector = m_lexer->tokens()[call->tokenIndex].hash;
-        nodeValue = buildDispatch(call->target.get(), selector, call->arguments.get(), call->keywordArguments.get());
+        nodeValue = buildDispatch(context, call->target.get(), selector, call->arguments.get(),
+                call->keywordArguments.get());
     } break;
 
     case parse::NodeType::kBinopCall: {
         const auto binop = reinterpret_cast<const parse::BinopCallNode*>(node);
         auto selector = m_lexer->tokens()[binop->tokenIndex].hash;
-        nodeValue = buildDispatch(binop->leftHand.get(), selector, binop->rightHand.get(), nullptr);
+        nodeValue = buildDispatch(context, binop->leftHand.get(), selector, binop->rightHand.get(), nullptr);
     } break;
 
     case parse::NodeType::kPerformList: {
@@ -291,7 +313,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
 
     case parse::NodeType::kIf: {
         const auto ifNode = reinterpret_cast<const parse::IfNode*>(node);
-        auto condition = buildFinalValue(ifNode->condition.get());
+        auto condition = buildFinalValue(context, ifNode->condition.get());
         auto condBranchOwning = std::make_unique<hir::BranchIfZeroHIR>(condition);
         // Insert the if HIR but keep a copy of the pointer around to connect it to the continuation or else blocks
         hir::BranchIfZeroHIR* condBranch = condBranchOwning.get();
@@ -308,7 +330,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
         // Build the true condition block. We unconditionally branch to this with the expectation that it will be
         // serialized after the if block, meaning we can delete the branch.
         assert(ifNode->trueBlock);
-        auto trueFrameOwning = buildSubframe(ifNode->trueBlock.get());
+        auto trueFrameOwning = buildSubframe(context, ifNode->trueBlock.get());
         Frame* trueFrame = trueFrameOwning.get();
         parentFrame->subFrames.emplace_back(std::move(trueFrameOwning));
         branch->blockNumber = trueFrame->blocks.front()->number;
@@ -318,7 +340,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
         // Build the else condition block if present. The BranchIfZero will target branching here.
         Frame* falseFrame = nullptr;
         if (ifNode->falseBlock) {
-            auto falseFrameOwning = buildSubframe(ifNode->falseBlock.get());
+            auto falseFrameOwning = buildSubframe(context, ifNode->falseBlock.get());
             falseFrame = falseFrameOwning.get();
             parentFrame->subFrames.emplace_back(std::move(falseFrameOwning));
             condBranch->blockNumber = falseFrame->blocks.front()->number;
@@ -358,53 +380,54 @@ std::pair<Value, Value> BlockBuilder::buildValue(const parse::Node* node) {
     return nodeValue;
 }
 
-std::pair<Value, Value> BlockBuilder::buildFinalValue(const parse::Node* node) {
+std::pair<Value, Value> BlockBuilder::buildFinalValue(ThreadContext* context, const parse::Node* node) {
     std::pair<Value, Value> finalValue;
     while (node) {
-        finalValue = buildValue(node);
+        finalValue = buildValue(context, node);
         node = node->next.get();
     }
     return finalValue;
 }
 
-std::pair<Value, Value> BlockBuilder::buildDispatch(const parse::Node* target, Hash selector,
+std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, const parse::Node* target, Hash selector,
         const parse::Node* arguments, const parse::KeyValueNode* keywordArguments) {
-    auto dispatch = std::make_unique<hir::DispatchCallHIR>();
-    auto targetValue = buildFinalValue(target);
-    // Build argument list starting with target argument as `this`.
-    dispatch->addArgument(targetValue);
+    // Build argument values starting with target argument as `this`.
+    std::vector<std::pair<Value, Value>> argumentValues;
+    argumentValues.emplace_back(buildFinalValue(context, target));
+
     // Going to need the symbol type handy for insertion as the selector and any keyword arguments.
     auto symbolType = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot(Type::kType)));
-    // Next is selector added as a symbol constant.
-    dispatch->addArgument(std::make_pair(findOrInsertLocal(std::make_unique<hir::ConstantHIR>(selector)), symbolType));
+    argumentValues.emplace_back(std::make_pair(findOrInsertLocal(std::make_unique<hir::ConstantHIR>(selector)),
+            symbolType));
 
     // Now append any additional arguments.
     while (arguments) {
-        dispatch->addArgument(buildValue(arguments));
+        argumentValues.emplace_back(buildValue(context, arguments));
         arguments = arguments->next.get();
     }
 
-    // Now append any keyword arguments.
+    std::vector<std::pair<Value, Value>> keywordArgumentValues;
     while (keywordArguments) {
         assert(keywordArguments->nodeType == parse::NodeType::kKeyValue);
         auto keyName = m_lexer->tokens()[keywordArguments->tokenIndex].hash;
-        auto key = std::make_pair(findOrInsertLocal(std::make_unique<hir::ConstantHIR>(keyName)), symbolType);
-        dispatch->addKeywordArgument(key, buildFinalValue(keywordArguments->value.get()));
+        keywordArgumentValues.emplace_back(std::make_pair(
+                    findOrInsertLocal(std::make_unique<hir::ConstantHIR>(keyName)), symbolType));
+        keywordArgumentValues.emplace_back(buildFinalValue(context, keywordArguments->value.get()));
         keywordArguments = reinterpret_cast<const parse::KeyValueNode*>(keywordArguments->next.get());
     }
 
-    // Add the dispatch call and get the updated value number for the target, to record the mutation of the target.
-    Value updatedTarget = insertLocal(std::move(dispatch));
-
-    // Do a reverse search on local names to update their values to new target as needed. Type is assumed to be
-    // invariant for the target. If this was an anonymous target nothing will be updated, but if there were
-    // local names that were tracking the target value they must be updated to reflect any modifications
-    // by side effects of the dispatch.
-    for (auto iter : m_block->revisions) {
-        if (iter.second == targetValue) {
-            iter.second.first = updatedTarget;
-        }
+    // Now setup the stack for the dispatch.
+    insertLocal(std::make_unique<hir::DispatchSetupStackHIR>(argumentValues.size(), keywordArgumentValues.size() / 2));
+    for (int i = 0; i < static_cast<int>(argumentValues.size()); ++i) {
+        insertLocal(std::make_unique<hir::DispatchStoreArgHIR>(i, argumentValues[i]));
     }
+    for (int i = 0; i < static_cast<int>(keywordArgumentValues.size()); i += 2) {
+        insertLocal(std::make_unique<hir::DispatchStoreKeyArgHIR>(i / 2, keywordArgumentValues[i],
+                keywordArgumentValues[i + 1]));
+    }
+
+    // Make the call, this will mark all registers as blocked.
+    insertLocal(std::make_unique<hir::DispatchCallHIR>());
 
     Value returnValue = insertLocal(std::make_unique<hir::DispatchLoadReturnHIR>());
     Value returnValueType = insertLocal(std::make_unique<hir::DispatchLoadReturnTypeHIR>());

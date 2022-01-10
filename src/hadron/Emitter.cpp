@@ -25,6 +25,8 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
     std::vector<std::pair<int, JIT::Label>> jmpPatchNeeded;
 
     for (size_t line = 0; line < linearBlock->instructions.size(); ++line) {
+        SPDLOG_DEBUG("Emitting line {}", line);
+
         const hir::HIR* hir = linearBlock->instructions[line].get();
 
         // Labels need to capture their address before any move predicates so we handle them separately here.
@@ -65,6 +67,9 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
                 break;
             case Type::kBoolean:
                 jit->movi(constant->valueLocations.at(constant->value.number), constant->constant.getBool() ? 1 : 0);
+                break;
+            case Type::kSymbol:
+                jit->movi(constant->valueLocations.at(constant->value.number), constant->constant.getHash());
                 break;
             default:
                 assert(false);
@@ -126,8 +131,16 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             // Should handle labels before move predicates, making them no-ops here.
             break;
 
+        case hir::Opcode::kDispatchSetupStack: {
+        } break;
+
+        case hir::Opcode::kDispatchStoreArg: {
+        } break;
+
+        case hir::Opcode::kDispatchStoreKeyArg: {
+        } break;
+
         case hir::Opcode::kDispatchCall: {
-            // TODO: dispatch code.
         } break;
 
         case hir::Opcode::kDispatchLoadReturn: {
