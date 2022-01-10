@@ -33,6 +33,7 @@ public:
     // Preserves the lower 48 bits of a 64-bit hash and adds the Hash NaN.
     inline Slot(uint64_t h) { m_asBits = (h & (~kTagMask)) | kSymbolTag; }
     inline Slot(char c) { m_asBits = kCharTag | c; }
+    ~Slot() = default;
 
     inline bool operator==(const Slot& s) const { return m_asBits == s.m_asBits; }
     inline bool operator!=(const Slot& s) const { return m_asBits != s.m_asBits; }

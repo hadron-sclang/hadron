@@ -120,9 +120,11 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
                 jitMaxSize));
         jitMaxSize = context->heap->getAllocationSize(bytecodeArray);
     } else {
-        jit = std::make_unique<LighteningJIT>();
         LighteningJIT::markThreadForJITCompilation();
-        bytecodeArray = context->heap->allocateJIT(jitMaxSize, jitMaxSize);
+        jit = std::make_unique<LighteningJIT>();
+        size_t allocationSize = 0;
+        bytecodeArray = context->heap->allocateJIT(jitMaxSize, allocationSize);
+        jitMaxSize = allocationSize;
     }
     jit->begin(reinterpret_cast<uint8_t*>(bytecodeArray) + sizeof(library::Int8Array),
         jitMaxSize - sizeof(library::Int8Array));

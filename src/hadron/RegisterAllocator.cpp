@@ -213,21 +213,32 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         }
     }
 
+    SPDLOG_DEBUG("unhandled heap completed.");
+
     // Append any final lifetimes to the linearBlock.
     for (size_t reg = 0; reg < m_active.size(); ++reg) {
         if (m_active[reg]) {
             if (m_active[reg]->valueNumber != kInvalidValue) {
+                SPDLOG_DEBUG("* saving lifetime value {} in active reg {}", m_active[reg]->valueNumber, reg);
                 handled(std::move(m_active[reg]), linearBlock);
             }
             m_active[reg] = nullptr;
         }
-        for (auto& iter : m_inactive[reg]) {
-            if (iter->valueNumber != kInvalidValue) {
-                handled(std::move(iter), linearBlock);
+
+        auto iter = m_inactive[reg].begin();
+        while (iter != m_inactive[reg].end()) {
+            if ((*iter)->valueNumber != kInvalidValue) {
+                SPDLOG_DEBUG("* saving lifetime value {} in inactive reg {}", (*iter)->valueNumber, reg);
+                handled(std::move(*iter), linearBlock);
+                *iter = nullptr;
+                iter = m_inactive[reg].erase(iter);
+            } else {
+                ++iter;
             }
         }
         m_inactive[reg].clear();
     }
+
     for (size_t spill = 1; spill < m_activeSpills.size(); ++spill) {
         if (m_activeSpills[spill] != nullptr) {
             linearBlock->valueLifetimes[m_activeSpills[spill]->valueNumber].emplace_back(
@@ -235,6 +246,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
             m_activeSpills[spill] = nullptr;
         }
     }
+
     linearBlock->numberOfSpillSlots = m_activeSpills.size();
 }
 
@@ -396,6 +408,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
                 m_unhandled.emplace_back((*it)->splitAt(m_current->start()));
                 std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
                 handled(std::move(*it), linearBlock);
+                *it = nullptr;
                 it = m_inactive[reg].erase(it);
             } else {
                 // make sure that current does not intersect with the fixed interval for reg

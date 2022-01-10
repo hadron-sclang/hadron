@@ -25,6 +25,8 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
     std::vector<std::pair<int, JIT::Label>> jmpPatchNeeded;
 
     for (size_t line = 0; line < linearBlock->instructions.size(); ++line) {
+        SPDLOG_DEBUG("Emitting line {}", line);
+
         const hir::HIR* hir = linearBlock->instructions[line].get();
 
         // Labels need to capture their address before any move predicates so we handle them separately here.
