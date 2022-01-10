@@ -32,12 +32,12 @@ private:
 // decidedly "hands-on," meaning they are expected to check values of individual fields and inspect internal state at
 // any interesting stage of the pipeline.
 TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline") {
-/*
+
     SUBCASE("nil block") {
         Pipeline p;
         REQUIRE_NE(p.compileBlock(context(), "nil"), Slot());
     }
-*/
+
     SUBCASE("this call") {
         Pipeline p;
         REQUIRE_NE(p.compileBlock(context(), "(this.primitiveFailed)"), Slot());

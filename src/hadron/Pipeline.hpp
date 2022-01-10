@@ -69,7 +69,8 @@ protected:
 
 #if HADRON_PIPELINE_VALIDATE
     // Checks for valid SSA form and that all members of Frame and contained Blocks are valid.
-    bool validateFrame(const Frame* frame, const parse::BlockNode* blockNode, const Lexer* lexer);
+    bool validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
+            const Lexer* lexer);
     bool validateSubFrame(const Frame* frame, const Frame* parent, std::unordered_map<uint32_t, uint32_t>& values,
             std::unordered_set<int>& blockNumbers);
     bool validateFrameHIR(const hir::HIR* hir, std::unordered_map<uint32_t, uint32_t>& values, const Block* block);

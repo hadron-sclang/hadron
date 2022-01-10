@@ -69,7 +69,7 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
     auto frame = builder.buildFrame(context, blockNode);
     if (!frame) { return nullptr; }
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateFrame(frame.get(), blockNode, lexer)) { return nullptr; }
+    if (!validateFrame(context, frame.get(), blockNode, lexer)) { return nullptr; }
     if (!afterBlockBuilder(frame.get(), blockNode, lexer)) { return nullptr; }
     size_t numberOfBlocks = static_cast<size_t>(frame->numberOfBlocks);
     size_t numberOfValues = frame->numberOfValues;
@@ -139,25 +139,42 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
 }
 
 #if HADRON_PIPELINE_VALIDATE
-bool Pipeline::validateFrame(const Frame* frame, const parse::BlockNode* /* blockNode */, const Lexer* /* lexer */) {
-/*
-    if (frame->argumentOrder.size() < 1 || frame->argumentOrder[0] != kThisHash) {
-        SPDLOG_ERROR("First argument to Frame either absent or not 'this'");
+bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
+        const Lexer* lexer ) {
+    int32_t argumentOrderArraySize = library::ArrayedCollection::_BasicSize(context, frame->argumentOrder).getInt32();
+    int32_t argumentDefaultsArraySize = library::ArrayedCollection::_BasicSize(context,
+            frame->argumentDefaults).getInt32();
+    if (argumentOrderArraySize != argumentDefaultsArraySize) {
+        SPDLOG_ERROR("Frame has mismatched argument order and defaults array sizes of {} and {} respectively",
+            argumentOrderArraySize, argumentDefaultsArraySize);
+        return false;
+    }
+
+
+    if (argumentOrderArraySize < 1) {
+        SPDLOG_ERROR("First argument to Frame absent.");
+        return false;
+    }
+
+    if (library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, 0) != Slot(kThisHash)) {
+        SPDLOG_ERROR("First argument to Frame {:16x} not 'this' {:16x}",
+                library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, 0).getHash(),
+                Slot(kThisHash).getHash());
         return false;
     }
 
     // Check argument count and ordering against frame.
-    size_t numberOfArguments = 1;
+    int32_t numberOfArguments = 1;
     if (blockNode->arguments && blockNode->arguments->varList) {
         const hadron::parse::VarDefNode* varDef = blockNode->arguments->varList->definitions.get();
         while (varDef) {
             auto nameHash = hadron::hash(lexer->tokens()[varDef->tokenIndex].range);
-            if (frame->argumentOrder.size() < numberOfArguments) {
+            if (argumentOrderArraySize < numberOfArguments) {
                 SPDLOG_ERROR("Missing argument number {} named {} from Frame", numberOfArguments,
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
             }
-            if (frame->argumentOrder[numberOfArguments] != nameHash) {
+            if (library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, numberOfArguments) != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for argument number {} named {}", numberOfArguments,
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
@@ -166,12 +183,12 @@ bool Pipeline::validateFrame(const Frame* frame, const parse::BlockNode* /* bloc
             varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
         }
     }
-    if (frame->argumentOrder.size() != numberOfArguments) {
+    if (argumentOrderArraySize != numberOfArguments) {
         SPDLOG_ERROR("Mismatched argument count in Frame, parse tree has {}, Frame has {}", numberOfArguments,
-            frame->argumentOrder.size());
+            argumentOrderArraySize);
         return false;
     }
-*/
+
     std::unordered_map<uint32_t, uint32_t> values;
     std::unordered_set<int> blockNumbers;
     if (!validateSubFrame(frame, nullptr, values, blockNumbers)) { return false; }
