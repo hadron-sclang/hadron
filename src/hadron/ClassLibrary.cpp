@@ -182,7 +182,7 @@ hadron::Slot ClassLibrary::buildMethod(ThreadContext* context, library::Class* c
 
     // JIT compile the bytecode.
     BlockBuilder blockBuilder(lexer, m_errorReporter);
-    auto frame = blockBuilder.buildFrame(methodNode->body.get());
+    auto frame = blockBuilder.buildFrame(context, methodNode->body.get());
     BlockSerializer blockSerializer;
     auto linearBlock = blockSerializer.serialize(std::move(frame));
     LifetimeAnalyzer lifetimeAnalyzer;

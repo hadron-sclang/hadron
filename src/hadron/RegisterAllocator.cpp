@@ -132,6 +132,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     for (size_t i = 0; i < numberOfInstructions; ++i) {
         int reservedRegisters = linearBlock->instructions[i]->numberOfReservedRegisters();
         if (reservedRegisters < 0) { reservedRegisters = m_numberOfRegisters; }
+        SPDLOG_INFO("Reserving {} registers at instruction {}", reservedRegisters, i);
         // A HIR cannot reserve and read more registers than are available on the machine. This is a sign of a flaw in
         // the HIR design, and probably means the HIR needs to be broken out to more instructions that can handle the
         // values separately. Register allocation will fail at any instruction requiring more registers than available.
@@ -215,11 +216,15 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     // Append any final lifetimes to the linearBlock.
     for (size_t reg = 0; reg < m_active.size(); ++reg) {
         if (m_active[reg]) {
-            handled(std::move(m_active[reg]), linearBlock);
+            if (m_active[reg]->valueNumber != std::numeric_limits<uint32_t>::max()) {
+                handled(std::move(m_active[reg]), linearBlock);
+            }
             m_active[reg] = nullptr;
         }
         for (auto& iter : m_inactive[reg]) {
-            handled(std::move(iter), linearBlock);
+            if (iter->valueNumber != std::numeric_limits<uint32_t>::max()) {
+                handled(std::move(iter), linearBlock);
+            }
         }
         m_inactive[reg].clear();
     }

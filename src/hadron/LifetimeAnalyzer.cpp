@@ -3,6 +3,8 @@
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/LinearBlock.hpp"
 
+#include "spdlog/spdlog.h"
+
 namespace hadron {
 
 /*
@@ -74,7 +76,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
         // for a modification of a lifetime range (setFrom). Our Lifetime structure doesn't currently support modifying
         // ranges once added, so we save temporary ranges here until final and add them all in then.
         std::vector<std::pair<size_t, size_t>> blockVariableRanges(linearBlock->valueLifetimes.size(),
-                std::make_pair(std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()));
+                std::make_pair(std::numeric_limits<size_t>::max(), 0));
 
         // for each opd in live do
         for (auto opd : live) {
@@ -100,7 +102,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
             for (auto opd : hir->reads) {
                 // intervals[opd].addRange(b.from, op.id)
                 blockVariableRanges[opd.number].first = blockRange.first;
-                blockVariableRanges[opd.number].second = std::max(j, blockVariableRanges[opd.number].second);
+                blockVariableRanges[opd.number].second = std::max(j + 1, blockVariableRanges[opd.number].second);
                 linearBlock->valueLifetimes[opd.number][0]->usages.emplace(j);
                 // live.add(opd)
                 live.insert(opd.number);
@@ -125,14 +127,22 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
         // b.liveIn = live
         blockLabel->liveIns.swap(live);
 
+        SPDLOG_INFO("LifetimeAnalyzer Block Ranges");
+
         // Cleanup step, add the now final ranges into the lifetimes.
-        for (size_t i = 0; i < blockVariableRanges.size(); ++i) {
-            if (blockVariableRanges[i].first != std::numeric_limits<size_t>::max()) {
-                assert(blockVariableRanges[i].second != std::numeric_limits<size_t>::max());
-#error write-only value probably a sign of dead code that could be eliminated, but we still need to handle this case
-                assert(blockVariableRanges[i].second > blockVariableRanges[i].first);
-                linearBlock->valueLifetimes[i][0]->addLiveRange(blockVariableRanges[i].first,
-                    blockVariableRanges[i].second);
+        for (size_t j = 0; j < blockVariableRanges.size(); ++j) {
+            SPDLOG_INFO("** value: {} start: {} end: {}", j, blockVariableRanges[j].first,
+                    blockVariableRanges[j].second);
+            if (blockVariableRanges[j].first != std::numeric_limits<size_t>::max()) {
+                // It's possible a value is created in this block but not read. This could be a sign of code that needs
+                // more optimization, or a value that's needed in a subsequent block. Record this as a range only around
+                // the usage.
+                if (blockVariableRanges[j].second == 0) {
+                    blockVariableRanges[j].second = blockVariableRanges[j].first + 1;
+                }
+                assert(blockVariableRanges[j].second > blockVariableRanges[j].first);
+                linearBlock->valueLifetimes[j][0]->addLiveRange(blockVariableRanges[j].first,
+                    blockVariableRanges[j].second);
             }
         }
     }

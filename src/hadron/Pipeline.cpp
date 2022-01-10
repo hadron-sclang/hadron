@@ -139,7 +139,8 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
 }
 
 #if HADRON_PIPELINE_VALIDATE
-bool Pipeline::validateFrame(const Frame* frame, const parse::BlockNode* blockNode, const Lexer* lexer) {
+bool Pipeline::validateFrame(const Frame* frame, const parse::BlockNode* /* blockNode */, const Lexer* /* lexer */) {
+/*
     if (frame->argumentOrder.size() < 1 || frame->argumentOrder[0] != kThisHash) {
         SPDLOG_ERROR("First argument to Frame either absent or not 'this'");
         return false;
@@ -170,7 +171,7 @@ bool Pipeline::validateFrame(const Frame* frame, const parse::BlockNode* blockNo
             frame->argumentOrder.size());
         return false;
     }
-
+*/
     std::unordered_map<uint32_t, uint32_t> values;
     std::unordered_set<int> blockNumbers;
     if (!validateSubFrame(frame, nullptr, values, blockNumbers)) { return false; }
@@ -370,11 +371,11 @@ bool Pipeline::validateLifetimes(const LinearBlock* linearBlock) {
         }
         for (const auto& value : hir->reads) {
             if (!linearBlock->valueLifetimes[value.number][0]->covers(i)) {
-                SPDLOG_ERROR("value {} read outside of lifetime", value.number);
+                SPDLOG_ERROR("value {} read outside of lifetime at instruction {}", value.number, i);
                 return false;
             }
             if (linearBlock->valueLifetimes[value.number][0]->usages.count(i) != 1) {
-                SPDLOG_ERROR("value {} read without being marked as used", value.number);
+                SPDLOG_ERROR("value {} read without being marked as used at instruction {}", value.number, i);
                 return false;
             }
             ++usageCounts[value.number];

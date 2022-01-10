@@ -52,12 +52,16 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(ThreadContext* context, const
     m_block = frame->blocks.begin()->get();
 
     // Build argument name list and default values.
-
+    int argIndex = 0;
     // The *this* pointer is always the first argument to every block.
     frame->argumentOrder = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
     frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder, kThisHash);
     frame->argumentDefaults = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
     frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults, Slot());
+    m_block->revisions[kThisHash] = std::make_pair(
+            insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
+            insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
+    ++argIndex;
 
     // Build the rest of the argument order.
     const parse::ArgListNode* argList = blockNode->arguments.get();
@@ -82,6 +86,10 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(ThreadContext* context, const
                 }
                 frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults,
                         initialValue);
+                m_block->revisions[name] = std::make_pair(
+                     insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
+                     insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
+                ++argIndex;
                 varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
             }
             varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
@@ -457,7 +465,6 @@ Value BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
 }
 
 std::pair<Value, Value> BlockBuilder::findName(Hash name) {
-#error should search arguments too since we aren't automatically loading them at start now
     // TODO: out-of-block searches.
     auto rev = m_block->revisions.find(name);
     if (rev == m_block->revisions.end()) {

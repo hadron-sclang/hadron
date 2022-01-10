@@ -66,6 +66,9 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             case Type::kBoolean:
                 jit->movi(constant->valueLocations.at(constant->value.number), constant->constant.getBool() ? 1 : 0);
                 break;
+            case Type::kSymbol:
+                jit->movi(constant->valueLocations.at(constant->value.number), constant->constant.getHash());
+                break;
             default:
                 assert(false);
                 break;
