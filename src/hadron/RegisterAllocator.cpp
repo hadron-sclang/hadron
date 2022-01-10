@@ -132,7 +132,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     for (size_t i = 0; i < numberOfInstructions; ++i) {
         int reservedRegisters = linearBlock->instructions[i]->numberOfReservedRegisters();
         if (reservedRegisters < 0) { reservedRegisters = m_numberOfRegisters; }
-        SPDLOG_INFO("Reserving {} registers at instruction {}", reservedRegisters, i);
+        SPDLOG_DEBUG("Reserving {} registers at instruction {}", reservedRegisters, i);
         // A HIR cannot reserve and read more registers than are available on the machine. This is a sign of a flaw in
         // the HIR design, and probably means the HIR needs to be broken out to more instructions that can handle the
         // values separately. Register allocation will fail at any instruction requiring more registers than available.
@@ -152,7 +152,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         // current = pick and remove first interval from unhandled
         std::pop_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
         m_current = std::move(m_unhandled.back());
-        SPDLOG_INFO("current interval value: {} start: {} end: {}, with {} ranges and {} usages.",
+        SPDLOG_DEBUG("current interval value: {} start: {} end: {}, with {} ranges and {} usages.",
                 m_current->valueNumber, m_current->start(), m_current->end(), m_current->ranges.size(),
                 m_current->usages.size());
         m_unhandled.pop_back();
@@ -168,7 +168,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
             // if it ends before position then
             if (m_active[reg]->end() <= position) {
                 // move it from active to handled
-                SPDLOG_INFO("* at position {} moving value {} from active to handled", position,
+                SPDLOG_DEBUG("* at position {} moving value {} from active to handled", position,
                         m_active[reg]->valueNumber);
                 handled(std::move(m_active[reg]), linearBlock);
                 m_active[reg] = nullptr;
@@ -190,7 +190,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
                 // if it ends before position then
                 if ((*iter)->end() <= position) {
                     // move it from inactive to handled
-                    SPDLOG_INFO("* at position {} moving value {} from inactive to handled", position,
+                    SPDLOG_DEBUG("* at position {} moving value {} from inactive to handled", position,
                             (*iter)->valueNumber);
                     handled(std::move(*iter), linearBlock);
                     iter = m_inactive[reg].erase(iter);
@@ -269,16 +269,16 @@ bool RegisterAllocator::tryAllocateFreeReg() {
         }
     }
 
-    SPDLOG_INFO("* tryAllocate register: {} freeUntilPos: {}", reg, highestFreeUntilPos);
+    SPDLOG_DEBUG("* tryAllocate register: {} freeUntilPos: {}", reg, highestFreeUntilPos);
 
     // if freeUntilPos[reg] = 0 then
     if (highestFreeUntilPos == 0) {
-        SPDLOG_INFO("* tryAllocate found no register available");
+        SPDLOG_DEBUG("* tryAllocate found no register available");
         // no register available without spilling
         // allocation failed
         return false;
     } else if (m_current->end() <= highestFreeUntilPos) {
-        SPDLOG_INFO("* tryAllocate found available register {}", reg);
+        SPDLOG_DEBUG("* tryAllocate found available register {}", reg);
         // else if current ends before freeUntilPos[reg] then
         //   // register available for the whole interval
         //   current.reg = reg
@@ -290,7 +290,7 @@ bool RegisterAllocator::tryAllocateFreeReg() {
         m_current->registerNumber = reg;
         // split current before freeUntilPos[reg]
         m_unhandled.emplace_back(m_current->splitAt(highestFreeUntilPos));
-        SPDLOG_INFO("* tryAllocate found split, current start: {} end: {}, unhandled start: {}, end: {}",
+        SPDLOG_DEBUG("* tryAllocate found split, current start: {} end: {}, unhandled start: {}, end: {}",
                 m_current->start(), m_current->end(), m_unhandled.back()->start(), m_unhandled.back()->end());
         std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
     }
@@ -348,7 +348,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
     assert(m_current->usages.size());
     size_t currentFirstUsage = *(m_current->usages.begin());
 
-    SPDLOG_INFO("* allocateBlocked choosing reg {} with highest next use {}, current first use {}", reg,
+    SPDLOG_DEBUG("* allocateBlocked choosing reg {} with highest next use {}, current first use {}", reg,
             highestNextUsePos, currentFirstUsage);
 
     if (currentFirstUsage > highestNextUsePos) {
@@ -356,7 +356,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
         // assign spill slot to current
         // split current before its first use position that requires a register
         m_unhandled.emplace_back(m_current->splitAt(currentFirstUsage));
-        SPDLOG_INFO("* allocateBlocked spilling current, new start: {} end: {}, unhandled start: {}, end: {}",
+        SPDLOG_DEBUG("* allocateBlocked spilling current, new start: {} end: {}, unhandled start: {}, end: {}",
                 m_current->start(), m_current->end(), m_unhandled.back()->start(), m_unhandled.back()->end());
         std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
         spill(std::move(m_current), linearBlock);
@@ -367,7 +367,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
         // current.reg = reg
         m_current->registerNumber = reg;
         if (m_active[reg]) {
-            SPDLOG_INFO("* allocateBlocked split active interval for reg {} at {}, start: {} end: {}",
+            SPDLOG_DEBUG("* allocateBlocked split active interval for reg {} at {}, start: {} end: {}",
                     reg, m_current->start(), m_active[reg]->start(), m_active[reg]->end());
 
             // split active interval for reg at position
@@ -378,7 +378,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
             m_current = nullptr;
 
             assert(!activeSpill->isEmpty());
-            SPDLOG_INFO("* allocateBlocked splitting spilled region start: {} end: {} at {}", activeSpill->start(),
+            SPDLOG_DEBUG("* allocateBlocked splitting spilled region start: {} end: {} at {}", activeSpill->start(),
                     activeSpill->end(), highestNextUsePos);
             auto afterSpill = activeSpill->splitAt(highestNextUsePos);
             assert(!afterSpill->isEmpty());
@@ -395,7 +395,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
             // split any inactive interval for reg at the end of its lifetime hole
             auto inactiveSpill = (*it)->splitAt(m_current->start());
             assert(!inactiveSpill->isEmpty());
-            SPDLOG_INFO("* allocateBlocked split inactive interval for {} at {}, new start: {} end: {}, unhandled "
+            SPDLOG_DEBUG("* allocateBlocked split inactive interval for {} at {}, new start: {} end: {}, unhandled "
                     "start: {} end: {}", reg, m_current->start(), (*it)->start(), (*it)->end(),
                     inactiveSpill->start(), inactiveSpill->end());
 
@@ -428,7 +428,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
 }
 
 void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
-    SPDLOG_INFO("** spill interval value: {} reg: {} start: {} end: {}, with {} ranges and {} usages.",
+    SPDLOG_DEBUG("** spill interval value: {} reg: {} start: {} end: {}, with {} ranges and {} usages.",
             interval->valueNumber, interval->registerNumber, interval->start(), interval->end(),
             interval->ranges.size(), interval->usages.size());
 
@@ -463,7 +463,7 @@ void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
 }
 
 void RegisterAllocator::handled(LtIRef interval, LinearBlock* linearBlock) {
-    SPDLOG_INFO("** handled interval value: {} reg: {} start: {} end: {}, with {} ranges and {} usages.",
+    SPDLOG_DEBUG("** handled interval value: {} reg: {} start: {} end: {}, with {} ranges and {} usages.",
             interval->valueNumber, interval->registerNumber, interval->start(), interval->end(),
             interval->ranges.size(), interval->usages.size());
     assert(!interval->isSpill);

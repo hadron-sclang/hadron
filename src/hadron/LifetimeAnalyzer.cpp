@@ -127,11 +127,11 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
         // b.liveIn = live
         blockLabel->liveIns.swap(live);
 
-        SPDLOG_INFO("LifetimeAnalyzer Block Ranges");
+        SPDLOG_DEBUG("LifetimeAnalyzer Block Ranges");
 
         // Cleanup step, add the now final ranges into the lifetimes.
         for (size_t j = 0; j < blockVariableRanges.size(); ++j) {
-            SPDLOG_INFO("** value: {} start: {} end: {}", j, blockVariableRanges[j].first,
+            SPDLOG_DEBUG("** value: {} start: {} end: {}", j, blockVariableRanges[j].first,
                     blockVariableRanges[j].second);
             if (blockVariableRanges[j].first != std::numeric_limits<size_t>::max()) {
                 // It's possible a value is created in this block but not read. This could be a sign of code that needs
