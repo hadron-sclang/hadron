@@ -45,6 +45,12 @@ TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline") {
         REQUIRE_NE(p.compileCode(context(), "(this.primitiveFailed)"), Slot());
     }
 
+    SUBCASE("call chaining") {
+        Pipeline p;
+        p.setJitToVirtualMachine(true);
+        REQUIRE_NE(p.compileCode(context(), "(this.asString.post)"), Slot());
+    }
+
 }
 
 } // namespace hadron

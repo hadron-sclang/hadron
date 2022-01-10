@@ -422,6 +422,7 @@ bool Pipeline::validateRegisterCoverage(const LinearBlock* linearBlock, size_t i
     int valueCovered = 0;
     size_t reg = 0;
     for (const auto& lt : linearBlock->valueLifetimes[vReg]) {
+        if (lt->isSpill) { continue; }
         if (lt->covers(i)) {
             if (lt->usages.count(i) != 1) {
                 SPDLOG_ERROR("Value live but no usage at {}", i);
@@ -451,6 +452,7 @@ bool Pipeline::validateRegisterCoverage(const LinearBlock* linearBlock, size_t i
     for (size_t j = 0; j < linearBlock->valueLifetimes.size(); ++j) {
         if (j == vReg) { continue; }
         for (const auto& lt : linearBlock->valueLifetimes[j]) {
+            if (lt->isSpill) { continue; }
             if (lt->covers(i)) {
                 if (lt->registerNumber == reg) {
                     SPDLOG_ERROR("Duplicate register allocation for register {}, values {} and {}, at instruction {}",

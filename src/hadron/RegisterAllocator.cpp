@@ -216,13 +216,13 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     // Append any final lifetimes to the linearBlock.
     for (size_t reg = 0; reg < m_active.size(); ++reg) {
         if (m_active[reg]) {
-            if (m_active[reg]->valueNumber != std::numeric_limits<uint32_t>::max()) {
+            if (m_active[reg]->valueNumber != kInvalidValue) {
                 handled(std::move(m_active[reg]), linearBlock);
             }
             m_active[reg] = nullptr;
         }
         for (auto& iter : m_inactive[reg]) {
-            if (iter->valueNumber != std::numeric_limits<uint32_t>::max()) {
+            if (iter->valueNumber != kInvalidValue) {
                 handled(std::move(iter), linearBlock);
             }
         }
@@ -309,7 +309,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
     for (size_t i = 0; i < m_numberOfRegisters; ++i) {
         if (m_active[i]) {
             // nextUsePos[it.reg] = next use of it after start of current
-            auto nextUse = m_active[i]->usages.upper_bound(m_current->start());
+            auto nextUse = m_active[i]->usages.lower_bound(m_current->start());
             if (nextUse != m_active[i]->usages.end()) {
                 nextUsePos[i] = *nextUse;
             } else {
@@ -317,18 +317,17 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
                 // approximate the next use. Could happen at the end of a loop block, for instance.
                 nextUsePos[i] = m_active[i]->end();
             }
-        } else {
-            // for each interval it in inactive intersecting with current do
-            for (auto& it : m_inactive[i]) {
-                size_t nextIntersection = 0;
-                if (it->findFirstIntersection(m_current.get(), nextIntersection)) {
-                    // nextUsePos[it.reg] = next use of it after start of current
-                    auto nextUse = it->usages.upper_bound(m_current->start());
-                    if (nextUse != it->usages.end()) {
-                        nextUsePos[i] = std::min(nextUsePos[i], *nextUse);
-                    } else {
-                        nextUsePos[i] = std::min(nextUsePos[i], it->end());
-                    }
+        }
+        // for each interval it in inactive intersecting with current do
+        for (auto& it : m_inactive[i]) {
+            size_t nextIntersection = 0;
+            if (it->findFirstIntersection(m_current.get(), nextIntersection)) {
+                // nextUsePos[it.reg] = next use of it after start of current
+                auto nextUse = it->usages.lower_bound(m_current->start());
+                if (nextUse != it->usages.end()) {
+                    nextUsePos[i] = std::min(nextUsePos[i], *nextUse);
+                } else {
+                    nextUsePos[i] = std::min(nextUsePos[i], it->end());
                 }
             }
         }
@@ -344,13 +343,13 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
         }
     }
 
-    // if first usage of current is after nextUsePos[reg] then
     assert(m_current->usages.size());
     size_t currentFirstUsage = *(m_current->usages.begin());
 
     SPDLOG_DEBUG("* allocateBlocked choosing reg {} with highest next use {}, current first use {}", reg,
             highestNextUsePos, currentFirstUsage);
 
+    // if first usage of current is after nextUsePos[reg] then
     if (currentFirstUsage > highestNextUsePos) {
         // all other intervals are used before current, so it is best to spill current itself
         // assign spill slot to current
@@ -366,64 +365,53 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
         // spill intervals that currently block reg
         // current.reg = reg
         m_current->registerNumber = reg;
-        if (m_active[reg]) {
-            SPDLOG_DEBUG("* allocateBlocked split active interval for reg {} at {}, start: {} end: {}",
-                    reg, m_current->start(), m_active[reg]->start(), m_active[reg]->end());
+        assert(m_active[reg]);
+        SPDLOG_DEBUG("* allocateBlocked split active interval for reg {} at {}, start: {} end: {}",
+                reg, m_current->start(), m_active[reg]->start(), m_active[reg]->end());
 
-            // split active interval for reg at position
-            auto activeSpill = m_active[reg]->splitAt(m_current->start());
-            assert(!m_active[reg]->isEmpty());
-            handled(std::move(m_active[reg]), linearBlock);
-            m_active[reg] = std::move(m_current);
-            m_current = nullptr;
+        // split active interval for reg at position
+        auto activeSpill = m_active[reg]->splitAt(m_current->start());
+        assert(!m_active[reg]->isEmpty());
+        // What came before the split is handled, save it.
+        handled(std::move(m_active[reg]), linearBlock);
+        m_active[reg] = nullptr;
 
-            assert(!activeSpill->isEmpty());
-            SPDLOG_DEBUG("* allocateBlocked splitting spilled region start: {} end: {} at {}", activeSpill->start(),
-                    activeSpill->end(), highestNextUsePos);
-            auto afterSpill = activeSpill->splitAt(highestNextUsePos);
-            assert(!afterSpill->isEmpty());
-            m_unhandled.emplace_back(std::move(afterSpill));
-            std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
-            spill(std::move(activeSpill), linearBlock);
-        } else {
-            assert(false);
-        }
+        // The spilled region for the active interval has to end at the next use of the interval.
+        assert(!activeSpill->isEmpty());
+        SPDLOG_DEBUG("* allocateBlocked splitting spilled region value {} start: {} end: {} at {}",
+                activeSpill->valueNumber, activeSpill->start(), activeSpill->end(), highestNextUsePos);
+        auto afterSpill = activeSpill->splitAt(highestNextUsePos);
+        assert(!afterSpill->isEmpty());
+        m_unhandled.emplace_back(std::move(afterSpill));
+        std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
+        spill(std::move(activeSpill), linearBlock);
 
-/* TODO:
+        // split any inactive interval for reg at the end of its lifetime hole
         auto it = m_inactive[reg].begin();
         while (it != m_inactive[reg].end()) {
-            // split any inactive interval for reg at the end of its lifetime hole
-            auto inactiveSpill = (*it)->splitAt(m_current->start());
-            assert(!inactiveSpill->isEmpty());
-            SPDLOG_DEBUG("* allocateBlocked split inactive interval for {} at {}, new start: {} end: {}, unhandled "
-                    "start: {} end: {}", reg, m_current->start(), (*it)->start(), (*it)->end(),
-                    inactiveSpill->start(), inactiveSpill->end());
-
-            handled(std::move(*it), linearBlock);
-            // TODO: any harm in splitting here instead of at the start of the lifetime hole?
-            m_unhandled.emplace_back(inactiveSpill->splitAt(highestNextUsePos));
-            std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
-            spill(std::move(inactiveSpill), linearBlock);
-
-            m_active.emplace(std::make_pair(reg, std::move(m_current)));
-            m_current = nullptr;
-            m_inactive.erase(iter);
+            // Looking for intervals that are for actual values (instead of register reservations with kInvalidValue),
+            // and that begin sometime before position, because these have been evicted from the register at position,
+            // and so will need to be reprocessed after the split.
+            if ((*it)->valueNumber != kInvalidValue && (*it)->start() < m_current->start()) {
+                m_unhandled.emplace_back((*it)->splitAt(m_current->start()));
+                std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
+                handled(std::move(*it), linearBlock);
+                it = m_inactive[reg].erase(it);
+            } else {
+                // make sure that current does not intersect with the fixed interval for reg
+                // if current intersects with the fixed interval for reg then
+                size_t firstIntersection = 0;
+                if (m_current->findFirstIntersection((*it).get(), firstIntersection)) {
+                    //   split current before this intersection
+                    m_unhandled.emplace_back(m_current->splitAt(firstIntersection));
+                    std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
+                }
+                ++it;
+            }
         }
-*/
 
-
-        // The following pseudocode fixes up a register assignment to current in the event that it collides with a
-        // future blocked use of the register, such as in the event that the register is blocked for a function call.
-        // Right now Hadron reserves *all* registers for the callee, saving everything in memory for each dispatch. It
-        // may make more sense to adopt a calling convention later that reserves some registers for the caller, in which
-        // case this implementation will need to be refactored to support blocking some registers only during function
-        // calls. For now the blocks in inactive will get moved to unhandled, and may get assigned to another register,
-        // but because there is a block for every register it is assumed the allocator will always preserve all
-        // registers across calls.
-
-        // make sure that current does not intersect with the fixed interval for reg
-        // if current intersects with the fixed interval for reg then
-        //   split current before this intersection
+        m_active[reg] = std::move(m_current);
+        m_current = nullptr;
     }
 }
 
@@ -431,6 +419,8 @@ void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
     SPDLOG_DEBUG("** spill interval value: {} reg: {} start: {} end: {}, with {} ranges and {} usages.",
             interval->valueNumber, interval->registerNumber, interval->start(), interval->end(),
             interval->ranges.size(), interval->usages.size());
+    // No spilling of register blocks.
+    assert(interval->valueNumber != kInvalidValue);
 
     size_t spillSlot = 0;
     // Update our active spill map in case we can re-use any spill slot no longer needed.
