@@ -38,7 +38,7 @@ Pipeline::Pipeline(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporte
 
 Pipeline::~Pipeline() {}
 
-Slot Pipeline::compileBlock(ThreadContext* context, std::string_view code) {
+Slot Pipeline::compileCode(ThreadContext* context, std::string_view code) {
     Lexer lexer(code, m_errorReporter);
     if (!lexer.lex()) { return nullptr; }
 
@@ -48,6 +48,10 @@ Slot Pipeline::compileBlock(ThreadContext* context, std::string_view code) {
     assert(parser.root()->nodeType == parse::NodeType::kBlock);
 
     return buildBlock(context, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer);
+}
+
+Slot Pipeline::compileBlock(ThreadContext* context, parse::BlockNode* blockNode, const Lexer* lexer) {
+    return buildBlock(context, blockNode, lexer);
 }
 
 #if HADRON_PIPELINE_VALIDATE
@@ -149,7 +153,6 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
             argumentOrderArraySize, argumentDefaultsArraySize);
         return false;
     }
-
 
     if (argumentOrderArraySize < 1) {
         SPDLOG_ERROR("First argument to Frame absent.");

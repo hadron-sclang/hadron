@@ -15,6 +15,7 @@
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
+#include "hadron/Pipeline.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
 #include "hadron/SourceFile.hpp"
@@ -181,34 +182,8 @@ hadron::Slot ClassLibrary::buildMethod(ThreadContext* context, library::Class* c
     method->raw2 = Slot();
 
     // JIT compile the bytecode.
-    BlockBuilder blockBuilder(lexer, m_errorReporter);
-    auto frame = blockBuilder.buildFrame(context, methodNode->body.get());
-    BlockSerializer blockSerializer;
-    auto linearBlock = blockSerializer.serialize(std::move(frame));
-    LifetimeAnalyzer lifetimeAnalyzer;
-    lifetimeAnalyzer.buildLifetimes(linearBlock.get());
-    RegisterAllocator registerAllocator(kNumberOfPhysicalRegisters);
-    registerAllocator.allocateRegisters(linearBlock.get());
-    Resolver resolver;
-    resolver.resolve(linearBlock.get());
-
-    // Estimate output size of JIT buffer as 16 bytes per HIR instruction. This is a SWAG and could perhaps be adjusted
-    // or refined, but gives us the size class of the JIT buffer allocation.
-    size_t jitSize = (linearBlock->instructions.size() * 16) + sizeof(library::Int8Array);
-    size_t jitAllocationSize = 0;
-    library::Int8Array* jitArray = context->heap->allocateJIT(jitSize, jitAllocationSize);
-    LighteningJIT jit;
-    jit.begin(reinterpret_cast<uint8_t*>(jitArray) + sizeof(library::Int8Array),
-            jitAllocationSize - sizeof(library::Int8Array));
-    Emitter emitter;
-    emitter.emit(linearBlock.get(), &jit);
-
-    // Compute the actual size of the jit and update the size of the array to match.
-    size_t finalSize = 0;
-    jit.end(&finalSize);
-    assert(finalSize + sizeof(library::Int8Array) < jitAllocationSize);
-    jitArray->_sizeInBytes = finalSize + sizeof(library::Int8Array);
-    method->code = Slot(jitArray);
+    Pipeline pipeline(m_errorReporter);
+    method->code = pipeline.compileBlock(context, methodNode->body.get(), lexer);
 
     method->selectors = Slot(); // TODO: ??
     method->constants = Slot(); // TODO: ??

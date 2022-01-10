@@ -372,11 +372,8 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
 
             // split active interval for reg at position
             auto activeSpill = m_active[reg]->splitAt(m_current->start());
-            // It's possible that position was the first use time for m_active[reg] and so the split is now empty.
             assert(!m_active[reg]->isEmpty());
-//            if (!m_active[reg]->isEmpty()) {
-                handled(std::move(m_active[reg]), linearBlock);
-//            }
+            handled(std::move(m_active[reg]), linearBlock);
             m_active[reg] = std::move(m_current);
             m_current = nullptr;
 
@@ -385,31 +382,35 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
                     activeSpill->end(), highestNextUsePos);
             auto afterSpill = activeSpill->splitAt(highestNextUsePos);
             assert(!afterSpill->isEmpty());
-//            if (!afterSpill->isEmpty()) {
-                m_unhandled.emplace_back(std::move(afterSpill));
-                std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
-//            }
+            m_unhandled.emplace_back(std::move(afterSpill));
+            std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
             spill(std::move(activeSpill), linearBlock);
         } else {
-            for (auto& it : m_inactive[reg]) {
-                // split any inactive interval for reg at the end of its lifetime hole
-                auto inactiveSpill = it->splitAt(m_current->start());
-                assert(!inactiveSpill->isEmpty());
-                SPDLOG_INFO("* allocateBlocked split inactive interval for {} at {}, new start: {} end: {}, unhandled "
-                        "start: {} end: {}", reg, m_current->start(), it->start(), it->end(),
-                        inactiveSpill->start(), inactiveSpill->end());
-/*
-                handled(std::move(*it), linearBlock);
-                // TODO: any harm in splitting here instead of at the start of the lifetime hole?
-                m_unhandled.emplace_back(inactiveSpill->splitAt(highestNextUsePos));
-                std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
-                spill(std::move(inactiveSpill), linearBlock);
-                m_active.emplace(std::make_pair(reg, std::move(m_current)));
-                m_current = nullptr;
-                m_inactive.erase(iter);
-*/
-            }
+            assert(false);
         }
+
+/* TODO:
+        auto it = m_inactive[reg].begin();
+        while (it != m_inactive[reg].end()) {
+            // split any inactive interval for reg at the end of its lifetime hole
+            auto inactiveSpill = (*it)->splitAt(m_current->start());
+            assert(!inactiveSpill->isEmpty());
+            SPDLOG_INFO("* allocateBlocked split inactive interval for {} at {}, new start: {} end: {}, unhandled "
+                    "start: {} end: {}", reg, m_current->start(), (*it)->start(), (*it)->end(),
+                    inactiveSpill->start(), inactiveSpill->end());
+
+            handled(std::move(*it), linearBlock);
+            // TODO: any harm in splitting here instead of at the start of the lifetime hole?
+            m_unhandled.emplace_back(inactiveSpill->splitAt(highestNextUsePos));
+            std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
+            spill(std::move(inactiveSpill), linearBlock);
+
+            m_active.emplace(std::make_pair(reg, std::move(m_current)));
+            m_current = nullptr;
+            m_inactive.erase(iter);
+        }
+*/
+
 
         // The following pseudocode fixes up a register assignment to current in the event that it collides with a
         // future blocked use of the register, such as in the event that the register is blocked for a function call.

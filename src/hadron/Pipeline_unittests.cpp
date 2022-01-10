@@ -35,12 +35,14 @@ TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline") {
 
     SUBCASE("nil block") {
         Pipeline p;
-        REQUIRE_NE(p.compileBlock(context(), "nil"), Slot());
+        p.setJitToVirtualMachine(true);
+        REQUIRE_NE(p.compileCode(context(), "nil"), Slot());
     }
 
     SUBCASE("this call") {
         Pipeline p;
-        REQUIRE_NE(p.compileBlock(context(), "(this.primitiveFailed)"), Slot());
+        p.setJitToVirtualMachine(true);
+        REQUIRE_NE(p.compileCode(context(), "(this.primitiveFailed)"), Slot());
     }
 
 }
