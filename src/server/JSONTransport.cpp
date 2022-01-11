@@ -1138,12 +1138,6 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
             phis.PushBack(jsonPhi, document.GetAllocator());
         }
         jsonHIR.AddMember("phis", phis, document.GetAllocator());
-        rapidjson::Value liveIns;
-        liveIns.SetArray();
-        for (auto liveIn : label->liveIns) {
-            liveIns.PushBack(rapidjson::Value(static_cast<uint64_t>(liveIn)), document.GetAllocator());
-        }
-        jsonHIR.AddMember("liveIns", liveIns, document.GetAllocator());
     } break;
     case hadron::hir::Opcode::kDispatchSetupStack:
         jsonHIR.AddMember("opcode", "DispatchSetupStack", document.GetAllocator());

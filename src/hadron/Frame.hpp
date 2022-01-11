@@ -25,8 +25,8 @@ struct Frame {
     std::list<std::unique_ptr<Block>> blocks;
     std::list<std::unique_ptr<Frame>> subFrames;
 
-    // Values only valid for root frames, subFrame values will be 0.
-    size_t numberOfValues = 0;
+    // Note: Value and block counts are only valid for the root frame, subFrame values will be 0.
+    size_t numberOfValues = 0; // actual values used could be less than this, particularly in the case of phis
     int numberOfBlocks = 0;
 };
 

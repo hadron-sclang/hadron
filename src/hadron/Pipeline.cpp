@@ -198,8 +198,8 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
     std::unordered_set<int> blockNumbers;
     if (!validateSubFrame(frame, nullptr, values, blockNumbers)) { return false; }
 
-    if (frame->numberOfValues != values.size()) {
-        SPDLOG_ERROR("Base frame number of values {} mismatches counted amount of {}", frame->numberOfValues,
+    if (frame->numberOfValues < values.size()) {
+        SPDLOG_ERROR("Base frame number of values {} less than counted amount of {}", frame->numberOfValues,
             values.size());
         return false;
     }
@@ -292,7 +292,8 @@ bool Pipeline::validateFrameHIR(const hir::HIR* hir, std::unordered_map<uint32_t
 // compared to the increased confidence that the inputs to the rest of the compiler pipeline are valid.
 bool Pipeline::validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks, size_t numberOfValues) {
     if (linearBlock->blockOrder.size() != numberOfBlocks || linearBlock->blockRanges.size() != numberOfBlocks) {
-        SPDLOG_ERROR("Mismatch block count on serialization, expecting {}", numberOfBlocks);
+        SPDLOG_ERROR("Mismatch block count on serialization, expecting: {} blockOrder: {} blockRanges: {}",
+                numberOfBlocks, linearBlock->blockOrder.size(), linearBlock->blockRanges.size());
         return false;
     }
 

@@ -55,7 +55,7 @@ void BlockSerializer::orderBlocks(Block* block, std::vector<int>& blockOrder) {
     // Mark block as visited by updating number to pointer map.
     m_blocks[block->number] = block;
     for (const auto succ : block->successors) {
-        if (m_blocks[succ->number] != nullptr) {
+        if (m_blocks[succ->number] == nullptr) {
             orderBlocks(succ, blockOrder);
         }
     }
