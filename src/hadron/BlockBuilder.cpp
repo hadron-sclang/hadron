@@ -99,20 +99,19 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(ThreadContext* context, const
 
     // Variable definitions are allowed inline in Hadron, so we process variable definitions just like expression
     // sequences in the main body.
-    std::pair<Value, Value> finalValue;
     if (blockNode->variables) {
-        finalValue = buildFinalValue(context, blockNode->variables.get());
+        m_block->finalValue = buildFinalValue(context, blockNode->variables.get());
     }
 
     // ** TODO: insert any non-literal value initalizations here as ifNil blocks.
 
     if (blockNode->body) {
-        finalValue = buildFinalValue(context, blockNode->body.get());
+        m_block->finalValue = buildFinalValue(context, blockNode->body.get());
     }
 
     // If this is the root Frame we insert a return value, if not already inserted.
     if (frame->parent == nullptr) {
-        findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(finalValue));
+        findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(m_block->finalValue));
     }
 
     return frame;
@@ -313,22 +312,25 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
 
     case parse::NodeType::kIf: {
         const auto ifNode = reinterpret_cast<const parse::IfNode*>(node);
+        // Compute value of the condition.
         auto condition = buildFinalValue(context, ifNode->condition.get());
+        // We will always make an else condition, even if just to store the value of the block as `nil` in the default
+        // case. Create a branch to jump to that else block.
         auto condBranchOwning = std::make_unique<hir::BranchIfZeroHIR>(condition);
         // Insert the if HIR but keep a copy of the pointer around to connect it to the continuation or else blocks
         hir::BranchIfZeroHIR* condBranch = condBranchOwning.get();
         nodeValue.first = insertLocal(std::move(condBranchOwning));
-        nodeValue.second = insertLocal(std::make_unique<hir::ResolveTypeHIR>(nodeValue.first));
+        condBranchOwning = nullptr;
+        // Also insert a branch to the condition true block.
         auto branchOwning = std::make_unique<hir::BranchHIR>();
         hir::BranchHIR* branch = branchOwning.get();
         insertLocal(std::move(branchOwning));
 
-        // Preserve the current block and frame for insertLocalion of the new subframes as children.
+        // Preserve the current block and frame for insertion of the new subframes as children.
         Frame* parentFrame = m_frame;
         Block* ifBlock = m_block;
 
-        // Build the true condition block. We unconditionally branch to this with the expectation that it will be
-        // serialized after the if block, meaning we can delete the branch.
+        // Build the true condition block.
         assert(ifNode->trueBlock);
         auto trueFrameOwning = buildSubframe(context, ifNode->trueBlock.get());
         Frame* trueFrame = trueFrameOwning.get();
@@ -337,16 +339,28 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
         ifBlock->successors.emplace_back(trueFrame->blocks.front().get());
         trueFrame->blocks.front()->predecessors.emplace_back(ifBlock);
 
-        // Build the else condition block if present. The BranchIfZero will target branching here.
+        // Build the else condition block if present, if not build a default nil valued one. The BranchIfZero will
+        // target branching here.
         Frame* falseFrame = nullptr;
         if (ifNode->falseBlock) {
             auto falseFrameOwning = buildSubframe(context, ifNode->falseBlock.get());
             falseFrame = falseFrameOwning.get();
             parentFrame->subFrames.emplace_back(std::move(falseFrameOwning));
-            condBranch->blockNumber = falseFrame->blocks.front()->number;
-            ifBlock->successors.emplace_back(falseFrame->blocks.front().get());
-            falseFrame->blocks.front()->predecessors.emplace_back(ifBlock);
+        } else {
+            auto falseFrameOwning = std::make_unique<Frame>();
+            falseFrame = falseFrameOwning.get();
+            parentFrame->subFrames.emplace_back(std::move(falseFrameOwning));
+            falseFrame->parent = parentFrame;
+            auto falseBlockOwning = std::make_unique<Block>(falseFrame, m_blockSerial);
+            ++m_blockSerial;
+            Block* falseBlock = falseBlockOwning.get();
+            falseFrame->blocks.emplace_back(std::move(falseBlockOwning));
+            falseBlock->finalValue.first = insert(std::make_unique<hir::ConstantHIR>(Slot()), falseBlock);
+            falseBlock->finalValue.second = insert(std::make_unique<hir::ConstantHIR>(Slot(Type::kNil)), falseBlock);
         }
+        condBranch->blockNumber = falseFrame->blocks.front()->number;
+        ifBlock->successors.emplace_back(falseFrame->blocks.front().get());
+        falseFrame->blocks.front()->predecessors.emplace_back(ifBlock);
 
         // Create a new block in the parent frame for code after the if statement.
         auto continueBlock = std::make_unique<Block>(parentFrame, m_blockSerial);
@@ -355,23 +369,37 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
         parentFrame->blocks.emplace_back(std::move(continueBlock));
         m_frame = parentFrame;
 
+        // Add phis with the final values of both the false and true values here, this is also the value of the
+        // if statement.
+        auto valuePhi = std::make_unique<hir::PhiHIR>();
+        valuePhi->addInput(trueFrame->blocks.back()->finalValue.first);
+        valuePhi->addInput(falseFrame->blocks.back()->finalValue.first);
+        nodeValue.first = valuePhi->proposeValue(m_valueSerial);
+        m_block->localValues.emplace(std::make_pair(nodeValue.first, nodeValue.first));
+        ++m_valueSerial;
+        m_block->phis.emplace_back(std::move(valuePhi));
+        auto typePhi = std::make_unique<hir::PhiHIR>();
+        typePhi->addInput(trueFrame->blocks.back()->finalValue.second);
+        typePhi->addInput(falseFrame->blocks.back()->finalValue.second);
+        nodeValue.second = typePhi->proposeValue(m_valueSerial);
+        m_block->localValues.emplace(std::make_pair(nodeValue.second, nodeValue.second));
+        ++m_valueSerial;
+        m_block->phis.emplace_back(std::move(typePhi));
+
         // Wire trueFrame exit block to the continue block here.
+        auto trueBranch = std::make_unique<hir::BranchHIR>();
+        trueBranch->blockNumber = m_block->number;
+        insert(std::move(trueBranch), trueFrame->blocks.back().get());
         trueFrame->blocks.back()->successors.emplace_back(m_block);
         m_block->predecessors.emplace_back(trueFrame->blocks.back().get());
 
-        // Either wire the else condition to the continue block, or wire the if false condition directly here if no
-        // else condition specified.
-        if (falseFrame) {
-            auto falseBranch = std::make_unique<hir::BranchHIR>();
-            falseBranch->blockNumber = m_block->number;
-            insert(std::move(falseBranch), falseFrame->blocks.back().get());
-            falseFrame->blocks.back()->successors.emplace_back(m_block);
-            m_block->predecessors.emplace_back(falseFrame->blocks.back().get());
-        } else {
-            condBranch->blockNumber = m_block->number;
-            ifBlock->successors.emplace_back(m_block);
-            m_block->predecessors.emplace_back(ifBlock);
-        }
+        // Wire falseFrame exit block to the continue block here.
+        assert(falseFrame);
+        auto falseBranch = std::make_unique<hir::BranchHIR>();
+        falseBranch->blockNumber = m_block->number;
+        insert(std::move(falseBranch), falseFrame->blocks.back().get());
+        falseFrame->blocks.back()->successors.emplace_back(m_block);
+        m_block->predecessors.emplace_back(falseFrame->blocks.back().get());
     } break;
     }
 
@@ -383,10 +411,10 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
 std::pair<Value, Value> BlockBuilder::buildFinalValue(ThreadContext* context, const parse::Node* node) {
     std::pair<Value, Value> finalValue;
     while (node) {
-        finalValue = buildValue(context, node);
+        m_block->finalValue = buildValue(context, node);
         node = node->next.get();
     }
-    return finalValue;
+    return m_block->finalValue;
 }
 
 std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, const parse::Node* target, Hash selector,

@@ -74,11 +74,10 @@ protected:
     // Checks for valid SSA form and that all members of Frame and contained Blocks are valid.
     bool validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
             const Lexer* lexer);
-    bool validateSubFrame(const Frame* frame, const Frame* parent, std::unordered_map<uint32_t, uint32_t>& values,
-            std::unordered_set<int>& blockNumbers);
-    bool validateFrameHIR(const hir::HIR* hir, std::unordered_map<uint32_t, uint32_t>& values, const Block* block);
+    bool validateSubFrame(const Frame* frame, const Frame* parent, std::unordered_set<int>& blockNumbers);
 
     bool validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks, size_t numberOfValues);
+    bool validateSsaHir(const hir::HIR* hir, std::unordered_set<uint32_t>& values);
 
     bool validateLifetimes(const LinearBlock* linearBlock);
 

@@ -33,6 +33,9 @@ struct Block {
     std::list<std::unique_ptr<hir::PhiHIR>> phis;
     // Statements in order of execution.
     std::list<std::unique_ptr<hir::HIR>> statements;
+
+    // The value of executing any block is the final value that was created in the block.
+    std::pair<Value, Value> finalValue;
 };
 
 } // namespace hadron

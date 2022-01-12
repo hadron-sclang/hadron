@@ -200,9 +200,9 @@ BranchIfZeroHIR::BranchIfZeroHIR(std::pair<Value, Value> cond): HIR(kBranchIfZer
     reads.emplace(cond.second);
 }
 
-Value BranchIfZeroHIR::proposeValue(uint32_t number) {
-    value.number = number;
-    value.typeFlags = Type::kAny;
+Value BranchIfZeroHIR::proposeValue(uint32_t /* number */) {
+    value.number = 0;
+    value.typeFlags = 0;
     return value;
 }
 

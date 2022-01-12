@@ -20,8 +20,10 @@ enum Type : std::int32_t {
     kObject  = 0x0100,
     kArray   = 0x0200,
     kBlock   = 0x0400,
-    kType    = 0x0800,
-    kAny     = 0x0fff,
+    kAny     = 0x07ff,
+
+    // Type is an internal-only flag used for type tracking in SSA, so we exclude it from the other flags.
+    kType    = 0x1000
 };
 
 } // namespace hadron

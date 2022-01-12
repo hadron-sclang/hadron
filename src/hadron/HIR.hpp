@@ -217,7 +217,6 @@ struct LabelHIR : public HIR {
     std::vector<int> predecessors;
     std::vector<int> successors;
     std::list<std::unique_ptr<PhiHIR>> phis;
-    std::unordered_set<size_t> liveIns;
 
     Value proposeValue(uint32_t number) override;
     bool isEquivalent(const HIR* hir) const override;

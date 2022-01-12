@@ -41,6 +41,8 @@ BUILDINTERVALS
 */
 
 void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
+    std::vector<std::unordered_set<size_t>> liveIns(linearBlock->blockOrder.size());
+
     // for each block b in reverse order do
     for (int i = linearBlock->blockOrder.size() - 1; i >= 0; --i) {
         int blockNumber = linearBlock->blockOrder[i];
@@ -56,7 +58,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
             const auto succLabel = reinterpret_cast<const hir::LabelHIR*>(
                     linearBlock->instructions[succRange.first].get());
 
-            live.insert(succLabel->liveIns.begin(), succLabel->liveIns.end());
+            live.insert(liveIns[succNumber].begin(), liveIns[succNumber].end());
 
             int inputNumber = 0;
             for (auto succPred : succLabel->predecessors) {
@@ -125,7 +127,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
         //     intervals[opd].addRange(b.from, loopEnd.to)
 
         // b.liveIn = live
-        blockLabel->liveIns.swap(live);
+        liveIns[blockNumber].swap(live);
 
         SPDLOG_DEBUG("LifetimeAnalyzer Block Ranges");
 

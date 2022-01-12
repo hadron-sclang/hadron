@@ -28,7 +28,6 @@ namespace {
 
 namespace hadron {
 
-
 LighteningJIT::LighteningJIT():
     JIT() {
     m_state = jit_new_state(malloc, free);

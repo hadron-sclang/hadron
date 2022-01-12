@@ -1,10 +1,10 @@
 /*
 --<* Hadron Integration Test Metadata Start *>--
 {
-  expectedOutput: "true"
+  expectedOutput: "0"
 }
 --<* Hadron Integration Test Metadata End *>--
 */
 (
-if (true, { true }).postln;
+if(true,{0})
 )

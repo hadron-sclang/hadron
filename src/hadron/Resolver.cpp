@@ -53,6 +53,7 @@ void Resolver::resolve(LinearBlock* linearBlock) {
                 }
             }
             assert(blockIndex < successorLabel->predecessors.size());
+/*
             for (auto live : successorLabel->liveIns) {
                 int moveFrom, moveTo;
 
@@ -91,6 +92,7 @@ void Resolver::resolve(LinearBlock* linearBlock) {
                     }
                 }
             }
+*/
             if (moves.size()) {
                 // If the block has only one successor, or this is the last successor, we can simply prepend the move
                 // instructions to the outbound branch.
