@@ -310,19 +310,23 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id,
         rapidjson::Value jsonUnit;
         jsonUnit.SetObject();
 
+        SPDLOG_TRACE("Serializing compilation unit {}", unit.name);
         rapidjson::Value nameString;
         nameString.SetString(unit.name.data(), document.GetAllocator());
         jsonUnit.AddMember("name", nameString, document.GetAllocator());
 
+        SPDLOG_TRACE("Serializing root frame for {}", unit.name);
         rapidjson::Value rootFrame;
         serial = 0;
         serializeFrame(unit.frame.get(), serial, rootFrame, document);
         jsonUnit.AddMember("rootFrame", rootFrame, document.GetAllocator());
 
+        SPDLOG_TRACE("Serializing linearBlock for {}", unit.name);
         rapidjson::Value jsonBlock;
         serializeLinearBlock(unit.linearBlock.get(), jsonBlock, document);
         jsonUnit.AddMember("linearBlock", jsonBlock, document.GetAllocator());
 
+        SPDLOG_TRACE("Serializing machine code for {}", unit.name);
         rapidjson::Value jsonJIT;
         serializeJIT(unit.byteCode.get(), unit.byteCodeSize, jsonJIT, document);
         jsonUnit.AddMember("machineCode", jsonJIT, document.GetAllocator());
@@ -896,7 +900,12 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const uint8_t* byteCode, siz
     while (it.getSize() < byteCodeSize) {
         rapidjson::Value opcode;
         opcode.SetArray();
+        // Save the address of the opcode first.
+        opcode.PushBack(static_cast<uint64_t>(it.getSize()), document.GetAllocator());
         switch(it.peek()) {
+        case hadron::Opcode::kInvalid: {
+            assert(false);
+        } break;
         case hadron::Opcode::kAddr: {
             opcode.PushBack("addr", document.GetAllocator());
             hadron::JIT::Reg target, a, b;
@@ -905,109 +914,205 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const uint8_t* byteCode, siz
             opcode.PushBack(a, document.GetAllocator());
             opcode.PushBack(b, document.GetAllocator());
         } break;
-        case hadron::Opcode::kAddi:
+        case hadron::Opcode::kAddi: {
             opcode.PushBack("addi", document.GetAllocator());
-            break;
-        case hadron::Opcode::kAndi:
+            hadron::JIT::Reg target, a;
+            hadron::Word b;
+            it.addi(target, a, b);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(a, document.GetAllocator());
+            opcode.PushBack(b, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kAndi: {
             opcode.PushBack("andi", document.GetAllocator());
-            break;
-        case hadron::Opcode::kOri:
+            hadron::JIT::Reg target, a;
+            hadron::UWord b;
+            it.andi(target, a, b);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(a, document.GetAllocator());
+            opcode.PushBack(b, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kOri: {
             opcode.PushBack("ori", document.GetAllocator());
-            break;
-        case hadron::Opcode::kXorr:
+            hadron::JIT::Reg target, a;
+            hadron::UWord b;
+            it.ori(target, a, b);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(a, document.GetAllocator());
+            opcode.PushBack(b, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kXorr: {
             opcode.PushBack("xorr", document.GetAllocator());
-            break;
-        case hadron::Opcode::kMovr:
+            hadron::JIT::Reg target, a, b;
+            it.xorr(target, a, b);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(a, document.GetAllocator());
+            opcode.PushBack(b, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kMovr: {
             opcode.PushBack("movr", document.GetAllocator());
-            break;
-        case hadron::Opcode::kMovi:
+            hadron::JIT::Reg target, value;
+            it.movr(target, value);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(value, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kMovi: {
             opcode.PushBack("movi", document.GetAllocator());
-            break;
-        case hadron::Opcode::kBgei:
+            hadron::JIT::Reg target;
+            hadron::Word value;
+            it.movi(target, value);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(value, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kBgei: {
             opcode.PushBack("bgei", document.GetAllocator());
-            break;
-        case hadron::Opcode::kBeqi:
+            hadron::JIT::Reg a;
+            hadron::Word b;
+            const uint8_t* address;
+            it.bgei(a, b, address);
+            opcode.PushBack(a, document.GetAllocator());
+            opcode.PushBack(b, document.GetAllocator());
+            opcode.PushBack(static_cast<int>(address - byteCode), document.GetAllocator());
+        } break;
+        case hadron::Opcode::kBeqi: {
             opcode.PushBack("beqi", document.GetAllocator());
-            break;
-        case hadron::Opcode::kJmp:
+            hadron::JIT::Reg a;
+            hadron::Word b;
+            const uint8_t* address = nullptr;
+            it.beqi(a, b, address);
+            opcode.PushBack(a, document.GetAllocator());
+            opcode.PushBack(b, document.GetAllocator());
+            opcode.PushBack(static_cast<int>(address - byteCode), document.GetAllocator());
+        } break;
+        case hadron::Opcode::kJmp: {
             opcode.PushBack("jmp", document.GetAllocator());
-            break;
-        case hadron::Opcode::kJmpr:
+            const uint8_t* address = nullptr;
+            it.jmp(address);
+            opcode.PushBack(reinterpret_cast<hadron::UWord>(address), document.GetAllocator());
+        } break;
+        case hadron::Opcode::kJmpr: {
             opcode.PushBack("jmpr", document.GetAllocator());
-            break;
-        case hadron::Opcode::kJmpi:
+            hadron::JIT::Reg r;
+            it.jmpr(r);
+            opcode.PushBack(r, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kJmpi: {
             opcode.PushBack("jmpi", document.GetAllocator());
-            break;
-        case hadron::Opcode::kLdrL:
+            hadron::UWord location;
+            it.jmpi(location);
+            opcode.PushBack(location, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kLdrL: {
             opcode.PushBack("ldr_l", document.GetAllocator());
-            break;
-        case hadron::Opcode::kLdxiW:
+            hadron::JIT::Reg target, address;
+            it.ldr_l(target, address);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(address, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kLdxiW: {
             opcode.PushBack("ldxi_w", document.GetAllocator());
-            break;
-        case hadron::Opcode::kLdxiI:
+            hadron::JIT::Reg target, address;
+            int offset;
+            it.ldxi_w(target, address, offset);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(address, document.GetAllocator());
+            opcode.PushBack(offset, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kLdxiI: {
             opcode.PushBack("ldxi_i", document.GetAllocator());
-            break;
-        case hadron::Opcode::kLdxiL:
+            hadron::JIT::Reg target, address;
+            int offset;
+            it.ldxi_i(target, address, offset);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(address, document.GetAllocator());
+            opcode.PushBack(offset, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kLdxiL: {
             opcode.PushBack("ldxi_l", document.GetAllocator());
-            break;
-        case hadron::Opcode::kStrI:
+            hadron::JIT::Reg target, address;
+            int offset;
+            it.ldxi_l(target, address, offset);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(address, document.GetAllocator());
+            opcode.PushBack(offset, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kStrI: {
             opcode.PushBack("str_i", document.GetAllocator());
-            break;
-        case hadron::Opcode::kStrL:
+            hadron::JIT::Reg address, value;
+            it.str_i(address, value);
+            opcode.PushBack(address, document.GetAllocator());
+            opcode.PushBack(value, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kStrL: {
             opcode.PushBack("str_l", document.GetAllocator());
-            break;
-        case hadron::Opcode::kStxiW:
+            hadron::JIT::Reg address, value;
+            it.str_l(address, value);
+            opcode.PushBack(address, document.GetAllocator());
+            opcode.PushBack(value, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kStxiW: {
             opcode.PushBack("stxi_w", document.GetAllocator());
-            break;
-        case hadron::Opcode::kStxiI:
+            int offset;
+            hadron::JIT::Reg address, value;
+            it.stxi_w(offset, address, value);
+            opcode.PushBack(offset, document.GetAllocator());
+            opcode.PushBack(address, document.GetAllocator());
+            opcode.PushBack(value, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kStxiI: {
             opcode.PushBack("stxi_i", document.GetAllocator());
-            break;
-        case hadron::Opcode::kStxiL:
+            int offset;
+            hadron::JIT::Reg address, value;
+            it.stxi_i(offset, address, value);
+            opcode.PushBack(offset, document.GetAllocator());
+            opcode.PushBack(address, document.GetAllocator());
+            opcode.PushBack(value, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kStxiL: {
             opcode.PushBack("stxi_l", document.GetAllocator());
-            break;
-        case hadron::Opcode::kRet:
+            int offset;
+            hadron::JIT::Reg address, value;
+            it.stxi_l(offset, address, value);
+            opcode.PushBack(offset, document.GetAllocator());
+            opcode.PushBack(address, document.GetAllocator());
+            opcode.PushBack(value, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kRet: {
             opcode.PushBack("ret", document.GetAllocator());
-            break;
-        case hadron::Opcode::kRetr:
+            it.ret();
+        } break;
+        case hadron::Opcode::kRetr: {
             opcode.PushBack("retr", document.GetAllocator());
-            break;
-        case hadron::Opcode::kReti:
+            hadron::JIT::Reg r;
+            it.retr(r);
+            opcode.PushBack(r, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kReti: {
             opcode.PushBack("reti", document.GetAllocator());
-            break;
-        case hadron::Opcode::kLabel:
+            int value;
+            it.reti(value);
+            opcode.PushBack(value, document.GetAllocator());
+        } break;
+        case hadron::Opcode::kLabel: {
+            assert(false); // we currently don't serialize labels
             opcode.PushBack("label", document.GetAllocator());
-            break;
-        case hadron::Opcode::kAddress:
+        } break;
+        case hadron::Opcode::kAddress: {
+            assert(false); // we currently don't serialize addresses
             opcode.PushBack("address", document.GetAllocator());
-            break;
-        case hadron::Opcode::kPatchHere:
+        } break;
+        case hadron::Opcode::kPatchHere: {
+            assert(false); // not serialized
             opcode.PushBack("patch_here", document.GetAllocator());
-            break;
-        case hadron::Opcode::kPatchThere:
+        } break;
+        case hadron::Opcode::kPatchThere: {
+            assert(false); // not serialized
             opcode.PushBack("patch_there", document.GetAllocator());
-            break;
-        default:
-            SPDLOG_WARN("Encountered unknown opcode {:x} in virtualJIT serialization", it.peek());
-            break;
+        } break;
         }
         instructions.PushBack(opcode, document.GetAllocator());
     }
     jsonJIT.AddMember("instructions", instructions, document.GetAllocator());
-/*
-    rapidjson::Value labels;
-    labels.SetArray();
-    for (auto label : virtualJIT->labels()) {
-        labels.PushBack(static_cast<uint64_t>(label), document.GetAllocator());
-    }
-    jsonJIT.AddMember("labels", labels, document.GetAllocator());
-
-    rapidjson::Value uwords;
-    uwords.SetArray();
-    for (auto uword : virtualJIT->uwords()) {
-        uwords.PushBack(uword, document.GetAllocator());
-    }
-    jsonJIT.AddMember("uwords", uwords, document.GetAllocator());
-*/
 }
 
 
@@ -1169,35 +1274,39 @@ void JSONTransport::JSONTransportImpl::serializeValue(hadron::Value value, rapid
     jsonValue.AddMember("number", rapidjson::Value(static_cast<uint64_t>(value.number)), document.GetAllocator());
     rapidjson::Value typeFlags;
     typeFlags.SetArray();
-    if (value.typeFlags & hadron::Type::kNil) {
-        typeFlags.PushBack(rapidjson::Value("nil"), document.GetAllocator());
-    }
-    if (value.typeFlags & hadron::Type::kInteger) {
-        typeFlags.PushBack(rapidjson::Value("integer"), document.GetAllocator());
-    }
-    if (value.typeFlags & hadron::Type::kFloat) {
-        typeFlags.PushBack(rapidjson::Value("float"), document.GetAllocator());
-    }
-    if (value.typeFlags & hadron::Type::kBoolean) {
-        typeFlags.PushBack(rapidjson::Value("boolean"), document.GetAllocator());
-    }
-    if (value.typeFlags & hadron::Type::kString) {
-        typeFlags.PushBack(rapidjson::Value("string"), document.GetAllocator());
-    }
-    if (value.typeFlags & hadron::Type::kSymbol) {
-        typeFlags.PushBack(rapidjson::Value("symbol"), document.GetAllocator());
-    }
-    if (value.typeFlags & hadron::Type::kClass) {
-        typeFlags.PushBack(rapidjson::Value("class"), document.GetAllocator());
-    }
-    if (value.typeFlags & hadron::Type::kObject) {
-        typeFlags.PushBack(rapidjson::Value("object"), document.GetAllocator());
-    }
-    if (value.typeFlags & hadron::Type::kArray) {
-        typeFlags.PushBack(rapidjson::Value("array"), document.GetAllocator());
-    }
-    if (value.typeFlags & hadron::Type::kType) {
-        typeFlags.PushBack(rapidjson::Value("type"), document.GetAllocator());
+    if (value.typeFlags == hadron::Type::kAny) {
+        typeFlags.PushBack(rapidjson::Value("any"), document.GetAllocator());
+    } else {
+        if (value.typeFlags & hadron::Type::kNil) {
+            typeFlags.PushBack(rapidjson::Value("nil"), document.GetAllocator());
+        }
+        if (value.typeFlags & hadron::Type::kInteger) {
+            typeFlags.PushBack(rapidjson::Value("integer"), document.GetAllocator());
+        }
+        if (value.typeFlags & hadron::Type::kFloat) {
+            typeFlags.PushBack(rapidjson::Value("float"), document.GetAllocator());
+        }
+        if (value.typeFlags & hadron::Type::kBoolean) {
+            typeFlags.PushBack(rapidjson::Value("boolean"), document.GetAllocator());
+        }
+        if (value.typeFlags & hadron::Type::kString) {
+            typeFlags.PushBack(rapidjson::Value("string"), document.GetAllocator());
+        }
+        if (value.typeFlags & hadron::Type::kSymbol) {
+            typeFlags.PushBack(rapidjson::Value("symbol"), document.GetAllocator());
+        }
+        if (value.typeFlags & hadron::Type::kClass) {
+            typeFlags.PushBack(rapidjson::Value("class"), document.GetAllocator());
+        }
+        if (value.typeFlags & hadron::Type::kObject) {
+            typeFlags.PushBack(rapidjson::Value("object"), document.GetAllocator());
+        }
+        if (value.typeFlags & hadron::Type::kArray) {
+            typeFlags.PushBack(rapidjson::Value("array"), document.GetAllocator());
+        }
+        if (value.typeFlags & hadron::Type::kType) {
+            typeFlags.PushBack(rapidjson::Value("type"), document.GetAllocator());
+        }
     }
     jsonValue.AddMember("typeFlags", typeFlags, document.GetAllocator());
 }

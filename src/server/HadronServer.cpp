@@ -165,12 +165,13 @@ void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lex
     jit.end(&finalSize);
     assert(finalSize < byteCodeSize);
 
+    SPDLOG_TRACE("Compile Diagnostics Rebuilding Block {}", name);
     // Rebuid frame to include in diagnostics.
     hadron::BlockBuilder blockRebuilder(lexer, m_errorReporter);
     frame = blockRebuilder.buildFrame(m_runtime->context(), blockNode);
 
     units.emplace_back(CompilationUnit{name, blockNode, std::move(frame), std::move(linearBlock),
-            std::move(byteCode), byteCodeSize});
+            std::move(byteCode), finalSize});
 }
 
 } // namespace server

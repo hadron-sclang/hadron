@@ -78,7 +78,7 @@ uint8_t* OpcodeWriteIterator::bgei(JIT::Reg a, Word b) {
     addWord(b);
     auto address = getCurrent();
     // Write an empty address into the bytecode, saving room for a patched address.
-    addWord(0);
+    addWord(0xdeadbeef);
     if (hasOverflow()) { return nullptr; }
     return address;
 }
@@ -88,7 +88,7 @@ uint8_t* OpcodeWriteIterator::beqi(JIT::Reg a, Word b) {
     addByte(reg(a));
     addWord(b);
     auto address = getCurrent();
-    addWord(0);
+    addWord(0xdeadbeef);
     if (hasOverflow()) { return nullptr; }
     return address;
 }
@@ -96,7 +96,7 @@ uint8_t* OpcodeWriteIterator::beqi(JIT::Reg a, Word b) {
 uint8_t* OpcodeWriteIterator::jmp() {
     addByte(Opcode::kJmp);
     auto address = getCurrent();
-    addWord(0);
+    addWord(0xdeadbeef);
     return address;
 }
 
@@ -201,7 +201,7 @@ bool OpcodeWriteIterator::reti(int value) {
 bool OpcodeWriteIterator::patchWord(uint8_t* location, Word value) {
     if (location < m_startOfBytecode || location > m_endOfBytecode - sizeof(Word)) { return false; }
     for (size_t i = 0; i < sizeof(Word); ++i) {
-        *location = (value >> i) & 0xff;
+        *location = (value >> (i * 8)) & 0xff;
         ++location;
     }
     return true;

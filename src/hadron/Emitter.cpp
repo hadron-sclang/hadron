@@ -112,6 +112,7 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             // If the block is before line this is a backwards jump, the address is already known, jump immediately
             // there.
             if (line > targetRange.first) {
+                assert(labelAddresses.find(branch->blockNumber) != labelAddresses.end());
                 jit->jmpi(labelAddresses.at(branch->blockNumber));
             } else if (line + 1 < targetRange.first) {
                 // If the branch is to the first instruction in the next consecutive block, and this branch is the
@@ -154,7 +155,11 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
         }
     }
 
-    // TODO: patches?
+    // Update any patches needed for forward jumps.
+    for (auto& patch : jmpPatchNeeded) {
+        assert(labelAddresses.find(patch.second) != labelAddresses.end());
+        jit->patchThere(patch.second, labelAddresses.at(patch.second));
+    }
 
     // Load caller return address from framePointer + 1 into the stack pointer, then jump there.
     jit->ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, framePointer));

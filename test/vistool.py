@@ -16,68 +16,56 @@ def reg(reg):
 
 def buildMachineCode(outFile, machineCode):
     outFile.write('\n<h3>machine code</h3>\n<span style="font-family: monospace">')
-    lineNumber = 0
     for inst in machineCode['instructions']:
-        outFile.write('{}: '.format(lineNumber))
-        lineNumber += 1
-        if inst[0] == 'addr':
-            outFile.write('addr {}, {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2]), reg(inst[3])))
-        elif inst[0] == 'addi':
-            outFile.write('addi {}, {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
-        elif inst[0] == 'andi':
-            outFile.write('andi {}, {}, 0x{:016x}<br>\n'.format(reg(inst[1]), reg(inst[2]),
-                machineCode['uwords'][inst[3]]))
-        elif inst[0] == 'ori':
-            outFile.write('ori {}, {}, 0x{:016x}<br>\n'.format(reg(inst[1]), reg(inst[2]),
-                machineCode['uwords'][inst[3]]))
-        elif inst[0] == 'xorr':
-            outFile.write('xorr {}, {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2]), reg(inst[3])))
-        elif inst[0] == 'movr':
-            outFile.write('movr {}, {}<br>\n'.format(reg(inst[1]), reg(inst[2])))
-        elif inst[0] == 'movi':
-            outFile.write('movi {}, {}<br>\n'.format(reg(inst[1]), inst[2]))
-        elif inst[0] == 'bgei':
-            outFile.write('bgei {}, {}<br>\n'.format(reg(inst[1]), machineCode['labels'][inst[2]]))
-        elif inst[0] == 'beqi':
-            outFile.write('beqi {}, {}<br>\n'.format(reg(inst[1]), machineCode['labels'][inst[2]]))
-        elif inst[0] == 'jmp':
-            outFile.write('jmp {}<br>\n'.format(machineCode['labels'][inst[1]]))
-        elif inst[0] == 'jmpr':
-            outFile.write('jmpr {}<br>\n'.format(reg(inst[1])))
-        elif inst[0] == 'jmpi':
-            outFile.write('jmpi {}<br>\n'.format(inst[1]))
-        elif inst[0] == 'ldr_l':
-            outFile.write('ldr_l {} {}<br>\n'.format(reg(inst[1]), reg(inst[2])))
-        elif inst[0] == 'ldxi_w':
-            outFile.write('ldxi_w {} {} {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
-        elif inst[0] == 'ldxi_i':
-            outFile.write('ldxi_i {} {} {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
-        elif inst[0] == 'ldxi_l':
-            outFile.write('ldxi_l {} {} {}<br>\n'.format(reg(inst[1]), reg(inst[2]), inst[3]))
-        elif inst[0] == 'str_i':
-            outFile.write('str_i {} {}<br>\n'.format(reg(inst[1]), reg(inst[2])))
-        elif inst[0] == 'str_l':
-            outFile.write('str_l {} {}<br>\n'.format(reg(inst[1]), reg(inst[2])))
-        elif inst[0] == 'stxi_w':
-            outFile.write('stxi_w {} {} {}<br>\n'.format(inst[1], reg(inst[2]), reg(inst[3])))
-        elif inst[0] == 'stxi_i':
-            outFile.write('stxi_i {} {} {}<br>\n'.format(inst[1], reg(inst[2]), reg(inst[3])))
-        elif inst[0] == 'stxi_l':
-            outFile.write('stxi_l {} {} {}<br>\n'.format(inst[1], reg(inst[2]), reg(inst[3])))
-        elif inst[0] == 'ret':
+        outFile.write('{:08x}: '.format(int(inst[0])))
+        if inst[1] == 'addr':
+            outFile.write('addr {}, {}, {}<br>\n'.format(reg(inst[2]), reg(inst[3]), reg(inst[4])))
+        elif inst[1] == 'addi':
+            outFile.write('addi {}, {}, {}<br>\n'.format(reg(inst[2]), reg(inst[3]), inst[4]))
+        elif inst[1] == 'andi':
+            outFile.write('andi {}, {}, 0x{:016x}<br>\n'.format(reg(inst[2]), reg(inst[3]), inst[4]))
+        elif inst[1] == 'ori':
+            outFile.write('ori {}, {}, 0x{:016x}<br>\n'.format(reg(inst[2]), reg(inst[3]), inst[4]))
+        elif inst[1] == 'xorr':
+            outFile.write('xorr {}, {}, {}<br>\n'.format(reg(inst[2]), reg(inst[3]), reg(inst[4])))
+        elif inst[1] == 'movr':
+            outFile.write('movr {}, {}<br>\n'.format(reg(inst[2]), reg(inst[3])))
+        elif inst[1] == 'movi':
+            outFile.write('movi {}, {}<br>\n'.format(reg(inst[2]), inst[3]))
+        elif inst[1] == 'bgei':
+            outFile.write('bgei {}, {}, {:08x}<br>\n'.format(reg(inst[2]), inst[3], inst[4]))
+        elif inst[1] == 'beqi':
+            outFile.write('beqi {}, {}, {:08x}<br>\n'.format(reg(inst[2]), inst[3], inst[4]))
+        elif inst[1] == 'jmp':
+            outFile.write('jmp {:08x}<br>\n'.format(inst[2]))
+        elif inst[1] == 'jmpr':
+            outFile.write('jmpr {}<br>\n'.format(reg(inst[2])))
+        elif inst[1] == 'jmpi':
+            outFile.write('jmpi {}<br>\n'.format(inst[2]))
+        elif inst[1] == 'ldr_l':
+            outFile.write('ldr_l {} {}<br>\n'.format(reg(inst[2]), reg(inst[3])))
+        elif inst[1] == 'ldxi_w':
+            outFile.write('ldxi_w {} {} {}<br>\n'.format(reg(inst[2]), reg(inst[3]), inst[4]))
+        elif inst[1] == 'ldxi_i':
+            outFile.write('ldxi_i {} {} {}<br>\n'.format(reg(inst[2]), reg(inst[3]), inst[4]))
+        elif inst[1] == 'ldxi_l':
+            outFile.write('ldxi_l {} {} {}<br>\n'.format(reg(inst[2]), reg(inst[3]), inst[4]))
+        elif inst[1] == 'str_i':
+            outFile.write('str_i {} {}<br>\n'.format(reg(inst[2]), reg(inst[3])))
+        elif inst[1] == 'str_l':
+            outFile.write('str_l {} {}<br>\n'.format(reg(inst[2]), reg(inst[3])))
+        elif inst[1] == 'stxi_w':
+            outFile.write('stxi_w {} {} {}<br>\n'.format(inst[2], reg(inst[3]), reg(inst[4])))
+        elif inst[1] == 'stxi_i':
+            outFile.write('stxi_i {} {} {}<br>\n'.format(inst[2], reg(inst[3]), reg(inst[4])))
+        elif inst[1] == 'stxi_l':
+            outFile.write('stxi_l {} {} {}<br>\n'.format(inst[2], reg(inst[3]), reg(inst[4])))
+        elif inst[1] == 'ret':
             outFile.write('ret<br>\n')
-        elif inst[0] == 'retr':
-            outFile.write('retr {}<br>\n'.format(reg(inst[1])))
-        elif inst[0] == 'reti':
-            outFile.write('reti {}<br>\n'.format(inst[1]))
-        elif inst[0] == 'label':
-            outFile.write('label<br>\n')
-        elif inst[0] == 'address':
-            outFile.write('address<br>\n')
-        elif inst[0] == 'patch_here':
-            outFile.write('patch_here {}<br>\n'.format(inst[1]))
-        elif inst[0] == 'patch_there':
-            outFile.write('patch_there {} {}<br>\n'.format(inst[1], inst[2]))
+        elif inst[1] == 'retr':
+            outFile.write('retr {}<br>\n'.format(reg(inst[2])))
+        elif inst[1] == 'reti':
+            outFile.write('reti {}<br>\n'.format(inst[2]))
         else:
             outFile.write('unknown opcode: {}<br>\n'.format(inst[0]))
     outFile.write('\n</span>\n')
@@ -85,7 +73,7 @@ def buildMachineCode(outFile, machineCode):
 def findContainingLifetime(i, lifetimeList):
     for lifetime in lifetimeList:
         for range in lifetime['ranges']:
-            # these are assumed to be in sorted order, so if we enouncter something starting after i we have a miss
+            # these are assumed to be in sorted order, so if we encounter something starting after i we have a miss
             if i < range['from']:
                 return None
             if i < range['to']:
@@ -93,18 +81,12 @@ def findContainingLifetime(i, lifetimeList):
     return None
 
 def buildLinearBlock(outFile, linearBlock):
-    # we want 1 col for line numbers, 1 for labels, 1 for HIR, then one for each value, register, and spill lifetime.
     outFile.write('\n<h3>linear block</h3>\n\n<table>\n<tr><th>line</th><th>label</th><th>hir</th>')
-    for i in range(1, len(linearBlock['valueLifetimes'])):
+    for i in range(0, len(linearBlock['valueLifetimes'])):
         outFile.write('<th>v<sub>{}</sub></th>'.format(i))
-    for i in range(0, len(linearBlock['registerLifetimes'])):
-        if len(linearBlock['registerLifetimes'][i]) > 1:
-            outFile.write('<th>GPR{}</th>'.format(i))
-    for i in range(0, len(linearBlock['spillLifetimes'])):
-        outFile.write('<th>spill {}</th>'.format(i))
     outFile.write('</tr>\n')
     for i in range(0, len(linearBlock['instructions'])):
-        outFile.write('<tr><td>{}</td>'.format(i))
+        outFile.write('<tr><td align="right">{}</td>'.format(i))
         inst = linearBlock['instructions'][i]
         if inst['opcode'] == 'Label':
             outFile.write('<td>label_{}:</td><td></td>'.format(inst['blockNumber']))
@@ -112,31 +94,13 @@ def buildLinearBlock(outFile, linearBlock):
             outFile.write('<td></td><td>{}</td>'.format(hirToString(inst)))
         # want to visualize "ranges" and "usages" for each of the lifetime intervals. In value lifetimes also useful
         # to see what register they are associated with, and in register lifetimes what value, and in spill what value.
-        for j in range(1, len(linearBlock['valueLifetimes'])):
+        for j in range(0, len(linearBlock['valueLifetimes'])):
             lifetime = findContainingLifetime(i, linearBlock['valueLifetimes'][j])
             if lifetime:
                 tdClass = 'live'
                 if i in lifetime['usages']:
                     tdClass = 'used'
                 outFile.write('<td class="{}">GPR{}</td>'.format(tdClass, lifetime['registerNumber']))
-            else:
-                outFile.write('<td></td>')
-        for j in range(0, len(linearBlock['registerLifetimes'])):
-            lifetime = findContainingLifetime(i, linearBlock['registerLifetimes'][j])
-            if lifetime:
-                tdClass = 'live'
-                if i in lifetime['usages']:
-                    tdClass = 'used'
-                outFile.write('<td class="{}">v<sub>{}</sub></td>'.format(tdClass, lifetime['valueNumber']))
-            else:
-                outFile.write('<td></td>')
-        for j in range(0, len(linearBlock['spillLifetimes'])):
-            lifetime = findContainingLifetime(i, linearBlock['spillLifetimes'][j])
-            if lifetime:
-                tdClass = 'live'
-                if i in lifetime['usages']:
-                    tdClass = 'used'
-                outFile.write('<td class="{}">v<sub>{}</sub></td>'.format(tdClass, lifetime['valueNumber']))
             else:
                 outFile.write('<td></td>')
         outFile.write('</tr>')
@@ -148,7 +112,8 @@ def slotToString(slot):
     return slot['type']
 
 def valueToString(value):
-    return '({}) v<sub>{}</sub>'.format('|'.join(value['typeFlags']), value['number'])
+    flags = ' | '.join(value['typeFlags'])
+    return '({}) v<sub>{}</sub>'.format(flags, value['number'])
 
 def hirToString(hir):
     if hir['opcode'] == 'LoadArgument':
@@ -167,10 +132,10 @@ def hirToString(hir):
         phi += ')'
         return phi
     elif hir['opcode'] == 'Branch':
-        return 'Branch {}'.format(hir['blockNumber'])
+        return 'Branch to {}'.format(hir['blockNumber'])
     elif hir['opcode'] == 'BranchIfZero':
-        return '{} &#8592; BranchIfZero {},{}'.format(valueToString(hir['value']),
-            valueToString(hir['condition']), hir['blockNumber'])
+        return '{} &#8592; BranchIfZero {},{} to {}'.format(valueToString(hir['value']),
+            valueToString(hir['condition'][0]), valueToString(hir['condition'][1]), hir['blockNumber'])
     elif hir['opcode'] == 'Label':
         return 'Label {}:'.format(hir['blockNumber'])
     elif hir['opcode'] == 'DispatchCall':
@@ -205,12 +170,22 @@ def saveFrame(frame, dotFile):
         saveFrame(subFrame, dotFile)
     dotFile.write('  }} // end of cluster_{}\n'.format(frame['frameSerial']))
 
+def saveBlockGraph(frame, dotFile):
+    for block in frame['blocks']:
+        for succ in block['successors']:
+            dotFile.write('    block_{} -> block_{}\n'.format(block['number'], succ))
+    for subFrame in frame['subFrames']:
+        saveBlockGraph(subFrame, dotFile)
+
 def buildControlFlow(outFile, rootFrame, outputDir):
     # Build dotfile from parse tree nodes.
     dotPath = os.path.join(outputDir, 'controlFlow.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronControlFlow {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveFrame(rootFrame, dotFile)
+    # For whatever reason the connections between blocks have to all be specified at highest level scope, or some blocks
+    # will end up in the wrong subframes. So we do a separate pass just to enumerate the connections.
+    saveBlockGraph(rootFrame, dotFile)
     dotFile.write('}\n')
     dotFile.close()
     # Execute command to generate svg image.
@@ -383,7 +358,7 @@ def saveNode(node, tokens, dotFile):
     elif node['nodeType'] == 'If':
         dotFile.write("""    <tr><td port="condition">condition</td></tr>
     <tr><td port="trueBlock">trueBlock</td></tr>
-    <tr><td port="falseBlock">falseBlock</td></tr><table>>]
+    <tr><td port="falseBlock">falseBlock</td></tr></table>>]
 """)
         if node['condition']:
             dotFile.write('  node_{}:condition -> node_{}\n'.format(node['serial'], node['condition']['serial']))
@@ -468,13 +443,14 @@ def sourceToHTML(source):
     return html.escape(source).replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp').replace(' ', '&nbsp;')
 
 def buildListing(outFile, tokens, source):
+    lineNumberPadding = str(len(str(len(source) + 1)))
     outFile.write(
 """
 <h3>source</h3>
 <div style="font-family: monospace">
 """)
     lineNumber = 0
-    lineStart = '<span style="color: black;">{}:</span> <span style="{}">'
+    lineStart = '<span style="color: black;">{:0>' + lineNumberPadding + '}:</span> <span style="{}">'
     charNumber = 0
     for token in tokens:
         # process any source lines before token as text outside of any token
@@ -565,7 +541,6 @@ def main(args):
             'tokenType': deltaTokens[(i * 5) + 3]})
     buildListing(outFile, tokens, source)
     diagnostics = client.getDiagnostics(args.inputFile)
-    print(diagnostics)
 
     for unit in diagnostics['compilationUnits']:
         name = unit['name']
