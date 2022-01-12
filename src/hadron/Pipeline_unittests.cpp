@@ -35,26 +35,21 @@ TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline") {
 
     SUBCASE("nil block") {
         Pipeline p;
-        // TODO: see https://github.com/hadron-sclang/hadron/issues/66, once resolved remove the VM setting.
-        p.setJitToVirtualMachine(true);
         REQUIRE_NE(p.compileCode(context(), "nil"), Slot());
     }
 
     SUBCASE("this call") {
         Pipeline p;
-        p.setJitToVirtualMachine(true);
         REQUIRE_NE(p.compileCode(context(), "this.primitiveFailed"), Slot());
     }
 
     SUBCASE("call chaining") {
         Pipeline p;
-        p.setJitToVirtualMachine(true);
         REQUIRE_NE(p.compileCode(context(), "this.asString.post"), Slot());
     }
 
     SUBCASE("simple if block") {
         Pipeline p;
-        p.setJitToVirtualMachine(true);
         REQUIRE_NE(p.compileCode(context(), "if(true,{0})"), Slot());
     }
 }
