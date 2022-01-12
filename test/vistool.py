@@ -89,7 +89,10 @@ def buildLinearBlock(outFile, linearBlock):
         outFile.write('<tr><td align="right">{}</td>'.format(i))
         inst = linearBlock['instructions'][i]
         if inst['opcode'] == 'Label':
-            outFile.write('<td>label_{}:</td><td></td>'.format(inst['blockNumber']))
+            outFile.write('<td>label_{}:</td><td>'.format(inst['blockNumber']))
+            for phi in inst['phis']:
+                outFile.write('{}<br/>'.format(hirToString(phi)))
+            outFile.write('</td>')
         else:
             outFile.write('<td></td><td>{}</td>'.format(hirToString(inst)))
         # want to visualize "ranges" and "usages" for each of the lifetime intervals. In value lifetimes also useful

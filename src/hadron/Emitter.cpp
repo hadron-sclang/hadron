@@ -21,8 +21,9 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
     MoveScheduler moveScheduler;
     // Key is block number, value is known addresses of labels, built as they are encountered.
     std::unordered_map<int, JIT::Address> labelAddresses;
-    // For forward jumps we record the Label returned and patch them all at the end when all the addresses are known.
-    std::vector<std::pair<int, JIT::Label>> jmpPatchNeeded;
+    // For forward jumps we record the Label returned and the block number they are targetd to, and patch them all at
+    // the end when all the addresses are known.
+    std::vector<std::pair<JIT::Label, int>> jmpPatchNeeded;
 
     for (size_t line = 0; line < linearBlock->instructions.size(); ++line) {
         SPDLOG_DEBUG("Emitting line {}", line);
@@ -118,14 +119,17 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
                 // If the branch is to the first instruction in the next consecutive block, and this branch is the
                 // instruction directly before that block, we can omit the branch. So we only take action if the forward
                 // jump is for greater than the next HIR instruction.
-                jmpPatchNeeded.emplace_back(std::make_pair(branch->blockNumber, jit->jmp()));
+                jmpPatchNeeded.emplace_back(std::make_pair(jit->jmp(), branch->blockNumber));
             }
         } break;
 
         case hir::Opcode::kBranchIfZero: {
             const auto branchIfZero = reinterpret_cast<const hir::BranchIfZeroHIR*>(hir);
-            jmpPatchNeeded.emplace_back(std::make_pair(branchIfZero->blockNumber,
-                    jit->beqi(branchIfZero->valueLocations.at(branchIfZero->condition.first.number), 0)));
+            // document assumption this is always a forward jump.
+            assert(line + 1 < linearBlock->blockRanges[branchIfZero->blockNumber].first);
+            jmpPatchNeeded.emplace_back(std::make_pair(
+                    jit->beqi(branchIfZero->valueLocations.at(branchIfZero->condition.first.number), 0),
+                    branchIfZero->blockNumber));
         } break;
 
         case hir::Opcode::kLabel:
@@ -158,7 +162,7 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
     // Update any patches needed for forward jumps.
     for (auto& patch : jmpPatchNeeded) {
         assert(labelAddresses.find(patch.second) != labelAddresses.end());
-        jit->patchThere(patch.second, labelAddresses.at(patch.second));
+        jit->patchThere(patch.first, labelAddresses.at(patch.second));
     }
 
     // Load caller return address from framePointer + 1 into the stack pointer, then jump there.
