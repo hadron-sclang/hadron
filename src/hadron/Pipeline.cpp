@@ -275,8 +275,6 @@ bool Pipeline::validateSerializedBlock(const LinearBlock* linearBlock, size_t nu
             return false;
         }
 
-        // TODO: How to check from here that the predecessors are all the dominators?
-
         // Next block should start at the end of this block.
         blockStart = range.second;
     }
@@ -309,6 +307,36 @@ bool Pipeline::validateSerializedBlock(const LinearBlock* linearBlock, size_t nu
         return false;
     }
 
+    // Check for valid SSA form by ensuring all values are written only once, and they are written before they are read.
+    std::unordered_set<uint32_t> values;
+    for (size_t i = 0; i < linearBlock->instructions.size(); ++i) {
+        const hir::HIR* hir = linearBlock->instructions[i].get();
+        if (hir->opcode == hir::Opcode::kLabel) {
+            auto label = reinterpret_cast<const hir::LabelHIR*>(hir);
+            for (const auto& phi : label->phis) {
+                if (!validateSsaHir(phi.get(), values)) { return false; }
+            }
+        }
+        if (!validateSsaHir(hir, values)) { return false; }
+    }
+
+    return true;
+}
+
+bool Pipeline::validateSsaHir(const hir::HIR* hir, std::unordered_set<uint32_t>& values) {
+    if (hir->value.isValid()) {
+        if (values.count(hir->value.number)) {
+            SPDLOG_ERROR("Duplicate definition of value {} in linear block.", hir->value.number);
+            return false;
+        }
+        values.emplace(hir->value.number);
+    }
+    for (auto v : hir->reads) {
+        if (!values.count(v.number)) {
+            SPDLOG_ERROR("Value {} read before written.", v.number);
+            return false;
+        }
+    }
     return true;
 }
 

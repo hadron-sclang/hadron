@@ -77,6 +77,7 @@ protected:
     bool validateSubFrame(const Frame* frame, const Frame* parent, std::unordered_set<int>& blockNumbers);
 
     bool validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks, size_t numberOfValues);
+    bool validateSsaHir(const hir::HIR* hir, std::unordered_set<uint32_t>& values);
 
     bool validateLifetimes(const LinearBlock* linearBlock);
 
