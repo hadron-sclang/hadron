@@ -194,15 +194,9 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
         return false;
     }
 
-    std::unordered_map<uint32_t, uint32_t> values;
     std::unordered_set<int> blockNumbers;
-    if (!validateSubFrame(frame, nullptr, values, blockNumbers)) { return false; }
+    if (!validateSubFrame(frame, nullptr, blockNumbers)) { return false; }
 
-    if (frame->numberOfValues < values.size()) {
-        SPDLOG_ERROR("Base frame number of values {} less than counted amount of {}", frame->numberOfValues,
-            values.size());
-        return false;
-    }
     if (frame->numberOfBlocks != static_cast<int>(blockNumbers.size())) {
         SPDLOG_ERROR("Base frame number of blocks {} mismatches counted amount of {}", frame->numberOfBlocks,
                 blockNumbers.size());
@@ -216,8 +210,7 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
     return true;
 }
 
-bool Pipeline::validateSubFrame(const Frame* frame, const Frame* parent,
-        std::unordered_map<uint32_t, uint32_t>& values, std::unordered_set<int>& blockNumbers) {
+bool Pipeline::validateSubFrame(const Frame* frame, const Frame* parent, std::unordered_set<int>& blockNumbers) {
     if (frame->parent != parent) {
         SPDLOG_ERROR("Frame parent mismatch");
         return false;
@@ -235,51 +228,11 @@ bool Pipeline::validateSubFrame(const Frame* frame, const Frame* parent,
         }
 
         blockNumbers.emplace(block->number);
-
-        for (const auto& phi : block->phis) {
-            if (!validateFrameHIR(phi.get(), values, block.get())) { return false; }
-        }
-        for (const auto& hir : block->statements) {
-            if (!validateFrameHIR(hir.get(), values, block.get())) { return false; }
-        }
     }
     for (const auto& subFrame : frame->subFrames) {
-        if (!validateSubFrame(subFrame.get(), frame, values, blockNumbers)) { return false; }
+        if (!validateSubFrame(subFrame.get(), frame, blockNumbers)) { return false; }
     }
 
-    return true;
-}
-
-bool Pipeline::validateFrameHIR(const hir::HIR* hir, std::unordered_map<uint32_t, uint32_t>& values,
-        const Block* block) {
-    // Unique values should only be written to once.
-    if (hir->value.isValid()) {
-        if (values.find(hir->value.number) != values.end()) {
-            SPDLOG_ERROR("Value {} written more than once", hir->value.number);
-            return false;
-        }
-    }
-    for (const auto& read : hir->reads) {
-        // Read values should all exist already and with the same type ornamentation.
-        auto value = values.find(read.number);
-        if (value == values.end()) {
-            SPDLOG_ERROR("Value number {} read before written", read.number);
-            return false;
-        }
-        if (read.typeFlags != value->second) {
-            SPDLOG_ERROR("Inconsistent type flags for value number {}", read.number);
-            return false;
-        }
-        // Read values should also exist in the local value map.
-        if (block->localValues.find(read) == block->localValues.end()) {
-            SPDLOG_ERROR("Value number {} absent from local map", read.number);
-            return false;
-        }
-    }
-
-    if (hir->value.isValid()) {
-        values.emplace(std::make_pair(hir->value.number, hir->value.typeFlags));
-    }
     return true;
 }
 
@@ -347,14 +300,6 @@ bool Pipeline::validateSerializedBlock(const LinearBlock* linearBlock, size_t nu
         if (!linearBlock->valueLifetimes[i][0]->isEmpty()) {
             SPDLOG_ERROR("Non-empty value lifetime at value {}", i);
             return false;
-        }
-    }
-
-    // Make a list of the indices of DispatchHIR instructions, as we expect registers to be reserved for those.
-    std::vector<size_t> dispatchHIRIndices;
-    for (size_t i = 0; i < linearBlock->instructions.size(); ++i) {
-        if (linearBlock->instructions[i]->opcode == hadron::hir::Opcode::kDispatchCall) {
-            dispatchHIRIndices.emplace_back(i);
         }
     }
 

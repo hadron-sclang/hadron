@@ -32,7 +32,7 @@ private:
 // decidedly "hands-on," meaning they are expected to check values of individual fields and inspect internal state at
 // any interesting stage of the pipeline.
 TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline") {
-/*
+
     SUBCASE("nil block") {
         Pipeline p;
         // TODO: see https://github.com/hadron-sclang/hadron/issues/66, once resolved remove the VM setting.
@@ -51,7 +51,7 @@ TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline") {
         p.setJitToVirtualMachine(true);
         REQUIRE_NE(p.compileCode(context(), "this.asString.post"), Slot());
     }
-*/
+
     SUBCASE("simple if block") {
         Pipeline p;
         p.setJitToVirtualMachine(true);

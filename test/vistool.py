@@ -131,14 +131,14 @@ def hirToString(hir):
         return '{} &#8592; ResolveType({})'.format(valueToString(hir['value']), valueToString(hir['typeOfValue']))
     elif hir['opcode'] == 'Phi':
         phi = '{} &#8592; &phi;('.format(valueToString(hir['value']))
-        phi += ','.join([x['number'] for x in hir['inputs']])
+        phi += ','.join(['v<sub>{}</sub>'.format(x['number']) for x in hir['inputs']])
         phi += ')'
         return phi
     elif hir['opcode'] == 'Branch':
         return 'Branch to {}'.format(hir['blockNumber'])
     elif hir['opcode'] == 'BranchIfZero':
-        return '{} &#8592; BranchIfZero {},{} to {}'.format(valueToString(hir['value']),
-            valueToString(hir['condition'][0]), valueToString(hir['condition'][1]), hir['blockNumber'])
+        return 'BranchIfZero {},{} to {}'.format(valueToString(hir['condition'][0]),
+                valueToString(hir['condition'][1]), hir['blockNumber'])
     elif hir['opcode'] == 'Label':
         return 'Label {}:'.format(hir['blockNumber'])
     elif hir['opcode'] == 'DispatchCall':

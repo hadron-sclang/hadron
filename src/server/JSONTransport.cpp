@@ -988,7 +988,7 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const uint8_t* byteCode, siz
             opcode.PushBack("jmp", document.GetAllocator());
             const uint8_t* address = nullptr;
             it.jmp(address);
-            opcode.PushBack(reinterpret_cast<hadron::UWord>(address), document.GetAllocator());
+            opcode.PushBack(static_cast<int>(address - byteCode), document.GetAllocator());
         } break;
         case hadron::Opcode::kJmpr: {
             opcode.PushBack("jmpr", document.GetAllocator());
