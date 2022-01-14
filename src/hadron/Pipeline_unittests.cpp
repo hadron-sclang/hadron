@@ -32,12 +32,11 @@ private:
 // decidedly "hands-on," meaning they are expected to check values of individual fields and inspect internal state at
 // any interesting stage of the pipeline.
 TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline") {
-
     SUBCASE("nil block") {
         Pipeline p;
         REQUIRE_NE(p.compileCode(context(), "nil"), Slot());
     }
-
+/*
     SUBCASE("this call") {
         Pipeline p;
         REQUIRE_NE(p.compileCode(context(), "this.primitiveFailed"), Slot());
@@ -52,6 +51,18 @@ TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline") {
         Pipeline p;
         REQUIRE_NE(p.compileCode(context(), "if(true,{0})"), Slot());
     }
+
+    SUBCASE("method call in if condition") {
+        Pipeline p;
+        REQUIRE_NE(p.compileCode(context(), "if(this.respondsTo('selector'),{this.performList('selector')})"), Slot());
+    }
+*/
+
+    SUBCASE("simple if block") {
+        Pipeline p;
+        REQUIRE_NE(p.compileCode(context(), "var x = 5; if(true,{0}); x;"), Slot());
+    }
+
 }
 
 } // namespace hadron

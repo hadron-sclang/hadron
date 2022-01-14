@@ -19,6 +19,7 @@
 #include "schema/Common/Collections/Array.hpp"
 
 #include "fmt/format.h"
+#include "spdlog/spdlog.h"
 
 #include <string>
 
@@ -52,16 +53,13 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(ThreadContext* context, const
     m_block = frame->blocks.begin()->get();
 
     // Build argument name list and default values.
-    int argIndex = 0;
-    // The *this* pointer is always the first argument to every block.
-    frame->argumentOrder = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
-    frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder, kThisHash);
-    frame->argumentDefaults = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
-    frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults, Slot());
-    m_block->revisions[kThisHash] = std::make_pair(
-            insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
-            insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
-    ++argIndex;
+    // The *this* pointer is always the first argument to every root block.
+    if (frame->parent == nullptr) {
+        frame->argumentOrder = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
+        frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder, kThisHash);
+        frame->argumentDefaults = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
+        frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults, Slot());
+    }
 
     // Build the rest of the argument order.
     const parse::ArgListNode* argList = blockNode->arguments.get();
@@ -86,10 +84,6 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(ThreadContext* context, const
                 }
                 frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults,
                         initialValue);
-                m_block->revisions[name] = std::make_pair(
-                     insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
-                     insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
-                ++argIndex;
                 varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
             }
             varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
@@ -207,13 +201,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
     case parse::NodeType::kName: {
         const auto nameNode = reinterpret_cast<const parse::NameNode*>(node);
         auto name = m_lexer->tokens()[nameNode->tokenIndex].hash;
-        if (name == Hash(kThisHash)) {
-            // The "this" pointer is always the first argument to any method call.
-            nodeValue.first = findOrInsertLocal(std::make_unique<hir::LoadArgumentHIR>(0));
-            nodeValue.second = findOrInsertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(0));
-        } else {
-            nodeValue = findName(name); // <-- this needs to update names in the local block!
-        }
+        nodeValue = findName(name); // <-- will need to update revisions in local block
     } break;
 
     case parse::NodeType::kExprSeq: {
@@ -493,12 +481,41 @@ Value BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
 }
 
 std::pair<Value, Value> BlockBuilder::findName(Hash name) {
-    // TODO: out-of-block searches.
+    // First we search for names already defined in the local block.
     auto rev = m_block->revisions.find(name);
-    if (rev == m_block->revisions.end()) {
-        return std::make_pair(Value(), Value());
+    if (rev != m_block->revisions.end()) {
+        return rev->second;
     }
-    return rev->second;
+
+    // Next we look up through block predecessors for local definitions which will either be previously loaded
+    // argument values *or* local variables. However, we *only* look inside blocks that are in this frame or
+    // parent frames.
+    Frame* frame = m_frame;
+    std::vector<const Frame*> lineage(1, frame);
+    frame = frame->parent;
+    while (frame != nullptr) {
+        lineage.emplace_back(frame);
+        frame = frame->parent;
+    }
+    // There's some work to do to determine policy around inline frames vs. frames that get their own stack frame.
+    // Perhaps frame is the wrong term, maybe scope is better. BlockBuilder only supports top-level arguments,
+    // generally. There may be some additional work to do to inline blocks in loops, which typically do take arguments,
+    // but I think inline blocks arguments are just converted to local variables *in the containing frame scope*.
+    // Encountering a block starts a whole new compilation pipeline that results in a library::FunctionDef object, that
+    // receives dispatches like any other object. Lexical closure will require some additional work here too. Perhaps we
+    // could treat the containing variables like variable instances in an Object?
+    // For now: only top-level frame gets to define *arguments*, and we search those last after searching up the blocks
+    // for variables.
+    // For loading arguments, because we're always in the same stack frame, we insert (or re-use) loads into the top
+    // frame, then propagate that value via findValue() all the way back to the block that needs it, allowing it to
+    // propagate through various phis as needed. This takes care of blocks in a lower scope may alter argument values
+    // (like the if(argName.isNil, { argName = foo; }) sort of constructions. This will mean unused arguments never get
+    // a load inserted.
+    // Late loading optimization pass - to ease register pressure, we could later do an optimization pass where, after
+    // dead code deletion we could move statements that produce values down until right before they are first read.
+
+
+    return std::make_pair(Value(), Value());
 }
 
 Value BlockBuilder::findValue(Value v) {
