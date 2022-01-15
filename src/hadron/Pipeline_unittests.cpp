@@ -58,7 +58,7 @@ TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline") {
     }
 */
 
-    SUBCASE("simple if block") {
+    SUBCASE("variable declaration before if, use after if") {
         Pipeline p;
         REQUIRE_NE(p.compileCode(context(), "var x = 5; if(true,{0}); x;"), Slot());
     }

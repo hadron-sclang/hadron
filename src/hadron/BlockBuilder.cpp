@@ -29,6 +29,7 @@ BlockBuilder::BlockBuilder(const Lexer* lexer, std::shared_ptr<ErrorReporter> er
     m_lexer(lexer),
     m_errorReporter(errorReporter),
     m_frame(nullptr),
+    m_scope(nullptr),
     m_block(nullptr),
     m_blockSerial(0),
     m_valueSerial(0) { }
@@ -36,30 +37,14 @@ BlockBuilder::BlockBuilder(const Lexer* lexer, std::shared_ptr<ErrorReporter> er
 BlockBuilder::~BlockBuilder() { }
 
 std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const parse::BlockNode* blockNode) {
-    auto frame = buildSubframe(context, blockNode);
-    frame->numberOfBlocks = m_blockSerial;
-    frame->numberOfValues = m_valueSerial;
-    return frame;
-}
-
-std::unique_ptr<Frame> BlockBuilder::buildSubframe(ThreadContext* context, const parse::BlockNode* blockNode) {
-    assert(blockNode);
     auto frame = std::make_unique<Frame>();
-    frame->parent = m_frame;
-    m_frame = frame.get();
-    // Make an entry block and add to frame.
-    frame->blocks.emplace_back(std::make_unique<Block>(m_frame, m_blockSerial));
-    ++m_blockSerial;
-    m_block = frame->blocks.begin()->get();
 
     // Build argument name list and default values.
-    // The *this* pointer is always the first argument to every root block.
-    if (frame->parent == nullptr) {
-        frame->argumentOrder = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
-        frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder, kThisHash);
-        frame->argumentDefaults = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
-        frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults, Slot());
-    }
+    // The *this* pointer is always the first argument to every Frame.
+    frame->argumentOrder = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
+    frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder, kThisHash);
+    frame->argumentDefaults = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
+    frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults, Slot());
 
     // Build the rest of the argument order.
     const parse::ArgListNode* argList = blockNode->arguments.get();
@@ -91,13 +76,31 @@ std::unique_ptr<Frame> BlockBuilder::buildSubframe(ThreadContext* context, const
         argList = reinterpret_cast<const parse::ArgListNode*>(argList->next.get());
     }
 
+    m_frame = frame.get();
+    frame->rootScope = buildScope(context, blockNode);
+
+    frame->numberOfBlocks = m_blockSerial;
+    frame->numberOfValues = m_valueSerial;
+    return frame;
+}
+
+std::unique_ptr<Scope> BlockBuilder::buildScope(ThreadContext* context, const parse::BlockNode* blockNode) {
+    assert(blockNode);
+    auto scope = std::make_unique<Scope>(m_frame, m_scope);
+    m_scope = scope.get();
+    // Make an entry block and add to frame.
+    scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), m_blockSerial));
+    ++m_blockSerial;
+    m_block = scope->blocks.begin()->get();
+
     // Variable definitions are allowed inline in Hadron, so we process variable definitions just like expression
     // sequences in the main body.
     if (blockNode->variables) {
         m_block->finalValue = buildFinalValue(context, blockNode->variables.get());
     }
 
-    // ** TODO: insert any non-literal value initalizations here as ifNil blocks.
+    // ** TODO: If this is the entry scope for a frame, insert any non-literal value initalizations here as
+    // ifNil blocks.
 
     if (blockNode->body) {
         m_block->finalValue = buildFinalValue(context, blockNode->body.get());
@@ -481,40 +484,12 @@ Value BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
 }
 
 std::pair<Value, Value> BlockBuilder::findName(Hash name) {
-    // First we search for names already defined in the local block.
-    auto rev = m_block->revisions.find(name);
-    if (rev != m_block->revisions.end()) {
-        return rev->second;
-    }
+    std::unordered_map<int, std::pair<Value, Value>> blockValues;
+    return findNamePredecessor(name, m_block, blockValues);
+}
 
-    // Next we look up through block predecessors for local definitions which will either be previously loaded
-    // argument values *or* local variables. However, we *only* look inside blocks that are in this frame or
-    // parent frames.
-    Frame* frame = m_frame;
-    std::vector<const Frame*> lineage(1, frame);
-    frame = frame->parent;
-    while (frame != nullptr) {
-        lineage.emplace_back(frame);
-        frame = frame->parent;
-    }
-    // There's some work to do to determine policy around inline frames vs. frames that get their own stack frame.
-    // Perhaps frame is the wrong term, maybe scope is better. BlockBuilder only supports top-level arguments,
-    // generally. There may be some additional work to do to inline blocks in loops, which typically do take arguments,
-    // but I think inline blocks arguments are just converted to local variables *in the containing frame scope*.
-    // Encountering a block starts a whole new compilation pipeline that results in a library::FunctionDef object, that
-    // receives dispatches like any other object. Lexical closure will require some additional work here too. Perhaps we
-    // could treat the containing variables like variable instances in an Object?
-    // For now: only top-level frame gets to define *arguments*, and we search those last after searching up the blocks
-    // for variables.
-    // For loading arguments, because we're always in the same stack frame, we insert (or re-use) loads into the top
-    // frame, then propagate that value via findValue() all the way back to the block that needs it, allowing it to
-    // propagate through various phis as needed. This takes care of blocks in a lower scope may alter argument values
-    // (like the if(argName.isNil, { argName = foo; }) sort of constructions. This will mean unused arguments never get
-    // a load inserted.
-    // Late loading optimization pass - to ease register pressure, we could later do an optimization pass where, after
-    // dead code deletion we could move statements that produce values down until right before they are first read.
-
-
+std::pair<Value, Value> BlockBuilder::findNamePredecessor(Hash /* name */, Block* /* block */, std::unordered_map<int,
+        std::pair<Value, Value>>& /* blockValues */) {
     return std::make_pair(Value(), Value());
 }
 

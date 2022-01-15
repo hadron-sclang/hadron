@@ -1,17 +1,15 @@
 #ifndef SRC_HADRON_FRAME_HPP_
 #define SRC_HADRON_FRAME_HPP_
 
-#include <list>
 #include <memory>
 
 #include "hadron/Slot.hpp"
 
 namespace hadron {
 
-struct Block;
+struct Scope;
 
-// Represents a stack frame, so can have arguments supplied, is a scope for local variables, has an entrance and exit
-// Block.
+// Represents a stack frame, so can have arguments supplied and can be called so has an entry, return value, and exit.
 struct Frame {
     Frame() = default;
     ~Frame() = default;
@@ -21,11 +19,8 @@ struct Frame {
     // A library::Array with default values for arguments, if they are literals.
     Slot argumentDefaults = nullptr;
 
-    Frame* parent = nullptr;
-    std::list<std::unique_ptr<Block>> blocks;
-    std::list<std::unique_ptr<Frame>> subFrames;
+    std::unique_ptr<Scope> rootScope;
 
-    // Note: Value and block counts are only valid for the root frame, subFrame values will be 0.
     size_t numberOfValues = 0; // actual values used could be less than this, particularly in the case of phis
     int numberOfBlocks = 0;
 };

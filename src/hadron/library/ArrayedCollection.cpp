@@ -13,7 +13,7 @@ namespace hadron {
 namespace library {
 
 inline size_t arrayElementSize(Hash className) {
-    switch (className.getHash()) {
+    switch (className) {
     case kInt8ArrayHash:
         return 1;
     case kInt16ArrayHash:
@@ -46,7 +46,7 @@ Slot ArrayedCollection::_ArrayAdd(ThreadContext* context, Slot _this, Slot item)
     // Assumption is this is an instance of ArrayedCollection or a derived class.
     assert(_this.isPointer());
     auto arrayObject = _this.getPointer();
-    Hash className = arrayObject->_className;
+    Hash className = arrayObject->_className.getHash();
     auto elementSize = arrayElementSize(className);
     size_t numberOfElements = (arrayObject->_sizeInBytes - sizeof(ObjectHeader)) / elementSize;
 
@@ -66,7 +66,7 @@ Slot ArrayedCollection::_ArrayAdd(ThreadContext* context, Slot _this, Slot item)
     ObjectHeader* startOfElements = arrayObject + 1;
 
     // TODO: type checking in item
-    switch (className.getHash()) {
+    switch (className) {
     case kInt8ArrayHash: {
         reinterpret_cast<char*>(startOfElements)[numberOfElements] = item.getChar();
     } break;
@@ -100,7 +100,7 @@ Slot ArrayedCollection::_BasicAt(ThreadContext* /* context */, Slot _this, Slot 
     // Assumption is this is an instance of ArrayedCollection or a derived class.
     assert(_this.isPointer());
     auto arrayObject = _this.getPointer();
-    Hash className = arrayObject->_className;
+    Hash className = arrayObject->_className.getHash();
     auto elementSize = arrayElementSize(className);
     size_t numberOfElements = (arrayObject->_sizeInBytes - sizeof(ObjectHeader)) / elementSize;
     if (!index.isInt32()) {
@@ -114,7 +114,7 @@ Slot ArrayedCollection::_BasicAt(ThreadContext* /* context */, Slot _this, Slot 
     }
     uint8_t* startOfElements = reinterpret_cast<uint8_t*>(arrayObject) + sizeof(library::ArrayedCollection);
 
-    switch (className.getHash()) {
+    switch (className) {
     case kInt8ArrayHash:
         return Slot(reinterpret_cast<char*>(startOfElements)[intIndex]);
 
@@ -139,7 +139,7 @@ Slot ArrayedCollection::_BasicAt(ThreadContext* /* context */, Slot _this, Slot 
 Slot ArrayedCollection::_BasicSize(ThreadContext* /* context */, Slot _this) {
     assert(_this.isPointer());
     auto arrayObject = _this.getPointer();
-    auto elementSize = arrayElementSize(arrayObject->_className);
+    auto elementSize = arrayElementSize(arrayObject->_className.getHash());
     int32_t numberOfElements = (arrayObject->_sizeInBytes - sizeof(ObjectHeader)) / elementSize;
     return Slot(numberOfElements);
 }

@@ -54,34 +54,43 @@ public:
             return Type::kObject;
         case kSymbolTag:
             return Type::kSymbol;
+        case kCharTag:
+            return Type::kChar;
         default:
             assert(false);
             return Type::kNil;
         }
     }
 
-    inline int32_t getInt32() const { return static_cast<int32_t>(m_asBits & (~kTagMask)); }
-    inline double getFloat() const { return m_asDouble; }
-    inline uint64_t getHash() const { return m_asBits & (~kTagMask); }
-    inline bool getBool() const { return m_asBits & (~kTagMask); }
-    inline ObjectHeader* getPointer() const { return reinterpret_cast<ObjectHeader*>(m_asBits & (~kTagMask)); }
-    inline char getChar() const { return m_asBits & (~kTagMask); }
-
-    inline bool isInt32() const { return (m_asBits & kTagMask) == kInt32Tag; }
-    inline bool isPointer() const { return (m_asBits & kTagMask) == kPointerTag; }
+    inline bool isFloat() const { return m_asDouble < kMaxDouble; }
     inline bool isNil() const { return m_asBits == kNilTag; }
+    inline bool isInt32() const { return (m_asBits & kTagMask) == kInt32Tag; }
+    inline bool isBool() const { return (m_asBits & kTagMask) == kBooleanTag; }
+    inline bool isPointer() const { return (m_asBits & kTagMask) == kPointerTag; }
+    inline bool isSymbol() const { return (m_asBits & kTagMask) == kSymbolTag; }
+    inline bool isChar() const { return (m_asBits & kTagMask) == kCharTag; }
+
+    inline double getFloat() const { assert(isFloat()); return m_asDouble; }
+    inline int32_t getInt32() const { assert(isInt32()); return static_cast<int32_t>(m_asBits & (~kTagMask)); }
+    inline bool getBool() const { assert(isBool()); return m_asBits & (~kTagMask); }
+    inline ObjectHeader* getPointer() const {
+        assert(isPointer());
+        return reinterpret_cast<ObjectHeader*>(m_asBits & (~kTagMask));
+    }
+    inline uint64_t getHash() const { assert(isSymbol()); return m_asBits & (~kTagMask); }
+    inline char getChar() const { assert(isChar()); return m_asBits & (~kTagMask); }
 
     // Maximum double (quiet NaN with sign bit set without payload):
     //                     seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm
     // 0xfff8000000000000: 11111111|11111000|00000000|00000000|00000000|00000000|00000000|00000000
     static constexpr uint64_t kMaxDouble  = 0xfff8000000000000;
-    static constexpr uint64_t kNilTag     = 0xfff9000000000000;
-    static constexpr uint64_t kInt32Tag   = 0xfffa000000000000;
-    static constexpr uint64_t kBooleanTag = 0xfffb000000000000;
-    static constexpr uint64_t kPointerTag = 0xfffc000000000000;
-    // Lower 48 bits of a 64-bit hash.
-    static constexpr uint64_t kSymbolTag  = 0xfffd000000000000;
-    static constexpr uint64_t kCharTag    = 0xfffe000000000000;
+    static constexpr uint64_t kNilTag     = kMaxDouble;
+    static constexpr uint64_t kInt32Tag   = 0xfff9000000000000;
+    static constexpr uint64_t kBooleanTag = 0xfffa000000000000;
+    static constexpr uint64_t kPointerTag = 0xfffb000000000000;
+    static constexpr uint64_t kSymbolTag  = 0xfffc000000000000;
+    static constexpr uint64_t kCharTag    = 0xfffd000000000000;
+    // Could add one additional tag here at 0xfffe000000000000.
     static constexpr uint64_t kTagMask    = 0xffff000000000000;
 
 private:
