@@ -1,6 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_SLOT_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_SLOT_HPP_
 
+#include "hadron/Hash.hpp"
 #include "hadron/Type.hpp"
 
 #include <cassert>
@@ -16,24 +17,15 @@ struct ObjectHeader;
 
 class Slot {
 public:
-    // Construct a Slot with nil value.
-    inline Slot() { m_asBits = kNilTag; }
-    inline Slot(nullptr_t) { m_asBits = kNilTag; }
-    inline Slot(double number) {
-        m_asDouble = number;
-        assert(m_asBits < kMaxDouble);
-    }
-    inline Slot(int32_t number) { m_asBits = number | kInt32Tag; }
-    inline Slot(bool value) { m_asBits = (value ? 1 : 0) | kBooleanTag; }
-
-    inline Slot(void* pointer) {
-        assert((reinterpret_cast<uint64_t>(pointer) & kPointerTag) == 0);
-        m_asBits = reinterpret_cast<uint64_t>(pointer) | kPointerTag;
-    }
-    // Preserves the lower 48 bits of a 64-bit hash and adds the Hash NaN.
-    inline Slot(uint64_t h) { m_asBits = (h & (~kTagMask)) | kSymbolTag; }
-    inline Slot(char c) { m_asBits = kCharTag | c; }
     ~Slot() = default;
+
+    static inline Slot makeFloat(double d) { return Slot(d); }
+    static inline Slot makeNil() { return Slot(kNilTag); }
+    static inline Slot makeInt32(int32_t i) { return Slot(kInt32Tag | i); }
+    static inline Slot makeBool(bool b) { return Slot(kBooleanTag | (b ? 1 : 0)); }
+    static inline Slot makePointer(void* p) { return Slot(kPointerTag | reinterpret_cast<uint64_t>(p)); }
+    static inline Slot makeHash(Hash h) { return Slot(kSymbolTag | (h & (~kTagMask))); }
+    static inline Slot makeChar(char c) { return Slot(kCharTag | c); }
 
     inline bool operator==(const Slot& s) const { return m_asBits == s.m_asBits; }
     inline bool operator!=(const Slot& s) const { return m_asBits != s.m_asBits; }
@@ -94,6 +86,9 @@ public:
     static constexpr uint64_t kTagMask    = 0xffff000000000000;
 
 private:
+    Slot(double floatValue) { m_asDouble = floatValue; }
+    Slot(uint64_t bitsValue) { m_asBits = bitsValue; }
+
     union {
         double m_asDouble;
         uint64_t m_asBits;
@@ -105,5 +100,14 @@ static_assert(sizeof(Slot) == 8);
 static constexpr int kSlotSize = 8;
 
 } // namespace hadron
+
+namespace std {
+template<>
+struct hash<hadron::Slot> {
+    size_t operator()(const hadron::Slot& s) const {
+        return static_cast<size_t>(s.getHash());
+    }
+};
+} // namespace std
 
 #endif // SRC_COMPILER_INCLUDE_HADRON_SLOT_HPP_

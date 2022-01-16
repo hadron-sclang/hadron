@@ -19,7 +19,7 @@ struct Scope {
     Scope(Frame* owningFrame, Scope* parentScope): frame(owningFrame), parent(parentScope) {}
     ~Scope() = default;
 
-    // Set of locally defined variable names
+    // Set of locally defined variable names.
     std::unordered_set<Hash> variableNames;
 
     Frame* frame;

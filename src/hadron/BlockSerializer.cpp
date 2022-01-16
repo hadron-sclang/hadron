@@ -3,26 +3,27 @@
 #include "hadron/Block.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/LinearBlock.hpp"
+#include "hadron/Scope.hpp"
 
 #include <algorithm>
 
 namespace hadron {
 
-std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> baseFrame) {
+std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> frame) {
     // Prepare the LinearBlock for recording of value lifetimes.
     auto linearBlock = std::make_unique<LinearBlock>();
-    linearBlock->blockOrder.reserve(baseFrame->numberOfBlocks);
-    linearBlock->blockRanges.resize(baseFrame->numberOfBlocks, std::make_pair(0, 0));
-    linearBlock->valueLifetimes.resize(baseFrame->numberOfValues);
-    for (size_t i = 0; i < baseFrame->numberOfValues; ++i) {
+    linearBlock->blockOrder.reserve(frame->numberOfBlocks);
+    linearBlock->blockRanges.resize(frame->numberOfBlocks, std::make_pair(0, 0));
+    linearBlock->valueLifetimes.resize(frame->numberOfValues);
+    for (size_t i = 0; i < frame->numberOfValues; ++i) {
         linearBlock->valueLifetimes[i].emplace_back(std::make_unique<LifetimeInterval>());
         linearBlock->valueLifetimes[i][0]->valueNumber = i;
     }
 
-    m_blocks.resize(baseFrame->numberOfBlocks, nullptr);
+    m_blocks.resize(frame->numberOfBlocks, nullptr);
 
     // Determine linear block order from reverse postorder traversal.
-    orderBlocks(baseFrame->blocks.front().get(), linearBlock->blockOrder);
+    orderBlocks(frame->rootScope->blocks.front().get(), linearBlock->blockOrder);
     std::reverse(linearBlock->blockOrder.begin(), linearBlock->blockOrder.end());
 
     // Fill linear block in computed order.

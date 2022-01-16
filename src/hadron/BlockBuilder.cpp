@@ -8,6 +8,7 @@
 #include "hadron/Lexer.hpp"
 #include "hadron/LinearBlock.hpp"
 #include "hadron/Parser.hpp"
+#include "hadron/Scope.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
 
@@ -37,17 +38,27 @@ BlockBuilder::BlockBuilder(const Lexer* lexer, std::shared_ptr<ErrorReporter> er
 BlockBuilder::~BlockBuilder() { }
 
 std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const parse::BlockNode* blockNode) {
+    // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
-
-    // Build argument name list and default values.
-    // The *this* pointer is always the first argument to every Frame.
+    m_frame = frame.get();
     frame->argumentOrder = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
-    frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder, kThisHash);
     frame->argumentDefaults = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
+    frame->rootScope = std::make_unique<Scope>(m_frame, nullptr);
+    m_scope = frame->rootScope.get();
+    m_scope->blocks.emplace_back(std::make_unique<Block>(m_scope, m_blockSerial));
+    ++m_blockSerial;
+    m_block = m_scope->blocks.front().get();
+
+    // First block within rootScope gets argument loads. The *this* pointer is always the first argument to every Frame.
+    frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder, kThisHash);
     frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults, Slot());
+    m_block->revisions[kThisHash] = std::make_pair(
+            insertLocal(std::make_unique<hir::LoadArgumentHIR>(0)),
+            insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(0)));
 
     // Build the rest of the argument order.
     const parse::ArgListNode* argList = blockNode->arguments.get();
+    int argIndex = 1;
     while (argList) {
         assert(argList->nodeType == parse::NodeType::kArgList);
         const parse::VarListNode* varList = argList->varList.get();
@@ -69,6 +80,10 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
                 }
                 frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults,
                         initialValue);
+                m_block->revisions[name] = std::make_pair(
+                     insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
+                     insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
+                ++argIndex;
                 varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
             }
             varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
@@ -76,25 +91,6 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
         argList = reinterpret_cast<const parse::ArgListNode*>(argList->next.get());
     }
 
-    m_frame = frame.get();
-    frame->rootScope = buildScope(context, blockNode);
-
-    frame->numberOfBlocks = m_blockSerial;
-    frame->numberOfValues = m_valueSerial;
-    return frame;
-}
-
-std::unique_ptr<Scope> BlockBuilder::buildScope(ThreadContext* context, const parse::BlockNode* blockNode) {
-    assert(blockNode);
-    auto scope = std::make_unique<Scope>(m_frame, m_scope);
-    m_scope = scope.get();
-    // Make an entry block and add to frame.
-    scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), m_blockSerial));
-    ++m_blockSerial;
-    m_block = scope->blocks.begin()->get();
-
-    // Variable definitions are allowed inline in Hadron, so we process variable definitions just like expression
-    // sequences in the main body.
     if (blockNode->variables) {
         m_block->finalValue = buildFinalValue(context, blockNode->variables.get());
     }
@@ -106,12 +102,29 @@ std::unique_ptr<Scope> BlockBuilder::buildScope(ThreadContext* context, const pa
         m_block->finalValue = buildFinalValue(context, blockNode->body.get());
     }
 
-    // If this is the root Frame we insert a return value, if not already inserted.
-    if (frame->parent == nullptr) {
-        findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(m_block->finalValue));
+    frame->numberOfBlocks = m_blockSerial;
+    frame->numberOfValues = m_valueSerial;
+    return frame;
+}
+
+std::unique_ptr<Scope> BlockBuilder::buildSubScope(ThreadContext* context, const parse::BlockNode* blockNode) {
+    assert(blockNode);
+    auto scope = std::make_unique<Scope>(m_frame, m_scope);
+    m_scope = scope.get();
+    // Make an entry block and add to frame.
+    scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), m_blockSerial));
+    ++m_blockSerial;
+    m_block = scope->blocks.begin()->get();
+
+    if (blockNode->variables) {
+        m_block->finalValue = buildFinalValue(context, blockNode->variables.get());
     }
 
-    return frame;
+    if (blockNode->body) {
+        m_block->finalValue = buildFinalValue(context, blockNode->body.get());
+    }
+
+    return scope;
 }
 
 std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const parse::Node* node) {
@@ -169,30 +182,30 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
     case parse::NodeType::kBlock: {
         assert(false); // TODO: figure out when these happen and what's going on here.
         const auto blockNode = reinterpret_cast<const parse::BlockNode*>(node);
-        // Preserve current frame and block, for wiring into the new frame and block. Encountering a block always
+        // Preserve current scope and block, for wiring into the new scope and block. Encountering a block always
         // terminates the current block.
-        Frame* parentFrame = m_frame;
+        Scope* parentScope = m_scope;
         Block* lastBlock = m_block;
 
         // Recursively build the subframe.
-        auto subFrame = buildSubframe(context, blockNode);
+        auto subScope = buildSubScope(context, blockNode);
 
         // Wire the entry block in the new frame as a successor in the block graph.
-        Block* frameEntryBlock = subFrame->blocks.front().get();
+        Block* frameEntryBlock = subScope->blocks.front().get();
         lastBlock->successors.emplace_back(frameEntryBlock);
         frameEntryBlock->predecessors.emplace_back(lastBlock);
 
         // We need a new block in the parent frame as a sucessor to the exit block from the sub frame.
-        assert(m_block == subFrame->blocks.back().get());
-        auto parentBlock = std::make_unique<Block>(parentFrame, m_blockSerial);
+        assert(m_block == subScope->blocks.back().get());
+        auto parentBlock = std::make_unique<Block>(parentScope, m_blockSerial);
         ++m_blockSerial;
         Block* frameExitBlock = m_block;
         parentBlock->predecessors.emplace_back(frameExitBlock);
         frameExitBlock->successors.emplace_back(parentBlock.get());
         m_block = parentBlock.get();
-        parentFrame->blocks.emplace_back(std::move(parentBlock));
-        parentFrame->subFrames.emplace_back(std::move(subFrame));
-        m_frame = parentFrame;
+        parentScope->blocks.emplace_back(std::move(parentBlock));
+        parentScope->subScopes.emplace_back(std::move(subScope));
+        m_scope = parentScope;
     } break;
 
     case parse::NodeType::kLiteral: {
@@ -318,79 +331,79 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
         insertLocal(std::move(branchOwning));
 
         // Preserve the current block and frame for insertion of the new subframes as children.
-        Frame* parentFrame = m_frame;
+        Scope* parentScope = m_scope;
         Block* ifBlock = m_block;
 
         // Build the true condition block.
         assert(ifNode->trueBlock);
-        auto trueFrameOwning = buildSubframe(context, ifNode->trueBlock.get());
-        Frame* trueFrame = trueFrameOwning.get();
-        parentFrame->subFrames.emplace_back(std::move(trueFrameOwning));
-        branch->blockNumber = trueFrame->blocks.front()->number;
-        ifBlock->successors.emplace_back(trueFrame->blocks.front().get());
-        trueFrame->blocks.front()->predecessors.emplace_back(ifBlock);
+        auto trueScopeOwning = buildSubScope(context, ifNode->trueBlock.get());
+        Scope* trueScope = trueScopeOwning.get();
+        parentScope->subScopes.emplace_back(std::move(trueScopeOwning));
+        branch->blockNumber = trueScope->blocks.front()->number;
+        ifBlock->successors.emplace_back(trueScope->blocks.front().get());
+        trueScope->blocks.front()->predecessors.emplace_back(ifBlock);
 
         // Build the else condition block if present, if not build a default nil valued one. The BranchIfZero will
         // target branching here.
-        Frame* falseFrame = nullptr;
+        Scope* falseScope = nullptr;
         if (ifNode->falseBlock) {
-            auto falseFrameOwning = buildSubframe(context, ifNode->falseBlock.get());
-            falseFrame = falseFrameOwning.get();
-            parentFrame->subFrames.emplace_back(std::move(falseFrameOwning));
+            auto falseScopeOwning = buildSubScope(context, ifNode->falseBlock.get());
+            falseScope = falseScopeOwning.get();
+            parentScope->subScopes.emplace_back(std::move(falseScopeOwning));
         } else {
-            auto falseFrameOwning = std::make_unique<Frame>();
-            falseFrame = falseFrameOwning.get();
-            parentFrame->subFrames.emplace_back(std::move(falseFrameOwning));
-            falseFrame->parent = parentFrame;
-            auto falseBlockOwning = std::make_unique<Block>(falseFrame, m_blockSerial);
+            auto falseScopeOwning = std::make_unique<Scope>(m_frame, parentScope);
+            falseScope = falseScopeOwning.get();
+            parentScope->subScopes.emplace_back(std::move(falseScopeOwning));
+            falseScope->parent = parentScope;
+            auto falseBlockOwning = std::make_unique<Block>(falseScope, m_blockSerial);
             ++m_blockSerial;
             Block* falseBlock = falseBlockOwning.get();
-            falseFrame->blocks.emplace_back(std::move(falseBlockOwning));
+            falseScope->blocks.emplace_back(std::move(falseBlockOwning));
             falseBlock->finalValue.first = insert(std::make_unique<hir::ConstantHIR>(Slot()), falseBlock);
             falseBlock->finalValue.second = insert(std::make_unique<hir::ConstantHIR>(Slot(Type::kNil)), falseBlock);
         }
-        condBranch->blockNumber = falseFrame->blocks.front()->number;
-        ifBlock->successors.emplace_back(falseFrame->blocks.front().get());
-        falseFrame->blocks.front()->predecessors.emplace_back(ifBlock);
+        condBranch->blockNumber = falseScope->blocks.front()->number;
+        ifBlock->successors.emplace_back(falseScope->blocks.front().get());
+        falseScope->blocks.front()->predecessors.emplace_back(ifBlock);
 
         // Create a new block in the parent frame for code after the if statement.
-        auto continueBlock = std::make_unique<Block>(parentFrame, m_blockSerial);
+        auto continueBlock = std::make_unique<Block>(parentScope, m_blockSerial);
         ++m_blockSerial;
         m_block = continueBlock.get();
-        parentFrame->blocks.emplace_back(std::move(continueBlock));
-        m_frame = parentFrame;
+        parentScope->blocks.emplace_back(std::move(continueBlock));
+        m_scope = parentScope;
 
         // Add phis with the final values of both the false and true values here, this is also the value of the
         // if statement.
         auto valuePhi = std::make_unique<hir::PhiHIR>();
-        valuePhi->addInput(trueFrame->blocks.back()->finalValue.first);
-        valuePhi->addInput(falseFrame->blocks.back()->finalValue.first);
+        valuePhi->addInput(trueScope->blocks.back()->finalValue.first);
+        valuePhi->addInput(falseScope->blocks.back()->finalValue.first);
         nodeValue.first = valuePhi->proposeValue(m_valueSerial);
         m_block->localValues.emplace(std::make_pair(nodeValue.first, nodeValue.first));
         ++m_valueSerial;
         m_block->phis.emplace_back(std::move(valuePhi));
         auto typePhi = std::make_unique<hir::PhiHIR>();
-        typePhi->addInput(trueFrame->blocks.back()->finalValue.second);
-        typePhi->addInput(falseFrame->blocks.back()->finalValue.second);
+        typePhi->addInput(trueScope->blocks.back()->finalValue.second);
+        typePhi->addInput(falseScope->blocks.back()->finalValue.second);
         nodeValue.second = typePhi->proposeValue(m_valueSerial);
         m_block->localValues.emplace(std::make_pair(nodeValue.second, nodeValue.second));
         ++m_valueSerial;
         m_block->phis.emplace_back(std::move(typePhi));
 
-        // Wire trueFrame exit block to the continue block here.
+        // Wire trueScope exit block to the continue block here.
         auto trueBranch = std::make_unique<hir::BranchHIR>();
         trueBranch->blockNumber = m_block->number;
-        insert(std::move(trueBranch), trueFrame->blocks.back().get());
-        trueFrame->blocks.back()->successors.emplace_back(m_block);
-        m_block->predecessors.emplace_back(trueFrame->blocks.back().get());
+        insert(std::move(trueBranch), trueScope->blocks.back().get());
+        trueScope->blocks.back()->successors.emplace_back(m_block);
+        m_block->predecessors.emplace_back(trueScope->blocks.back().get());
 
         // Wire falseFrame exit block to the continue block here.
-        assert(falseFrame);
+        assert(falseScope);
         auto falseBranch = std::make_unique<hir::BranchHIR>();
         falseBranch->blockNumber = m_block->number;
-        insert(std::move(falseBranch), falseFrame->blocks.back().get());
-        falseFrame->blocks.back()->successors.emplace_back(m_block);
-        m_block->predecessors.emplace_back(falseFrame->blocks.back().get());
+        insert(std::move(falseBranch), falseScope->blocks.back().get());
+        falseScope->blocks.back()->successors.emplace_back(m_block);
+        m_block->predecessors.emplace_back(falseScope->blocks.back().get());
     } break;
     }
 

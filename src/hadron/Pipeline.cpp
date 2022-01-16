@@ -18,6 +18,7 @@
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
+#include "hadron/Scope.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "hadron/VirtualJIT.hpp"
 
@@ -195,7 +196,7 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
     }
 
     std::unordered_set<int> blockNumbers;
-    if (!validateSubFrame(frame, nullptr, blockNumbers)) { return false; }
+    if (!validateSubScope(frame->rootScope.get(), nullptr, blockNumbers)) { return false; }
 
     if (frame->numberOfBlocks != static_cast<int>(blockNumbers.size())) {
         SPDLOG_ERROR("Base frame number of blocks {} mismatches counted amount of {}", frame->numberOfBlocks,
@@ -210,14 +211,14 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
     return true;
 }
 
-bool Pipeline::validateSubFrame(const Frame* frame, const Frame* parent, std::unordered_set<int>& blockNumbers) {
-    if (frame->parent != parent) {
-        SPDLOG_ERROR("Frame parent mismatch");
+bool Pipeline::validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<int>& blockNumbers) {
+    if (scope->parent != parent) {
+        SPDLOG_ERROR("Scope parent mismatch");
         return false;
     }
-    for (const auto& block : frame->blocks) {
+    for (const auto& block : scope->blocks) {
         // Block must have a reference back to the correct owning frame.
-        if (block->frame != frame) {
+        if (block->scope != scope) {
             SPDLOG_ERROR("Block frame mismatch");
             return false;
         }
@@ -229,8 +230,8 @@ bool Pipeline::validateSubFrame(const Frame* frame, const Frame* parent, std::un
 
         blockNumbers.emplace(block->number);
     }
-    for (const auto& subFrame : frame->subFrames) {
-        if (!validateSubFrame(subFrame.get(), frame, blockNumbers)) { return false; }
+    for (const auto& subScope : scope->subScopes) {
+        if (!validateSubScope(subScope.get(), scope, blockNumbers)) { return false; }
     }
 
     return true;

@@ -23,7 +23,7 @@ void* Heap::allocateNew(size_t sizeInBytes) {
 ObjectHeader* Heap::allocateObject(Hash className, size_t sizeInBytes) {
     ObjectHeader* header = reinterpret_cast<ObjectHeader*>(allocateNew(sizeInBytes));
     if (!header) {
-        SPDLOG_ERROR("Allocation of object hash {:x} size {} bytes failed.", className.getHash(), sizeInBytes);
+        SPDLOG_ERROR("Allocation of object hash {:x} size {} bytes failed.", className, sizeInBytes);
         return nullptr;
     }
     header->_className = className;

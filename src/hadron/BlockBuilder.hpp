@@ -35,7 +35,7 @@ public:
     std::unique_ptr<Frame> buildFrame(ThreadContext* context, const parse::BlockNode* blockNode);
 
 private:
-    std::unique_ptr<Scope> buildScope(ThreadContext* context, const parse::BlockNode* blockNode);
+    std::unique_ptr<Scope> buildSubScope(ThreadContext* context, const parse::BlockNode* blockNode);
 
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not

@@ -73,7 +73,7 @@ bool ClassLibrary::addClassFile(ThreadContext* context, const std::string& class
         }
         library::Class* classDef = reinterpret_cast<library::Class*>(classSlot.getPointer());
         assert(classDef->_className == library::kClassHash);
-        m_classTable[classDef->name] = classSlot;
+        m_classTable[classDef->name.getHash()] = classSlot;
         node = classNode->next.get();
     }
 
