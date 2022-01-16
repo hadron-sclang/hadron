@@ -41,8 +41,10 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
     m_frame = frame.get();
-    frame->argumentOrder = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
-    frame->argumentDefaults = Slot(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
+    frame->argumentOrder = Slot::makePointer(context->heap->allocateObject(library::kArrayHash,
+            sizeof(library::Array)));
+    frame->argumentDefaults = Slot::makePointer(context->heap->allocateObject(library::kArrayHash,
+            sizeof(library::Array)));
     frame->rootScope = std::make_unique<Scope>(m_frame, nullptr);
     m_scope = frame->rootScope.get();
     m_scope->blocks.emplace_back(std::make_unique<Block>(m_scope, m_blockSerial));
@@ -50,8 +52,9 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
     m_block = m_scope->blocks.front().get();
 
     // First block within rootScope gets argument loads. The *this* pointer is always the first argument to every Frame.
-    frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder, kThisHash);
-    frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults, Slot());
+    frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder,
+            Slot::makeHash(kThisHash));
+    frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults, Slot::makeNil());
     m_block->revisions[kThisHash] = std::make_pair(
             insertLocal(std::make_unique<hir::LoadArgumentHIR>(0)),
             insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(0)));
@@ -68,8 +71,9 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
             while (varDef) {
                 assert(varDef->nodeType == parse::NodeType::kVarDef);
                 auto name = m_lexer->tokens()[varDef->tokenIndex].hash;
-                frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder, name);
-                Slot initialValue;
+                frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder,
+                        Slot::makeHash(name));
+                Slot initialValue = Slot::makeNil();
                 if (varDef->initialValue) {
                     if (varDef->initialValue->nodeType == parse::NodeType::kLiteral) {
                         const auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
@@ -143,8 +147,8 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
             nodeValue = buildFinalValue(context, varDef->initialValue.get());
             m_block->revisions[nameToken.hash] = nodeValue;
         } else {
-            nodeValue.first = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot()));
-            nodeValue.second = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot(Type::kNil)));
+            nodeValue.first = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
+            nodeValue.second = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kNil)));
             m_block->revisions[nameToken.hash] = nodeValue;
         }
     } break;
@@ -211,7 +215,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
     case parse::NodeType::kLiteral: {
         const auto literal = reinterpret_cast<const parse::LiteralNode*>(node);
         nodeValue.first = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(literal->value));
-        nodeValue.second = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot(literal->type)));
+        nodeValue.second = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(literal->type)));
     } break;
 
     case parse::NodeType::kName: {
@@ -359,8 +363,9 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
             ++m_blockSerial;
             Block* falseBlock = falseBlockOwning.get();
             falseScope->blocks.emplace_back(std::move(falseBlockOwning));
-            falseBlock->finalValue.first = insert(std::make_unique<hir::ConstantHIR>(Slot()), falseBlock);
-            falseBlock->finalValue.second = insert(std::make_unique<hir::ConstantHIR>(Slot(Type::kNil)), falseBlock);
+            falseBlock->finalValue.first = insert(std::make_unique<hir::ConstantHIR>(Slot::makeNil()), falseBlock);
+            falseBlock->finalValue.second = insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kNil)),
+                    falseBlock);
         }
         condBranch->blockNumber = falseScope->blocks.front()->number;
         ifBlock->successors.emplace_back(falseScope->blocks.front().get());
@@ -428,9 +433,9 @@ std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, cons
     argumentValues.emplace_back(buildFinalValue(context, target));
 
     // Going to need the symbol type handy for insertion as the selector and any keyword arguments.
-    auto symbolType = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot(Type::kType)));
-    argumentValues.emplace_back(std::make_pair(findOrInsertLocal(std::make_unique<hir::ConstantHIR>(selector)),
-            symbolType));
+    auto symbolType = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kType)));
+    argumentValues.emplace_back(std::make_pair(findOrInsertLocal(std::make_unique<hir::ConstantHIR>(
+            Slot::makeHash(selector))), symbolType));
 
     // Now append any additional arguments.
     while (arguments) {
@@ -443,7 +448,7 @@ std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, cons
         assert(keywordArguments->nodeType == parse::NodeType::kKeyValue);
         auto keyName = m_lexer->tokens()[keywordArguments->tokenIndex].hash;
         keywordArgumentValues.emplace_back(std::make_pair(
-                    findOrInsertLocal(std::make_unique<hir::ConstantHIR>(keyName)), symbolType));
+                    findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(keyName))), symbolType));
         keywordArgumentValues.emplace_back(buildFinalValue(context, keywordArguments->value.get()));
         keywordArguments = reinterpret_cast<const parse::KeyValueNode*>(keywordArguments->next.get());
     }

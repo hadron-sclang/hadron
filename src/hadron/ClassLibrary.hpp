@@ -39,7 +39,7 @@ private:
             const Lexer* lexer);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
-    std::unordered_map<Hash, Slot> m_classTable;
+    std::unordered_map<Hash, library::Class*> m_classTable;
 };
 
 } // namespace hadron

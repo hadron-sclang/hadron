@@ -46,7 +46,7 @@ Slot ArrayedCollection::_ArrayAdd(ThreadContext* context, Slot _this, Slot item)
     // Assumption is this is an instance of ArrayedCollection or a derived class.
     assert(_this.isPointer());
     auto arrayObject = _this.getPointer();
-    Hash className = arrayObject->_className.getHash();
+    Hash className = arrayObject->_className;
     auto elementSize = arrayElementSize(className);
     size_t numberOfElements = (arrayObject->_sizeInBytes - sizeof(ObjectHeader)) / elementSize;
 
@@ -56,11 +56,11 @@ Slot ArrayedCollection::_ArrayAdd(ThreadContext* context, Slot _this, Slot item)
         auto newArray = context->heap->allocateObject(className, newSize);
         if (!newArray) {
             SPDLOG_ERROR("Failed to allocate resize array of {} bytes.", newSize);
-            return Slot();
+            return Slot::makeNil();
         }
         std::memcpy(newArray, arrayObject, arrayObject->_sizeInBytes);
         arrayObject = newArray;
-        _this = Slot(arrayObject);
+        _this = Slot::makePointer(arrayObject);
     }
 
     ObjectHeader* startOfElements = arrayObject + 1;
@@ -100,32 +100,32 @@ Slot ArrayedCollection::_BasicAt(ThreadContext* /* context */, Slot _this, Slot 
     // Assumption is this is an instance of ArrayedCollection or a derived class.
     assert(_this.isPointer());
     auto arrayObject = _this.getPointer();
-    Hash className = arrayObject->_className.getHash();
+    Hash className = arrayObject->_className;
     auto elementSize = arrayElementSize(className);
     size_t numberOfElements = (arrayObject->_sizeInBytes - sizeof(ObjectHeader)) / elementSize;
     if (!index.isInt32()) {
         // TODO: non-integral index on ArrayedCollection
         assert(false);
-        return Slot();
+        return Slot::makeNil();
     }
     int32_t intIndex = index.getInt32();
     if (intIndex < 0 || static_cast<size_t>(intIndex) >= numberOfElements) {
-        return Slot();
+        return Slot::makeNil();
     }
     uint8_t* startOfElements = reinterpret_cast<uint8_t*>(arrayObject) + sizeof(library::ArrayedCollection);
 
     switch (className) {
     case kInt8ArrayHash:
-        return Slot(reinterpret_cast<char*>(startOfElements)[intIndex]);
+        return Slot::makeInt32(reinterpret_cast<char*>(startOfElements)[intIndex]);
 
     case kInt16ArrayHash:
-        return static_cast<int32_t>(reinterpret_cast<int16_t*>(startOfElements)[intIndex]);
+        return Slot::makeInt32(static_cast<int32_t>(reinterpret_cast<int16_t*>(startOfElements)[intIndex]));
 
     case kInt32ArrayHash:
-        return Slot(reinterpret_cast<int32_t*>(startOfElements)[intIndex]);
+        return Slot::makeInt32((reinterpret_cast<int32_t*>(startOfElements)[intIndex]));
 
     case kFloatArrayHash:
-        return Slot(static_cast<double>(reinterpret_cast<float*>(startOfElements)[intIndex]));
+        return Slot::makeFloat((static_cast<double>(reinterpret_cast<float*>(startOfElements)[intIndex])));
 
     case kDoubleArrayHash:
     case kSymbolArrayHash:
@@ -139,9 +139,9 @@ Slot ArrayedCollection::_BasicAt(ThreadContext* /* context */, Slot _this, Slot 
 Slot ArrayedCollection::_BasicSize(ThreadContext* /* context */, Slot _this) {
     assert(_this.isPointer());
     auto arrayObject = _this.getPointer();
-    auto elementSize = arrayElementSize(arrayObject->_className.getHash());
+    auto elementSize = arrayElementSize(arrayObject->_className);
     int32_t numberOfElements = (arrayObject->_sizeInBytes - sizeof(ObjectHeader)) / elementSize;
-    return Slot(numberOfElements);
+    return Slot::makeInt32(numberOfElements);
 }
 
 } // namespace library

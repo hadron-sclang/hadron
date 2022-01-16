@@ -34,33 +34,34 @@ private:
 TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline") {
     SUBCASE("nil block") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "nil"), Slot());
+        REQUIRE_NE(p.compileCode(context(), "nil"), Slot::makeNil());
     }
 /*
     SUBCASE("this call") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "this.primitiveFailed"), Slot());
+        REQUIRE_NE(p.compileCode(context(), "this.primitiveFailed"), Slot::makeNil());
     }
 
     SUBCASE("call chaining") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "this.asString.post"), Slot());
+        REQUIRE_NE(p.compileCode(context(), "this.asString.post"), Slot::makeNil());
     }
 
     SUBCASE("simple if block") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "if(true,{0})"), Slot());
+        REQUIRE_NE(p.compileCode(context(), "if(true,{0})"), Slot::makeNil());
     }
 
     SUBCASE("method call in if condition") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "if(this.respondsTo('selector'),{this.performList('selector')})"), Slot());
+        REQUIRE_NE(p.compileCode(context(), "if(this.respondsTo('selector'),{this.performList('selector')})"),
+                Slot::makeNil());
     }
 */
 
     SUBCASE("variable declaration before if, use after if") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "var x = 5; if(true,{0}); x;"), Slot());
+        REQUIRE_NE(p.compileCode(context(), "var x = 5; if(true,{0}); x;"), Slot::makeNil());
     }
 
 }

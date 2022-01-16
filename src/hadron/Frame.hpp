@@ -15,9 +15,9 @@ struct Frame {
     ~Frame() = default;
 
     // A library::Array with in-order hashes of argument names.
-    Slot argumentOrder = nullptr;
+    Slot argumentOrder = Slot::makeNil();
     // A library::Array with default values for arguments, if they are literals.
-    Slot argumentDefaults = nullptr;
+    Slot argumentDefaults = Slot::makeNil();
 
     std::unique_ptr<Scope> rootScope;
 

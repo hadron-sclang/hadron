@@ -1,7 +1,6 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_HASH_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_HASH_HPP_
 
-#include <functional>
 #include <string_view>
 
 namespace hadron {

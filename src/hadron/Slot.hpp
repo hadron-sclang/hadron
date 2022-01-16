@@ -4,6 +4,7 @@
 #include "hadron/Hash.hpp"
 #include "hadron/Type.hpp"
 
+#include <functional>
 #include <cassert>
 #include <cstddef>
 #include <string>
@@ -82,7 +83,7 @@ public:
     static constexpr uint64_t kPointerTag = 0xfffb000000000000;
     static constexpr uint64_t kSymbolTag  = 0xfffc000000000000;
     static constexpr uint64_t kCharTag    = 0xfffd000000000000;
-    // Could add one additional tag here at 0xfffe000000000000.
+    // Could add one additional tag here at 0xfffe000000000000. TODO: this could be *type*
     static constexpr uint64_t kTagMask    = 0xffff000000000000;
 
 private:

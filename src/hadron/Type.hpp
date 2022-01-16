@@ -5,9 +5,6 @@
 
 namespace hadron {
 
-// TODO: this has nontrivial overlap with the types within Slot, and many of the types are redundant with Object.
-// resolve/simplify.
-
 // These are deliberately independent bits to allow for quick aggregate type comparisons, such as
 // type & (kInteger | kFloat) to determine if a type is numeric or
 // type & (kString | kSymbol) for character types, etc.
@@ -17,12 +14,12 @@ enum Type : std::int32_t {
     kFloat   = 0x0004,
     kBoolean = 0x0008,
     kChar    = 0x0010,
-    kString  = 0x0020,  // probably redundant with Object
+    kString  = 0x0020,
     kSymbol  = 0x0040,
-    kClass   = 0x0080,  // probably redundant with Object
+    kClass   = 0x0080,
     kObject  = 0x0100,
-    kArray   = 0x0200,  // probably redundant with Object
-    kBlock   = 0x0400,  // probably redundant with Object
+    kArray   = 0x0200,
+    kBlock   = 0x0400,
     kAny     = 0x07ff,
 
     // Type is an internal-only flag used for type tracking in SSA, so we exclude it from the other flags.

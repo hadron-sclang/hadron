@@ -9,12 +9,12 @@ Slot Object::_BasicNew(ThreadContext* /* context */, Slot /* _this */, Slot /* m
     // storage. It's an integer type in units of Slots.
     // As _BasicNew is called from a class method |_this| should be an instance of Class, and _BasicNew can initialize
     // the variables from Class::iprototype.
-    return Slot();
+    return Slot::makeNil();
 }
 
 // static
 Slot Object::_BasicNewCopyArgsToInstVars(ThreadContext* /* context */, Slot /* _this */) {
-    return Slot();
+    return Slot::makeNil();
 }
 
 } // namespace library

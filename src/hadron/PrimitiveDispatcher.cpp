@@ -10,7 +10,7 @@ Slot dispatchPrimitive(ThreadContext* context, Hash primitiveName) {
     switch (primitiveName) {
         #include "case/Common/Core/ObjectPrimitiveCases.inl"
     }
-    return Slot();
+    return Slot::makeNil();
 }
 
 } // namespace hadron

@@ -8,7 +8,7 @@ namespace library {
 
 // static
 Slot IdentityDictionary::_IdentDict_At(ThreadContext* /* context */, Slot /* _this */, Slot /* key */) {
-    return Slot();
+    return Slot::makeNil();
 }
 
 } // namespace library

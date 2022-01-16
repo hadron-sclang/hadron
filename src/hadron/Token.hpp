@@ -11,8 +11,11 @@ namespace hadron {
 
 // Lexer lexes source to produce Tokens, Parser consumes Tokens to produce Parse Tree.
 struct Token {
+    Token() = delete;
+    ~Token() = default;
+
     enum Name {
-        // ** Modifying these? Please make sure to update server/JSONTransport.cpp too!
+        // ** Modifying these number values? Please make sure to update server/JSONTransport.cpp too!
         kEmpty = 0,     // represents no token
         kInterpret = 1, // The LSC grammar is ambiguous as written without the insertion of a special token informing
                         // the parser that the input text is interpreted code. Without this the grammar cannot determine
@@ -65,53 +68,53 @@ struct Token {
         kIf = 38
     };
 
-    // Both are zero-based.
-    struct Location {
-        size_t lineNumber;
-        size_t characterNumber;
-    };
-
     Name name;
     std::string_view range;
-    Location location;
     Slot value;
     Type literalType;
     bool couldBeBinop;
-    Hash hash = 0;  // TODO - could overlap with value? Since they are now both Slots?
-    bool escapeString = false;
+    Hash hash;
+    bool escapeString;
+    // Both are zero-based.
+    struct Location {
+        size_t lineNumber = 0;
+        size_t characterNumber = 0;
+    };
+    Location location;
 
-    inline Token(): name(kEmpty), couldBeBinop(false) {}
+    // Method for making any non-literal token.
+    static inline Token make(Name n, std::string_view r, Location loc, bool binop = false, Hash h = 0) {
+        return Token(n, r, Slot::makeNil(), Type::kNil, binop, h, false, loc);
+    }
+    static inline Token makeIntegerLiteral(int32_t intValue, std::string_view r, Location loc) {
+        return Token(kLiteral, r, Slot::makeInt32(intValue), Type::kInteger, false, 0, false, loc);
+    }
+    static inline Token makeFloatLiteral(double f, std::string_view r, Location loc) {
+        return Token(kLiteral, r, Slot::makeFloat(f), Type::kFloat, false, 0, false, loc);
+    }
+    // Note we don't copy strings or symbols into SC-side String or Symbol objects for now
+    static inline Token makeStringLiteral(std::string_view r, Location loc, bool escape) {
+        return Token(kLiteral, r, Slot::makeNil(), Type::kString, false, 0, escape, loc);
+    }
+    static inline Token makeSymbolLiteral(std::string_view r, Location loc, bool escape) {
+        return Token(kLiteral, r, Slot::makeNil(), Type::kSymbol, false, 0, escape, loc);
+    }
+    static inline Token makeCharLiteral(char c, std::string_view r, Location loc) {
+        return Token(kLiteral, r, Slot::makeChar(c), Type::kChar, false, 0, false, loc);
+    }
+    static inline Token makeBooleanLiteral(bool b, std::string_view r, Location loc) {
+        return Token(kLiteral, r, Slot::makeBool(b), Type::kBoolean, false, 0, false, loc);
+    }
+    static inline Token makeNilLiteral(std::string_view r, Location loc) {
+        return Token(kLiteral, r, Slot::makeNil(), Type::kNil, false, 0, false, loc);
+    }
+    static inline Token makeEmpty() {
+        return Token(kEmpty, std::string_view(), Slot::makeNil(), Type::kNil, false, 0, false, Location{0, 0});
+    }
 
-    /*! Makes an integer kLiteral token */
-    inline Token(const char* start, size_t length, int32_t intValue):
-        name(kLiteral), range(start, length), value(intValue), literalType(Type::kInteger), couldBeBinop(false) {}
-
-    /*! Makes a float kLiteral token */
-    Token(const char* start, size_t length, double floatValue):
-        name(kLiteral), range(start, length), value(floatValue), literalType(Type::kFloat), couldBeBinop(false) {}
-
-    /*! Makes a boolean kLiteral token */
-    Token(const char* start, size_t length, bool boolean, Hash h = 0):
-        name(kLiteral),
-        range(start, length), value(boolean), literalType(Type::kBoolean), couldBeBinop(false), hash(h) {}
-
-    /*! Makes a char kLiteral token (length can be 2 for escape characters) */
-    Token(const char* start, size_t length, char charValue):
-        name(kLiteral),
-        range(start, length), value(charValue), literalType(Type::kChar), couldBeBinop(false) {}
-
-    /*! Makes a kLiteral token */
-    Token(const char* start, size_t length, Type type, bool hasEscapeCharacters = false, Hash h = 0):
-            name(kLiteral),
-            range(start, length),
-            literalType(type),
-            couldBeBinop(false),
-            hash(h),
-            escapeString(hasEscapeCharacters) {}
-
-    /*! Makes a token with no value storage */
-    Token(Name n, const char* start, size_t length, bool binop = false, Hash h = 0):
-        name(n), range(start, length), couldBeBinop(binop), hash(h) {}
+private:
+    Token(Name n, std::string_view r, Slot v, Type t, bool binop, Hash h, bool escape, Location l):
+        name(n), range(r), value(v), literalType(t), couldBeBinop(binop), hash(h), escapeString(escape), location(l) {}
 };
 
 } // namespace hadron
