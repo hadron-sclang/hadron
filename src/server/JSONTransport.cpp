@@ -9,6 +9,7 @@
 #include "hadron/LinearBlock.hpp"
 #include "hadron/OpcodeIterator.hpp"
 #include "hadron/Parser.hpp"
+#include "hadron/Scope.hpp"
 #include "hadron/VirtualJIT.hpp"
 #include "server/HadronServer.hpp"
 #include "server/LSPMethods.hpp"
@@ -53,7 +54,9 @@ private:
     void serializeParseNode(const hadron::parse::Node* node, rapidjson::Document& document,
             std::vector<rapidjson::Pointer::Token>& path, int& serial);
     void serializeSlot(hadron::Slot slot, rapidjson::Value& target, rapidjson::Document& document);
-    void serializeFrame(const hadron::Frame* frame, int& frameSerial, rapidjson::Value& jsonFrame,
+    void serializeFrame(const hadron::Frame* frame, rapidjson::Value& jsonFrame,
+            rapidjson::Document& document);
+    void serializeScope(const hadron::Scope* scope, int& scopeSerial, rapidjson::Value& jsonScope,
             rapidjson::Document& document);
     void serializeLinearBlock(const hadron::LinearBlock* linearBlock, rapidjson::Value& jsonBlock,
             rapidjson::Document& document);
@@ -317,8 +320,7 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id,
 
         SPDLOG_TRACE("Serializing root frame for {}", unit.name);
         rapidjson::Value rootFrame;
-        serial = 0;
-        serializeFrame(unit.frame.get(), serial, rootFrame, document);
+        serializeFrame(unit.frame.get(), rootFrame, document);
         jsonUnit.AddMember("rootFrame", rootFrame, document.GetAllocator());
 
         SPDLOG_TRACE("Serializing linearBlock for {}", unit.name);
@@ -796,16 +798,28 @@ void JSONTransport::JSONTransportImpl::serializeSlot(hadron::Slot slot, rapidjso
     }
 }
 
-void JSONTransport::JSONTransportImpl::serializeFrame(const hadron::Frame* frame, int& frameSerial,
-        rapidjson::Value& jsonFrame, rapidjson::Document& document) {
+void JSONTransport::JSONTransportImpl::serializeFrame(const hadron::Frame* frame, rapidjson::Value& jsonFrame,
+        rapidjson::Document& document) {
     jsonFrame.SetObject();
-    int serial = frameSerial;
-    ++frameSerial;
-    jsonFrame.AddMember("frameSerial", rapidjson::Value(serial), document.GetAllocator());
     // TODO: argumentOrder
+    rapidjson::Value rootScope;
+    int scopeSerial = 1;
+    serializeScope(frame->rootScope.get(), scopeSerial, rootScope, document);
+    jsonFrame.AddMember("rootScope", rootScope, document.GetAllocator());
+    jsonFrame.AddMember("numberOfValues", rapidjson::Value(static_cast<uint64_t>(frame->numberOfValues)),
+            document.GetAllocator());
+    jsonFrame.AddMember("numberOfBlocks", rapidjson::Value(frame->numberOfBlocks), document.GetAllocator());
+}
+
+void JSONTransport::JSONTransportImpl::serializeScope(const hadron::Scope* scope, int& scopeSerial,
+        rapidjson::Value& jsonScope, rapidjson::Document& document) {
+    jsonScope.SetObject();
+    int serial = scopeSerial;
+    ++scopeSerial;
+    jsonScope.AddMember("scopeSerial", rapidjson::Value(serial), document.GetAllocator());
     rapidjson::Value blocks;
     blocks.SetArray();
-    for (const auto& block : frame->blocks) {
+    for (const auto& block : scope->blocks) {
         rapidjson::Value jsonBlock;
         jsonBlock.SetObject();
         jsonBlock.AddMember("number", rapidjson::Value(block->number), document.GetAllocator());
@@ -839,18 +853,15 @@ void JSONTransport::JSONTransportImpl::serializeFrame(const hadron::Frame* frame
         jsonBlock.AddMember("statements", statements, document.GetAllocator());
         blocks.PushBack(jsonBlock, document.GetAllocator());
     }
-    jsonFrame.AddMember("blocks", blocks, document.GetAllocator());
-    rapidjson::Value subFrames;
-    subFrames.SetArray();
-    for (const auto& subFrame : frame->subFrames) {
-        rapidjson::Value jsonSubFrame;
-        serializeFrame(subFrame.get(), frameSerial, jsonSubFrame, document);
-        subFrames.PushBack(jsonSubFrame, document.GetAllocator());
+    jsonScope.AddMember("blocks", blocks, document.GetAllocator());
+    rapidjson::Value subScopes;
+    subScopes.SetArray();
+    for (const auto& subScope : scope->subScopes) {
+        rapidjson::Value jsonSubScope;
+        serializeScope(subScope.get(), scopeSerial, jsonSubScope, document);
+        subScopes.PushBack(jsonSubScope, document.GetAllocator());
     }
-    jsonFrame.AddMember("subFrames", subFrames, document.GetAllocator());
-    jsonFrame.AddMember("numberOfValues", rapidjson::Value(static_cast<uint64_t>(frame->numberOfValues)),
-            document.GetAllocator());
-    jsonFrame.AddMember("numberOfBlocks", rapidjson::Value(frame->numberOfBlocks), document.GetAllocator());
+    jsonScope.AddMember("subScopes", subScopes, document.GetAllocator());
 }
 
 void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::LinearBlock* linearBlock,
