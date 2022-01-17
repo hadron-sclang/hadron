@@ -13,7 +13,7 @@ namespace hadron {
 namespace library {
 
 inline size_t arrayElementSize(Hash className) {
-    switch (className.getHash()) {
+    switch (className) {
     case kInt8ArrayHash:
         return 1;
     case kInt16ArrayHash:
@@ -56,17 +56,17 @@ Slot ArrayedCollection::_ArrayAdd(ThreadContext* context, Slot _this, Slot item)
         auto newArray = context->heap->allocateObject(className, newSize);
         if (!newArray) {
             SPDLOG_ERROR("Failed to allocate resize array of {} bytes.", newSize);
-            return Slot();
+            return Slot::makeNil();
         }
         std::memcpy(newArray, arrayObject, arrayObject->_sizeInBytes);
         arrayObject = newArray;
-        _this = Slot(arrayObject);
+        _this = Slot::makePointer(arrayObject);
     }
 
     ObjectHeader* startOfElements = arrayObject + 1;
 
     // TODO: type checking in item
-    switch (className.getHash()) {
+    switch (className) {
     case kInt8ArrayHash: {
         reinterpret_cast<char*>(startOfElements)[numberOfElements] = item.getChar();
     } break;
@@ -106,26 +106,26 @@ Slot ArrayedCollection::_BasicAt(ThreadContext* /* context */, Slot _this, Slot 
     if (!index.isInt32()) {
         // TODO: non-integral index on ArrayedCollection
         assert(false);
-        return Slot();
+        return Slot::makeNil();
     }
     int32_t intIndex = index.getInt32();
     if (intIndex < 0 || static_cast<size_t>(intIndex) >= numberOfElements) {
-        return Slot();
+        return Slot::makeNil();
     }
     uint8_t* startOfElements = reinterpret_cast<uint8_t*>(arrayObject) + sizeof(library::ArrayedCollection);
 
-    switch (className.getHash()) {
+    switch (className) {
     case kInt8ArrayHash:
-        return Slot(reinterpret_cast<char*>(startOfElements)[intIndex]);
+        return Slot::makeInt32(reinterpret_cast<char*>(startOfElements)[intIndex]);
 
     case kInt16ArrayHash:
-        return static_cast<int32_t>(reinterpret_cast<int16_t*>(startOfElements)[intIndex]);
+        return Slot::makeInt32(static_cast<int32_t>(reinterpret_cast<int16_t*>(startOfElements)[intIndex]));
 
     case kInt32ArrayHash:
-        return Slot(reinterpret_cast<int32_t*>(startOfElements)[intIndex]);
+        return Slot::makeInt32((reinterpret_cast<int32_t*>(startOfElements)[intIndex]));
 
     case kFloatArrayHash:
-        return Slot(static_cast<double>(reinterpret_cast<float*>(startOfElements)[intIndex]));
+        return Slot::makeFloat((static_cast<double>(reinterpret_cast<float*>(startOfElements)[intIndex])));
 
     case kDoubleArrayHash:
     case kSymbolArrayHash:
@@ -141,7 +141,7 @@ Slot ArrayedCollection::_BasicSize(ThreadContext* /* context */, Slot _this) {
     auto arrayObject = _this.getPointer();
     auto elementSize = arrayElementSize(arrayObject->_className);
     int32_t numberOfElements = (arrayObject->_sizeInBytes - sizeof(ObjectHeader)) / elementSize;
-    return Slot(numberOfElements);
+    return Slot::makeInt32(numberOfElements);
 }
 
 } // namespace library

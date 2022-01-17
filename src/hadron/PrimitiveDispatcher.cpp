@@ -7,10 +7,10 @@ namespace hadron {
 
 Slot dispatchPrimitive(ThreadContext* context, Hash primitiveName) {
     Slot* sp = context->stackPointer;
-    switch (primitiveName.getHash()) {
+    switch (primitiveName) {
         #include "case/Common/Core/ObjectPrimitiveCases.inl"
     }
-    return Slot();
+    return Slot::makeNil();
 }
 
 } // namespace hadron

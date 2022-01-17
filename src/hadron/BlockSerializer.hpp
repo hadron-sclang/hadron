@@ -23,7 +23,7 @@ public:
     ~BlockSerializer() = default;
 
     // Destructively modify baseFrame to produce a single LinearBlock with blocks serialized in the required order.
-    std::unique_ptr<LinearBlock> serialize(std::unique_ptr<Frame> baseFrame);
+    std::unique_ptr<LinearBlock> serialize(std::unique_ptr<Frame> frame);
 
 private:
     // Map of block number to Block struct, useful when recursing through control flow graph.

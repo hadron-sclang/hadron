@@ -157,9 +157,9 @@ def hirToString(hir):
         return 'DispatchCleanup()'
     return '<unsupported hir opcode "{}">'.format(hir['opcode'])
 
-def saveFrame(frame, dotFile):
-    dotFile.write('  subgraph cluster_{} {{\n'.format(frame['frameSerial']))
-    for block in frame['blocks']:
+def saveScope(scope, dotFile):
+    dotFile.write('  subgraph cluster_{} {{\n'.format(scope['scopeSerial']))
+    for block in scope['blocks']:
         dotFile.write(
 """   block_{} [shape=plain label=<<table border="0" cellpadding="6" cellborder="1" cellspacing="0">
       <tr><td bgcolor="lightGray"><b>Block {}</b></td></tr>
@@ -169,15 +169,15 @@ def saveFrame(frame, dotFile):
         for hir in block['statements']:
             dotFile.write('      <tr><td>{}</td></tr>\n'.format(hirToString(hir)))
         dotFile.write('      </table>>]\n')
-    for subFrame in frame['subFrames']:
-        saveFrame(subFrame, dotFile)
-    dotFile.write('  }} // end of cluster_{}\n'.format(frame['frameSerial']))
+    for subScope in scope['subScopes']:
+        saveScope(subScope, dotFile)
+    dotFile.write('  }} // end of cluster_{}\n'.format(scope['scopeSerial']))
 
-def saveBlockGraph(frame, dotFile):
-    for block in frame['blocks']:
+def saveBlockGraph(scope, dotFile):
+    for block in scope['blocks']:
         for succ in block['successors']:
             dotFile.write('    block_{} -> block_{}\n'.format(block['number'], succ))
-    for subFrame in frame['subFrames']:
+    for subFrame in scope['subScopes']:
         saveBlockGraph(subFrame, dotFile)
 
 def buildControlFlow(outFile, rootFrame, outputDir):
@@ -185,10 +185,10 @@ def buildControlFlow(outFile, rootFrame, outputDir):
     dotPath = os.path.join(outputDir, 'controlFlow.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronControlFlow {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
-    saveFrame(rootFrame, dotFile)
+    saveScope(rootFrame['rootScope'], dotFile)
     # For whatever reason the connections between blocks have to all be specified at highest level scope, or some blocks
     # will end up in the wrong subframes. So we do a separate pass just to enumerate the connections.
-    saveBlockGraph(rootFrame, dotFile)
+    saveBlockGraph(rootFrame['rootScope'], dotFile)
     dotFile.write('}\n')
     dotFile.close()
     # Execute command to generate svg image.

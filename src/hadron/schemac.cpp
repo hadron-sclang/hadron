@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
     std::map<std::string, std::string> keywordSubs{{"bool", "scBool"}};
 
     fs::path outFilePath(FLAGS_schemaFile);
-    auto includeGuard = fmt::format("SRC_HADRON_SCHEMA_{:012X}", hadron::hash(FLAGS_schemaFile).getHash());
+    auto includeGuard = fmt::format("SRC_HADRON_SCHEMA_{:012X}", hadron::hash(FLAGS_schemaFile));
     outFile << "#ifndef " << includeGuard << std::endl;
     outFile << "#define " << includeGuard << std::endl << std::endl;
 
@@ -99,7 +99,7 @@ int main(int argc, char* argv[]) {
 
         outFile << "// ========== " << className << std::endl;
         outFile << fmt::format("static constexpr uint64_t k{}Hash = 0x{:012x};\n\n", className,
-                hadron::hash(className).getHash());
+                hadron::hash(className));
 
         outFile << fmt::format("struct {} : public {} {{\n", className, superClassName);
 
@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
                     std::string signature = fmt::format("    static Slot {}(ThreadContext* context, Slot _this",
                             primitiveName);
                     std::string caseBlock = fmt::format("// {}:{}\ncase 0x{:012x}: {{\n", className,
-                            primitiveName, hadron::hash(primitiveName).getHash());
+                            primitiveName, hadron::hash(primitiveName));
                     std::vector<std::string> argNames;
                     if (method->body && method->body->arguments && method->body->arguments->varList) {
                         // TODO: vargargs? Is there such a thing as a varargs primitive?

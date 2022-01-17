@@ -19,20 +19,17 @@
         # Integer base-10
         digit+ {
             int32_t value = strtol(ts, nullptr, 10);
-            m_tokens.emplace_back(Token(ts, te - ts, value));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
         # Hex integer base-16. Marker points at first digit past 'x'
         ('0x' %marker) xdigit+ {
             int32_t value = strtol(marker, nullptr, 16);
-            m_tokens.emplace_back(Token(ts, te - ts, value));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
         # Float base-10
         digit+ '.' digit+ {
             double value = strtod(ts, nullptr);
-            m_tokens.emplace_back(Token(ts, te - ts, value));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
 
         ###################
@@ -40,8 +37,8 @@
         ###################
         # Double-quoted string. Increments counter on escape characters for length computation.
         '"' (('\\' any %counter) | (extend - '"'))* '"' {
-            m_tokens.emplace_back(Token(ts + 1, te - ts - 2, Type::kString, counter > 0));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeStringLiteral(std::string_view(ts + 1, te - ts - 2), getLocation(ts),
+                    counter > 0));
             counter = 0;
         };
 
@@ -50,215 +47,191 @@
         ###########
         # Single-quoted symbol. Increments counter on escape characters for length computation.
         '\'' (('\\' any %counter) | (extend - '\''))* '\'' {
-            m_tokens.emplace_back(Token(ts + 1, te - ts - 2, Type::kSymbol, counter > 0));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeSymbolLiteral(std::string_view(ts + 1, te - ts - 2), getLocation(ts),
+                    counter > 0));
             counter = 0;
         };
         # Slash symbols.
         '\\' [a-zA-Z0-9_]* {
-            m_tokens.emplace_back(Token(ts + 1, te - ts - 1, Type::kSymbol, false));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeSymbolLiteral(std::string_view(ts + 1, te - ts - 1), getLocation(ts),
+                    false));
         };
 
         ######################
         # character literals #
         ######################
         '$' (any - '\\') {
-            m_tokens.emplace_back(Token(ts + 1, 1, *(ts + 1)));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeCharLiteral(*(ts + 1), std::string_view(ts + 1, 1), getLocation(ts)));
         };
         '$\\t' {
-            m_tokens.emplace_back(Token(ts + 1, 2, '\t'));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeCharLiteral('\t', std::string_view(ts + 1, 2), getLocation(ts)));
         };
         '$\\n' {
-            m_tokens.emplace_back(Token(ts + 1, 2, '\n'));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeCharLiteral('\n', std::string_view(ts + 1, 2), getLocation(ts)));
         };
         '$\\r' {
-            m_tokens.emplace_back(Token(ts + 1, 2, '\r'));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeCharLiteral('\r', std::string_view(ts + 1, 2), getLocation(ts)));
         };
         '$\\' (any - ('t' | 'n' | 'r')) {
-            m_tokens.emplace_back(Token(ts + 1, 2, *(ts + 2)));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeCharLiteral(*(ts + 2), std::string_view(ts + 1, 2), getLocation(ts)));
         };
 
         ##############
         # delimiters #
         ##############
         '(' {
-            m_tokens.emplace_back(Token(Token::Name::kOpenParen, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kOpenParen, std::string_view(ts, 1), getLocation(ts)));
         };
         ')' {
-            m_tokens.emplace_back(Token(Token::Name::kCloseParen, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kCloseParen, std::string_view(ts, 1), getLocation(ts)));
         };
         '{' {
-            m_tokens.emplace_back(Token(Token::Name::kOpenCurly, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kOpenCurly, std::string_view(ts, 1), getLocation(ts)));
         };
         '}' {
-            m_tokens.emplace_back(Token(Token::Name::kCloseCurly, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kCloseCurly, std::string_view(ts, 1), getLocation(ts)));
         };
         '[' {
-            m_tokens.emplace_back(Token(Token::Name::kOpenSquare, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kOpenSquare, std::string_view(ts, 1), getLocation(ts)));
         };
         ']' {
-            m_tokens.emplace_back(Token(Token::Name::kCloseSquare, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kCloseSquare, std::string_view(ts, 1), getLocation(ts)));
         };
         ',' {
-            m_tokens.emplace_back(Token(Token::Name::kComma, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kComma, std::string_view(ts, 1), getLocation(ts)));
         };
         ';' {
-            m_tokens.emplace_back(Token(Token::Name::kSemicolon, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kSemicolon, std::string_view(ts, 1), getLocation(ts)));
         };
         ':' {
-            m_tokens.emplace_back(Token(Token::Name::kColon, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kColon, std::string_view(ts, 1), getLocation(ts)));
         };
         '^' {
-            m_tokens.emplace_back(Token(Token::Name::kCaret, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kCaret, std::string_view(ts, 1), getLocation(ts)));
         };
         '~' {
-            m_tokens.emplace_back(Token(Token::Name::kTilde, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kTilde, std::string_view(ts, 1), getLocation(ts)));
         };
         '#' {
-            m_tokens.emplace_back(Token(Token::Name::kHash, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kHash, std::string_view(ts, 1), getLocation(ts)));
         };
         '`' {
-            m_tokens.emplace_back(Token(Token::Name::kGrave, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kGrave, std::string_view(ts, 1), getLocation(ts)));
         };
         '_' {
-            m_tokens.emplace_back(Token(Token::Name::kCurryArgument, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kCurryArgument, std::string_view(ts, 1), getLocation(ts)));
         };
 
         #############
         # operators #
         #############
         '+' {
-            m_tokens.emplace_back(Token(Token::Name::kPlus, ts, 1, true, kAddHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kPlus, std::string_view(ts, 1), getLocation(ts), true,
+                    kAddHash));
         };
         '-' {
-            m_tokens.emplace_back(Token(Token::Name::kMinus, ts, 1, true, kSubtractHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kMinus, std::string_view(ts, 1), getLocation(ts), true,
+                    kSubtractHash));
         };
         '*' {
-            m_tokens.emplace_back(Token(Token::Name::kAsterisk, ts, 1, true, kMultiplyHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kAsterisk, std::string_view(ts, 1), getLocation(ts), true,
+                    kMultiplyHash));
         };
         '=' {
-            m_tokens.emplace_back(Token(Token::Name::kAssign, ts, 1, true, kAssignHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kAssign, std::string_view(ts, 1), getLocation(ts), true,
+                    kAssignHash));
         };
         '<' {
-            m_tokens.emplace_back(Token(Token::Name::kLessThan, ts, 1, true, kLessThanHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kLessThan, std::string_view(ts, 1), getLocation(ts), true,
+                    kLessThanHash));
         };
         '>' {
-            m_tokens.emplace_back(Token(Token::Name::kGreaterThan, ts, 1, true, kGreaterThanHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kGreaterThan, std::string_view(ts, 1), getLocation(ts),
+                    true, kGreaterThanHash));
         };
         '|' {
-            m_tokens.emplace_back(Token(Token::Name::kPipe, ts, 1, true, kPipeHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kPipe, std::string_view(ts, 1), getLocation(ts), true,
+                    kPipeHash));
         };
         '<>' {
-            m_tokens.emplace_back(Token(Token::Name::kReadWriteVar, ts, 2, true, kReadWriteHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kReadWriteVar, std::string_view(ts, 2), getLocation(ts),
+                    true, kReadWriteHash));
         };
         '<-' {
-            m_tokens.emplace_back(Token(Token::Name::kLeftArrow, ts, 2, true, kLeftArrowHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kLeftArrow, std::string_view(ts, 2), getLocation(ts), true,
+                    kLeftArrowHash));
             m_tokens.back().location = getLocation(ts);
         };
         (binopChar+ - (('/*' binopChar*) | ('//' binopChar*))) {
-            m_tokens.emplace_back(Token(Token::Name::kBinop, ts, te - ts, true, hash(ts, te - ts)));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kBinop, std::string_view(ts, te - ts), getLocation(ts),
+                    true, hash(ts, te - ts)));
         };
         # We don't include the colon at the end of the keyword to simplify parsing.
         lower (alnum | '_')* ':' {
-            m_tokens.emplace_back(Token(Token::Name::kKeyword, ts, te - ts - 1, true, hash(ts, te - ts - 1)));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kKeyword, std::string_view(ts, te - ts - 1), getLocation(ts),
+                    true, hash(ts, te - ts - 1)));
         };
 
         ############
         # keywords #
         ############
         'arg' {
-            m_tokens.emplace_back(Token(Token::Name::kArg, ts, 3, false, kArgHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kArg, std::string_view(ts, 3), getLocation(ts), false,
+                    kArgHash));
         };
         'classvar' {
-            m_tokens.emplace_back(Token(Token::Name::kClassVar, ts, 8, false, kClassVarHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kClassVar, std::string_view(ts, 8), getLocation(ts), false,
+                    kClassVarHash));
         };
         'const' {
-            m_tokens.emplace_back(Token(Token::Name::kConst, ts, 5, false, kConstHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kConst, std::string_view(ts, 5), getLocation(ts), false,
+                    kConstHash));
         };
         'false' {
-            m_tokens.emplace_back(Token(ts, 5, false, kFalseHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeBooleanLiteral(false, std::string_view(ts, 5), getLocation(ts)));
         };
         'nil' {
-            m_tokens.emplace_back(Token(ts, 3, Type::kNil, false, kNilHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeNilLiteral(std::string_view(ts, 3), getLocation(ts)));
         };
         'true' {
-            m_tokens.emplace_back(Token(ts, 4, true, kTrueHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::makeBooleanLiteral(true, std::string_view(ts, 4), getLocation(ts)));
         };
         'var' {
-            m_tokens.emplace_back(Token(Token::Name::kVar, ts, 3, false, kVarHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kVar, std::string_view(ts, 3), getLocation(ts), false,
+                    kVarHash));
         };
         'if' {
-            m_tokens.emplace_back(Token(Token::Name::kIf, ts, 2, false, kIfHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kIf, std::string_view(ts, 2), getLocation(ts), false,
+                    kIfHash));
         };
 
         ###############
         # identifiers #
         ###############
         lower (alnum | '_')* {
-            m_tokens.emplace_back(Token(Token::Name::kIdentifier, ts, te - ts, false, hash(ts, te - ts)));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kIdentifier, std::string_view(ts, te - ts), getLocation(ts),
+                    false, hash(ts, te - ts)));
         };
 
         ###############
         # class names #
         ###############
         upper (alnum | '_')* {
-            m_tokens.emplace_back(Token(Token::Name::kClassName, ts, te - ts, false, hash(ts, te - ts)));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kClassName, std::string_view(ts, te - ts), getLocation(ts),
+                    false, hash(ts, te - ts)));
         };
 
         ########
         # dots #
         ########
         '.' {
-            m_tokens.emplace_back(Token(Token::Name::kDot, ts, 1));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kDot, std::string_view(ts, 1), getLocation(ts)));
         };
         '..' {
-            m_tokens.emplace_back(Token(Token::Name::kDotDot, ts, 2));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kDotDot, std::string_view(ts, 2), getLocation(ts)));
         };
         '...' {
-            m_tokens.emplace_back(Token(Token::Name::kEllipses, ts, 3));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kEllipses, std::string_view(ts, 3), getLocation(ts)));
         };
         # Four or more consecutive dots is a lexing error.
         '.' {4, } {
@@ -269,8 +242,8 @@
         # primitives #
         ##############
         '_' (alnum | '_')+ {
-            m_tokens.emplace_back(Token(Token::Name::kPrimitive, ts, te - ts, false, hash(ts, te - ts)));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kPrimitive, std::string_view(ts, te - ts), getLocation(ts),
+                    false, hash(ts, te - ts)));
         };
 
         ############

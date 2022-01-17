@@ -6,7 +6,7 @@ namespace library {
 
 // static
 Slot Interpreter::_CompileExpression(ThreadContext* /* context */, Slot /* _this */, Slot /* string */) {
-    return Slot();
+    return Slot::makeNil();
 }
 
 } // namespace library

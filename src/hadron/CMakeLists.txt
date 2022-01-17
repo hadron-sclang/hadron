@@ -54,6 +54,11 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
 
 # predefined symbol hash table
 add_executable(hashkw
+    Hash.cpp
+    Hash.hpp
+    Slot.hpp
+    Type.hpp
+
     hashkw.cpp
 )
 
@@ -216,6 +221,7 @@ add_library(hadron STATIC
     Resolver.hpp
     Runtime.cpp
     Runtime.hpp
+    Scope.hpp
     ThreadContext.hpp
     VirtualJIT.cpp
     VirtualJIT.hpp
@@ -229,6 +235,7 @@ set(HADRON_COMPILER_UNITTESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/OpcodeIterator_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Parser_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Pipeline_unittests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Slot_unittests.cpp
     PARENT_SCOPE
 )
 

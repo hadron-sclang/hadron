@@ -12,9 +12,12 @@
 #include <memory>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace hadron {
+
+struct ObjectHeader;
 
 namespace library {
 struct Int8Array;
@@ -48,9 +51,10 @@ public:
 
     // Adds to the list of permanent objects that are the point of origin for all scanning jobs.
     void addToRootSet(Slot object);
+    void removeFromRootSet(Slot object);
 
-    // Compute symbol hash, copy symbol data into root set symbol table (if not already set up), returns the Hash.
-    Hash addSymbol(std::string_view symbol);
+    // Compute symbol hash, copy symbol data into root set symbol table (if not already set up), returns the Symbol.
+    Slot addSymbol(std::string_view symbol);
 
     // TODO: verify size classes experimentally.
     static constexpr size_t kSmallObjectSize = 256;
@@ -88,10 +92,8 @@ private:
     SizedPages m_executablePages;
 
     // Not garbage collected, permanently allocated objects. Root objects are where scanning starts, along with the
-    // stack. TODO: could it be a set? Would that be useful? Unlike the symbol table these aren't hash value keys they
-    // are pointers. It's usually not great to use raw pointer values as unique identifiers - but we're kind of doing
-    // that all over the place in the allocator.
-    std::vector<Slot> m_rootSet;
+    // stack.
+    std::unordered_set<ObjectHeader*> m_rootSet;
 
     // Hadron program stack support.
     std::vector<std::unique_ptr<Page>> m_stackSegments;

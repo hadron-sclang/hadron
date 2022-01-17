@@ -32,6 +32,7 @@ class ErrorReporter;
 struct Frame;
 class Lexer;
 struct LinearBlock;
+struct Scope;
 struct ThreadContext;
 
 // Utility class to compile an input string into machine code. Includes optional code to validate the compiler state
@@ -74,7 +75,7 @@ protected:
     // Checks for valid SSA form and that all members of Frame and contained Blocks are valid.
     bool validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
             const Lexer* lexer);
-    bool validateSubFrame(const Frame* frame, const Frame* parent, std::unordered_set<int>& blockNumbers);
+    bool validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<int>& blockNumbers);
 
     bool validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks, size_t numberOfValues);
     bool validateSsaHir(const hir::HIR* hir, std::unordered_set<uint32_t>& values);

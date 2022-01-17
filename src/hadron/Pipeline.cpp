@@ -18,6 +18,7 @@
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
+#include "hadron/Scope.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "hadron/VirtualJIT.hpp"
 
@@ -40,10 +41,10 @@ Pipeline::~Pipeline() {}
 
 Slot Pipeline::compileCode(ThreadContext* context, std::string_view code) {
     Lexer lexer(code, m_errorReporter);
-    if (!lexer.lex()) { return nullptr; }
+    if (!lexer.lex()) { return Slot::makeNil(); }
 
     Parser parser(&lexer, m_errorReporter);
-    if (!parser.parse()) { return nullptr; }
+    if (!parser.parse()) { return Slot::makeNil(); }
 
     assert(parser.root()->nodeType == parse::NodeType::kBlock);
 
@@ -71,41 +72,41 @@ void Pipeline::setDefaults() {
 Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer) {
     hadron::BlockBuilder builder(lexer, m_errorReporter);
     auto frame = builder.buildFrame(context, blockNode);
-    if (!frame) { return nullptr; }
+    if (!frame) { return Slot::makeNil(); }
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateFrame(context, frame.get(), blockNode, lexer)) { return nullptr; }
-    if (!afterBlockBuilder(frame.get(), blockNode, lexer)) { return nullptr; }
+    if (!validateFrame(context, frame.get(), blockNode, lexer)) { return Slot::makeNil(); }
+    if (!afterBlockBuilder(frame.get(), blockNode, lexer)) { return Slot::makeNil(); }
     size_t numberOfBlocks = static_cast<size_t>(frame->numberOfBlocks);
     size_t numberOfValues = frame->numberOfValues;
 #endif // HADRON_PIPELINE_VALIDATE
 
     BlockSerializer serializer;
     auto linearBlock = serializer.serialize(std::move(frame));
-    if (!linearBlock) { return nullptr; }
+    if (!linearBlock) { return Slot::makeNil(); }
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateSerializedBlock(linearBlock.get(), numberOfBlocks, numberOfValues)) { return nullptr; }
-    if (!afterBlockSerializer(linearBlock.get())) { return nullptr; }
+    if (!validateSerializedBlock(linearBlock.get(), numberOfBlocks, numberOfValues)) { return Slot::makeNil(); }
+    if (!afterBlockSerializer(linearBlock.get())) { return Slot::makeNil(); }
 #endif // HADRON_PIPELINE_VALIDATE
 
     LifetimeAnalyzer analyzer;
     analyzer.buildLifetimes(linearBlock.get());
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateLifetimes(linearBlock.get())) { return nullptr; }
-    if (!afterLifetimeAnalyzer(linearBlock.get())) { return nullptr; }
+    if (!validateLifetimes(linearBlock.get())) { return Slot::makeNil(); }
+    if (!afterLifetimeAnalyzer(linearBlock.get())) { return Slot::makeNil(); }
 #endif // HADRON_PIPELINE_VALIDATE
 
     RegisterAllocator allocator(m_numberOfRegisters);
     allocator.allocateRegisters(linearBlock.get());
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateAllocation(linearBlock.get())) { return nullptr; }
-    if (!afterRegisterAllocator(linearBlock.get())) { return nullptr; }
+    if (!validateAllocation(linearBlock.get())) { return Slot::makeNil(); }
+    if (!afterRegisterAllocator(linearBlock.get())) { return Slot::makeNil(); }
 #endif // HADRON_PIPELINE_VALIDATE
 
     Resolver resolver;
     resolver.resolve(linearBlock.get());
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateResolution(linearBlock.get())) { return nullptr; }
-    if (!afterResolver(linearBlock.get())) { return nullptr; }
+    if (!validateResolution(linearBlock.get())) { return Slot::makeNil(); }
+    if (!afterResolver(linearBlock.get())) { return Slot::makeNil(); }
 #endif // HADRON_PIPELINE_VALIDATE
 
     size_t jitMaxSize = sizeof(library::Int8Array);
@@ -137,11 +138,11 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
     bytecodeArray->_sizeInBytes = finalSize + sizeof(library::Int8Array);
 
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateEmission(linearBlock.get(), bytecodeArray)) { return nullptr; }
-    if (!afterEmitter(linearBlock.get(), bytecodeArray)) { return nullptr; }
+    if (!validateEmission(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return Slot::makeNil(); }
+    if (!afterEmitter(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return Slot::makeNil(); }
 #endif
 
-    return Slot(bytecodeArray);
+    return Slot::makePointer(bytecodeArray);
 }
 
 #if HADRON_PIPELINE_VALIDATE
@@ -161,10 +162,9 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
         return false;
     }
 
-    if (library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, 0) != Slot(kThisHash)) {
-        SPDLOG_ERROR("First argument to Frame {:16x} not 'this' {:16x}",
-                library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, 0).getHash(),
-                Slot(kThisHash).getHash());
+    Slot argName = library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, Slot::makeInt32(0));
+    if (argName != Slot::makeHash(kThisHash)) {
+        SPDLOG_ERROR("First argument to Frame {:16x} not 'this' {:16x}", argName.getHash(), kThisHash);
         return false;
     }
 
@@ -179,7 +179,9 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
             }
-            if (library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, numberOfArguments) != nameHash) {
+            argName = library::ArrayedCollection::_BasicAt(context, frame->argumentOrder,
+                    Slot::makeInt32(numberOfArguments));
+            if (argName.getHash() != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for argument number {} named {}", numberOfArguments,
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
@@ -195,7 +197,7 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
     }
 
     std::unordered_set<int> blockNumbers;
-    if (!validateSubFrame(frame, nullptr, blockNumbers)) { return false; }
+    if (!validateSubScope(frame->rootScope.get(), nullptr, blockNumbers)) { return false; }
 
     if (frame->numberOfBlocks != static_cast<int>(blockNumbers.size())) {
         SPDLOG_ERROR("Base frame number of blocks {} mismatches counted amount of {}", frame->numberOfBlocks,
@@ -210,14 +212,14 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
     return true;
 }
 
-bool Pipeline::validateSubFrame(const Frame* frame, const Frame* parent, std::unordered_set<int>& blockNumbers) {
-    if (frame->parent != parent) {
-        SPDLOG_ERROR("Frame parent mismatch");
+bool Pipeline::validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<int>& blockNumbers) {
+    if (scope->parent != parent) {
+        SPDLOG_ERROR("Scope parent mismatch");
         return false;
     }
-    for (const auto& block : frame->blocks) {
+    for (const auto& block : scope->blocks) {
         // Block must have a reference back to the correct owning frame.
-        if (block->frame != frame) {
+        if (block->scope != scope) {
             SPDLOG_ERROR("Block frame mismatch");
             return false;
         }
@@ -229,8 +231,8 @@ bool Pipeline::validateSubFrame(const Frame* frame, const Frame* parent, std::un
 
         blockNumbers.emplace(block->number);
     }
-    for (const auto& subFrame : frame->subFrames) {
-        if (!validateSubFrame(subFrame.get(), frame, blockNumbers)) { return false; }
+    for (const auto& subScope : scope->subScopes) {
+        if (!validateSubScope(subScope.get(), scope, blockNumbers)) { return false; }
     }
 
     return true;

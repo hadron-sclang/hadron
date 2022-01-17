@@ -29,7 +29,7 @@ struct ThreadContext {
     void* cStackPointer = nullptr;
 
     // Objects accessible from the language.
-    Slot thisProcess;
+    Slot thisProcess = Slot::makeNil();
 
     std::shared_ptr<Heap> heap;
 };

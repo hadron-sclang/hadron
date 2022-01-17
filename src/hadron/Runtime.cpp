@@ -76,7 +76,7 @@ bool Runtime::buildTrampolines() {
     LighteningJIT::markThreadForJITCompilation();
     size_t jitBufferSize = 0;
     library::Int8Array* jitArray = m_heap->allocateJIT(Heap::kSmallObjectSize, jitBufferSize);
-    m_heap->addToRootSet(jitArray);
+    m_heap->addToRootSet(Slot::makePointer(jitArray));
     LighteningJIT jit;
     jit.begin(reinterpret_cast<uint8_t*>(jitArray) + sizeof(library::Int8Array),
             jitBufferSize - sizeof(library::Int8Array));
@@ -114,27 +114,27 @@ bool Runtime::buildTrampolines() {
 bool Runtime::buildThreadContext() {
     library::Process* process = reinterpret_cast<library::Process*>(m_heap->allocateObject(library::kProcessHash,
             sizeof(library::Process)));
-    m_heap->addToRootSet(process);
-    process->classVars = m_heap->allocateObject(library::kArrayHash, sizeof(library::Array));
-    process->interpreter = Slot();
-    process->curThread = Slot();
-    process->mainThread = Slot();
-    process->schedulerQueue = Slot();
-    process->nowExecutingPath = Slot();
+    m_heap->addToRootSet(Slot::makePointer(process));
+    process->classVars = Slot::makePointer(m_heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
+    process->interpreter = Slot::makeNil();
+    process->curThread = Slot::makeNil();
+    process->mainThread = Slot::makeNil();
+    process->schedulerQueue = Slot::makeNil();
+    process->nowExecutingPath = Slot::makeNil();
     return true;
 }
 
 void Runtime::enterMachineCode(const uint8_t* machineCode) {
     // Set machine return address as the exit trampoline into Hadron stack frame.
-    *(m_threadContext->framePointer) = m_threadContext->framePointer;
+    *(m_threadContext->framePointer) = Slot::makePointer(m_threadContext->framePointer);
     --(m_threadContext->framePointer);
-    *(m_threadContext->framePointer) = m_threadContext->stackPointer;
+    *(m_threadContext->framePointer) = Slot::makePointer(m_threadContext->stackPointer);
     --(m_threadContext->framePointer);
-    *(m_threadContext->framePointer) = reinterpret_cast<uint8_t*>(m_exitTrampoline);
+    *(m_threadContext->framePointer) = Slot::makePointer(reinterpret_cast<uint8_t*>(m_exitTrampoline));
     --(m_threadContext->framePointer);
 
     // Initialize return value.
-    *(m_threadContext->framePointer) = Slot();
+    *(m_threadContext->framePointer) = Slot::makeNil();
     // No arguments means stack pointer == frame pointer.
     m_threadContext->stackPointer = m_threadContext->framePointer;
 

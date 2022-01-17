@@ -1,8 +1,8 @@
 // hashkw generates the Keywords.hpp header file for use in the Hadron library. This keywords header
 // file contains computed hashes of keywords that it is useful at compile time to have hashes for.
+#include "hadron/Hash.hpp"
 
 #include "fmt/core.h"
-#include "xxhash.h"
 
 #include <array>
 #include <fstream>
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
 
     for (const auto& pair : hashNames) {
         outFile << fmt::format("    static constexpr uint64_t {} = 0x{:016x};  // \'{}\'\n", pair[0],
-            XXH3_64bits(pair[1].data(), pair[1].size()), pair[1]);
+            hadron::hash(pair[1]), pair[1]);
     }
 
     outFile << std::endl << "} // namespace hadron" << std::endl << std::endl;

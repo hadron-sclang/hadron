@@ -15,6 +15,7 @@
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
 #include "hadron/Runtime.hpp"
+#include "hadron/Scope.hpp"
 #include "hadron/SourceFile.hpp"
 #include "hadron/VirtualJIT.hpp"
 #include "server/JSONTransport.hpp"
