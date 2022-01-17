@@ -70,7 +70,7 @@
             m_tokens.emplace_back(Token::makeCharLiteral('\n', std::string_view(ts + 1, 2), getLocation(ts)));
         };
         '$\\r' {
-            m_tokens.emplace_back(Token::makeCharLiteral('\n', std::string_view(ts + 1, 2), getLocation(ts)));
+            m_tokens.emplace_back(Token::makeCharLiteral('\r', std::string_view(ts + 1, 2), getLocation(ts)));
         };
         '$\\' (any - ('t' | 'n' | 'r')) {
             m_tokens.emplace_back(Token::makeCharLiteral(*(ts + 2), std::string_view(ts + 1, 2), getLocation(ts)));

@@ -18,14 +18,16 @@ struct ObjectHeader;
 
 class Slot {
 public:
+    Slot(const Slot& s) { m_asBits = s.m_asBits; }
+    inline Slot operator=(const Slot& s) { m_asBits = s.m_asBits; return *this; }
     ~Slot() = default;
 
     static inline Slot makeFloat(double d) { return Slot(d); }
     static inline Slot makeNil() { return Slot(kNilTag); }
-    static inline Slot makeInt32(int32_t i) { return Slot(kInt32Tag | i); }
-    static inline Slot makeBool(bool b) { return Slot(kBooleanTag | (b ? 1 : 0)); }
+    static inline Slot makeInt32(int32_t i) { return Slot(kInt32Tag | (static_cast<uint64_t>(i) & (~kTagMask))); }
+    static inline Slot makeBool(bool b) { return Slot(kBooleanTag | (b ? 1ull : 0ull)); }
     static inline Slot makePointer(void* p) { return Slot(kPointerTag | reinterpret_cast<uint64_t>(p)); }
-    static inline Slot makeHash(Hash h) { return Slot(kSymbolTag | (h & (~kTagMask))); }
+    static inline Slot makeHash(Hash h) { return Slot(kHashTag | (h & (~kTagMask))); }
     static inline Slot makeChar(char c) { return Slot(kCharTag | c); }
 
     inline bool operator==(const Slot& s) const { return m_asBits == s.m_asBits; }
@@ -45,7 +47,7 @@ public:
             return Type::kBoolean;
         case kPointerTag:
             return Type::kObject;
-        case kSymbolTag:
+        case kHashTag:
             return Type::kSymbol;
         case kCharTag:
             return Type::kChar;
@@ -55,12 +57,12 @@ public:
         }
     }
 
-    inline bool isFloat() const { return m_asDouble < kMaxDouble; }
+    inline bool isFloat() const { return m_asBits < kMaxDouble; }
     inline bool isNil() const { return m_asBits == kNilTag; }
     inline bool isInt32() const { return (m_asBits & kTagMask) == kInt32Tag; }
     inline bool isBool() const { return (m_asBits & kTagMask) == kBooleanTag; }
     inline bool isPointer() const { return (m_asBits & kTagMask) == kPointerTag; }
-    inline bool isSymbol() const { return (m_asBits & kTagMask) == kSymbolTag; }
+    inline bool isHash() const { return (m_asBits & kTagMask) == kHashTag; }
     inline bool isChar() const { return (m_asBits & kTagMask) == kCharTag; }
 
     inline double getFloat() const { assert(isFloat()); return m_asDouble; }
@@ -70,7 +72,7 @@ public:
         assert(isPointer());
         return reinterpret_cast<ObjectHeader*>(m_asBits & (~kTagMask));
     }
-    inline uint64_t getHash() const { assert(isSymbol()); return m_asBits & (~kTagMask); }
+    inline uint64_t getHash() const { assert(isHash()); return m_asBits & (~kTagMask); }
     inline char getChar() const { assert(isChar()); return m_asBits & (~kTagMask); }
 
     // Maximum double (quiet NaN with sign bit set without payload):
@@ -78,17 +80,20 @@ public:
     // 0xfff8000000000000: 11111111|11111000|00000000|00000000|00000000|00000000|00000000|00000000
     static constexpr uint64_t kMaxDouble  = 0xfff8000000000000;
     static constexpr uint64_t kNilTag     = kMaxDouble;
-    static constexpr uint64_t kInt32Tag   = 0xfff9000000000000;
+    static constexpr uint64_t kInt32Tag   = 0xffff000000000000;
     static constexpr uint64_t kBooleanTag = 0xfffa000000000000;
     static constexpr uint64_t kPointerTag = 0xfffb000000000000;
-    static constexpr uint64_t kSymbolTag  = 0xfffc000000000000;
+    static constexpr uint64_t kHashTag    = 0xfffc000000000000;
     static constexpr uint64_t kCharTag    = 0xfffd000000000000;
-    // Could add one additional tag here at 0xfffe000000000000. TODO: this could be *type*
+    static constexpr uint64_t kTypeTag    = 0xfffe000000000000;
     static constexpr uint64_t kTagMask    = 0xffff000000000000;
 
+    // For debugging, normal access should use the get*() methods.
+    inline uint64_t asBits() const { return m_asBits; }
+
 private:
-    Slot(double floatValue) { m_asDouble = floatValue; }
-    Slot(uint64_t bitsValue) { m_asBits = bitsValue; }
+    explicit Slot(double floatValue) { m_asDouble = floatValue; }
+    explicit Slot(uint64_t bitsValue) { m_asBits = bitsValue; }
 
     union {
         double m_asDouble;

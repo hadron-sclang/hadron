@@ -255,7 +255,6 @@ TEST_CASE("Lexer Hexadecimal Integers") {
         CHECK(lexer.tokens()[0].range.data() == code);
         CHECK(lexer.tokens()[0].range.size() == 3);
         CHECK(lexer.tokens()[0].literalType == Type::kInteger);
-        REQUIRE(lexer.tokens()[0].value.isInt32());
         CHECK(lexer.tokens()[0].value.getInt32() == 0);
     }
     SUBCASE("zero elided <DIFFA1>") {
