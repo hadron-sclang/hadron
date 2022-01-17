@@ -79,7 +79,7 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
                         const auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
                         initialValue = literal->value;
                     } else {
-                        // TODO: add to list for if-block processing
+                        // ** TODO: add to list for if-block processing (see below)
                     }
                 }
                 frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults,
@@ -118,6 +118,7 @@ std::unique_ptr<Scope> BlockBuilder::buildSubScope(ThreadContext* context, const
     // Make an entry block and add to frame.
     scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), m_blockSerial));
     ++m_blockSerial;
+    scope->blocks.front()->predecessors.emplace_back(m_block);
     m_block = scope->blocks.begin()->get();
 
     if (blockNode->variables) {
@@ -221,7 +222,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
     case parse::NodeType::kName: {
         const auto nameNode = reinterpret_cast<const parse::NameNode*>(node);
         auto name = m_lexer->tokens()[nameNode->tokenIndex].hash;
-        nodeValue = findName(name); // <-- will need to update revisions in local block
+        nodeValue = findName(name);
     } break;
 
     case parse::NodeType::kExprSeq: {
@@ -503,12 +504,92 @@ Value BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
 
 std::pair<Value, Value> BlockBuilder::findName(Hash name) {
     std::unordered_map<int, std::pair<Value, Value>> blockValues;
-    return findNamePredecessor(name, m_block, blockValues);
+    std::unordered_set<const Scope*> containingScopes;
+    const Scope* scope = m_block->scope;
+    while (scope) {
+        containingScopes.emplace(scope);
+        scope = scope->parent;
+    }
+    return findNamePredecessor(name, m_block, blockValues, containingScopes);
 }
 
-std::pair<Value, Value> BlockBuilder::findNamePredecessor(Hash /* name */, Block* /* block */, std::unordered_map<int,
-        std::pair<Value, Value>>& /* blockValues */) {
-    return std::make_pair(Value(), Value());
+std::pair<Value, Value> BlockBuilder::findNamePredecessor(Hash name, Block* block,
+        std::unordered_map<int, std::pair<Value, Value>>& blockValues,
+        const std::unordered_set<const Scope*>& containingScopes) {
+    auto cacheIter = blockValues.find(block->number);
+    if (cacheIter != blockValues.end()) {
+        return cacheIter->second;
+    }
+
+    // This scope is *shadowing* the variable name if the scope has a variable of the same name and is not within
+    // the scope heirarchy of the search, so we should ignore any local revisions.
+    bool isShadowed = (block->scope->variableNames.count(name) > 0) && (containingScopes.count(block->scope) == 0);
+
+    auto iter = block->revisions.find(name);
+    if (iter != block->revisions.end()) {
+        if (!isShadowed) {
+            return iter->second;
+        }
+    }
+
+    // Either no local revision found or the local revision is ignored, we need to search recursively upward. Create
+    // a pair of phis for possible insertion into the local map (if not shadowed).
+    auto phiForValue = std::make_unique<hir::PhiHIR>();
+    auto phiForValueValue = phiForValue->proposeValue(m_valueSerial);
+    ++m_valueSerial;
+    auto phiForType = std::make_unique<hir::PhiHIR>();
+    auto phiForTypeValue = phiForType->proposeValue(m_valueSerial);
+    ++m_valueSerial;
+    auto phiValues = std::make_pair(phiForValueValue, phiForTypeValue);
+    blockValues.emplace(std::make_pair(block->number, phiValues));
+
+    // Search predecessors for the name.
+    for (auto pred : block->predecessors) {
+        auto foundValues = findNamePredecessor(name, pred, blockValues, containingScopes);
+        phiForValue->addInput(foundValues.first);
+        phiForType->addInput(foundValues.second);
+    }
+
+    // TODO: It's possible that phis have 0 inputs here, meaning you'll get an assert on phiForValue->getTrivialValue.
+    // That means the name is undefined, and we should return an error.
+
+    auto valueTrivial = phiForValue->getTrivialValue();
+    auto typeTrivial = phiForType->getTrivialValue();
+
+    // Shadowed variables should always result in trivial phis, due to the fact that Scopes must always have exactly
+    // one entry Block with at most one predecessor. The local Scope is shadowing the name we're looking for, and
+    // so won't modify the unshadowed value, meaning the value of the name at entry to the Scope should be the same
+    // throughout every Block in the scope.
+    if (isShadowed) {
+        assert(valueTrivial.isValid());
+        assert(typeTrivial.isValid());
+        auto trivialPair = std::make_pair(valueTrivial, typeTrivial);
+        // Overwrite block values with the trivial values.
+        blockValues.emplace(std::make_pair(block->number, trivialPair));
+        return trivialPair;
+    }
+
+    std::pair<Value, Value> finalValues;
+    if (valueTrivial.isValid()) {
+        finalValues.first = valueTrivial;
+    } else {
+        finalValues.first = phiValues.first;
+        block->phis.emplace_back(std::move(phiForValue));
+    }
+    if (typeTrivial.isValid()) {
+        finalValues.second = typeTrivial;
+    } else {
+        finalValues.second = phiValues.second;
+        block->phis.emplace_back(std::move(phiForType));
+    }
+
+    // Update block revisions and the blockValues map with the final values.
+    block->revisions.emplace(name, finalValues);
+    blockValues.emplace(std::make_pair(block->number, finalValues));
+
+    // TODO: what happens to local values? Shouldn't need to update local value map, or should we?
+
+    return finalValues;
 }
 
 Value BlockBuilder::findValue(Value v) {
@@ -517,6 +598,11 @@ Value BlockBuilder::findValue(Value v) {
 }
 
 Value BlockBuilder::findValuePredecessor(Value v, Block* block, std::unordered_map<int, Value>& blockValues) {
+    auto cacheIter = blockValues.find(block->number);
+    if (cacheIter != blockValues.end()) {
+        return cacheIter->second;
+    }
+
     // Quick check if value exists in local block lookup already.
     auto localIter = block->localValues.find(v);
     if (localIter != block->localValues.end()) {

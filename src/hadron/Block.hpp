@@ -19,7 +19,7 @@ struct Block {
     // need to go through a Phi function in this Block. For local value numbering we keep a map of the
     // value to the associated HIR instruction, for possible re-use of instructions.
     std::unordered_map<Value, hir::HIR*> values;
-    // Map of names (variables, arguments) to most recent revision of <values, type>
+    // Map of names (variables, arguments) to most recent revision of local values of <value, type>
     std::unordered_map<Hash, std::pair<Value, Value>> revisions;
 
     // Map of values defined extra-locally and their local value. For convenience we also put local values in here,

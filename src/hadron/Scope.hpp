@@ -13,7 +13,8 @@ struct Frame;
 struct Block;
 
 // A Scope is a area of the code where variable declarations are valid. All Blocks of code execute within one or more
-// nested Scopes.
+// nested Scopes. Scopes must have a singular entry point, meaning the first Block within a Scope must exist and must
+// have at most a single predecessor.
 struct Scope {
     Scope() = delete;
     Scope(Frame* owningFrame, Scope* parentScope): frame(owningFrame), parent(parentScope) {}

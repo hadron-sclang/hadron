@@ -35,6 +35,7 @@ public:
     std::unique_ptr<Frame> buildFrame(ThreadContext* context, const parse::BlockNode* blockNode);
 
 private:
+    // Scopes must have exactly one entry block that has exactly one predecessor.
     std::unique_ptr<Scope> buildSubScope(ThreadContext* context, const parse::BlockNode* blockNode);
 
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
@@ -57,7 +58,8 @@ private:
     std::pair<Value, Value> findName(Hash name);
     // Recursive traversal up the Block graph looking for a prior definition of the provided name.
     std::pair<Value, Value> findNamePredecessor(Hash name, Block* block,
-            std::unordered_map<int, std::pair<Value, Value>>& blockValues);
+            std::unordered_map<int, std::pair<Value, Value>>& blockValues,
+            const std::unordered_set<const Scope*>& containingScopes);
 
     // Returns the local value number after insertion. May insert Phis recursively in all predecessors.
     Value findValue(Value v);
