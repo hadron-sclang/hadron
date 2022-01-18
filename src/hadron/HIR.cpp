@@ -16,7 +16,7 @@ bool LoadArgumentHIR::isEquivalent(const HIR* hir) const {
 
 Value LoadArgumentHIR::proposeValue(uint32_t number) {
     value.number = number;
-    value.typeFlags = Type::kAny;
+    value.typeFlags = isVarArgs ? Type::kArray : Type::kAny;
     return value;
 }
 

@@ -189,6 +189,22 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
             ++numberOfArguments;
             varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
         }
+        if (blockNode->arguments->varArgsNameIndex) {
+            auto nameHash = hadron::hash(lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
+            if (argumentOrderArraySize < numberOfArguments) {
+                SPDLOG_ERROR("Missing varArgs argument number {} named {} from Frame", numberOfArguments,
+                        lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
+                return false;
+            }
+            argName = library::ArrayedCollection::_BasicAt(context, frame->argumentOrder,
+                    Slot::makeInt32(numberOfArguments));
+            if (argName.getHash() != nameHash) {
+                SPDLOG_ERROR("Mismatched hash for varArgs number {} named {}", numberOfArguments,
+                        lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
+                return false;
+            }
+            ++numberOfArguments;
+        }
     }
     if (argumentOrderArraySize != numberOfArguments) {
         SPDLOG_ERROR("Mismatched argument count in Frame, parse tree has {}, Frame has {}", numberOfArguments,
