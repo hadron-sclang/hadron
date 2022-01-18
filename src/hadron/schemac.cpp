@@ -100,6 +100,8 @@ int main(int argc, char* argv[]) {
         outFile << "// ========== " << className << std::endl;
         outFile << fmt::format("static constexpr uint64_t k{}Hash = 0x{:012x};\n\n", className,
                 hadron::hash(className));
+        outFile << fmt::format("static constexpr uint64_t kMeta{}Hash = 0x{:012x};\n\n", className,
+                hadron::hash(fmt::format("Meta_{}", className)));
 
         outFile << fmt::format("struct {} : public {} {{\n", className, superClassName);
 
@@ -118,6 +120,8 @@ int main(int argc, char* argv[]) {
 
         std::map<std::string, std::string> primitives;
         std::map<std::string, std::string> caseBlocks;
+
+        // TODO: need to differentiate between Class methods (put them in Meta_ClassName structs) and instance methods.
 
         // Add any primitives as member functions.
         const hadron::parse::MethodNode* method = classNode->methods.get();

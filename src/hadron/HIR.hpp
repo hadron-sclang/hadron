@@ -238,9 +238,10 @@ protected:
 
 struct DispatchSetupStackHIR : public Dispatch {
     DispatchSetupStackHIR() = delete;
-    DispatchSetupStackHIR(int numArgs, int numKeyArgs);
+    DispatchSetupStackHIR(std::pair<Value, Value> selector, int numArgs, int numKeyArgs);
     virtual ~DispatchSetupStackHIR() = default;
 
+    std::pair<Value, Value> selectorValue;
     int numberOfArguments;
     int numberOfKeywordArguments;
 
