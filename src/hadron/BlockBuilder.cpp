@@ -190,7 +190,32 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
     } break;
 
     case parse::NodeType::kList: {
-        assert(false);  // TODO
+        // Create a new array with a dispatch to Array.new()
+        auto selectorValue = std::make_pair(
+            findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(hash("new")))),
+            findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kSymbol))));
+        std::vector<std::pair<Value, Value>> argumentValues;
+        // TODO: This is broken! Need to be able to look up Meta_Array in the Class Library, not passing the
+        // symbol to it here but the actual target class.
+        argumentValues.emplace_back(std::make_pair(
+            findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(library::kMetaArrayHash))),
+            selectorValue.second));
+        std::vector<std::pair<Value, Value>> keywordArgumentValues;
+        nodeValue = buildDispatchInternal(selectorValue, argumentValues, keywordArgumentValues);
+
+        // Evaluate each element in the parse tree in turn and append to list with a call to array.add()
+        selectorValue.first = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(hash("add"))));
+
+        const auto list = reinterpret_cast<const parse::ListNode*>(node);
+        const parse::ExprSeqNode* element = list->elements.get();
+        while (element) {
+            argumentValues.clear();
+            argumentValues.emplace_back(nodeValue);
+            argumentValues.emplace_back(buildFinalValue(context, element));
+            nodeValue = buildDispatchInternal(selectorValue, argumentValues, keywordArgumentValues);
+
+            element = reinterpret_cast<const parse::ExprSeqNode*>(element->next.get());
+        }
     } break;
 
     case parse::NodeType::kDictionary: {
@@ -447,10 +472,9 @@ std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, cons
     std::vector<std::pair<Value, Value>> argumentValues;
     argumentValues.emplace_back(buildFinalValue(context, target));
 
-    // Going to need the symbol type handy for insertion as the selector and any keyword arguments.
-    auto symbolType = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kType)));
-    argumentValues.emplace_back(std::make_pair(findOrInsertLocal(std::make_unique<hir::ConstantHIR>(
-            Slot::makeHash(selector))), symbolType));
+    auto selectorValue = std::make_pair(
+            findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(selector))),
+            findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kSymbol))));
 
     // Now append any additional arguments.
     while (arguments) {
@@ -463,13 +487,20 @@ std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, cons
         assert(keywordArguments->nodeType == parse::NodeType::kKeyValue);
         auto keyName = m_lexer->tokens()[keywordArguments->tokenIndex].hash;
         keywordArgumentValues.emplace_back(std::make_pair(
-                    findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(keyName))), symbolType));
+                    findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(keyName))),
+                    selectorValue.second));
         keywordArgumentValues.emplace_back(buildFinalValue(context, keywordArguments->value.get()));
         keywordArguments = reinterpret_cast<const parse::KeyValueNode*>(keywordArguments->next.get());
     }
+    return buildDispatchInternal(selectorValue, argumentValues, keywordArgumentValues);
+}
 
-    // Now setup the stack for the dispatch.
-    insertLocal(std::make_unique<hir::DispatchSetupStackHIR>(argumentValues.size(), keywordArgumentValues.size() / 2));
+std::pair<Value, Value> BlockBuilder::buildDispatchInternal(std::pair<Value, Value> selectorValue,
+        const std::vector<std::pair<Value, Value>>& argumentValues,
+        const std::vector<std::pair<Value, Value>>& keywordArgumentValues) {
+    // Setup the stack for the dispatch.
+    insertLocal(std::make_unique<hir::DispatchSetupStackHIR>(selectorValue, argumentValues.size(),
+            keywordArgumentValues.size() / 2));
     for (int i = 0; i < static_cast<int>(argumentValues.size()); ++i) {
         insertLocal(std::make_unique<hir::DispatchStoreArgHIR>(i, argumentValues[i]));
     }

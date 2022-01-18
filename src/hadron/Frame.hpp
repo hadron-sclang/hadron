@@ -24,7 +24,7 @@ struct Frame {
 
     std::unique_ptr<Scope> rootScope;
 
-    size_t numberOfValues = 0; // actual values used could be less than this, particularly in the case of phis
+    size_t numberOfValues = 0; // actual number of values used could be less than this due to optimization
     int numberOfBlocks = 0;
 };
 

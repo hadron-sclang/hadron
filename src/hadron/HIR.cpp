@@ -242,8 +242,14 @@ bool Dispatch::isEquivalent(const HIR* /* hir */) const {
 
 ///////////////////////////////
 // DispatchSetupStackHIR
-DispatchSetupStackHIR::DispatchSetupStackHIR(int numArgs, int numKeyArgs):
-        Dispatch(kDispatchSetupStack), numberOfArguments(numArgs), numberOfKeywordArguments(numKeyArgs) {}
+DispatchSetupStackHIR::DispatchSetupStackHIR(std::pair<Value, Value> selector, int numArgs, int numKeyArgs):
+        Dispatch(kDispatchSetupStack),
+        selectorValue(selector),
+        numberOfArguments(numArgs),
+        numberOfKeywordArguments(numKeyArgs) {
+    reads.emplace(selectorValue.first);
+    reads.emplace(selectorValue.second);
+}
 
 Value DispatchSetupStackHIR::proposeValue(uint32_t /* number */) {
     value.number = 0;
