@@ -22,6 +22,7 @@
 #include "fmt/format.h"
 #include "spdlog/spdlog.h"
 
+#include <cassert>
 #include <string>
 
 namespace hadron {
@@ -62,7 +63,7 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
     // Build the rest of the argument order.
     const parse::ArgListNode* argList = blockNode->arguments.get();
     int argIndex = 1;
-    while (argList) {
+    if (argList) {
         assert(argList->nodeType == parse::NodeType::kArgList);
         const parse::VarListNode* varList = argList->varList.get();
         while (varList) {
@@ -92,7 +93,20 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
             }
             varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
         }
-        argList = reinterpret_cast<const parse::ArgListNode*>(argList->next.get());
+        // There should be at most one arglist in a parse tree.
+        assert(argList->next == nullptr);
+        if (argList->varArgsNameIndex) {
+            auto name = m_lexer->tokens()[argList->varArgsNameIndex.value()].hash;
+            frame->hasVarArgs = true;
+            frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder,
+                    Slot::makeHash(name));
+            frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults,
+                    Slot::makeNil());
+            // Type is always a kArray for variable argument lists.
+            m_block->revisions[name] = std::make_pair(
+                insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex, true)),
+                insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kArray))));
+        }
     }
 
     if (blockNode->variables) {

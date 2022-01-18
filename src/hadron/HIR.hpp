@@ -115,9 +115,11 @@ struct HIR {
 
 // Loads the argument at |index| from the stack.
 struct LoadArgumentHIR : public HIR {
-    LoadArgumentHIR(int argIndex): HIR(kLoadArgument), index(argIndex) {}
+    LoadArgumentHIR() = delete;
+    LoadArgumentHIR(int argIndex, bool varArgs = false): HIR(kLoadArgument), index(argIndex), isVarArgs(varArgs) {}
     virtual ~LoadArgumentHIR() = default;
     int index;
+    bool isVarArgs;
 
     // Forces the kAny type for all arguments.
     Value proposeValue(uint32_t number) override;
