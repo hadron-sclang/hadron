@@ -50,9 +50,13 @@ public:
     bool jitToVirtualMachine() const { return m_jitToVirtualMachine; }
     void setJitToVirtualMachine(bool useVM) { m_jitToVirtualMachine = useVM; }
 
+    // TODO: I think these should start to return a FunctionDef
     // For interpreter code only, returns an Int8Array with JIT bytecode, or nil on error.
     Slot compileCode(ThreadContext* context, std::string_view code);
     Slot compileBlock(ThreadContext* context, parse::BlockNode* blockNode, const Lexer* lexer);
+
+    // TODO: And this one should return a Method
+    Slot compileMethod(ThreadContext* context, parse::MethodNode* methodNode, const Lexer* lexer, Slot classDef);
 
 #if HADRON_PIPELINE_VALIDATE
     // With pipeline validation on these methods are called after internal validation of each step. Their default
