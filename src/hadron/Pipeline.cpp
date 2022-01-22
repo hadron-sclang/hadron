@@ -39,19 +39,30 @@ Pipeline::Pipeline(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporte
 
 Pipeline::~Pipeline() {}
 
-Slot Pipeline::compileCode(ThreadContext* context, std::string_view code) {
+library::FunctionDef* Pipeline::compileCode(ThreadContext* context, std::string_view code) {
     Lexer lexer(code, m_errorReporter);
-    if (!lexer.lex()) { return Slot::makeNil(); }
+    if (!lexer.lex()) { return nullptr; }
 
     Parser parser(&lexer, m_errorReporter);
-    if (!parser.parse()) { return Slot::makeNil(); }
+    if (!parser.parse()) { return nullptr; }
 
     assert(parser.root()->nodeType == parse::NodeType::kBlock);
 
-    return buildBlock(context, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer);
+    auto code = buildBlock(context, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer);
+    if (!code) { return nullptr; }
+
+    auto functionDef = reinterpret_cast<library::FunctionDef*>(context->heap->allocateObject(library::kFunctionDefHash,
+            sizeof(library::FunctionDef)));
+    functionDef->raw1 = Slot::makeNil();
+    functionDef->raw2 = Slot::makeNil();
+    functionDef->code = Slot::makePointer(code);
+
+
+
+    return functionDef;
 }
 
-Slot Pipeline::compileBlock(ThreadContext* context, parse::BlockNode* blockNode, const Lexer* lexer) {
+library::FunctionDef* Pipeline::compileBlock(ThreadContext* context, parse::BlockNode* blockNode, const Lexer* lexer) {
     return buildBlock(context, blockNode, lexer);
 }
 
@@ -69,44 +80,45 @@ void Pipeline::setDefaults() {
     m_jitToVirtualMachine = false;
 }
 
-Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer) {
+library::Int8Array* Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockNode,
+        const Lexer* lexer) {
     hadron::BlockBuilder builder(lexer, m_errorReporter);
     auto frame = builder.buildFrame(context, blockNode);
-    if (!frame) { return Slot::makeNil(); }
+    if (!frame) { return nullptr; }
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateFrame(context, frame.get(), blockNode, lexer)) { return Slot::makeNil(); }
-    if (!afterBlockBuilder(frame.get(), blockNode, lexer)) { return Slot::makeNil(); }
+    if (!validateFrame(context, frame.get(), blockNode, lexer)) { return nullptr; }
+    if (!afterBlockBuilder(frame.get(), blockNode, lexer)) { return nullptr; }
     size_t numberOfBlocks = static_cast<size_t>(frame->numberOfBlocks);
     size_t numberOfValues = frame->numberOfValues;
 #endif // HADRON_PIPELINE_VALIDATE
 
     BlockSerializer serializer;
     auto linearBlock = serializer.serialize(std::move(frame));
-    if (!linearBlock) { return Slot::makeNil(); }
+    if (!linearBlock) { return nullptr; }
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateSerializedBlock(linearBlock.get(), numberOfBlocks, numberOfValues)) { return Slot::makeNil(); }
-    if (!afterBlockSerializer(linearBlock.get())) { return Slot::makeNil(); }
+    if (!validateSerializedBlock(linearBlock.get(), numberOfBlocks, numberOfValues)) { return nullptr; }
+    if (!afterBlockSerializer(linearBlock.get())) { return nullptr; }
 #endif // HADRON_PIPELINE_VALIDATE
 
     LifetimeAnalyzer analyzer;
     analyzer.buildLifetimes(linearBlock.get());
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateLifetimes(linearBlock.get())) { return Slot::makeNil(); }
-    if (!afterLifetimeAnalyzer(linearBlock.get())) { return Slot::makeNil(); }
+    if (!validateLifetimes(linearBlock.get())) { return nullptr; }
+    if (!afterLifetimeAnalyzer(linearBlock.get())) { return nullptr; }
 #endif // HADRON_PIPELINE_VALIDATE
 
     RegisterAllocator allocator(m_numberOfRegisters);
     allocator.allocateRegisters(linearBlock.get());
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateAllocation(linearBlock.get())) { return Slot::makeNil(); }
-    if (!afterRegisterAllocator(linearBlock.get())) { return Slot::makeNil(); }
+    if (!validateAllocation(linearBlock.get())) { return nullptr; }
+    if (!afterRegisterAllocator(linearBlock.get())) { return nullptr; }
 #endif // HADRON_PIPELINE_VALIDATE
 
     Resolver resolver;
     resolver.resolve(linearBlock.get());
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateResolution(linearBlock.get())) { return Slot::makeNil(); }
-    if (!afterResolver(linearBlock.get())) { return Slot::makeNil(); }
+    if (!validateResolution(linearBlock.get())) { return nullptr; }
+    if (!afterResolver(linearBlock.get())) { return nullptr; }
 #endif // HADRON_PIPELINE_VALIDATE
 
     size_t jitMaxSize = sizeof(library::Int8Array);
@@ -138,11 +150,11 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
     bytecodeArray->_sizeInBytes = finalSize + sizeof(library::Int8Array);
 
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateEmission(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return Slot::makeNil(); }
-    if (!afterEmitter(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return Slot::makeNil(); }
+    if (!validateEmission(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return nullptr; }
+    if (!afterEmitter(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return nullptr; }
 #endif
 
-    return Slot::makePointer(bytecodeArray);
+    return bytecodeArray;
 }
 
 #if HADRON_PIPELINE_VALIDATE
