@@ -7,6 +7,10 @@
 
 namespace hadron {
 
+namespace library {
+struct Array;
+}
+
 struct Scope;
 
 // Represents a stack frame, so can have arguments supplied and can be called so has an entry, return value, and exit.
@@ -15,9 +19,9 @@ struct Frame {
     ~Frame() = default;
 
     // A library::Array with in-order hashes of argument names.
-    Slot argumentOrder = Slot::makeNil();
+    library::Array* argumentOrder = nullptr;
     // A library::Array with default values for arguments, if they are literals.
-    Slot argumentDefaults = Slot::makeNil();
+    library::Array* argumentDefaults = nullptr;
 
     // If true, the last argument named in the list is a variable argument array.
     bool hasVarArgs = false;

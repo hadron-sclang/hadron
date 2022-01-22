@@ -42,9 +42,9 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
     m_frame = frame.get();
-    frame->argumentOrder = Slot::makePointer(context->heap->allocateObject(library::kArrayHash,
+    frame->argumentOrder = reinterpret_cast<library::Array*>(context->heap->allocateObject(library::kArrayHash,
             sizeof(library::Array)));
-    frame->argumentDefaults = Slot::makePointer(context->heap->allocateObject(library::kArrayHash,
+    frame->argumentDefaults = reinterpret_cast<library::Array*>(context->heap->allocateObject(library::kArrayHash,
             sizeof(library::Array)));
     frame->rootScope = std::make_unique<Scope>(m_frame, nullptr);
     m_scope = frame->rootScope.get();
@@ -53,9 +53,10 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
     m_block = m_scope->blocks.front().get();
 
     // First block within rootScope gets argument loads. The *this* pointer is always the first argument to every Frame.
-    frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder,
-            Slot::makeHash(kThisHash));
-    frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults, Slot::makeNil());
+    frame->argumentOrder = reinterpret_cast<library::Array*>(library::ArrayedCollection::_ArrayAdd(context,
+            Slot::makePointer(frame->argumentOrder), Slot::makeHash(kThisHash)).getPointer());
+    frame->argumentDefaults = reinterpret_cast<library::Array*>(library::ArrayedCollection::_ArrayAdd(context,
+            Slot::makePointer(frame->argumentDefaults), Slot::makeNil()).getPointer());
     m_block->revisions[kThisHash] = std::make_pair(
             insertLocal(std::make_unique<hir::LoadArgumentHIR>(0)),
             insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(0)));
@@ -72,8 +73,8 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
             while (varDef) {
                 assert(varDef->nodeType == parse::NodeType::kVarDef);
                 auto name = m_lexer->tokens()[varDef->tokenIndex].hash;
-                frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder,
-                        Slot::makeHash(name));
+                frame->argumentOrder = reinterpret_cast<library::Array*>(library::ArrayedCollection::_ArrayAdd(context,
+                        Slot::makePointer(frame->argumentOrder), Slot::makeHash(name)).getPointer());
                 Slot initialValue = Slot::makeNil();
                 if (varDef->initialValue) {
                     if (varDef->initialValue->nodeType == parse::NodeType::kLiteral) {
@@ -83,8 +84,9 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
                         // ** TODO: add to list for if-block processing (see below)
                     }
                 }
-                frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults,
-                        initialValue);
+                frame->argumentDefaults = reinterpret_cast<library::Array*>(
+                        library::ArrayedCollection::_ArrayAdd(context, Slot::makePointer(frame->argumentDefaults),
+                        initialValue).getPointer());
                 m_block->revisions[name] = std::make_pair(
                      insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
                      insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
@@ -98,10 +100,10 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
         if (argList->varArgsNameIndex) {
             auto name = m_lexer->tokens()[argList->varArgsNameIndex.value()].hash;
             frame->hasVarArgs = true;
-            frame->argumentOrder = library::ArrayedCollection::_ArrayAdd(context, frame->argumentOrder,
-                    Slot::makeHash(name));
-            frame->argumentDefaults = library::ArrayedCollection::_ArrayAdd(context, frame->argumentDefaults,
-                    Slot::makeNil());
+            frame->argumentOrder = reinterpret_cast<library::Array*>(library::ArrayedCollection::_ArrayAdd(context,
+                    Slot::makePointer(frame->argumentOrder), Slot::makeHash(name)).getPointer());
+            frame->argumentDefaults = reinterpret_cast<library::Array*>(library::ArrayedCollection::_ArrayAdd(context,
+                    Slot::makePointer(frame->argumentDefaults), Slot::makeNil()).getPointer());
             // Type is always a kArray for variable argument lists.
             m_block->revisions[name] = std::make_pair(
                 insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex, true)),

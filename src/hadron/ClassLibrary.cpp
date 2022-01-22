@@ -30,6 +30,20 @@
 
 #include "spdlog/spdlog.h"
 
+// Class Library Compilation
+// =========================
+//
+// Because of the ability to compose objects from other objects via inheritance, we have to compile the class library
+// in multiple passes:
+//
+// First Pass: Load input source, lex, and parse. Will need to retain all through next phase of compilation.
+//   Can populate the Class tree and add instVarNames, classVarNames, iprototype, cprototype, constNames, constValues,
+//   name, nextclass, superclass, and subclasses (by building stubs if the superclass hasn't been prepared yet).
+//
+// Second Pass: Starting from Object, do breadth-first or pre-order traversal through Object heirarchy. Concatenate
+//   existing intVarNames, iprototype elements into array containing all superclass data. Compile individual methods
+//   of each Class now that we know the entire context of the subclass heirarchy.
+
 namespace hadron {
 
 ClassLibrary::ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter):
@@ -82,24 +96,41 @@ bool ClassLibrary::addClassFile(ThreadContext* context, const std::string& class
 
 Slot ClassLibrary::buildClass(ThreadContext* context, Slot filenameSymbol, const parse::ClassNode* classNode,
         const Lexer* lexer) {
+    // Compiling a class actually involves generating an instance of the Class object, and then generating an
+    // instance of a Meta_ClassName object derived from the Class object, which is where class methods typically go.
     library::Class* classDef = reinterpret_cast<library::Class*>(context->heap->allocateObject(
+            library::kClassHash, sizeof(library::Class)));
+    library::Class* metaClassDef = reinterpret_cast<library::Class*>(context->heap->allocateObject(
             library::kClassHash, sizeof(library::Class)));
 
     SPDLOG_INFO("Class Library compiling class {}", lexer->tokens()[classNode->tokenIndex].range);
     classDef->name = context->heap->addSymbol(lexer->tokens()[classNode->tokenIndex].range);
+    metaClassDef->name = context->heap->addSymbol(fmt::format("Meta_{}", lexer->tokens()[classNode->tokenIndex].range));
+
     classDef->nextclass = Slot::makeNil(); // TODO
+    metaClassDef->nextclass = Slot::makeNil();
+
     if (classNode->superClassNameIndex) {
         classDef->superclass = context->heap->addSymbol(
                 lexer->tokens()[classNode->superClassNameIndex.value()].range);
+        metaClassDef->name = context->heap->addSymbol(fmt::format("Meta_{}",
+                lexer->tokens()[classNode->superClassNameIndex.value()].range));
     } else {
         if (classDef->name.getHash() == library::kObjectHash) {
             classDef->superclass = Slot::makeNil();
+            // The superclass of 'Meta_Object' is 'Class'.
+            metaClassDef->superclass = Slot::makeHash(library::kClassHash);
         } else {
             classDef->superclass = Slot::makeHash(library::kObjectHash);
+            metaClassDef->superclass = Slot::makeHash(library::kMetaObjectHash);
         }
     }
+
     classDef->subclasses = Slot::makePointer(context->heap->allocateObject(library::kArrayHash,
             sizeof(library::Array)));
+    classDef->subclasses = Slot::makePointer(context->heap->allocateObject(library::kArrayHash,
+            sizeof(library::Array)));
+
     classDef->methods = Slot::makePointer(context->heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
     classDef->instVarNames = Slot::makePointer(context->heap->allocateObject(library::kSymbolArrayHash,
             sizeof(library::SymbolArray)));
@@ -178,41 +209,6 @@ Slot ClassLibrary::buildClass(ThreadContext* context, Slot filenameSymbol, const
     }
 
     return classSlot;
-}
-
-Slot ClassLibrary::buildMethod(ThreadContext* context, library::Class* classDef,
-        const parse::MethodNode* methodNode, const Lexer* lexer) {
-    SPDLOG_INFO("Class Library compiling method {}", lexer->tokens()[methodNode->tokenIndex].range);
-    library::Method* method = reinterpret_cast<library::Method*>(context->heap->allocateObject(library::kMethodHash,
-            sizeof(library::Method)));
-    method->raw1 = Slot::makeNil();
-    method->raw2 = Slot::makeNil();
-
-    // JIT compile the bytecode.
-    Pipeline pipeline(m_errorReporter);
-    method->code = pipeline.compileBlock(context, methodNode->body.get(), lexer);
-
-    method->selectors = Slot::makeNil(); // TODO: ??
-    method->constants = Slot::makeNil(); // TODO: ??
-    method->prototypeFrame = Slot::makePointer(context->heap->allocateObject(library::kArrayHash,
-            sizeof(library::Array)));
-    method->context = Slot::makeNil(); // TODO
-    method->argNames = Slot::makePointer(context->heap->allocateObject(library::kSymbolArrayHash,
-            sizeof(library::SymbolArray)));
-    method->varNames = Slot::makePointer(context->heap->allocateObject(library::kSymbolArrayHash,
-            sizeof(library::SymbolArray)));
-    method->sourceCode = Slot::makeNil(); // TODO
-    method->ownerClass = Slot::makePointer(classDef);
-    method->name = context->heap->addSymbol(lexer->tokens()[methodNode->tokenIndex].range);
-    if (methodNode->primitiveIndex) {
-        method->primitiveName = context->heap->addSymbol(lexer->tokens()[methodNode->primitiveIndex.value()].range);
-    } else {
-        method->primitiveName = Slot::makeNil();
-    }
-    method->filenameSymbol = classDef->filenameSymbol;
-    method->charPos = Slot::makeNil(); // TODO
-
-    return Slot::makePointer(method);
 }
 
 } // namespace hadron

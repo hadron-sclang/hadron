@@ -35,8 +35,6 @@ public:
 private:
     Slot buildClass(ThreadContext* context, Slot filenameSymbol, const hadron::parse::ClassNode* classNode,
             const Lexer* lexer);
-    Slot buildMethod(ThreadContext* context, library::Class* classDef, const hadron::parse::MethodNode* methodNode,
-            const Lexer* lexer);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     std::unordered_map<Hash, library::Class*> m_classTable;
