@@ -19,6 +19,7 @@
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
 #include "hadron/SourceFile.hpp"
+#include "internal/FileSystem.hpp"
 
 #include "schema/Common/Core/Object.hpp"
 #include "schema/Common/Core/Kernel.hpp"
@@ -44,10 +45,79 @@
 //   existing intVarNames, iprototype elements into array containing all superclass data. Compile individual methods
 //   of each Class now that we know the entire context of the subclass heirarchy.
 
+namespace {
+static const std::array<const char*, 1> kClassFileAllowList{
+    "Object.sc"
+};
+}
+
 namespace hadron {
 
 ClassLibrary::ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter):
     m_errorReporter(errorReporter) {}
+
+void ClassLibrary::addClassDirectory(const std::string& path) {
+    m_classFiles.emplace(fs::absolute(path));
+}
+
+bool ClassLibrary::scanFiles(ThreadContext* context) {
+    for (const auto& classLibPath : m_libraryPaths) {
+        for (auto& entry : fs::recursive_directory_iterator(classLibPath)) {
+            const auto& path = fs::absolute(entry.path());
+            if (!fs::is_regular_file(path) || path.extension() != ".sc")
+                continue;
+            // For now we have an allowlist in place, to control which SC class files are parsed, and we lazily do an
+            // O(n) search in the array for each one.
+            bool classFileAllowed = false;
+            for (size_t i = 0; i < kClassFileAllowList.size(); ++i) {
+                if (path.filename().compare(kClassFileAllowList[i]) == 0) {
+                    classFileAllowed = true;
+                    break;
+                }
+            }
+            if (!classFileAllowed) {
+                // SPDLOG_WARN("Skipping compilation of {}, not in class file allow list.", path.c_str());
+                continue;
+            }
+
+            SPDLOG_INFO("Class Library scanning '{}'", path.c_str());
+
+            auto sourceFile = std::make_unique<SourceFile>(path.string());
+            if (!sourceFile->read(m_errorReporter)) { return false; }
+
+            auto lexer = std::make_unique<Lexer>(sourceFile->codeView(), m_errorReporter);
+            if (!lexer->lex()) { return false; }
+
+            auto parser = std::make_unique<Parser>(lexer.get(), m_errorReporter);
+            if (!parser->parseClass()) { return false; }
+
+            auto filenameSymbol = context->heap->addSymbol(path.string());
+            const parse::Node* node = parser->root();
+            while (node) {
+                // Class extensions can be skipped in first pass, as they don't change the inheritance tree or add
+                // any additional member variables.
+                if (node->nodeType == parse::NodeType::kClassExt) { continue; }
+                // The only other root notes in class files should be ClassNodes.
+                if (node->nodeType != parse::NodeType::kClass) {
+                    SPDLOG_ERROR("Class file didn't contain Class or Class Extension: {}\n", classFile);
+                    return false;
+                }
+                auto classNode = reinterpret_cast<const parse::ClassNode*>(node);
+                auto classSlot = buildClass(context, filenameSymbol, classNode, &lexer);
+                if (classSlot.isNil()) {
+                    SPDLOG_ERROR("Error compiling Class {} in {}, skipping\n",
+                            lexer.tokens()[classNode->tokenIndex].range, classFile);
+                    node = classNode->next.get();
+                    continue;
+                }
+                library::Class* classDef = reinterpret_cast<library::Class*>(classSlot.getPointer());
+                assert(classDef->_className == library::kClassHash);
+                m_classTable[classDef->name.getHash()] = classDef;
+                node = classNode->next.get();
+            }
+        }
+    }
+}
 
 bool ClassLibrary::addClassFile(ThreadContext* context, const std::string& classFile) {
     SourceFile sourceFile(classFile);

@@ -19,12 +19,6 @@
 
 #include <array>
 
-namespace {
-static const std::array<const char*, 1> kClassFileAllowList{
-    "Object.sc"
-};
-}
-
 namespace hadron {
 
 Runtime::Runtime(std::shared_ptr<ErrorReporter> errorReporter):

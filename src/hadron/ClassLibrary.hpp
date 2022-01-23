@@ -7,11 +7,14 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace hadron {
 
 class ErrorReporter;
 class Lexer;
+class Parser;
+class SourceFile;
 struct ThreadContext;
 
 namespace library {
@@ -29,8 +32,11 @@ public:
     ClassLibrary() = delete;
     ~ClassLibrary() = default;
 
-    // Parse and compile a class file, then add it to the Heap.
-    bool addClassFile(ThreadContext* context, const std::string& classFile);
+    // Adds a directory to the list of directories to scan for library classes.
+    void addClassDirectory(const std::string& path);
+
+    // Scans the provided class directories, builds class inheritance structure. First pass of library compilation.
+    bool scanFiles(ThreadContext* context);
 
 private:
     Slot buildClass(ThreadContext* context, Slot filenameSymbol, const hadron::parse::ClassNode* classNode,
@@ -38,6 +44,15 @@ private:
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     std::unordered_map<Hash, library::Class*> m_classTable;
+
+    // We keep the noramlized paths in a set to prevent duplicate additions of the same path.
+    std::unordered_set<std::string> m_libraryPaths;
+    struct ClassFile {
+        std::unique_ptr<SourceFile> sourceFile;
+        std::unique_ptr<Lexer> lexer;
+        std::unique_ptr<Parser> parser;
+    };
+    std::unordered_map<std::string, ClassFile> m_classFiles;
 };
 
 } // namespace hadron
