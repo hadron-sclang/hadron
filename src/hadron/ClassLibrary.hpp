@@ -66,7 +66,7 @@ private:
     bool compileMethods(ThreadContext* context);
 
     // Clean up any temporary data structures
-    bool cleanUp(ThreadContext* context);
+    bool cleanUp();
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     // A map maintained for quick(er) access to Class objects via Hash.

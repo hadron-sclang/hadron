@@ -60,11 +60,18 @@ enum Opcode {
                   // If unknown this adds the type as a value (with type kType) that can be manipulated like any other
                   // value.
 
+    kLoadInstanceVariable,
+    kLoadInstanceVariableType,
+    kLoadClassVariable,  // the class library needs to be accessible from ThreadContext,
+                         // as well as the class variable table
+    kLoadClassVariableType,
+    kStoreInstanceVariable,
+    kStoreClassVariable,
+
     // Control flow
     kPhi,
     kBranch,
     kBranchIfZero,
-
     // For Linear HIR represents the start of a block as well as a container for any phis at the start of the block.
     kLabel,
 

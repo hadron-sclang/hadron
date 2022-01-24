@@ -86,7 +86,7 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
     if (!scanFiles(context)) { return false; }
     if (!finalizeHeirarchy(context)) { return false; }
     if (!compileMethods(context)) { return false; }
-    return cleanUp(context);
+    return cleanUp();
 }
 
 bool ClassLibrary::resetLibrary(ThreadContext* context) {
@@ -388,7 +388,40 @@ void ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class*
 // bootstrap code smell. :)
 Slot ClassLibrary::concatenateArrays(ThreadContext* context, Slot prefix, Slot suffix) {
     if (prefix.isNil()) { return suffix; }
-    return Slot::makeNil();
+
+    auto prefixSize = library::Array::_BasicSize(context, prefix).getInt32();
+    assert(prefixSize > 0);
+    Hash prefixType = prefix.getPointer()->_className;
+
+    int32_t suffixSize = 0;
+    if (suffix.isPointer()) {
+        suffixSize = library::Array::_BasicSize(context, suffix).getInt32();
+        assert(prefixType == suffix.getPointer()->_className);
+    }
+
+    auto array = context->heap->allocateObject(prefixType, sizeof(ObjectHeader) +
+            ((prefixSize + suffixSize) * sizeof(Slot)));
+    std::memcpy(reinterpret_cast<uint8_t*>(array) + sizeof(ObjectHeader),
+                reinterpret_cast<uint8_t*>(prefix.getPointer()) + sizeof(ObjectHeader),
+                sizeof(Slot) * prefixSize);
+    if (suffixSize > 0) {
+        std::memcpy(reinterpret_cast<uint8_t*>(array) + sizeof(ObjectHeader) + (sizeof(Slot) * prefixSize),
+                reinterpret_cast<uint8_t*>(suffix.getPointer()) + sizeof(ObjectHeader),
+                sizeof(Slot) * suffixSize);
+    }
+
+    return Slot::makePointer(array);
 }
+
+bool ClassLibrary::compileMethods(ThreadContext* /* context */) {
+    return false;
+}
+
+bool ClassLibrary::cleanUp() {
+    m_classFiles.clear();
+    m_cachedSubclassArrays.clear();
+    return true;
+}
+
 
 } // namespace hadron
