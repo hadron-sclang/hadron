@@ -3,8 +3,11 @@
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Heap.hpp"
+#include "hadron/Lexer.hpp"
 #include "hadron/LighteningJIT.hpp"
+#include "hadron/Parser.hpp"
 #include "hadron/Slot.hpp"
+#include "hadron/SourceFile.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "internal/FileSystem.hpp"
 
@@ -35,29 +38,8 @@ Runtime::~Runtime() {}
 bool Runtime::compileClassLibrary() {
     auto classLibPath = findSCClassLibrary();
     SPDLOG_INFO("Starting Class Library compilation for files at {}", classLibPath.c_str());
-
-    for (auto& entry : fs::recursive_directory_iterator(classLibPath)) {
-        const auto& path = entry.path();
-        if (!fs::is_regular_file(path) || path.extension() != ".sc")
-            continue;
-        // For now we have an allowlist in place, to control which SC class files are parsed, and we lazily do an
-        // O(n) search in the array for each one.
-        bool classFileAllowed = false;
-        for (size_t i = 0; i < kClassFileAllowList.size(); ++i) {
-            if (path.filename().compare(kClassFileAllowList[i]) == 0) {
-                classFileAllowed = true;
-                break;
-            }
-        }
-        if (!classFileAllowed) {
-            // SPDLOG_WARN("Skipping compilation of {}, not in class file allow list.", path.c_str());
-            continue;
-        }
-
-        SPDLOG_INFO("Class Library compiling '{}'", path.c_str());
-        m_classLibrary->addClassFile(m_threadContext.get(), path);
-    }
-    return true;
+    m_classLibrary->addClassDirectory(classLibPath);
+    return m_classLibrary->compileLibrary(m_threadContext.get());
 }
 
 bool Runtime::initInterpreter() {

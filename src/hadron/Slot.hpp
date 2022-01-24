@@ -22,11 +22,12 @@ public:
     inline Slot operator=(const Slot& s) { m_asBits = s.m_asBits; return *this; }
     ~Slot() = default;
 
+    // TODO: could these be constexpr? And rename to fromFloat(), 'make' is confusing.
     static inline Slot makeFloat(double d) { return Slot(d); }
     static inline Slot makeNil() { return Slot(kNilTag); }
     static inline Slot makeInt32(int32_t i) { return Slot(kInt32Tag | (static_cast<uint64_t>(i) & (~kTagMask))); }
     static inline Slot makeBool(bool b) { return Slot(kBooleanTag | (b ? 1ull : 0ull)); }
-    static inline Slot makePointer(void* p) { return Slot(kPointerTag | reinterpret_cast<uint64_t>(p)); }
+    static inline Slot makePointer(const void* p) { return Slot(kPointerTag | reinterpret_cast<uint64_t>(p)); }
     static inline Slot makeHash(Hash h) { return Slot(kHashTag | (h & (~kTagMask))); }
     static inline Slot makeChar(char c) { return Slot(kCharTag | c); }
 

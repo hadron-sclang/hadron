@@ -66,7 +66,7 @@ library::FunctionDef* Pipeline::compileBlock(ThreadContext* context, const parse
 }
 
 library::Method* Pipeline::compileMethod(ThreadContext* context, const parse::MethodNode* methodNode,
-        const Lexer* lexer, const library::Class* classDef) {
+        const Lexer* lexer, const library::Class* /* classDef */) {
     auto methodDef = reinterpret_cast<library::Method*>(context->heap->allocateObject(library::kMethodHash,
             sizeof(library::Method)));
     if (!buildBlock(context, methodDef, methodNode->body.get(), lexer)) { return nullptr; }
@@ -107,7 +107,7 @@ bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef* function
 
     BlockSerializer serializer;
     auto linearBlock = serializer.serialize(std::move(frame));
-    if (!linearBlock) { return nullptr; }
+    if (!linearBlock) { return false; }
 #if HADRON_PIPELINE_VALIDATE
     if (!validateSerializedBlock(linearBlock.get(), numberOfBlocks, numberOfValues)) { return false; }
     if (!afterBlockSerializer(linearBlock.get())) { return false; }
@@ -175,9 +175,10 @@ bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef* function
 #if HADRON_PIPELINE_VALIDATE
 bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
         const Lexer* lexer ) {
-    int32_t argumentOrderArraySize = library::ArrayedCollection::_BasicSize(context, frame->argumentOrder).getInt32();
+    int32_t argumentOrderArraySize = library::ArrayedCollection::_BasicSize(context,
+            Slot::makePointer(frame->argumentOrder)).getInt32();
     int32_t argumentDefaultsArraySize = library::ArrayedCollection::_BasicSize(context,
-            frame->argumentDefaults).getInt32();
+            Slot::makePointer(frame->argumentDefaults)).getInt32();
     if (argumentOrderArraySize != argumentDefaultsArraySize) {
         SPDLOG_ERROR("Frame has mismatched argument order and defaults array sizes of {} and {} respectively",
             argumentOrderArraySize, argumentDefaultsArraySize);
@@ -189,7 +190,8 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
         return false;
     }
 
-    Slot argName = library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, Slot::makeInt32(0));
+    Slot argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
+            Slot::makeInt32(0));
     if (argName != Slot::makeHash(kThisHash)) {
         SPDLOG_ERROR("First argument to Frame {:16x} not 'this' {:16x}", argName.getHash(), kThisHash);
         return false;
@@ -206,7 +208,7 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
             }
-            argName = library::ArrayedCollection::_BasicAt(context, frame->argumentOrder,
+            argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
                     Slot::makeInt32(numberOfArguments));
             if (argName.getHash() != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for argument number {} named {}", numberOfArguments,
@@ -223,7 +225,7 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
                         lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
                 return false;
             }
-            argName = library::ArrayedCollection::_BasicAt(context, frame->argumentOrder,
+            argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
                     Slot::makeInt32(numberOfArguments));
             if (argName.getHash() != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for varArgs number {} named {}", numberOfArguments,
