@@ -164,8 +164,8 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
             nodeValue = buildFinalValue(context, varDef->initialValue.get());
             m_block->revisions[nameToken.hash] = nodeValue;
         } else {
-            nodeValue.first = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
-            nodeValue.second = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kNil)));
+            nodeValue.first = insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
+            nodeValue.second = insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kNil)));
             m_block->revisions[nameToken.hash] = nodeValue;
         }
     } break;
@@ -188,25 +188,25 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
         const auto returnNode = reinterpret_cast<const parse::ReturnNode*>(node);
         assert(returnNode->valueExpr);
         nodeValue = buildFinalValue(context, returnNode->valueExpr.get());
-        findOrInsertLocal(std::make_unique<hir::StoreReturnHIR>(nodeValue));
+        insertLocal(std::make_unique<hir::StoreReturnHIR>(nodeValue));
     } break;
 
     case parse::NodeType::kList: {
         // Create a new array with a dispatch to Array.new()
         auto selectorValue = std::make_pair(
-            findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(hash("new")))),
-            findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kSymbol))));
+            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(hash("new")))),
+            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kSymbol))));
         std::vector<std::pair<Value, Value>> argumentValues;
         // TODO: This is broken! Need to be able to look up Meta_Array in the Class Library, not passing the
         // symbol to it here but the actual target class.
         argumentValues.emplace_back(std::make_pair(
-            findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(library::kMetaArrayHash))),
+            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(library::kMetaArrayHash))),
             selectorValue.second));
         std::vector<std::pair<Value, Value>> keywordArgumentValues;
         nodeValue = buildDispatchInternal(selectorValue, argumentValues, keywordArgumentValues);
 
         // Evaluate each element in the parse tree in turn and append to list with a call to array.add()
-        selectorValue.first = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(hash("add"))));
+        selectorValue.first = insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(hash("add"))));
 
         const auto list = reinterpret_cast<const parse::ListNode*>(node);
         const parse::ExprSeqNode* element = list->elements.get();
@@ -256,8 +256,8 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
 
     case parse::NodeType::kLiteral: {
         const auto literal = reinterpret_cast<const parse::LiteralNode*>(node);
-        nodeValue.first = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(literal->value));
-        nodeValue.second = findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(literal->type)));
+        nodeValue.first = insertLocal(std::make_unique<hir::ConstantHIR>(literal->value));
+        nodeValue.second = insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(literal->type)));
     } break;
 
     case parse::NodeType::kName: {
@@ -475,8 +475,8 @@ std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, cons
     argumentValues.emplace_back(buildFinalValue(context, target));
 
     auto selectorValue = std::make_pair(
-            findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(selector))),
-            findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kSymbol))));
+            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(selector))),
+            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kSymbol))));
 
     // Now append any additional arguments.
     while (arguments) {
@@ -489,7 +489,7 @@ std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, cons
         assert(keywordArguments->nodeType == parse::NodeType::kKeyValue);
         auto keyName = m_lexer->tokens()[keywordArguments->tokenIndex].hash;
         keywordArgumentValues.emplace_back(std::make_pair(
-                    findOrInsertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(keyName))),
+                    insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(keyName))),
                     selectorValue.second));
         keywordArgumentValues.emplace_back(buildFinalValue(context, keywordArguments->value.get()));
         keywordArguments = reinterpret_cast<const parse::KeyValueNode*>(keywordArguments->next.get());
@@ -518,16 +518,6 @@ std::pair<Value, Value> BlockBuilder::buildDispatchInternal(std::pair<Value, Val
     Value returnValueType = insertLocal(std::make_unique<hir::DispatchLoadReturnTypeHIR>());
     insertLocal(std::make_unique<hir::DispatchCleanupHIR>());
     return std::make_pair(returnValue, returnValueType);
-}
-
-Value BlockBuilder::findOrInsertLocal(std::unique_ptr<hir::HIR> hir) {
-    // Walk through block looking for equivalent exising HIR.
-    for (const auto hirPair : m_block->values) {
-        if (hirPair.second->isEquivalent(hir.get())) {
-            return hirPair.first;
-        }
-    }
-    return insertLocal(std::move(hir));
 }
 
 Value BlockBuilder::insertLocal(std::unique_ptr<hir::HIR> hir) {

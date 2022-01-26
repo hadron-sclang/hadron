@@ -382,10 +382,10 @@ void ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class*
 // TODO: it's a code smell that there's this pure utility function for manipulating arrays in the ClassLibrary class.
 // The sclang Nil class has some nice overloads for adding and concatenating arrays, but that happens on the sclang
 // side, so by the time we get to the primitives they are very much assuming they are method calls on objects in the
-// class heirarchy. I considered adding similar convenience code in the primitives, but this makes a big assumption that
-// the return type will be 'Array', when some of these arrays are 'SymbolArray' objects. Hopefully after the
-// ClassLibrary is compiled manipulation of SC data structres can happen *in the sc language,* thus justifying this
-// bootstrap code smell. :)
+// Array class heirarchy. I considered adding similar convenience code in the primitives, but this makes a big
+// assumption that the return type will be 'Array', when some of these arrays are 'SymbolArray' objects. Hopefully after
+// the ClassLibrary is compiled manipulation of SC data structres can happen *in the sc language,* thus justifying this
+// bootstrap code smell.
 Slot ClassLibrary::concatenateArrays(ThreadContext* context, Slot prefix, Slot suffix) {
     if (prefix.isNil()) { return suffix; }
 

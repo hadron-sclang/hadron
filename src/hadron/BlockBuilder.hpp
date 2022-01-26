@@ -51,9 +51,7 @@ private:
             const std::vector<std::pair<Value, Value>>& argumentValues,
             const std::vector<std::pair<Value, Value>>& keywordArgumentValues);
 
-    // Algorithm is to iterate through all previously defined values *in the block* to see if they have already defined
-    // an identical value. Returns the value either inserted or re-used. Takes ownership of hir.
-    Value findOrInsertLocal(std::unique_ptr<hir::HIR> hir);
+    // Returns the value either inserted or re-used (if a constant). Takes ownership of hir.
     Value insertLocal(std::unique_ptr<hir::HIR> hir);
     Value insert(std::unique_ptr<hir::HIR> hir, Block* block);
 

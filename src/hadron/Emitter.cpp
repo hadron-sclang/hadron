@@ -78,6 +78,15 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             }
         } break;
 
+        case hir::Opcode::kLoadInstanceVariable:
+        case hir::Opcode::kLoadInstanceVariableType:
+        case hir::Opcode::kLoadClassVariable:
+        case hir::Opcode::kLoadClassVariableType:
+        case hir::Opcode::kStoreInstanceVariable:
+        case hir::Opcode::kStoreClassVariable:
+            assert(false); // TODO
+            break;
+
         case hir::Opcode::kStoreReturn: {
             const auto storeReturn = reinterpret_cast<const hir::StoreReturnHIR*>(hir);
             // Add pointer tag to stack pointer to maintain invariant that saved pointers are always tagged.
@@ -97,10 +106,6 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             jit->ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, stackPointer));
             jit->andi(JIT::kStackPointerReg, JIT::kStackPointerReg, ~Slot::kTagMask);
         } break;
-
-        case hir::Opcode::kResolveType:
-            // no-op
-            break;
 
         case hir::Opcode::kPhi:
             // Should not be encountered inline in resolved code.
