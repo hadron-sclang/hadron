@@ -111,6 +111,10 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
         }
     }
 
+    // Load class variables.
+    // Load instance variables.
+
+
     if (blockNode->variables) {
         m_block->finalValue = buildFinalValue(context, blockNode->variables.get());
     }
