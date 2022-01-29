@@ -39,20 +39,39 @@ Pipeline::Pipeline(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporte
 
 Pipeline::~Pipeline() {}
 
-Slot Pipeline::compileCode(ThreadContext* context, std::string_view code) {
+library::FunctionDef* Pipeline::compileCode(ThreadContext* context, std::string_view code) {
     Lexer lexer(code, m_errorReporter);
-    if (!lexer.lex()) { return Slot::makeNil(); }
+    if (!lexer.lex()) { return nullptr; }
 
     Parser parser(&lexer, m_errorReporter);
-    if (!parser.parse()) { return Slot::makeNil(); }
+    if (!parser.parse()) { return nullptr; }
 
     assert(parser.root()->nodeType == parse::NodeType::kBlock);
 
-    return buildBlock(context, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer);
+    auto functionDef = reinterpret_cast<library::FunctionDef*>(context->heap->allocateObject(library::kFunctionDefHash,
+            sizeof(library::FunctionDef)));
+
+    if (!buildBlock(context, functionDef, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer)) {
+        return nullptr;
+    }
+    return functionDef;
 }
 
-Slot Pipeline::compileBlock(ThreadContext* context, parse::BlockNode* blockNode, const Lexer* lexer) {
-    return buildBlock(context, blockNode, lexer);
+library::FunctionDef* Pipeline::compileBlock(ThreadContext* context, const parse::BlockNode* blockNode,
+        const Lexer* lexer) {
+    auto functionDef = reinterpret_cast<library::FunctionDef*>(context->heap->allocateObject(library::kFunctionDefHash,
+            sizeof(library::FunctionDef)));
+    if (!buildBlock(context, functionDef, blockNode, lexer)) { return nullptr; }
+    return functionDef;
+}
+
+library::Method* Pipeline::compileMethod(ThreadContext* context, const parse::MethodNode* methodNode,
+        const Lexer* lexer, const library::Class* /* classDef */) {
+    auto methodDef = reinterpret_cast<library::Method*>(context->heap->allocateObject(library::kMethodHash,
+            sizeof(library::Method)));
+    if (!buildBlock(context, methodDef, methodNode->body.get(), lexer)) { return nullptr; }
+    methodDef->ownerClass = Slot::makeNil(); // TODO: should be a pointer to Meta_ClassName instance
+    return methodDef;
 }
 
 #if HADRON_PIPELINE_VALIDATE
@@ -69,44 +88,50 @@ void Pipeline::setDefaults() {
     m_jitToVirtualMachine = false;
 }
 
-Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer) {
+bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef* functionDef, const parse::BlockNode* blockNode,
+        const Lexer* lexer) {
     hadron::BlockBuilder builder(lexer, m_errorReporter);
     auto frame = builder.buildFrame(context, blockNode);
-    if (!frame) { return Slot::makeNil(); }
+    if (!frame) { return false; }
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateFrame(context, frame.get(), blockNode, lexer)) { return Slot::makeNil(); }
-    if (!afterBlockBuilder(frame.get(), blockNode, lexer)) { return Slot::makeNil(); }
+    if (!validateFrame(context, frame.get(), blockNode, lexer)) { return false; }
+    if (!afterBlockBuilder(frame.get(), blockNode, lexer)) { return false; }
     size_t numberOfBlocks = static_cast<size_t>(frame->numberOfBlocks);
     size_t numberOfValues = frame->numberOfValues;
 #endif // HADRON_PIPELINE_VALIDATE
 
+    functionDef->raw1 = Slot::makeNil();
+    functionDef->raw2 = Slot::makeNil();
+    functionDef->argNames = Slot::makePointer(frame->argumentOrder);
+    functionDef->prototypeFrame = Slot::makePointer(frame->argumentDefaults);
+
     BlockSerializer serializer;
     auto linearBlock = serializer.serialize(std::move(frame));
-    if (!linearBlock) { return Slot::makeNil(); }
+    if (!linearBlock) { return false; }
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateSerializedBlock(linearBlock.get(), numberOfBlocks, numberOfValues)) { return Slot::makeNil(); }
-    if (!afterBlockSerializer(linearBlock.get())) { return Slot::makeNil(); }
+    if (!validateSerializedBlock(linearBlock.get(), numberOfBlocks, numberOfValues)) { return false; }
+    if (!afterBlockSerializer(linearBlock.get())) { return false; }
 #endif // HADRON_PIPELINE_VALIDATE
 
     LifetimeAnalyzer analyzer;
     analyzer.buildLifetimes(linearBlock.get());
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateLifetimes(linearBlock.get())) { return Slot::makeNil(); }
-    if (!afterLifetimeAnalyzer(linearBlock.get())) { return Slot::makeNil(); }
+    if (!validateLifetimes(linearBlock.get())) { return false; }
+    if (!afterLifetimeAnalyzer(linearBlock.get())) { return false; }
 #endif // HADRON_PIPELINE_VALIDATE
 
     RegisterAllocator allocator(m_numberOfRegisters);
     allocator.allocateRegisters(linearBlock.get());
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateAllocation(linearBlock.get())) { return Slot::makeNil(); }
-    if (!afterRegisterAllocator(linearBlock.get())) { return Slot::makeNil(); }
+    if (!validateAllocation(linearBlock.get())) { return false; }
+    if (!afterRegisterAllocator(linearBlock.get())) { return false; }
 #endif // HADRON_PIPELINE_VALIDATE
 
     Resolver resolver;
     resolver.resolve(linearBlock.get());
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateResolution(linearBlock.get())) { return Slot::makeNil(); }
-    if (!afterResolver(linearBlock.get())) { return Slot::makeNil(); }
+    if (!validateResolution(linearBlock.get())) { return false; }
+    if (!afterResolver(linearBlock.get())) { return false; }
 #endif // HADRON_PIPELINE_VALIDATE
 
     size_t jitMaxSize = sizeof(library::Int8Array);
@@ -138,19 +163,22 @@ Slot Pipeline::buildBlock(ThreadContext* context, const parse::BlockNode* blockN
     bytecodeArray->_sizeInBytes = finalSize + sizeof(library::Int8Array);
 
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateEmission(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return Slot::makeNil(); }
-    if (!afterEmitter(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return Slot::makeNil(); }
+    if (!validateEmission(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return false; }
+    if (!afterEmitter(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return false; }
 #endif
 
-    return Slot::makePointer(bytecodeArray);
+    functionDef->code = Slot::makePointer(bytecodeArray);
+
+    return true;
 }
 
 #if HADRON_PIPELINE_VALIDATE
 bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
         const Lexer* lexer ) {
-    int32_t argumentOrderArraySize = library::ArrayedCollection::_BasicSize(context, frame->argumentOrder).getInt32();
+    int32_t argumentOrderArraySize = library::ArrayedCollection::_BasicSize(context,
+            Slot::makePointer(frame->argumentOrder)).getInt32();
     int32_t argumentDefaultsArraySize = library::ArrayedCollection::_BasicSize(context,
-            frame->argumentDefaults).getInt32();
+            Slot::makePointer(frame->argumentDefaults)).getInt32();
     if (argumentOrderArraySize != argumentDefaultsArraySize) {
         SPDLOG_ERROR("Frame has mismatched argument order and defaults array sizes of {} and {} respectively",
             argumentOrderArraySize, argumentDefaultsArraySize);
@@ -162,7 +190,8 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
         return false;
     }
 
-    Slot argName = library::ArrayedCollection::_BasicAt(context, frame->argumentOrder, Slot::makeInt32(0));
+    Slot argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
+            Slot::makeInt32(0));
     if (argName != Slot::makeHash(kThisHash)) {
         SPDLOG_ERROR("First argument to Frame {:16x} not 'this' {:16x}", argName.getHash(), kThisHash);
         return false;
@@ -179,7 +208,7 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
             }
-            argName = library::ArrayedCollection::_BasicAt(context, frame->argumentOrder,
+            argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
                     Slot::makeInt32(numberOfArguments));
             if (argName.getHash() != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for argument number {} named {}", numberOfArguments,
@@ -196,7 +225,7 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
                         lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
                 return false;
             }
-            argName = library::ArrayedCollection::_BasicAt(context, frame->argumentOrder,
+            argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
                     Slot::makeInt32(numberOfArguments));
             if (argName.getHash() != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for varArgs number {} named {}", numberOfArguments,

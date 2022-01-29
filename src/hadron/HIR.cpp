@@ -5,64 +5,33 @@ namespace hadron {
 namespace hir {
 
 ///////////////////////////////
-// LoadArgumentHIR
-bool LoadArgumentHIR::isEquivalent(const HIR* hir) const {
-    if (hir->opcode != kLoadArgument) {
-        return false;
-    }
-    const auto loadArg = reinterpret_cast<const LoadArgumentHIR*>(hir);
-    return index == loadArg->index;
+// HIR
+int HIR::numberOfReservedRegisters() const {
+    return 0;
 }
 
+///////////////////////////////
+// LoadArgumentHIR
 Value LoadArgumentHIR::proposeValue(uint32_t number) {
     value.number = number;
     value.typeFlags = isVarArgs ? Type::kArray : Type::kAny;
     return value;
 }
 
-int LoadArgumentHIR::numberOfReservedRegisters() const {
-    return 0;
-}
-
 ///////////////////////////////
 // LoadArgumentTypeHIR
-bool LoadArgumentTypeHIR::isEquivalent(const HIR* hir) const {
-    if (hir->opcode != kLoadArgumentType) {
-        return false;
-    }
-    const auto loadArgType = reinterpret_cast<const LoadArgumentTypeHIR*>(hir);
-    return index == loadArgType->index;
-}
-
 Value LoadArgumentTypeHIR::proposeValue(uint32_t number) {
     value.number = number;
     value.typeFlags = Type::kType;
     return value;
 }
 
-int LoadArgumentTypeHIR::numberOfReservedRegisters() const {
-    return 0;
-}
-
-
 ///////////////////////////////
 // ConstantHIR
-bool ConstantHIR::isEquivalent(const HIR* hir) const {
-    if (hir->opcode != kConstant) {
-        return false;
-    }
-    const auto constantHIR = reinterpret_cast<const ConstantHIR*>(hir);
-    return (constant == constantHIR->constant);
-}
-
 Value ConstantHIR::proposeValue(uint32_t number) {
     value.number = number;
     value.typeFlags = constant.getType();
     return value;
-}
-
-int ConstantHIR::numberOfReservedRegisters() const {
-    return 0;
 }
 
 ///////////////////////////////
@@ -73,42 +42,114 @@ StoreReturnHIR::StoreReturnHIR(std::pair<Value, Value> retVal):
     reads.emplace(retVal.second);
 }
 
-bool StoreReturnHIR::isEquivalent(const HIR* hir) const {
-    if (hir->opcode != kStoreReturn) {
-        return false;
-    }
-    const auto storeReturn = reinterpret_cast<const StoreReturnHIR*>(hir);
-    return returnValue == storeReturn->returnValue;
-}
-
 Value StoreReturnHIR::proposeValue(uint32_t /* number */) {
     value.number = 0;
     value.typeFlags = 0;
     return value;
 }
 
-int StoreReturnHIR::numberOfReservedRegisters() const {
-    return 0;
+///////////////////////////////
+// LoadInstanceVariableHIR
+LoadInstanceVariableHIR::LoadInstanceVariableHIR(std::pair<Value, Value> thisVal, int32_t index):
+        HIR(kLoadInstanceVariable),
+        thisValue(thisVal),
+        variableIndex(index) {
+    reads.emplace(thisVal.first);
+    reads.emplace(thisVal.second);
+}
+
+Value LoadInstanceVariableHIR::proposeValue(uint32_t number) {
+    value.number = number;
+    value.typeFlags = Type::kAny;
+    return value;
 }
 
 ///////////////////////////////
-// ResolveTypeHIR
-bool ResolveTypeHIR::isEquivalent(const HIR* hir) const {
-    if (hir->opcode != kResolveType) {
-        return false;
-    }
-    const auto resolveTypeHIR = reinterpret_cast<const ResolveTypeHIR*>(hir);
-    return (typeOfValue == resolveTypeHIR->typeOfValue);
+// LoadInstanceVariableTypeHIR
+LoadInstanceVariableTypeHIR::LoadInstanceVariableTypeHIR(std::pair<Value, Value> thisVal, int32_t index):
+        HIR(kLoadInstanceVariableType),
+        thisValue(thisVal),
+        variableIndex(index) {
+    reads.emplace(thisVal.first);
+    reads.emplace(thisVal.second);
 }
 
-Value ResolveTypeHIR::proposeValue(uint32_t number) {
+Value LoadInstanceVariableTypeHIR::proposeValue(uint32_t number) {
     value.number = number;
     value.typeFlags = Type::kType;
     return value;
 }
 
-int ResolveTypeHIR::numberOfReservedRegisters() const {
-    return 0;
+///////////////////////////////
+// LoadClassVariableHIR
+LoadClassVariableHIR::LoadClassVariableHIR(std::pair<Value, Value> thisVal, int32_t index):
+        HIR(kLoadInstanceVariable),
+        thisValue(thisVal),
+        variableIndex(index) {
+    reads.emplace(thisVal.first);
+    reads.emplace(thisVal.second);
+}
+
+Value LoadClassVariableHIR::proposeValue(uint32_t number) {
+    value.number = number;
+    value.typeFlags = Type::kAny;
+    return value;
+}
+
+///////////////////////////////
+// LoadClassVariableTypeHIR
+LoadClassVariableTypeHIR::LoadClassVariableTypeHIR(std::pair<Value, Value> thisVal, int32_t index):
+        HIR(kLoadInstanceVariableType),
+        thisValue(thisVal),
+        variableIndex(index) {
+    reads.emplace(thisVal.first);
+    reads.emplace(thisVal.second);
+}
+
+Value LoadClassVariableTypeHIR::proposeValue(uint32_t number) {
+    value.number = number;
+    value.typeFlags = Type::kType;
+    return value;
+}
+
+///////////////////////////////
+// StoreInstanceVariableHIR
+StoreInstanceVariableHIR::StoreInstanceVariableHIR(std::pair<Value, Value> thisVal, std::pair<Value, Value> storeVal,
+        int32_t index):
+        HIR(kStoreInstanceVariable),
+        thisValue(thisVal),
+        storeValue(storeVal),
+        variableIndex(index) {
+    reads.emplace(thisVal.first);
+    reads.emplace(thisVal.second);
+    reads.emplace(storeVal.first);
+    reads.emplace(storeVal.second);
+}
+
+Value StoreInstanceVariableHIR::proposeValue(uint32_t /* number */) {
+    value.number = 0;
+    value.typeFlags = 0;
+    return value;
+}
+
+///////////////////////////////
+// StoreClassVariableHIR
+StoreClassVariableHIR::StoreClassVariableHIR(std::pair<Value, Value> thisVal, std::pair<Value, Value> storeVal,
+        int32_t index):
+        HIR(kStoreInstanceVariable),
+        thisValue(thisVal),
+        storeValue(storeVal),
+        variableIndex(index) {
+    reads.emplace(thisVal.first);
+    reads.emplace(thisVal.second);
+    reads.emplace(storeVal.first);
+    reads.emplace(storeVal.second);
+}
+
+Value StoreClassVariableHIR::proposeValue(uint32_t /* number */) {
+    value.number = 0;
+    value.typeFlags = 0;
+    return value;
 }
 
 ///////////////////////////////
@@ -152,45 +193,12 @@ Value PhiHIR::proposeValue(uint32_t number) {
     return value;
 }
 
-bool PhiHIR::isEquivalent(const HIR* hir) const {
-    if (hir->opcode != kPhi) {
-        return false;
-    }
-    const PhiHIR* phi = reinterpret_cast<const PhiHIR*>(hir);
-    // Empty phis are not equivalent to any other phi.
-    if (inputs.size() == 0 || phi->inputs.size() == 0) {
-        return false;
-    }
-    if (inputs.size() != phi->inputs.size()) {
-        return false;
-    }
-    // Order has to be the same, too.
-    for (size_t i = 0; i < inputs.size(); ++i) {
-        if (inputs[i] != phi->inputs[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-int PhiHIR::numberOfReservedRegisters() const {
-    return 0;
-}
-
 ///////////////////////////////
 // BranchHIR
 Value BranchHIR::proposeValue(uint32_t /* number */) {
     value.number = 0;
     value.typeFlags = 0;
     return value;
-}
-
-bool BranchHIR::isEquivalent(const HIR* /* hir */) const {
-    return false;
-}
-
-int BranchHIR::numberOfReservedRegisters() const {
-    return 0;
 }
 
 ///////////////////////////////
@@ -206,44 +214,18 @@ Value BranchIfZeroHIR::proposeValue(uint32_t /* number */) {
     return value;
 }
 
-bool BranchIfZeroHIR::isEquivalent(const HIR* /* hir */) const {
-    return false;
-}
-
-int BranchIfZeroHIR::numberOfReservedRegisters() const {
-    return 0;
-}
-
 ///////////////////////////////
 // LabelHIR
-bool LabelHIR::isEquivalent(const HIR* hir) const {
-    if (hir->opcode != kLabel) {
-        return false;
-    }
-    const auto label = reinterpret_cast<const LabelHIR*>(hir);
-    return blockNumber == label->blockNumber;
-}
-
 Value LabelHIR::proposeValue(uint32_t /* number */) {
     value.number = 0;
     value.typeFlags = 0;
     return value;
 }
 
-int LabelHIR::numberOfReservedRegisters() const {
-    return 0;
-}
-
-///////////////////////////////
-// Dispatch
-bool Dispatch::isEquivalent(const HIR* /* hir */) const {
-    return false;
-}
-
 ///////////////////////////////
 // DispatchSetupStackHIR
 DispatchSetupStackHIR::DispatchSetupStackHIR(std::pair<Value, Value> selector, int numArgs, int numKeyArgs):
-        Dispatch(kDispatchSetupStack),
+        HIR(kDispatchSetupStack),
         selectorValue(selector),
         numberOfArguments(numArgs),
         numberOfKeywordArguments(numKeyArgs) {
@@ -258,14 +240,14 @@ Value DispatchSetupStackHIR::proposeValue(uint32_t /* number */) {
 }
 
 int DispatchSetupStackHIR::numberOfReservedRegisters() const {
-    // We save one for the frame pointer
+    // We save one for the frame pointer in all the Dispatch Stack Setup commands. They must be issued contiguously.
     return 1;
 }
 
 ///////////////////////////////
 // DispatchStoreArgHIR
 DispatchStoreArgHIR::DispatchStoreArgHIR(int argNum, std::pair<Value, Value> argVal):
-        Dispatch(kDispatchStoreArg),
+        HIR(kDispatchStoreArg),
         argumentNumber(argNum),
         argumentValue(argVal) {
     reads.emplace(argumentValue.first);
@@ -287,7 +269,7 @@ int DispatchStoreArgHIR::numberOfReservedRegisters() const {
 // DispatchStoreKeyArgHIR
 DispatchStoreKeyArgHIR::DispatchStoreKeyArgHIR(int keyArgNum, std::pair<Value, Value> key,
         std::pair<Value, Value> keyVal):
-        Dispatch(kDispatchStoreKeyArg),
+        HIR(kDispatchStoreKeyArg),
         keywordArgumentNumber(keyArgNum),
         keyword(key),
         keywordValue(keyVal) {
@@ -317,7 +299,7 @@ Value DispatchCallHIR::proposeValue(uint32_t /* number */) {
 }
 
 int DispatchCallHIR::numberOfReservedRegisters() const {
-    // Mark ever register as reserved, to force the allocator to preserve every active value in the stack.
+    // Mark every register as reserved, to force the register allocator to save every active value to the stack.
     return -1;
 }
 
@@ -329,10 +311,6 @@ Value DispatchLoadReturnHIR::proposeValue(uint32_t number) {
     return value;
 }
 
-int DispatchLoadReturnHIR::numberOfReservedRegisters() const {
-    return 0;
-}
-
 ///////////////////////////////
 // DispatchLoadReturnTypeHIR
 Value DispatchLoadReturnTypeHIR::proposeValue(uint32_t number) {
@@ -341,20 +319,12 @@ Value DispatchLoadReturnTypeHIR::proposeValue(uint32_t number) {
     return value;
 }
 
-int DispatchLoadReturnTypeHIR::numberOfReservedRegisters() const {
-    return 0;
-}
-
 ///////////////////////////////
 // DispatchCleanupHIR
 Value DispatchCleanupHIR::proposeValue(uint32_t /* number */) {
     value.number = 0;
     value.typeFlags = 0;
     return value;
-}
-
-int DispatchCleanupHIR::numberOfReservedRegisters() const {
-    return 0;
 }
 
 } // namespace hir

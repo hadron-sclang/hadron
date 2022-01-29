@@ -35,8 +35,8 @@ public:
     void* allocateNew(size_t sizeInBytes);
 
     // Allocates space at the desired size and then sets the fields in the ObjectHeader as provided.
-    // TODO: move to ClassLibrary, which will have hardcoded sizes for bootstrap objects, and will know sizes
-    // of all valid dynamically compiled classes, too.
+    // TODO: Consider move to ClassLibrary, which will have hardcoded sizes for bootstrap objects, and will know sizes
+    // of all valid dynamically compiled classes, too. Could do template<> with known sizes, etc.
     ObjectHeader* allocateObject(Hash className, size_t sizeInBytes);
 
     // Used for allocating JIT memory. Returns the maximum usable size in |allocatedSize|, which can be useful as the
@@ -59,7 +59,7 @@ public:
     // TODO: verify size classes experimentally.
     static constexpr size_t kSmallObjectSize = 256;
     static constexpr size_t kMediumObjectSize = 2048;
-    static constexpr size_t kLargeObjectSize = 16384;
+    static constexpr size_t kLargeObjectSize = 32 * 1024;
     static constexpr size_t kPageSize = 256 * 1024;
 
     // For the given object, returns the allocation size for that object.

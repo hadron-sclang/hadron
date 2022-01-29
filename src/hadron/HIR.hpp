@@ -55,16 +55,19 @@ enum Opcode {
     kLoadArgumentType,
     kConstant,
     kStoreReturn,
-    kResolveType, // Many other operations (such as binops and dispatch) require runtime knowledge of the type of the
-                  // input value. If it's known at compile time we can replace this with a ConstantHIR opcode.
-                  // If unknown this adds the type as a value (with type kType) that can be manipulated like any other
-                  // value.
+
+    kLoadInstanceVariable,
+    kLoadInstanceVariableType,
+    kLoadClassVariable,  // the class library needs to be accessible from ThreadContext,
+                         // as well as the class variable table
+    kLoadClassVariableType,
+    kStoreInstanceVariable,
+    kStoreClassVariable,
 
     // Control flow
     kPhi,
     kBranch,
     kBranchIfZero,
-
     // For Linear HIR represents the start of a block as well as a container for any phis at the start of the block.
     kLabel,
 
@@ -103,14 +106,12 @@ struct HIR {
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
     // that this operation only consumes values but doesn't generate any new one.
     virtual Value proposeValue(uint32_t number) = 0;
-    // Compare two HIR objects and return true if they are *semantically* the same.
-    virtual bool isEquivalent(const HIR* hir) const = 0;
 
     // Returns how many additional registers this HIR will need. A negative value means that all registers should be
     // reserved, typically used for register preservation during a function call. Reserved registers are allocated from
     // the highest number down, in the hopes they will not interfere with value register allocation, which starts at
-    // register 0.
-    virtual int numberOfReservedRegisters() const = 0;
+    // register 0. Default implementation returns 0.
+    virtual int numberOfReservedRegisters() const;
 };
 
 // Loads the argument at |index| from the stack.
@@ -123,8 +124,6 @@ struct LoadArgumentHIR : public HIR {
 
     // Forces the kAny type for all arguments.
     Value proposeValue(uint32_t number) override;
-    bool isEquivalent(const HIR* hir) const override;
-    int numberOfReservedRegisters() const override;
 };
 
 // Represents the type associated with the value at |index|.
@@ -135,8 +134,6 @@ struct LoadArgumentTypeHIR : public HIR {
 
     // Forces the kType type for all arguments.
     Value proposeValue(uint32_t number) override;
-    bool isEquivalent(const HIR* hir) const override;
-    int numberOfReservedRegisters() const override;
 };
 
 struct ConstantHIR : public HIR {
@@ -146,33 +143,88 @@ struct ConstantHIR : public HIR {
 
     // Forces the type of the |constant| Slot.
     Value proposeValue(uint32_t number) override;
-    bool isEquivalent(const HIR* hir) const override;
-    int numberOfReservedRegisters() const override;
 };
 
 struct StoreReturnHIR : public HIR {
+    StoreReturnHIR() = delete;
     StoreReturnHIR(std::pair<Value, Value> retVal);
     virtual ~StoreReturnHIR() = default;
     std::pair<Value, Value> returnValue;
 
     // Always returns an invalid value, as this is a read-only operation.
     Value proposeValue(uint32_t number) override;
-    bool isEquivalent(const HIR* hir) const override;
-    int numberOfReservedRegisters() const override;
 };
 
-struct ResolveTypeHIR : public HIR {
-    // Note that typeOfValue is not added to |reads|, as this doesn't require read access to the typeOfValue. This HIR
-    // represents a note to the compiler that for dynamic type variables the type must be tracked in a separate register
-    // from the value.
-    ResolveTypeHIR(Value v): HIR(kResolveType), typeOfValue(v) {}
-    virtual ~ResolveTypeHIR() = default;
-    // ResolveType returns as a value the type of this value.
-    Value typeOfValue;
+struct LoadInstanceVariableHIR : public HIR {
+    LoadInstanceVariableHIR() = delete;
+    LoadInstanceVariableHIR(std::pair<Value, Value> thisVal, int32_t index);
+    virtual ~LoadInstanceVariableHIR() = default;
+
+    // Need to load the |this| pointer to deference an instance variable.
+    std::pair<Value, Value> thisValue;
+    int32_t variableIndex;
 
     Value proposeValue(uint32_t number) override;
-    bool isEquivalent(const HIR* hir) const override;
-    int numberOfReservedRegisters() const override;
+};
+
+struct LoadInstanceVariableTypeHIR : public HIR {
+    LoadInstanceVariableTypeHIR() = delete;
+    LoadInstanceVariableTypeHIR(std::pair<Value, Value> thisVal, int32_t index);
+    virtual ~LoadInstanceVariableTypeHIR() = default;
+
+    // Need to load the |this| pointer to deference an instance variable.
+    std::pair<Value, Value> thisValue;
+    int32_t variableIndex;
+
+    Value proposeValue(uint32_t number) override;
+};
+
+struct LoadClassVariableHIR : public HIR {
+    LoadClassVariableHIR() = delete;
+    LoadClassVariableHIR(std::pair<Value, Value> thisVal, int32_t index);
+    virtual ~LoadClassVariableHIR() = default;
+
+    // Need to load the |this| pointer to deference a class variable.
+    std::pair<Value, Value> thisValue;
+    int32_t variableIndex;
+
+    Value proposeValue(uint32_t number) override;
+};
+
+struct LoadClassVariableTypeHIR : public HIR {
+    LoadClassVariableTypeHIR() = delete;
+    LoadClassVariableTypeHIR(std::pair<Value, Value> thisVal, int32_t index);
+    virtual ~LoadClassVariableTypeHIR() = default;
+
+    // Need to load the |this| pointer to deference class variable.
+    std::pair<Value, Value> thisValue;
+    int32_t variableIndex;
+
+    Value proposeValue(uint32_t number) override;
+};
+
+struct StoreInstanceVariableHIR : public HIR {
+    StoreInstanceVariableHIR() = delete;
+    StoreInstanceVariableHIR(std::pair<Value, Value> thisVal, std::pair<Value, Value> storeVal, int32_t index);
+    virtual ~StoreInstanceVariableHIR() = default;
+
+    std::pair<Value, Value> thisValue;
+    std::pair<Value, Value> storeValue;
+    int32_t variableIndex;
+
+    Value proposeValue(uint32_t number) override;
+};
+
+struct StoreClassVariableHIR : public HIR {
+    StoreClassVariableHIR() = delete;
+    StoreClassVariableHIR(std::pair<Value, Value> thisVal, std::pair<Value, Value> storeVal, int32_t index);
+    virtual ~StoreClassVariableHIR() = default;
+
+    std::pair<Value, Value> thisValue;
+    std::pair<Value, Value> storeValue;
+    int32_t variableIndex;
+
+    Value proposeValue(uint32_t number) override;
 };
 
 struct PhiHIR : public HIR {
@@ -185,8 +237,6 @@ struct PhiHIR : public HIR {
     Value getTrivialValue() const;
 
     Value proposeValue(uint32_t number) override;
-    bool isEquivalent(const HIR* hir) const override;
-    int numberOfReservedRegisters() const override;
 };
 
 struct BranchHIR : public HIR {
@@ -195,8 +245,6 @@ struct BranchHIR : public HIR {
 
     int blockNumber;
     Value proposeValue(uint32_t number) override;
-    bool isEquivalent(const HIR* hir) const override;
-    int numberOfReservedRegisters() const override;
 };
 
 struct BranchIfZeroHIR : public HIR {
@@ -208,8 +256,6 @@ struct BranchIfZeroHIR : public HIR {
     int blockNumber;
 
     Value proposeValue(uint32_t number) override;
-    bool isEquivalent(const HIR* hir) const override;
-    int numberOfReservedRegisters() const override;
 };
 
 struct LabelHIR : public HIR {
@@ -221,22 +267,9 @@ struct LabelHIR : public HIR {
     std::list<std::unique_ptr<PhiHIR>> phis;
 
     Value proposeValue(uint32_t number) override;
-    bool isEquivalent(const HIR* hir) const override;
-    int numberOfReservedRegisters() const override;
 };
 
-// Private struct to provide the overrides around equivalence, which are all the same for the Dispatch HIR objects.
-struct Dispatch : public HIR {
-    Dispatch() = delete;
-    virtual ~Dispatch() = default;
-
-    bool isEquivalent(const HIR* hir) const override;
-
-protected:
-    Dispatch(Opcode op): HIR(op) {}
-};
-
-struct DispatchSetupStackHIR : public Dispatch {
+struct DispatchSetupStackHIR : public HIR {
     DispatchSetupStackHIR() = delete;
     DispatchSetupStackHIR(std::pair<Value, Value> selector, int numArgs, int numKeyArgs);
     virtual ~DispatchSetupStackHIR() = default;
@@ -250,7 +283,7 @@ struct DispatchSetupStackHIR : public Dispatch {
 };
 
 // Argument value and type is stored in |reads|
-struct DispatchStoreArgHIR : public Dispatch {
+struct DispatchStoreArgHIR : public HIR {
     DispatchStoreArgHIR() = delete;
     DispatchStoreArgHIR(int argNum, std::pair<Value, Value> argVal);
     virtual ~DispatchStoreArgHIR() = default;
@@ -262,7 +295,7 @@ struct DispatchStoreArgHIR : public Dispatch {
     int numberOfReservedRegisters() const override;
 };
 
-struct DispatchStoreKeyArgHIR : public Dispatch {
+struct DispatchStoreKeyArgHIR : public HIR {
     DispatchStoreKeyArgHIR() = delete;
     DispatchStoreKeyArgHIR(int keyArgNum, std::pair<Value, Value> key, std::pair<Value, Value> keyVal);
     virtual ~DispatchStoreKeyArgHIR() = default;
@@ -275,8 +308,8 @@ struct DispatchStoreKeyArgHIR : public Dispatch {
     int numberOfReservedRegisters() const override;
 };
 
-struct DispatchCallHIR : public Dispatch {
-    DispatchCallHIR(): Dispatch(kDispatchCall) {}
+struct DispatchCallHIR : public HIR {
+    DispatchCallHIR(): HIR(kDispatchCall) {}
     virtual ~DispatchCallHIR() = default;
 
     Value proposeValue(uint32_t number) override;
@@ -285,30 +318,27 @@ struct DispatchCallHIR : public Dispatch {
 
 // TODO: Could make this "read" the return value of the DispatchCall, to make the dependency clear, although a bit
 // redundant since Dispatches can't ever be culled due to possible side effects.
-struct DispatchLoadReturnHIR : public Dispatch {
-    DispatchLoadReturnHIR(): Dispatch(kDispatchLoadReturn) {}
+struct DispatchLoadReturnHIR : public HIR {
+    DispatchLoadReturnHIR(): HIR(kDispatchLoadReturn) {}
     virtual ~DispatchLoadReturnHIR() = default;
 
     // Forces the kAny type for the return.
     Value proposeValue(uint32_t number) override;
-    int numberOfReservedRegisters() const override;
 };
 
-struct DispatchLoadReturnTypeHIR : public Dispatch {
-    DispatchLoadReturnTypeHIR(): Dispatch(kDispatchLoadReturnType) {}
+struct DispatchLoadReturnTypeHIR : public HIR {
+    DispatchLoadReturnTypeHIR(): HIR(kDispatchLoadReturnType) {}
     virtual ~DispatchLoadReturnTypeHIR() = default;
 
     Value proposeValue(uint32_t number) override;
-    int numberOfReservedRegisters() const override;
 };
 
-struct DispatchCleanupHIR : public Dispatch {
-    DispatchCleanupHIR(): Dispatch(kDispatchCleanup) {}
+struct DispatchCleanupHIR : public HIR {
+    DispatchCleanupHIR(): HIR(kDispatchCleanup) {}
     virtual ~DispatchCleanupHIR() = default;
 
     // Always returns an invalid value, as this is a read-only operation.
     Value proposeValue(uint32_t number) override;
-    int numberOfReservedRegisters() const override;
 };
 
 } // namespace hir

@@ -23,8 +23,16 @@ namespace hir {
 struct HIR;
 } // namespace hir
 
+namespace library {
+struct Class;
+struct FunctionDef;
+struct Int8Array;
+struct Method;
+}
+
 namespace parse {
 struct BlockNode;
+struct MethodNode;
 } // namespace parse
 
 struct Block;
@@ -50,9 +58,11 @@ public:
     bool jitToVirtualMachine() const { return m_jitToVirtualMachine; }
     void setJitToVirtualMachine(bool useVM) { m_jitToVirtualMachine = useVM; }
 
-    // For interpreter code only, returns an Int8Array with JIT bytecode, or nil on error.
-    Slot compileCode(ThreadContext* context, std::string_view code);
-    Slot compileBlock(ThreadContext* context, parse::BlockNode* blockNode, const Lexer* lexer);
+    library::FunctionDef* compileCode(ThreadContext* context, std::string_view code);
+    library::FunctionDef* compileBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer);
+
+    library::Method* compileMethod(ThreadContext* context, const parse::MethodNode* methodNode, const Lexer* lexer,
+            const library::Class* classDef);
 
 #if HADRON_PIPELINE_VALIDATE
     // With pipeline validation on these methods are called after internal validation of each step. Their default
@@ -69,7 +79,8 @@ public:
 
 protected:
     void setDefaults();
-    Slot buildBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer);
+    bool buildBlock(ThreadContext* context, library::FunctionDef* functionDef, const parse::BlockNode* blockNode,
+            const Lexer* lexer);
 
 #if HADRON_PIPELINE_VALIDATE
     // Checks for valid SSA form and that all members of Frame and contained Blocks are valid.

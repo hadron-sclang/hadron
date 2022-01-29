@@ -1192,13 +1192,16 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
         returnValue.PushBack(type, document.GetAllocator());
         jsonHIR.AddMember("returnValue", returnValue, document.GetAllocator());
     } break;
-    case hadron::hir::Opcode::kResolveType: {
-        const auto resolveType = reinterpret_cast<const hadron::hir::ResolveTypeHIR*>(hir);
-        jsonHIR.AddMember("opcode", "ResolveType", document.GetAllocator());
-        rapidjson::Value typeOfValue;
-        serializeValue(resolveType->typeOfValue, typeOfValue, document);
-        jsonHIR.AddMember("typeOfValue", typeOfValue, document.GetAllocator());
-    } break;
+
+    case hadron::hir::Opcode::kLoadInstanceVariable:
+    case hadron::hir::Opcode::kLoadInstanceVariableType:
+    case hadron::hir::Opcode::kLoadClassVariable:
+    case hadron::hir::Opcode::kLoadClassVariableType:
+    case hadron::hir::Opcode::kStoreInstanceVariable:
+    case hadron::hir::Opcode::kStoreClassVariable:
+        assert(false); // TODO
+        break;
+
     case hadron::hir::Opcode::kPhi: {
         const auto phi = reinterpret_cast<const hadron::hir::PhiHIR*>(hir);
         jsonHIR.AddMember("opcode", "Phi", document.GetAllocator());
