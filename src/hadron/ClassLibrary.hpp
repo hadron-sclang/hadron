@@ -4,6 +4,9 @@
 #include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
 
+#include "hadron/library/Kernel.hpp"
+#include "hadron/library/Array.hpp"
+
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -16,11 +19,6 @@ class Lexer;
 class Parser;
 class SourceFile;
 struct ThreadContext;
-
-namespace library {
-struct Array;
-struct Class;
-}
 
 namespace parse {
 struct ClassNode;
@@ -70,10 +68,10 @@ private:
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     // A map maintained for quick(er) access to Class objects via Hash.
-    std::unordered_map<Hash, library::Class*> m_classMap;
+    std::unordered_map<Hash, library::Class> m_classMap;
 
     // The official array of Class objects, maintained as part of the root set.
-    library::Array* m_classArray;
+    library::Array<library::Class> m_classArray;
 
     // We keep the noramlized paths in a set to prevent duplicate additions of the same path.
     std::unordered_set<std::string> m_libraryPaths;
@@ -83,7 +81,7 @@ private:
         std::unique_ptr<Parser> parser;
     };
     std::unordered_map<Hash, ClassFile> m_classFiles;
-    std::unordered_map<Hash, library::Array*> m_cachedSubclassArrays;
+    std::unordered_map<Hash, library::Array<library::Class>> m_cachedSubclassArrays;
 };
 
 } // namespace hadron

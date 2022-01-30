@@ -22,13 +22,6 @@
 #include "hadron/ThreadContext.hpp"
 #include "hadron/VirtualJIT.hpp"
 
-#include "schema/Common/Core/Object.hpp"
-#include "schema/Common/Core/Kernel.hpp"
-#include "schema/Common/Collections/Collection.hpp"
-#include "schema/Common/Collections/SequenceableCollection.hpp"
-#include "schema/Common/Collections/ArrayedCollection.hpp"
-#include "schema/Common/Collections/Array.hpp"
-
 #include "spdlog/spdlog.h"
 
 namespace hadron {
@@ -39,39 +32,32 @@ Pipeline::Pipeline(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporte
 
 Pipeline::~Pipeline() {}
 
-library::FunctionDef* Pipeline::compileCode(ThreadContext* context, std::string_view code) {
+library::FunctionDef Pipeline::compileCode(ThreadContext* context, std::string_view code) {
+    auto functionDef = library::FunctionDef::alloc(context);
+
     Lexer lexer(code, m_errorReporter);
-    if (!lexer.lex()) { return nullptr; }
+    if (!lexer.lex()) { return functionDef; }
 
     Parser parser(&lexer, m_errorReporter);
-    if (!parser.parse()) { return nullptr; }
-
+    if (!parser.parse()) { return functionDef; }
     assert(parser.root()->nodeType == parse::NodeType::kBlock);
 
-    auto functionDef = reinterpret_cast<library::FunctionDef*>(context->heap->allocateObject(library::kFunctionDefHash,
-            sizeof(library::FunctionDef)));
-
-    if (!buildBlock(context, functionDef, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer)) {
-        return nullptr;
-    }
+    buildBlock(context, functionDef, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer);
     return functionDef;
 }
 
-library::FunctionDef* Pipeline::compileBlock(ThreadContext* context, const parse::BlockNode* blockNode,
+library::FunctionDef Pipeline::compileBlock(ThreadContext* context, const parse::BlockNode* blockNode,
         const Lexer* lexer) {
-    auto functionDef = reinterpret_cast<library::FunctionDef*>(context->heap->allocateObject(library::kFunctionDefHash,
-            sizeof(library::FunctionDef)));
-    if (!buildBlock(context, functionDef, blockNode, lexer)) { return nullptr; }
+    auto functionDef = library::FunctionDef::alloc(context);
+    buildBlock(context, functionDef, blockNode, lexer);
     return functionDef;
 }
 
-library::Method* Pipeline::compileMethod(ThreadContext* context, const parse::MethodNode* methodNode,
-        const Lexer* lexer, const library::Class* /* classDef */) {
-    auto methodDef = reinterpret_cast<library::Method*>(context->heap->allocateObject(library::kMethodHash,
-            sizeof(library::Method)));
-    if (!buildBlock(context, methodDef, methodNode->body.get(), lexer)) { return nullptr; }
-    methodDef->ownerClass = Slot::makeNil(); // TODO: should be a pointer to Meta_ClassName instance
-    return methodDef;
+library::Method Pipeline::compileMethod(ThreadContext* context, const parse::MethodNode* methodNode,
+        const Lexer* lexer, const library::Class /* classDef */) {
+    auto method = library::Method::alloc(context);
+    buildBlock(context, library::FunctionDef::wrapUnsafe(method.instance()), methodNode->body.get(), lexer);
+    return method;
 }
 
 #if HADRON_PIPELINE_VALIDATE
@@ -88,7 +74,7 @@ void Pipeline::setDefaults() {
     m_jitToVirtualMachine = false;
 }
 
-bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef* functionDef, const parse::BlockNode* blockNode,
+bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef functionDef, const parse::BlockNode* blockNode,
         const Lexer* lexer) {
     hadron::BlockBuilder builder(lexer, m_errorReporter);
     auto frame = builder.buildFrame(context, blockNode);
@@ -100,9 +86,7 @@ bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef* function
     size_t numberOfValues = frame->numberOfValues;
 #endif // HADRON_PIPELINE_VALIDATE
 
-    functionDef->raw1 = Slot::makeNil();
-    functionDef->raw2 = Slot::makeNil();
-    functionDef->argNames = Slot::makePointer(frame->argumentOrder);
+    functionDef.setArgNames(frame->argumentOrder);
     functionDef->prototypeFrame = Slot::makePointer(frame->argumentDefaults);
 
     BlockSerializer serializer;

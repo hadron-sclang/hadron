@@ -1,11 +1,5 @@
 #include "hadron/Heap.hpp"
 
-#include "schema/Common/Core/Object.hpp"
-#include "schema/Common/Collections/Collection.hpp"
-#include "schema/Common/Collections/SequenceableCollection.hpp"
-#include "schema/Common/Collections/ArrayedCollection.hpp"
-#include "schema/Common/Collections/Array.hpp"
-
 #include "spdlog/spdlog.h"
 
 #include <cassert>
@@ -20,19 +14,15 @@ void* Heap::allocateNew(size_t sizeInBytes) {
     return allocateSized(sizeInBytes, m_youngPages, false);
 }
 
-library::Int8Array* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
+void* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
     auto address = allocateSized(sizeInBytes, m_executablePages, true);
     if (address) {
         auto sizeClass = getSizeClass(sizeInBytes);
         allocatedSize = getSize(sizeClass);
     } else {
         allocatedSize = 0;
-        return nullptr;
     }
-    library::Int8Array* jitArray = reinterpret_cast<library::Int8Array*>(address);
-    jitArray->_className = library::kInt8ArrayHash;
-    jitArray->_sizeInBytes = sizeInBytes;
-    return jitArray;
+    return address;
 }
 
 void* Heap::allocateStackSegment() {
@@ -92,7 +82,7 @@ Slot Heap::addSymbol(std::string_view symbol) {
 
 size_t Heap::getAllocationSize(void* address) {
     Page* page = findPageContaining(address);
-    if (!page) { return 0; }
+    if (!page) { assert(false); return 0; }
     return page->objectSize();
 }
 
@@ -101,11 +91,11 @@ size_t Heap::getMaximumSize(size_t sizeInBytes) {
 }
 
 Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
-    if (sizeInBytes < kSmallObjectSize) {
+    if (sizeInBytes <= kSmallObjectSize) {
         return SizeClass::kSmall;
-    } else if (sizeInBytes < kMediumObjectSize) {
+    } else if (sizeInBytes <= kMediumObjectSize) {
         return SizeClass::kMedium;
-    } else if (sizeInBytes < kLargeObjectSize) {
+    } else if (sizeInBytes <= kLargeObjectSize) {
         return SizeClass::kLarge;
     }
     return SizeClass::kOversize;

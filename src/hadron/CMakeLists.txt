@@ -186,9 +186,10 @@ add_library(hadron STATIC
     ${SCHEMA_FILES}
 
 #    library/ArrayedCollection.cpp
-#    library/Class.cpp
 #    library/IdentityDictionary.cpp
-#    library/Kernel.cpp
+    library/Kernel.cpp
+    library/Kernel.hpp
+    
 #    library/Object.cpp
 #    library/Symbol.cpp
 

@@ -92,7 +92,11 @@ int main(int argc, char* argv[]) {
         }
 
         outFile << "// ========== " << className << std::endl;
-        outFile << fmt::format("struct {}Schema : public {}Schema {{\n", className, superClassName);
+        if (className == "Object") {
+            outFile << "struct ObjectSchema : public library::Schema {\n";
+        } else {
+            outFile << fmt::format("struct {}Schema : public {}Schema {{\n", className, superClassName);
+        }
 
         outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:012x};\n", hadron::hash(className));
         outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:012x};\n\n",

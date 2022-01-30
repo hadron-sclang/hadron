@@ -18,10 +18,6 @@ namespace hadron {
 
 struct ObjectHeader;
 
-namespace library {
-struct Int8Array;
-} // namespace library
-
 // Manages dynamic memory allocation for Hadron, including garbage collection. Inspired by the design of the v8 garbage
 // collection system, but greatly simplified.
 class Heap {
@@ -36,7 +32,7 @@ public:
     // Used for allocating JIT memory. Returns the maximum usable size in |allocatedSize|, which can be useful as the
     // JIT bytecode is typically based on size estimates. NOTE: calling thread will need to be marked for JIT
     // compilation or this method will segfault on macOS aarch64 devices.
-    library::Int8Array* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
+    void* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
 
     // Stack segments are always allocated at kLargeObjectSize. They are also allocated and freed in stack ordering,
     // and are exempt from garbage collection. They serve as part of the root set of objects for scanning.
