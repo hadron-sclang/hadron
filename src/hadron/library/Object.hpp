@@ -2,6 +2,7 @@
 #define SRC_HADRON_LIBRARY_OBJECT_HPP_
 
 #include "hadron/Hash.hpp"
+#include "hadron/Heap.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
 
@@ -9,9 +10,6 @@
 #include "schema/Common/Core/ObjectSchema.hpp"
 
 namespace hadron {
-
-struct ThreadContext;
-
 namespace library {
 
 template<typename T, typename S>
@@ -26,7 +24,10 @@ public:
     ~Object() {}
 
     static inline T alloc(ThreadContext* context) {
-        
+        S* instance = context->heap->allocateNew(sizeof(S));
+        instance->_className = S::kNameHash;
+        instance->_sizeInBytes = sizeof(S);
+        return T(instance);
     }
 
 protected:
