@@ -164,7 +164,7 @@ set(SCHEMA_FILES)
 foreach(CLASS_FILE ${SCLANG_CLASS_FILES})
     string(REGEX REPLACE ".sc$" "" SCHEMA_BASE ${CLASS_FILE})
     string(REGEX REPLACE ${SCLANG_PATH} "" SCHEMA_BASE ${SCHEMA_BASE})
-    set(SCHEMA_FILE ${CMAKE_CURRENT_BINARY_DIR}/schema/${SCHEMA_BASE}.hpp)
+    set(SCHEMA_FILE ${CMAKE_CURRENT_BINARY_DIR}/schema/${SCHEMA_BASE}Schema.hpp)
     set(CASE_FILE ${CMAKE_CURRENT_BINARY_DIR}/case/${SCHEMA_BASE}PrimitiveCases.inl)
     get_filename_component(SCHEMA_FILE_DIRECTORY ${SCHEMA_FILE} DIRECTORY)
     file(MAKE_DIRECTORY ${SCHEMA_FILE_DIRECTORY})
@@ -185,12 +185,12 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
-    library/ArrayedCollection.cpp
-    library/Class.cpp
-    library/IdentityDictionary.cpp
-    library/Kernel.cpp
-    library/Object.cpp
-    library/Symbol.cpp
+#    library/ArrayedCollection.cpp
+#    library/Class.cpp
+#    library/IdentityDictionary.cpp
+#    library/Kernel.cpp
+#    library/Object.cpp
+#    library/Symbol.cpp
 
     Arch.hpp
     BlockBuilder.cpp

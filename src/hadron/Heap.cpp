@@ -20,17 +20,6 @@ void* Heap::allocateNew(size_t sizeInBytes) {
     return allocateSized(sizeInBytes, m_youngPages, false);
 }
 
-ObjectHeader* Heap::allocateObject(Hash className, size_t sizeInBytes) {
-    ObjectHeader* header = reinterpret_cast<ObjectHeader*>(allocateNew(sizeInBytes));
-    if (!header) {
-        SPDLOG_ERROR("Allocation of object hash {:x} size {} bytes failed.", className, sizeInBytes);
-        return nullptr;
-    }
-    header->_className = className;
-    header->_sizeInBytes = sizeInBytes;
-    return header;
-}
-
 library::Int8Array* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
     auto address = allocateSized(sizeInBytes, m_executablePages, true);
     if (address) {

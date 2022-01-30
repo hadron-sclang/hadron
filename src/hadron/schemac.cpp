@@ -64,16 +64,12 @@ int main(int argc, char* argv[]) {
     outFile << "#ifndef " << includeGuard << std::endl;
     outFile << "#define " << includeGuard << std::endl << std::endl;
 
-    outFile << "#include \"hadron/ObjectHeader.hpp\"" << std::endl;
-    outFile << "#include \"hadron/Slot.hpp\"" << std::endl;
-    outFile << "#include \"hadron/ThreadContext.hpp\"" << std::endl;
-
-    outFile << std::endl << "// NOTE: schemac generated this file from sclang input file:" << std::endl;
+    outFile << "// NOTE: schemac generated this file from sclang input file:" << std::endl;
     outFile << "// " << FLAGS_classFile << std::endl;
     outFile << "// edits will likely be clobbered." << std::endl << std::endl;
 
     outFile << "namespace hadron {" << std::endl;
-    outFile << "namespace library {" << std::endl << std::endl;
+    outFile << "namespace schema {" << std::endl << std::endl;
 
     const hadron::parse::Node* node = parser.root();
     while (node) {
@@ -93,17 +89,14 @@ int main(int argc, char* argv[]) {
             } else {
                 superClassName = "Object";
             }
-        } else {
-            superClassName = "ObjectHeader";
         }
 
         outFile << "// ========== " << className << std::endl;
-        outFile << fmt::format("static constexpr uint64_t k{}Hash = 0x{:012x};\n\n", className,
-                hadron::hash(className));
-        outFile << fmt::format("static constexpr uint64_t kMeta{}Hash = 0x{:012x};\n\n", className,
-                hadron::hash(fmt::format("Meta_{}", className)));
+        outFile << fmt::format("struct {}Schema : public {}Schema {{\n", className, superClassName);
 
-        outFile << fmt::format("struct {} : public {} {{\n", className, superClassName);
+        outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:012x};\n", hadron::hash(className));
+        outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:012x};\n\n",
+                hadron::hash(fmt::format("Meta_{}", className)));
 
         // Add member variables to struct definition.
         const hadron::parse::VarListNode* varList = classNode->variables.get();

@@ -2,7 +2,6 @@
 #define SRC_COMPILER_INCLUDE_HADRON_HEAP_HPP_
 
 #include "hadron/Hash.hpp"
-#include "hadron/ObjectHeader.hpp"
 #include "hadron/Page.hpp"
 #include "hadron/Slot.hpp"
 
@@ -31,13 +30,8 @@ public:
     ~Heap();
 
     // Default allocation, allocates from the young space (unless extra large). Does not initialize the memory to
-    // a known value, Object::_BasicNew does that.
+    // a known value.
     void* allocateNew(size_t sizeInBytes);
-
-    // Allocates space at the desired size and then sets the fields in the ObjectHeader as provided.
-    // TODO: Consider move to ClassLibrary, which will have hardcoded sizes for bootstrap objects, and will know sizes
-    // of all valid dynamically compiled classes, too. Could do template<> with known sizes, etc.
-    ObjectHeader* allocateObject(Hash className, size_t sizeInBytes);
 
     // Used for allocating JIT memory. Returns the maximum usable size in |allocatedSize|, which can be useful as the
     // JIT bytecode is typically based on size estimates. NOTE: calling thread will need to be marked for JIT
