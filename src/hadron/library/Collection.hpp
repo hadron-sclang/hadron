@@ -2,7 +2,7 @@
 #define SRC_HADRON_LIBRARY_COLLECTION_HPP_
 
 #include "hadron/library/Object.hpp"
-#include "schema/Common/Collections/CollectionSchema.hpp"
+#include "hadron/schema/Common/Collections/CollectionSchema.hpp"
 
 namespace hadron {
 namespace library {
@@ -10,7 +10,7 @@ namespace library {
 template<typename T, typename S>
 class Collection : public Object<T, S> {
 public:
-    Collection() = delete;
+    Collection(): Object<T, S>() {}
     explicit Collection(S* instance): Object<T, S>(instance) {}
     ~Collection() {}
 };

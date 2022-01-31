@@ -4,7 +4,7 @@
 #include "hadron/Slot.hpp"
 
 #include "hadron/library/ArrayedCollection.hpp"
-#include "schema/Common/Collections/ArraySchema.hpp"
+#include "hadron/schema/Common/Collections/ArraySchema.hpp"
 
 namespace hadron {
 namespace library {
@@ -14,12 +14,13 @@ namespace library {
 // arrays of homogeneous types that automatically wrap and unwrap Slots into the assigned type.
 class Array : public ArrayedCollection<Array, schema::ArraySchema, Slot> {
 public:
-    Array() = delete;
-    
+    Array(): ArrayedCollection<Array, schema::ArraySchema, Slot>() {}
+    Array(schema::ArraySchema* instance): ArrayedCollection<Array, schema::ArraySchema, Slot>(instance) {}
+    ~Array() {}
 };
 
 template<typename T>
-TypedArray : public Array {
+class TypedArray : public Array {
 public:
     T atTyped(int32_t index) const { return T(at(index)); }
     void addTyped(T element) { add(Slot::makePointer(element.m_instance)); }

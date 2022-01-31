@@ -34,32 +34,32 @@ private:
 TEST_CASE_FIXTURE(PipelineTestFixture, "Pipeline") {
     SUBCASE("nil block") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "nil"), nullptr);
+        REQUIRE(!p.compileCode(context(), "nil").isNil());
     }
 
     SUBCASE("this call") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "this.primitiveFailed"), nullptr);
+        REQUIRE(!p.compileCode(context(), "this.primitiveFailed").isNil());
     }
 
     SUBCASE("call chaining") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "this.asString.post"), nullptr);
+        REQUIRE(!p.compileCode(context(), "this.asString.post").isNil());
     }
 
     SUBCASE("simple if block") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "if(true,{0})"), nullptr);
+        REQUIRE(!p.compileCode(context(), "if(true,{0})").isNil());
     }
 
     SUBCASE("method call in if condition") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "if(this.respondsTo('selector'),{this.performList('selector')})"), nullptr);
+        REQUIRE(!p.compileCode(context(), "if(this.respondsTo('selector'),{this.performList('selector')})").isNil());
     }
 
     SUBCASE("variable declaration before if, use after if") {
         Pipeline p;
-        REQUIRE_NE(p.compileCode(context(), "var x = 5; if(true,{0}); x;"), nullptr);
+        REQUIRE(!p.compileCode(context(), "var x = 5; if(true,{0}); x;").isNil());
     }
 }
 

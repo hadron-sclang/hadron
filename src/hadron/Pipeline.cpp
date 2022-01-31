@@ -33,15 +33,15 @@ Pipeline::Pipeline(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporte
 Pipeline::~Pipeline() {}
 
 library::FunctionDef Pipeline::compileCode(ThreadContext* context, std::string_view code) {
-    auto functionDef = library::FunctionDef::alloc(context);
 
     Lexer lexer(code, m_errorReporter);
-    if (!lexer.lex()) { return functionDef; }
+    if (!lexer.lex()) { return library::FunctionDef(nullptr); }
 
     Parser parser(&lexer, m_errorReporter);
-    if (!parser.parse()) { return functionDef; }
+    if (!parser.parse()) { return library::FunctionDef(nullptr); }
     assert(parser.root()->nodeType == parse::NodeType::kBlock);
 
+    auto functionDef = library::FunctionDef::alloc(context);
     buildBlock(context, functionDef, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer);
     return functionDef;
 }
@@ -87,7 +87,7 @@ bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef functionD
 #endif // HADRON_PIPELINE_VALIDATE
 
     functionDef.setArgNames(frame->argumentOrder);
-    functionDef->prototypeFrame = Slot::makePointer(frame->argumentDefaults);
+    functionDef.setPrototypeFrame(frame->argumentDefaults);
 
     BlockSerializer serializer;
     auto linearBlock = serializer.serialize(std::move(frame));
@@ -123,28 +123,26 @@ bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef functionD
         jitMaxSize += 16 + (16 * hir->moves.size());
     }
     std::unique_ptr<JIT> jit;
-    library::Int8Array* bytecodeArray = nullptr;
+    library::Int8Array bytecodeArray;
     if (m_jitToVirtualMachine) {
         jit = std::make_unique<VirtualJIT>(m_numberOfRegisters, m_numberOfRegisters);
-        bytecodeArray = reinterpret_cast<library::Int8Array*>(context->heap->allocateObject(library::kInt8ArrayHash,
-                jitMaxSize));
-        jitMaxSize = context->heap->getAllocationSize(bytecodeArray);
+        bytecodeArray = library::Int8Array::arrayAlloc(context, jitMaxSize);
+        jitMaxSize = context->heap->getAllocationSize(bytecodeArray.instance());
     } else {
         LighteningJIT::markThreadForJITCompilation();
         jit = std::make_unique<LighteningJIT>();
         size_t allocationSize = 0;
-        bytecodeArray = context->heap->allocateJIT(jitMaxSize, allocationSize);
+        bytecodeArray = library::Int8Array::arrayAllocJIT(context, jitMaxSize, allocationSize);
         jitMaxSize = allocationSize;
     }
-    jit->begin(reinterpret_cast<uint8_t*>(bytecodeArray) + sizeof(library::Int8Array),
-        jitMaxSize - sizeof(library::Int8Array));
+    jit->begin(bytecodeArray.start(), bytecodeArray.capacity(context));
 
     Emitter emitter;
     emitter.emit(linearBlock.get(), jit.get());
     assert(!jit->hasJITBufferOverflow());
     size_t finalSize = 0;
     jit->end(&finalSize);
-    bytecodeArray->_sizeInBytes = finalSize + sizeof(library::Int8Array);
+    bytecodeArray.resize(context, finalSize);
 
 #if HADRON_PIPELINE_VALIDATE
     if (!validateEmission(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return false; }

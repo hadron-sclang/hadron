@@ -17,7 +17,7 @@ TEST_CASE("MoveScheduler simple") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves;
         MoveScheduler ms;
-        std::array<uint8_t, 16> jitBuffer;
+        std::array<int8_t, 16> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
@@ -29,7 +29,7 @@ TEST_CASE("MoveScheduler simple") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves({{3, 2}});
         MoveScheduler ms;
-        std::array<uint8_t, 16> jitBuffer;
+        std::array<int8_t, 16> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
@@ -48,7 +48,7 @@ TEST_CASE("MoveScheduler simple") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves({{0, -1}});
         MoveScheduler ms;
-        std::array<uint8_t, 16> jitBuffer;
+        std::array<int8_t, 16> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
@@ -69,7 +69,7 @@ TEST_CASE("MoveScheduler simple") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves({{-24, 5}});
         MoveScheduler ms;
-        std::array<uint8_t, 16> jitBuffer;
+        std::array<int8_t, 16> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
@@ -90,7 +90,7 @@ TEST_CASE("MoveScheduler simple") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves({{-3, 2}, {9, 7}, {3, -1}});
         MoveScheduler ms;
-        std::array<uint8_t, 32> jitBuffer;
+        std::array<int8_t, 32> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
@@ -135,13 +135,13 @@ TEST_CASE("MoveScheduler Chains") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves({{3, 2}, {2, 1}});
         MoveScheduler ms;
-        std::array<uint8_t, 16> jitBuffer;
+        std::array<int8_t, 16> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
         jit.end(&finalSize);
 
-        std::array<uint8_t, 16> desiredBuffer;
+        std::array<int8_t, 16> desiredBuffer;
         OpcodeWriteIterator it(desiredBuffer.data(), desiredBuffer.size());
         // The 1 <- 2 move needs to happen before the 2 <- 3 move.
         it.movr(1, 2);
@@ -154,13 +154,13 @@ TEST_CASE("MoveScheduler Chains") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves({{0, 3}, {3, 1}, {-1, 0}});
         MoveScheduler ms;
-        std::array<uint8_t, 32> jitBuffer;
+        std::array<int8_t, 32> jitBuffer;
         jit.begin(jitBuffer.begin(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
         jit.end(&finalSize);
 
-        std::array<uint8_t, 32> desiredBuffer;
+        std::array<int8_t, 32> desiredBuffer;
         OpcodeWriteIterator it(desiredBuffer.data(), desiredBuffer.size());
         // Order needs to be 1 <- 3, 3 <- 0, 0 <- -1
         it.movr(1, 3);
@@ -174,13 +174,13 @@ TEST_CASE("MoveScheduler Chains") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves({{6, 5}, {2, 1}, {5, 4}, {7, 6}, {4, 3}, {1, 0}, {3, 2}, {8, 7}});
         MoveScheduler ms;
-        std::array<uint8_t, 64> jitBuffer;
+        std::array<int8_t, 64> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
         jit.end(&finalSize);
 
-        std::array<uint8_t, 64> desiredBuffer;
+        std::array<int8_t, 64> desiredBuffer;
         OpcodeWriteIterator it(desiredBuffer.data(), desiredBuffer.size());
         it.movr(0, 1);
         it.movr(1, 2);
@@ -200,7 +200,7 @@ TEST_CASE("MoveScheduler Cycles") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves({{0, 3}, {2, 4}, {4, 2}, {3, 0}});
         MoveScheduler ms;
-        std::array<uint8_t, 32> jitBuffer;
+        std::array<int8_t, 32> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;
@@ -221,7 +221,7 @@ TEST_CASE("MoveScheduler Cycles") {
         VirtualJIT jit;
         std::unordered_map<int, int> moves({{0, 2}, {1, 0}, {2, 1}});
         MoveScheduler ms;
-        std::array<uint8_t, 32> jitBuffer;
+        std::array<int8_t, 32> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
         REQUIRE(ms.scheduleMoves(moves, &jit));
         size_t finalSize = 0;

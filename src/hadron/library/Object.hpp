@@ -7,7 +7,7 @@
 #include "hadron/ThreadContext.hpp"
 
 #include "hadron/library/Schema.hpp"
-#include "schema/Common/Core/ObjectSchema.hpp"
+#include "hadron/schema/Common/Core/ObjectSchema.hpp"
 
 #include <cassert>
 
@@ -17,18 +17,28 @@ namespace library {
 template<typename T, typename S>
 class Object {
 public:
+    Object(): m_instance(nullptr) {}
+
     // Wraps an existing schema instance. Will assert if the type of the schema doesn't exactly match S. For wrapping
     // without type checking, use wrapUnsafe().
-    explicit Object(S* instance): m_instance(instance) { assert(m_instance->_className == S::kNameHash); }
-    explicit Object(Slot instance): m_instance(instance.getPointer()) {
-        assert(m_instance->_className == S::kNameHash);
+    explicit Object(S* instance): m_instance(instance) {
+        if (m_instance) {
+            assert(m_instance->_className == S::kNameHash);
+        }
+    }
+    explicit Object(Slot instance) {
+        if (instance.isNil()) { m_instance = nullptr; }
+        else {
+             m_instance = instance.getPointer();
+            assert(m_instance->_className == S::kNameHash);
+        }
     }
 
     // Destructor must deliberately do nothing as it wraps a garbage-collected pointer.
     ~Object() {}
 
     static inline T alloc(ThreadContext* context) {
-        S* instance = context->heap->allocateNew(sizeof(S));
+        S* instance = reinterpret_cast<S*>(context->heap->allocateNew(sizeof(S)));
         instance->_className = S::kNameHash;
         instance->_sizeInBytes = sizeof(S);
         return T(instance);
@@ -47,12 +57,10 @@ public:
 
     inline S* instance() { return m_instance; }
     inline Slot slot() { return Slot::makePointer(m_instance); }
+    inline bool isNil() { return m_instance == nullptr; }
 
 protected:
     S* m_instance;
-
-private:
-    Object(): m_instance(nullptr) {}
 };
 
 } // namespace library

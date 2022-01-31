@@ -3,13 +3,11 @@
 
 #include <memory>
 
+#include "hadron/library/Array.hpp"
+#include "hadron/library/ArrayedCollection.hpp"
 #include "hadron/Slot.hpp"
 
 namespace hadron {
-
-namespace library {
-struct Array;
-}
 
 struct Scope;
 
@@ -19,9 +17,9 @@ struct Frame {
     ~Frame() = default;
 
     // A library::Array with in-order hashes of argument names.
-    library::Array* argumentOrder = nullptr;
+    library::SymbolArray argumentOrder;
     // A library::Array with default values for arguments, if they are literals.
-    library::Array* argumentDefaults = nullptr;
+    library::Array argumentDefaults;
 
     // If true, the last argument named in the list is a variable argument array.
     bool hasVarArgs = false;

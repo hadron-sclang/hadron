@@ -22,7 +22,7 @@ VirtualJIT::VirtualJIT(int maxRegisters, int maxFloatRegisters):
         assert(m_maxRegisters >= 3);
 }
 
-void VirtualJIT::begin(uint8_t* buffer, size_t size) {
+void VirtualJIT::begin(int8_t* buffer, size_t size) {
     m_iterator.setBuffer(buffer, size);
     address();
 }

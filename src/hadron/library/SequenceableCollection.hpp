@@ -2,7 +2,7 @@
 #define SRC_HADRON_LIBRARY_SEQUENCEABLE_COLLECTION_HPP_
 
 #include "hadron/library/Collection.hpp"
-#include "schema/Common/Collections/SequenceableCollectionSchema.hpp"
+#include "hadron/schema/Common/Collections/SequenceableCollectionSchema.hpp"
 
 namespace hadron {
 namespace library {
@@ -10,7 +10,7 @@ namespace library {
 template<typename T, typename S>
 class SequenceableCollection : public Collection<T, S> {
 public:
-    SequenceableCollection() = delete;
+    SequenceableCollection(): Collection<T, S>() {}
     explicit SequenceableCollection(S* instance): Collection<T, S>(instance) {}
     ~SequenceableCollection() {}
 };
