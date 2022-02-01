@@ -159,7 +159,7 @@ void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lex
     hadron::Emitter emitter;
     hadron::VirtualJIT jit;
     size_t byteCodeSize = linearBlock->instructions.size() * 16;
-    auto byteCode = std::make_unique<uint8_t[]>(byteCodeSize);
+    auto byteCode = std::make_unique<int8_t[]>(byteCodeSize);
     jit.begin(byteCode.get(), byteCodeSize);
     emitter.emit(linearBlock.get(), &jit);
     size_t finalSize = 0;

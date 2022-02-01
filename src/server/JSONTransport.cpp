@@ -60,7 +60,7 @@ private:
             rapidjson::Document& document);
     void serializeLinearBlock(const hadron::LinearBlock* linearBlock, rapidjson::Value& jsonBlock,
             rapidjson::Document& document);
-    void serializeJIT(const uint8_t* byteCode, size_t byteCodeSize, rapidjson::Value& jsonJIT,
+    void serializeJIT(const int8_t* byteCode, size_t byteCodeSize, rapidjson::Value& jsonJIT,
             rapidjson::Document& document);
     void serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR, rapidjson::Document& document);
     void serializeValue(hadron::Value value, rapidjson::Value& jsonValue, rapidjson::Document& document);
@@ -902,7 +902,7 @@ void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::Linear
             document.GetAllocator());
 }
 
-void JSONTransport::JSONTransportImpl::serializeJIT(const uint8_t* byteCode, size_t byteCodeSize,
+void JSONTransport::JSONTransportImpl::serializeJIT(const int8_t* byteCode, size_t byteCodeSize,
         rapidjson::Value& jsonJIT, rapidjson::Document& document) {
     jsonJIT.SetObject();
     rapidjson::Value instructions;
@@ -979,7 +979,7 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const uint8_t* byteCode, siz
             opcode.PushBack("bgei", document.GetAllocator());
             hadron::JIT::Reg a;
             hadron::Word b;
-            const uint8_t* address;
+            const int8_t* address;
             it.bgei(a, b, address);
             opcode.PushBack(a, document.GetAllocator());
             opcode.PushBack(b, document.GetAllocator());
@@ -989,7 +989,7 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const uint8_t* byteCode, siz
             opcode.PushBack("beqi", document.GetAllocator());
             hadron::JIT::Reg a;
             hadron::Word b;
-            const uint8_t* address = nullptr;
+            const int8_t* address = nullptr;
             it.beqi(a, b, address);
             opcode.PushBack(a, document.GetAllocator());
             opcode.PushBack(b, document.GetAllocator());
@@ -997,7 +997,7 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const uint8_t* byteCode, siz
         } break;
         case hadron::Opcode::kJmp: {
             opcode.PushBack("jmp", document.GetAllocator());
-            const uint8_t* address = nullptr;
+            const int8_t* address = nullptr;
             it.jmp(address);
             opcode.PushBack(static_cast<int>(address - byteCode), document.GetAllocator());
         } break;
