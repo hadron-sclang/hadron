@@ -60,9 +60,9 @@ private:
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
     // tables.
-    std::pair<Value, Value> findName(Hash name);
+    std::pair<Value, Value> findName(library::Symbol name);
     // Recursive traversal up the Block graph looking for a prior definition of the provided name.
-    std::pair<Value, Value> findNamePredecessor(Hash name, Block* block,
+    std::pair<Value, Value> findNamePredecessor(library::Symbol name, Block* block,
             std::unordered_map<int, std::pair<Value, Value>>& blockValues,
             const std::unordered_set<const Scope*>& containingScopes);
 

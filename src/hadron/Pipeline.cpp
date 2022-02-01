@@ -155,7 +155,7 @@ bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef functionD
 }
 
 #if HADRON_PIPELINE_VALIDATE
-bool Pipeline::validateFrame(ThreadContext* /* context */, const Frame* frame, const parse::BlockNode* blockNode,
+bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
         const Lexer* lexer ) {
     int32_t argumentOrderArraySize = frame->argumentOrder.size();
     int32_t argumentDefaultsArraySize = frame->argumentDefaults.size();
@@ -170,9 +170,10 @@ bool Pipeline::validateFrame(ThreadContext* /* context */, const Frame* frame, c
         return false;
     }
 
-    Hash argName = frame->argumentOrder.at(0);
-    if (argName != kThisHash) {
-        SPDLOG_ERROR("First argument to Frame {:16x} not 'this' {:16x}", argName, kThisHash);
+    auto argName = frame->argumentOrder.at(0);
+    if (argName.hash() != kThisHash) {
+        SPDLOG_ERROR("First argument to Frame '{}' {:16x} not 'this' {:16x}", argName.view(context), argName.hash(),
+                kThisHash);
         return false;
     }
 
@@ -188,7 +189,7 @@ bool Pipeline::validateFrame(ThreadContext* /* context */, const Frame* frame, c
                 return false;
             }
             argName = frame->argumentOrder.at(numberOfArguments);
-            if (argName != nameHash) {
+            if (argName.hash() != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for argument number {} named {}", numberOfArguments,
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
@@ -204,7 +205,7 @@ bool Pipeline::validateFrame(ThreadContext* /* context */, const Frame* frame, c
                 return false;
             }
             argName = frame->argumentOrder.at(numberOfArguments);
-            if (argName != nameHash) {
+            if (argName.hash() != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for varArgs number {} named {}", numberOfArguments,
                         lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
                 return false;

@@ -51,13 +51,11 @@ private:
     void addToSubclassArray(ThreadContext* context, const library::Class subclass);
     // Returns existing array if cached, or nil if not.
     library::ClassArray getSubclassArray(ThreadContext* context, const library::Class superclass);
-    // Appends to the root set class array, and sets the nextClass pointer.
-    void appendToClassArray(ThreadContext* context, library::Class classDef);
 
     // Traverse the class tree in superclass to subclass order, starting with Object, and finalize all inherited
     // properties.
     bool finalizeHeirarchy(ThreadContext* context);
-    void composeSubclassesFrom(ThreadContext* context, library::Class* classDef);
+    void composeSubclassesFrom(ThreadContext* context, library::Class classDef);
 
     // Compile all of the provided methods for all classes.
     bool compileMethods(ThreadContext* context);

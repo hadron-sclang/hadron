@@ -63,7 +63,7 @@ public:
     Symbol filenameSymbol(ThreadContext* context) const {
         return Symbol::fromHash(context, m_instance->filenameSymbol.getHash());
     }
-    void setFilenameSymbol(Symbol filename);
+    void setFilenameSymbol(Symbol filename) { m_instance->filenameSymbol = filename.slot(); }
 
     int32_t charPos() const { return m_instance->charPos.getInt32(); }
     void setCharPos(int32_t pos) { m_instance->charPos = Slot::makeInt32(pos); }

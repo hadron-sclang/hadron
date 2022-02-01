@@ -19,6 +19,8 @@ class Symbol {
 public:
     // Make an empty symbol.
     Symbol(): m_slot(Slot::makeNil()) {}
+    Symbol(const Symbol& s): m_slot(s.m_slot) {}
+    Symbol& operator=(const Symbol& s) { m_slot = s.m_slot; return *this; }
     ~Symbol() {}
 
     // Make a Symbol out of an existing hash. This asserts that the Symbol is already defined.
@@ -30,6 +32,9 @@ public:
     bool isNil() const { return m_slot.isNil(); }
     Hash hash() const { return m_slot.getHash(); }
     Slot slot() const { return m_slot; }
+    std::string_view view(ThreadContext* context) const;
+
+    bool operator==(const Symbol& s) const { return m_slot == s.m_slot; }
 
 private:
     Symbol(Hash h): m_slot(Slot::makeHash(h)) {}

@@ -9,7 +9,6 @@
 #include "hadron/library/Symbol.hpp"
 #include "hadron/schema/Common/Collections/ArrayedCollectionSchema.hpp"
 
-
 namespace hadron {
 namespace library {
 
@@ -28,6 +27,24 @@ public:
         return T(instance);
     }
 
+    // Produces a new T with a copy of the values of this. Can specify an optional capacity to make the new array at.
+    T copy(ThreadContext* context, int32_t maxSize = 0) const {
+        maxSize = std::max(maxSize, size());
+        if (maxSize > 0) {
+            const T& t = static_cast<const T&>(*this);
+            if (t.m_instance) {
+                S* instance = arrayAllocRaw(context, maxSize);
+                std::memcpy(instance, t.m_instance, t.m_instance->_sizeInBytes);
+                return T(instance);
+            } else {
+                // Copying an empty array but requesting a nonzero maxSize so we just create a new array with that size.
+                return arrayAlloc(context, maxSize);
+            }
+        }
+
+        return T();
+    }
+
     // Always returns size in number of elements.
     int32_t size() const {
         const T& t = static_cast<const T&>(*this);
@@ -41,17 +58,18 @@ public:
     }
 
     T& add(ThreadContext* context, E element) {
-        resize(context, size() + 1);
-        *(start() + size()) = element;
-        return *this;
+        int32_t oldSize = size();
+        resize(context, oldSize + 1);
+        *(start() + oldSize) = element;
+        return static_cast<T&>(*this);
     }
 
     T& addAll(ThreadContext* context, ArrayedCollection<T, S, E> coll) {
         resize(context, size() + coll.size());
-        const T& t = static_cast<const T&>(*this);
+        T& t = static_cast<T&>(*this);
         std::memcpy(reinterpret_cast<int8_t*>(t.m_instance) + sizeof(S) + (size() * sizeof(E)),
             coll.start(), coll.size() * sizeof(E));
-        return *this;
+        return t;
     }
 
     // Returns a pointer to the start of the elements, which is just past the schema.

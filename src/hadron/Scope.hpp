@@ -6,6 +6,7 @@
 #include <unordered_set>
 
 #include "hadron/Hash.hpp"
+#include "hadron/library/Symbol.hpp"
 
 namespace hadron {
 
@@ -21,7 +22,7 @@ struct Scope {
     ~Scope() = default;
 
     // Set of locally defined variable names.
-    std::unordered_set<Hash> variableNames;
+    std::unordered_set<library::Symbol> variableNames;
 
     Frame* frame;
     Scope* parent;

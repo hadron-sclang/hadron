@@ -237,8 +237,8 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Symbol filename, i
 
     m_classMap.emplace(std::make_pair(classDef.name(context), classDef));
     m_classMap.emplace(std::make_pair(metaClassDef.name(context), metaClassDef));
-    appendToClassArray(context, classDef);
-    appendToClassArray(context, metaClassDef);
+    m_classArray.typedAdd(context, classDef);
+    m_classArray.typedAdd(context, metaClassDef);
 
     return true;
 }
@@ -276,27 +276,8 @@ library::ClassArray ClassLibrary::getSubclassArray(ThreadContext* context, const
     return library::ClassArray();
 }
 
-void ClassLibrary::appendToClassArray(ThreadContext* context, library::Class classDef) {
-    auto arraySize = library::Array::_BasicSize(context, Slot::makePointer(m_classArray)).getInt32();
-    if (arraySize > 0) {
-        auto prevClassSlot = library::Array::_BasicAt(context, Slot::makePointer(m_classArray),
-                Slot::makeInt32(arraySize - 1));
-        auto prevClass = reinterpret_cast<library::Class*>(prevClassSlot.getPointer());
-        prevClass->nextclass = Slot::makePointer(classDef);
-    }
-
-    classDef->classIndex = Slot::makeInt32(arraySize);
-
-    auto arraySlot = library::Array::_ArrayAdd(context, Slot::makePointer(m_classArray), Slot::makePointer(classDef));
-    if (arraySlot != Slot::makePointer(m_classArray)) {
-        context->heap->addToRootSet(arraySlot);
-        context->heap->removeFromRootSet(Slot::makePointer(m_classArray));
-        m_classArray = reinterpret_cast<library::Array*>(arraySlot.getPointer());
-    }
-}
-
 bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
-    auto objectIter = m_classMap.find(library::kObjectHash);
+    auto objectIter = m_classMap.find(library::Symbol::fromHash(context, kObjectHash));
     if (objectIter == m_classMap.end()) { assert(false); return false; }
 
     // We start at the root of the class heirarchy with Object.
@@ -306,24 +287,27 @@ bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
     return true;
 }
 
-void ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class* classDef) {
-    auto subclassesSize = library::Array::_BasicSize(context, classDef->subclasses).getInt32();
-    if (subclassesSize > 0) {
-        classDef->maxSubclassIndex = Slot::makeInt32(subclassesSize - 1);
-    } else {
-        classDef->maxSubclassIndex = Slot::makeNil();
-    }
-
-    for (int32_t i = 0; i < subclassesSize; ++i) {
-        auto subclassSlot = library::Array::_BasicAt(context, classDef->subclasses, Slot::makeInt32(i));
-        auto subclass = reinterpret_cast<library::Class*>(subclassSlot.getPointer());
-        assert(subclass->superclass == Slot::makePointer(classDef));
-        subclass->instVarNames = concatenateArrays(context, classDef->instVarNames, subclass->instVarNames);
-        subclass->classVarNames = concatenateArrays(context, classDef->classVarNames, subclass->classVarNames);
-        subclass->iprototype = concatenateArrays(context, classDef->iprototype, subclass->iprototype);
-        subclass->cprototype = concatenateArrays(context, classDef->cprototype, subclass->cprototype);
-        subclass->constNames = concatenateArrays(context, classDef->constNames, subclass->constNames);
-        subclass->constValues = concatenateArrays(context, classDef->constNames, subclass->constValues);
+void ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class classDef) {
+    for (int32_t i = 0; i < classDef.subclasses().size(); ++i) {
+        auto subclass = classDef.subclasses().typedAt(i);
+        subclass.setInstVarNames(classDef.instVarNames().copy(
+                context, classDef.instVarNames().size() + subclass.instVarNames().size()).addAll(
+                context, subclass.instVarNames()));
+        subclass.setClassVarNames(classDef.classVarNames().copy(
+                context, classDef.classVarNames().size() + subclass.classVarNames().size()).addAll(
+                context, subclass.classVarNames()));
+        subclass.setIprototype(classDef.iprototype().copy(
+                context, classDef.iprototype().size() + subclass.iprototype().size()).addAll(
+                context, subclass.iprototype()));
+        subclass.setCprototype(classDef.cprototype().copy(
+                context, classDef.cprototype().size() + subclass.cprototype().size()).addAll(
+                context, subclass.cprototype()));
+        subclass.setConstNames(classDef.constNames().copy(
+                context, classDef.constNames().size() + subclass.constNames().size()).addAll(
+                context, subclass.constNames()));
+        subclass.setConstValues(classDef.constValues().copy(
+                context, classDef.constValues().size() + subclass.constValues().size()).addAll(
+                context, subclass.constValues()));
     }
 }
 

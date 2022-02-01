@@ -2,6 +2,7 @@
 #define SRC_HADRON_BLOCK_HPP_
 
 #include "hadron/HIR.hpp"
+#include "hadron/library/Symbol.hpp"
 
 #include <memory>
 #include <unordered_map>
@@ -20,7 +21,7 @@ struct Block {
     // value to the associated HIR instruction, for possible re-use of instructions.
     std::unordered_map<Value, hir::HIR*> values;
     // Map of names (variables, arguments) to most recent revision of local values of <value, type>
-    std::unordered_map<Hash, std::pair<Value, Value>> revisions;
+    std::unordered_map<library::Symbol, std::pair<Value, Value>> revisions;
 
     // Map of values defined extra-locally and their local value. For convenience we also put local values in here,
     // mapping to themselves.

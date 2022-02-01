@@ -17,5 +17,9 @@ Symbol Symbol::fromView(ThreadContext* context, std::string_view v) {
     return Symbol(context->symbolTable->addSymbol(context, v));
 }
 
+std::string_view Symbol::view(ThreadContext* context) const {
+    return context->symbolTable->getString(*this).view();
+}
+
 } // namespace library
 } // namespace hadron

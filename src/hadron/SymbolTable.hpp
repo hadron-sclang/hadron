@@ -17,10 +17,10 @@ public:
     Hash addSymbol(ThreadContext* context, std::string_view v);
 
     // Returns true if the hash exists in the symbolMap.
-    bool isDefined(Hash h);
+    bool isDefined(Hash h) const { return m_symbolMap.find(h) != m_symbolMap.end(); }
 
     // String can be nil if hash not found.
-    library::String getString(library::Symbol s);
+    library::String getString(const library::Symbol s);
 
 private:
     std::unordered_map<Hash, library::String> m_symbolMap;
