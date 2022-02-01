@@ -1,5 +1,4 @@
 include_directories(
-    "${CMAKE_CURRENT_BINARY_DIR}"
     "${INSTALL_EXT}/include"
 )
 
@@ -144,6 +143,7 @@ list(APPEND SCLANG_CLASS_FILES
     "${SCLANG_PATH}/Common/Collections/Dictionary.sc"
     "${SCLANG_PATH}/Common/Collections/SequenceableCollection.sc"
     "${SCLANG_PATH}/Common/Collections/Set.sc"
+    "${SCLANG_PATH}/Common/Collections/String.sc"
     "${SCLANG_PATH}/Common/Core/AbstractFunction.sc"
 #   "${SCLANG_PATH}/Common/Core/Boolean.sc"
     "${SCLANG_PATH}/Common/Core/Char.sc"
@@ -185,13 +185,16 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
-#    library/ArrayedCollection.cpp
-#    library/IdentityDictionary.cpp
-    library/Kernel.cpp
+    library/Array.hpp
+    library/ArrayedCollection.hpp
+    library/Collection.hpp
     library/Kernel.hpp
-    
-#    library/Object.cpp
-#    library/Symbol.cpp
+    library/Object.hpp
+    library/Schema.hpp
+    library/SequenceableCollection.hpp
+    library/String.hpp
+    library/Symbol.cpp
+    library/Symbol.hpp
 
     Arch.hpp
     BlockBuilder.cpp
@@ -231,6 +234,8 @@ add_library(hadron STATIC
     Runtime.cpp
     Runtime.hpp
     Scope.hpp
+    SymbolTable.cpp
+    SymbolTable.hpp
     ThreadContext.hpp
     VirtualJIT.cpp
     VirtualJIT.hpp

@@ -10,6 +10,7 @@
 #include "fmt/format.h"
 #include "gflags/gflags.h"
 
+#include <array>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -19,6 +20,19 @@
 DEFINE_string(classFile, "", "Path to the SC class file to generate schema file from.");
 DEFINE_string(schemaFile, "", "Path to save the schema output header file to.");
 DEFINE_string(caseFile, "", "Path to save switch statements for function dispatch to.");
+
+namespace {
+// While we generate a Schema struct for these objects they are not represented by Hadron with pointers, rather their
+// values are packed into the Slot directly. So they are excluded from the Schema class heirarchy.
+static const std::array<const char*, 6> kPrimitiveTypeNames{
+    "Boolean",
+    "Char",
+    "Float",
+    "Integer",
+    "Nil",
+    "Symbol"
+};
+} // namespace
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
@@ -91,11 +105,23 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        bool isPrimitiveType = false;
+        for (size_t i = 0; i < kPrimitiveTypeNames.size(); ++i) {
+            if (className.compare(kPrimitiveTypeNames[i]) == 0) {
+                isPrimitiveType = true;
+                break;
+            }
+        }
+
         outFile << "// ========== " << className << std::endl;
-        if (className == "Object") {
-            outFile << "struct ObjectSchema : public library::Schema {\n";
+        if (isPrimitiveType) {
+            outFile << fmt::format("struct {}Schema {{\n", className);
         } else {
-            outFile << fmt::format("struct {}Schema : public {}Schema {{\n", className, superClassName);
+            if (className == "Object") {
+                outFile << "struct ObjectSchema : public library::Schema {\n";
+            } else {
+                outFile << fmt::format("struct {}Schema : public {}Schema {{\n", className, superClassName);
+            }
         }
 
         outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:012x};\n", hadron::hash(className));

@@ -12,6 +12,7 @@ class SequenceableCollection : public Collection<T, S> {
 public:
     SequenceableCollection(): Collection<T, S>() {}
     explicit SequenceableCollection(S* instance): Collection<T, S>(instance) {}
+    explicit SequenceableCollection(Slot instance): Collection<T, S>(instance) {}
     ~SequenceableCollection() {}
 };
 

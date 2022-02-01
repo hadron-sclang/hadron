@@ -6,7 +6,9 @@
 #include "hadron/ThreadContext.hpp"
 
 #include "hadron/library/SequenceableCollection.hpp"
+#include "hadron/library/Symbol.hpp"
 #include "hadron/schema/Common/Collections/ArrayedCollectionSchema.hpp"
+
 
 namespace hadron {
 namespace library {
@@ -16,10 +18,11 @@ class ArrayedCollection : public SequenceableCollection<T, S> {
 public:
     ArrayedCollection(): SequenceableCollection<T, S>() {}
     explicit ArrayedCollection(S* instance): SequenceableCollection<T, S>(instance) {}
+    explicit ArrayedCollection(Slot instance): SequenceableCollection<T, S>(instance) {}
     ~ArrayedCollection() {}
 
-    static T arrayAlloc(ThreadContext* context, int32_t numberOfElements) {
-        S* instance = arrayAllocRaw(context, numberOfElements);
+    static T arrayAlloc(ThreadContext* context, int32_t maxSize) {
+        S* instance = arrayAllocRaw(context, maxSize);
         instance->_className = S::kNameHash;
         instance->_sizeInBytes = sizeof(S);
         return T(instance);
@@ -27,26 +30,38 @@ public:
 
     // Always returns size in number of elements.
     int32_t size() const {
-        T& t = static_cast<T&>(*this);
+        const T& t = static_cast<const T&>(*this);
+        if (t.m_instance == nullptr) { return 0; }
         return (t.m_instance->_sizeInBytes - sizeof(S)) / sizeof(E);
     }
 
-    E at(int32_t index) const { return *(start() + index); }
+    E at(int32_t index) const {
+        assert(index < size());
+        return *(start() + index);
+    }
 
     void add(ThreadContext* context, E element) {
-        T& t = static_cast<T&>(*this);
         resize(context, size() + 1);
         *(start() + size()) = element;
     }
 
+    void addAll(ThreadContext* context, ArrayedCollection<T, S, E> coll) {
+        resize(context, size() + coll.size());
+        const T& t = static_cast<const T&>(*this);
+        std::memcpy(reinterpret_cast<int8_t*>(t.m_instance) + sizeof(S) + (size() * sizeof(E)),
+            coll.start(), coll.size() * sizeof(E));
+    }
+
     // Returns a pointer to the start of the elements, which is just past the schema.
     inline E* start() const {
-        T& t = static_cast<T&>(*this);
+        const T& t = static_cast<const T&>(*this);
+        if (t.m_instance == nullptr) { return nullptr; }
         return reinterpret_cast<E*>((reinterpret_cast<uint8_t*>(t.m_instance) + sizeof(S)));
     }
 
     int32_t capacity(ThreadContext* context) const {
-        T& t = static_cast<T&>(*this);
+        const T& t = static_cast<const T&>(*this);
+        if (t.m_instance == nullptr) { return 0; }
         auto allocSize = context->heap->getAllocationSize(t.m_instance);
         return (allocSize - sizeof(S)) / sizeof(E);
     }
@@ -54,18 +69,25 @@ public:
     // newSize is in number of elements. If adding elements they are uninitialized.
     void resize(ThreadContext* context, int32_t newSize) {
         T& t = static_cast<T&>(*this);
-        if (newSize > capacity()) {
-            S* newArray = arrayAllocSchema(context, size() + 1);
-            std::memcpy(newArray, t.m_instance, t.m_instance->sizeInBytes);
+        if (newSize > capacity(context)) {
+            S* newArray = arrayAllocRaw(context, newSize);
+            if (t.m_instance != nullptr) {
+                std::memcpy(newArray, t.m_instance, t.m_instance->_sizeInBytes);
+            } else {
+                newArray->_className = S::kNameHash;
+            }
             t.m_instance = newArray;
         }
-        t.m_instance->_sizeInBytes = sizeof(S) + (newSize * sizeof(E));
+
+        if (t.m_instance) {
+            t.m_instance->_sizeInBytes = sizeof(S) + (newSize * sizeof(E));
+        }
     }
 
 protected:
     static S* arrayAllocRaw(ThreadContext* context, int32_t numberOfElements) {
         int32_t size = sizeof(S) + (numberOfElements * sizeof(E));
-        return context->heap->allocateNew(size);
+        return reinterpret_cast<S*>(context->heap->allocateNew(size));
     }
 };
 
@@ -74,6 +96,7 @@ class RawArray : public ArrayedCollection<T, S, E> {
 public:
     RawArray(): ArrayedCollection<T, S, E>() {}
     explicit RawArray(S* instance): ArrayedCollection<T, S, E>(instance) {}
+    explicit RawArray(Slot instance): ArrayedCollection<T, S, E>(instance) {}
     ~RawArray() {}
 };
 
@@ -82,6 +105,7 @@ public:
     Int8Array(): RawArray<Int8Array, schema::Int8ArraySchema, int8_t>() {}
     explicit Int8Array(schema::Int8ArraySchema* instance):
             RawArray<Int8Array, schema::Int8ArraySchema, int8_t>(instance) {}
+    explicit Int8Array(Slot instance): RawArray<Int8Array, schema::Int8ArraySchema, int8_t>(instance) {}
     ~Int8Array() {}
 
     static Int8Array arrayAllocJIT(ThreadContext* context, size_t byteSize, size_t& maxSize) {
@@ -94,11 +118,13 @@ public:
     }
 };
 
-class SymbolArray : public RawArray<SymbolArray, schema::SymbolArraySchema, Hash> {
+class SymbolArray : public RawArray<SymbolArray, schema::SymbolArraySchema, Symbol> {
 public:
-    SymbolArray(): RawArray<SymbolArray, schema::SymbolArraySchema, Hash>() {}
+    SymbolArray(): RawArray<SymbolArray, schema::SymbolArraySchema, Symbol>() {}
     explicit SymbolArray(schema::SymbolArraySchema* instance):
-        RawArray<SymbolArray, schema::SymbolArraySchema, Hash>(instance) {}
+        RawArray<SymbolArray, schema::SymbolArraySchema, Symbol>(instance) {}
+    explicit SymbolArray(Slot instance):
+        RawArray<SymbolArray, schema::SymbolArraySchema, Symbol>(instance) {}
     ~SymbolArray() {}
 };
 

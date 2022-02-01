@@ -65,21 +65,6 @@ void Heap::removeFromRootSet(Slot object) {
     m_rootSet.erase(object.getPointer());
 }
 
-Slot Heap::addSymbol(std::string_view symbol) {
-    auto symbolHash = hash(symbol);
-    auto iter = m_symbolTable.find(symbolHash);
-    if (iter != m_symbolTable.end()) {
-        // Symbol collisions are worth some time and attention.
-        assert(iter->second.compare(symbol) == 0);
-        return Slot::makeHash(symbolHash);
-    }
-
-    char* symbolCopy = reinterpret_cast<char*>(allocateNew(symbol.size()));
-    memcpy(symbolCopy, symbol.data(), symbol.size());
-    m_symbolTable.emplace(std::make_pair(symbolHash, std::string_view(symbolCopy, symbol.size())));
-    return Slot::makeHash(symbolHash);
-}
-
 size_t Heap::getAllocationSize(void* address) {
     Page* page = findPageContaining(address);
     if (!page) { assert(false); return 0; }

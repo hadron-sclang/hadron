@@ -66,7 +66,7 @@ bool Pipeline::afterBlockSerializer(const LinearBlock*) { return true; }
 bool Pipeline::afterLifetimeAnalyzer(const LinearBlock*) { return true; }
 bool Pipeline::afterRegisterAllocator(const LinearBlock*) { return true; }
 bool Pipeline::afterResolver(const LinearBlock*) { return true; }
-bool Pipeline::afterEmitter(const LinearBlock*, Slot) { return true; }
+bool Pipeline::afterEmitter(const LinearBlock*, library::Int8Array) { return true; }
 #endif // HADRON_PIPELINE_VALIDATE
 
 void Pipeline::setDefaults() {
@@ -145,22 +145,20 @@ bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef functionD
     bytecodeArray.resize(context, finalSize);
 
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateEmission(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return false; }
-    if (!afterEmitter(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return false; }
+    if (!validateEmission(linearBlock.get(), bytecodeArray)) { return false; }
+    if (!afterEmitter(linearBlock.get(), bytecodeArray)) { return false; }
 #endif
 
-    functionDef->code = Slot::makePointer(bytecodeArray);
+    functionDef.setCode(bytecodeArray);
 
     return true;
 }
 
 #if HADRON_PIPELINE_VALIDATE
-bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
+bool Pipeline::validateFrame(ThreadContext* /* context */, const Frame* frame, const parse::BlockNode* blockNode,
         const Lexer* lexer ) {
-    int32_t argumentOrderArraySize = library::ArrayedCollection::_BasicSize(context,
-            Slot::makePointer(frame->argumentOrder)).getInt32();
-    int32_t argumentDefaultsArraySize = library::ArrayedCollection::_BasicSize(context,
-            Slot::makePointer(frame->argumentDefaults)).getInt32();
+    int32_t argumentOrderArraySize = frame->argumentOrder.size();
+    int32_t argumentDefaultsArraySize = frame->argumentDefaults.size();
     if (argumentOrderArraySize != argumentDefaultsArraySize) {
         SPDLOG_ERROR("Frame has mismatched argument order and defaults array sizes of {} and {} respectively",
             argumentOrderArraySize, argumentDefaultsArraySize);
@@ -172,10 +170,9 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
         return false;
     }
 
-    Slot argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
-            Slot::makeInt32(0));
-    if (argName != Slot::makeHash(kThisHash)) {
-        SPDLOG_ERROR("First argument to Frame {:16x} not 'this' {:16x}", argName.getHash(), kThisHash);
+    Hash argName = frame->argumentOrder.at(0);
+    if (argName != kThisHash) {
+        SPDLOG_ERROR("First argument to Frame {:16x} not 'this' {:16x}", argName, kThisHash);
         return false;
     }
 
@@ -190,9 +187,8 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
             }
-            argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
-                    Slot::makeInt32(numberOfArguments));
-            if (argName.getHash() != nameHash) {
+            argName = frame->argumentOrder.at(numberOfArguments);
+            if (argName != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for argument number {} named {}", numberOfArguments,
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
@@ -207,9 +203,8 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
                         lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
                 return false;
             }
-            argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
-                    Slot::makeInt32(numberOfArguments));
-            if (argName.getHash() != nameHash) {
+            argName = frame->argumentOrder.at(numberOfArguments);
+            if (argName != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for varArgs number {} named {}", numberOfArguments,
                         lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
                 return false;
@@ -502,7 +497,7 @@ bool Pipeline::validateResolution(const LinearBlock*) {
     return true;
 }
 
-bool Pipeline::validateEmission(const LinearBlock*, Slot) {
+bool Pipeline::validateEmission(const LinearBlock*, library::Int8Array) {
     return true;
 }
 

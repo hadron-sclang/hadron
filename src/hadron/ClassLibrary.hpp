@@ -3,9 +3,9 @@
 
 #include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
-
-#include "hadron/library/Kernel.hpp"
 #include "hadron/library/Array.hpp"
+#include "hadron/library/Kernel.hpp"
+#include "hadron/library/Symbol.hpp"
 
 #include <memory>
 #include <string>
@@ -24,6 +24,7 @@ namespace parse {
 struct ClassNode;
 struct MethodNode;
 } // namespace parse
+
 
 class ClassLibrary {
 public:
@@ -44,21 +45,19 @@ private:
 
     // Scans the provided class directories, builds class inheritance structure. First pass of library compilation.
     bool scanFiles(ThreadContext* context);
-    bool scanClass(ThreadContext* context, Hash filename, int32_t charPos, const hadron::parse::ClassNode* classNode,
-            const Lexer* lexer);
+    bool scanClass(ThreadContext* context, library::Symbol filename, int32_t charPos,
+            const hadron::parse::ClassNode* classNode, const Lexer* lexer);
     // Adds subClass to the existing superclass object if it exists, or caches a new list of subclasses if it does not.
-    void addToSubclassArray(ThreadContext* context, const library::Class* subclass);
+    void addToSubclassArray(ThreadContext* context, const library::Class subclass);
     // Returns existing array if cached, or nil if not.
-    Slot getSubclassArray(const library::Class* superclass);
+    library::ClassArray getSubclassArray(const library::Class superclass);
     // Appends to the root set class array, and sets the nextClass pointer.
-    void appendToClassArray(ThreadContext* context, library::Class* classDef);
+    void appendToClassArray(ThreadContext* context, library::Class classDef);
 
     // Traverse the class tree in superclass to subclass order, starting with Object, and finalize all inherited
     // properties.
     bool finalizeHeirarchy(ThreadContext* context);
     void composeSubclassesFrom(ThreadContext* context, library::Class* classDef);
-    // Returns a new array prefix ++ suffix of same type of prefix and suffix, or nil if both were nil.
-    Slot concatenateArrays(ThreadContext* context, Slot prefix, Slot suffix);
 
     // Compile all of the provided methods for all classes.
     bool compileMethods(ThreadContext* context);
@@ -67,11 +66,12 @@ private:
     bool cleanUp();
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
+
     // A map maintained for quick(er) access to Class objects via Hash.
-    std::unordered_map<Hash, library::Class> m_classMap;
+    std::unordered_map<library::Symbol, library::Class> m_classMap;
 
     // The official array of Class objects, maintained as part of the root set.
-    library::Array<library::Class> m_classArray;
+    library::ClassArray m_classArray;
 
     // We keep the noramlized paths in a set to prevent duplicate additions of the same path.
     std::unordered_set<std::string> m_libraryPaths;
@@ -80,8 +80,8 @@ private:
         std::unique_ptr<Lexer> lexer;
         std::unique_ptr<Parser> parser;
     };
-    std::unordered_map<Hash, ClassFile> m_classFiles;
-    std::unordered_map<Hash, library::Array<library::Class>> m_cachedSubclassArrays;
+    std::unordered_map<library::Symbol, ClassFile> m_classFiles;
+    std::unordered_map<library::Symbol, library::ClassArray> m_cachedSubclassArrays;
 };
 
 } // namespace hadron

@@ -5,6 +5,8 @@
 #include "hadron/HIR.hpp"
 #include "hadron/Slot.hpp"
 
+#include "hadron/library/Symbol.hpp"
+
 #include <memory>
 
 namespace hadron {
@@ -43,7 +45,7 @@ private:
     // iterate to process the |node->next| pointer. Call buildFinalValue() to do that.
     std::pair<Value, Value> buildValue(ThreadContext* context, const parse::Node* node);
     std::pair<Value, Value> buildFinalValue(ThreadContext* context, const parse::Node* node);
-    std::pair<Value, Value> buildDispatch(ThreadContext* context, const parse::Node* target, Hash selector,
+    std::pair<Value, Value> buildDispatch(ThreadContext* context, const parse::Node* target, library::Symbol selector,
             const parse::Node* arguments, const parse::KeyValueNode* keywordArguments);
     // It's also possible to build a dispatch with already evaluated values (that may not exist in the parse tree).
     // This function expects the target as first value pair in |argumentValues|.

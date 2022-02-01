@@ -87,7 +87,7 @@ public:
     static constexpr uint64_t kPointerTag = 0xfffb000000000000;
     static constexpr uint64_t kHashTag    = 0xfffc000000000000;
     static constexpr uint64_t kCharTag    = 0xfffd000000000000;
-    // TODO: static constexpr uint64_t kTypeTag    = 0xfffe000000000000;
+    // TODO: static constexpr uint64_t kArrayletTag    = 0xfffe000000000000;
     static constexpr uint64_t kTagMask    = 0xffff000000000000;
 
     // For debugging, normal access should use the get*() methods.

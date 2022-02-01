@@ -43,9 +43,6 @@ public:
     void addToRootSet(Slot object);
     void removeFromRootSet(Slot object);
 
-    // Compute symbol hash, copy symbol data into root set symbol table (if not already set up), returns the Symbol.
-    Slot addSymbol(std::string_view symbol);
-
     // TODO: verify size classes experimentally.
     static constexpr size_t kSmallObjectSize = 256;
     static constexpr size_t kMediumObjectSize = 2048;
@@ -92,8 +89,6 @@ private:
 
     // Address of first byte past the end of each Page, used for mapping an arbitrary address back to owning object.
     std::map<uintptr_t, Page*> m_pageEnds;
-
-    std::unordered_map<Hash, std::string_view> m_symbolTable;
 };
 
 } // namespace hadron

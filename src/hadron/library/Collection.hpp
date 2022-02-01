@@ -12,6 +12,7 @@ class Collection : public Object<T, S> {
 public:
     Collection(): Object<T, S>() {}
     explicit Collection(S* instance): Object<T, S>(instance) {}
+    explicit Collection(Slot instance):  Object<T, S>(instance) {}
     ~Collection() {}
 };
 

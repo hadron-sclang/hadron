@@ -68,7 +68,7 @@ public:
     virtual bool afterLifetimeAnalyzer(const LinearBlock* linearBlock);
     virtual bool afterRegisterAllocator(const LinearBlock* linearBlock);
     virtual bool afterResolver(const LinearBlock* linearBlock);
-    virtual bool afterEmitter(const LinearBlock* linearBlock, Slot bytecodeArray);
+    virtual bool afterEmitter(const LinearBlock* linearBlock, library::Int8Array bytecodeArray);
 #endif // HADRON_PIPELINE_VALIDATE
 
 protected:
@@ -92,7 +92,7 @@ protected:
 
     bool validateResolution(const LinearBlock* linearBlock);
 
-    bool validateEmission(const LinearBlock* linearBlock, Slot bytecodeArray);
+    bool validateEmission(const LinearBlock* linearBlock, library::Int8Array bytecodeArray);
 #endif // HADRON_PIPELINE_VALIDATE
 
     std::shared_ptr<ErrorReporter> m_errorReporter;

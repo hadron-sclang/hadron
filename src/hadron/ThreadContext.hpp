@@ -7,8 +7,12 @@
 #include <cstdint>
 
 namespace hadron {
+namespace schema {
+struct ProcessSchema;
+}
 
 class Heap;
+class SymbolTable;
 
 struct ThreadContext {
     ThreadContext() = default;
@@ -28,10 +32,13 @@ struct ThreadContext {
     // The stack pointer as preserved on entry into machine code.
     void* cStackPointer = nullptr;
 
-    // Objects accessible from the language.
-    Slot thisProcess = Slot::makeNil();
-
     std::shared_ptr<Heap> heap;
+    std::unique_ptr<SymbolTable> symbolTable;
+
+    // Objects accessible from the language. To break the cyclical dependency between library objects and ThreadContext,
+    // but still keep strongly typed references here, we maintain forward-decleared instance pointers, and then just
+    // always wrap them in their corresponding library objects when using them from the C++ side.
+    schema::ProcessSchema* thisProcess;
 };
 
 } // namespace hadron

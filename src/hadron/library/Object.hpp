@@ -14,6 +14,9 @@
 namespace hadron {
 namespace library {
 
+// Our Object class can wrap any heap-allocated precompiled Schema struct. It uses the Curious Recurring Template
+// Pattern, or CRTP, to provide static function dispatch without adding any storage overhead for a vtable. It is a
+// veneer over Slot pointers that provides the strong typing we want when using sclang objects in C++ code. Other 
 template<typename T, typename S>
 class Object {
 public:
@@ -29,13 +32,22 @@ public:
     explicit Object(Slot instance) {
         if (instance.isNil()) { m_instance = nullptr; }
         else {
-             m_instance = instance.getPointer();
+            m_instance = reinterpret_cast<S*>(instance.getPointer());
             assert(m_instance->_className == S::kNameHash);
         }
     }
 
     // Destructor must deliberately do nothing as it wraps a garbage-collected pointer.
     ~Object() {}
+
+    // Optional initialization, sets all members to nil.
+    void initToNil() {
+        if (!m_instance) { return; }
+        Slot* s = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(m_instance) + sizeof(Schema));
+        for (size_t i = 0; i < (m_instance->_sizeInBytes - sizeof(Schema)) / sizeof(Slot); ++i) {
+            s[i] = Slot::makeNil();
+        }
+    }
 
     static inline T alloc(ThreadContext* context) {
         S* instance = reinterpret_cast<S*>(context->heap->allocateNew(sizeof(S)));

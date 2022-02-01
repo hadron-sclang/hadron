@@ -15,15 +15,25 @@ namespace library {
 class Array : public ArrayedCollection<Array, schema::ArraySchema, Slot> {
 public:
     Array(): ArrayedCollection<Array, schema::ArraySchema, Slot>() {}
-    Array(schema::ArraySchema* instance): ArrayedCollection<Array, schema::ArraySchema, Slot>(instance) {}
+    explicit Array(schema::ArraySchema* instance): ArrayedCollection<Array, schema::ArraySchema, Slot>(instance) {}
+    explicit Array(Slot instance): ArrayedCollection<Array, schema::ArraySchema, Slot>(instance) {}
     ~Array() {}
 };
 
 template<typename T>
 class TypedArray : public Array {
 public:
-    T atTyped(int32_t index) const { return T(at(index)); }
-    void addTyped(T element) { add(Slot::makePointer(element.m_instance)); }
+    TypedArray(): Array() {}
+    TypedArray(schema::ArraySchema* instance): Array(instance) {}
+    TypedArray(Slot instance): Array(instance) {}
+
+    static TypedArray<T> typedArrayAlloc(ThreadContext* context, int32_t maxSize) {
+        Array a = arrayAlloc(context, maxSize);
+        return TypedArray<T>(a.instance());
+    }
+
+    T typedAt(int32_t index) const { return T(at(index)); }
+    void typedAdd(ThreadContext* context, T element) { add(context, Slot::makePointer(element.m_instance)); }
 };
 
 } // namespace library
