@@ -8,15 +8,9 @@
 #include "hadron/Parser.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/SourceFile.hpp"
+#include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "internal/FileSystem.hpp"
-
-#include "schema/Common/Core/Object.hpp"
-#include "schema/Common/Core/Kernel.hpp"
-#include "schema/Common/Collections/Collection.hpp"
-#include "schema/Common/Collections/SequenceableCollection.hpp"
-#include "schema/Common/Collections/ArrayedCollection.hpp"
-#include "schema/Common/Collections/Array.hpp"
 
 #include "spdlog/spdlog.h"
 
@@ -31,6 +25,7 @@ Runtime::Runtime(std::shared_ptr<ErrorReporter> errorReporter):
     m_classLibrary(std::make_unique<ClassLibrary>(errorReporter)) {
     LighteningJIT::initJITGlobals();
     m_threadContext->heap = m_heap;
+    m_threadContext->symbolTable = std::make_unique<SymbolTable>();
 }
 
 Runtime::~Runtime() {}
@@ -51,11 +46,11 @@ bool Runtime::initInterpreter() {
 bool Runtime::buildTrampolines() {
     LighteningJIT::markThreadForJITCompilation();
     size_t jitBufferSize = 0;
-    library::Int8Array* jitArray = m_heap->allocateJIT(Heap::kSmallObjectSize, jitBufferSize);
-    m_heap->addToRootSet(Slot::makePointer(jitArray));
+    library::Int8Array jitArray = library::Int8Array::arrayAllocJIT(m_threadContext.get(), Heap::kSmallObjectSize,
+            jitBufferSize);
+    m_heap->addToRootSet(jitArray.slot());
     LighteningJIT jit;
-    jit.begin(reinterpret_cast<uint8_t*>(jitArray) + sizeof(library::Int8Array),
-            jitBufferSize - sizeof(library::Int8Array));
+    jit.begin(jitArray.start(), jitArray.capacity(m_threadContext.get()));
     auto align = jit.enterABI();
     // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* m_threadContext and a uint8_t*
     // machineCode pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded into
@@ -81,22 +76,14 @@ bool Runtime::buildTrampolines() {
     auto entryAddr = jit.end(&trampolineSize);
     m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const uint8_t*)>(
             jit.addressToFunctionPointer(entryAddr));
-    jitArray->_sizeInBytes = trampolineSize + sizeof(library::Int8Array);
+    jitArray.resize(m_threadContext.get(), trampolineSize);
     SPDLOG_INFO("Runtime built JIT trampoline at {} bytes out of {} max.", trampolineSize, jitBufferSize);
 
     return true;
 }
 
 bool Runtime::buildThreadContext() {
-    library::Process* process = reinterpret_cast<library::Process*>(m_heap->allocateObject(library::kProcessHash,
-            sizeof(library::Process)));
-    m_heap->addToRootSet(Slot::makePointer(process));
-    process->classVars = Slot::makePointer(m_heap->allocateObject(library::kArrayHash, sizeof(library::Array)));
-    process->interpreter = Slot::makeNil();
-    process->curThread = Slot::makeNil();
-    process->mainThread = Slot::makeNil();
-    process->schedulerQueue = Slot::makeNil();
-    process->nowExecutingPath = Slot::makeNil();
+    m_threadContext->thisProcess = library::Process::alloc(m_threadContext.get()).instance();
     return true;
 }
 

@@ -11,6 +11,7 @@
 #endif // HADRON_PIPELINE_VALIDATE
 
 #include "hadron/Slot.hpp"
+#include "hadron/library/Kernel.hpp"
 
 #include <memory>
 #include <string_view>
@@ -22,13 +23,6 @@ namespace hadron {
 namespace hir {
 struct HIR;
 } // namespace hir
-
-namespace library {
-struct Class;
-struct FunctionDef;
-struct Int8Array;
-struct Method;
-}
 
 namespace parse {
 struct BlockNode;
@@ -58,11 +52,11 @@ public:
     bool jitToVirtualMachine() const { return m_jitToVirtualMachine; }
     void setJitToVirtualMachine(bool useVM) { m_jitToVirtualMachine = useVM; }
 
-    library::FunctionDef* compileCode(ThreadContext* context, std::string_view code);
-    library::FunctionDef* compileBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer);
+    library::FunctionDef compileCode(ThreadContext* context, std::string_view code);
+    library::FunctionDef compileBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer);
 
-    library::Method* compileMethod(ThreadContext* context, const parse::MethodNode* methodNode, const Lexer* lexer,
-            const library::Class* classDef);
+    library::Method compileMethod(ThreadContext* context, const parse::MethodNode* methodNode, const Lexer* lexer,
+            const library::Class classDef);
 
 #if HADRON_PIPELINE_VALIDATE
     // With pipeline validation on these methods are called after internal validation of each step. Their default
@@ -74,12 +68,12 @@ public:
     virtual bool afterLifetimeAnalyzer(const LinearBlock* linearBlock);
     virtual bool afterRegisterAllocator(const LinearBlock* linearBlock);
     virtual bool afterResolver(const LinearBlock* linearBlock);
-    virtual bool afterEmitter(const LinearBlock* linearBlock, Slot bytecodeArray);
+    virtual bool afterEmitter(const LinearBlock* linearBlock, library::Int8Array bytecodeArray);
 #endif // HADRON_PIPELINE_VALIDATE
 
 protected:
     void setDefaults();
-    bool buildBlock(ThreadContext* context, library::FunctionDef* functionDef, const parse::BlockNode* blockNode,
+    bool buildBlock(ThreadContext* context, library::FunctionDef functionDef, const parse::BlockNode* blockNode,
             const Lexer* lexer);
 
 #if HADRON_PIPELINE_VALIDATE
@@ -98,7 +92,7 @@ protected:
 
     bool validateResolution(const LinearBlock* linearBlock);
 
-    bool validateEmission(const LinearBlock* linearBlock, Slot bytecodeArray);
+    bool validateEmission(const LinearBlock* linearBlock, library::Int8Array bytecodeArray);
 #endif // HADRON_PIPELINE_VALIDATE
 
     std::shared_ptr<ErrorReporter> m_errorReporter;

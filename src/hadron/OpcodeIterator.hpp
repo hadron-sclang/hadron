@@ -9,7 +9,7 @@
 
 namespace hadron {
 
-enum Opcode : uint8_t {
+enum Opcode : int8_t {
     kAddr       = 0x01,
     kAddi       = 0x02,
     kAndi       = 0x03,
@@ -39,16 +39,16 @@ enum Opcode : uint8_t {
     kPatchHere  = 0x1b,
     kPatchThere = 0x1c,
 
-    kInvalid    = 0xff
+    kInvalid    = -1
 };
 
 class OpcodeWriteIterator {
 public:
     OpcodeWriteIterator() = default;
-    OpcodeWriteIterator(uint8_t* address, size_t size);
+    OpcodeWriteIterator(int8_t* address, size_t size);
     ~OpcodeWriteIterator() = default;
 
-    void setBuffer(uint8_t* address, size_t size);
+    void setBuffer(int8_t* address, size_t size);
     void reset();
 
     // All the serialization methods return a boolean if there was capacity to add the element or no.
@@ -60,9 +60,9 @@ public:
     bool movr(JIT::Reg target, JIT::Reg value);
     bool movi(JIT::Reg target, Word value);
     // Returns the location of the branch address for later use with patchWord() or nullptr if in overflow.
-    uint8_t* bgei(JIT::Reg a, Word b);
-    uint8_t* beqi(JIT::Reg a, Word b);
-    uint8_t* jmp();
+    int8_t* bgei(JIT::Reg a, Word b);
+    int8_t* beqi(JIT::Reg a, Word b);
+    int8_t* jmp();
     bool jmpr(JIT::Reg r);
     bool jmpi(UWord location);
     bool ldr_l(JIT::Reg target, JIT::Reg address);
@@ -78,32 +78,32 @@ public:
     bool retr(JIT::Reg r);
     bool reti(int value);
     // |location| needs to be within the buffer. Overwrites whatever is there with |value|.
-    bool patchWord(uint8_t* location, Word value);
+    bool patchWord(int8_t* location, Word value);
 
-    uint8_t* getCurrent() const { return m_currentBytecode; }
+    int8_t* getCurrent() const { return m_currentBytecode; }
     bool hasOverflow() const { return m_currentBytecode > m_endOfBytecode; }
     // This can return values larger than |size| in the event of an overflow.
     size_t getSize() const { return m_currentBytecode - m_startOfBytecode; }
 
 private:
-    uint8_t reg(JIT::Reg r);
-    bool addByte(uint8_t byte);
+    int8_t reg(JIT::Reg r);
+    bool addByte(int8_t byte);
     bool addWord(Word word);
     bool addUWord(UWord word);
     bool addInt(int integer);
 
-    uint8_t* m_startOfBytecode = nullptr;
-    uint8_t* m_currentBytecode = nullptr;
-    uint8_t* m_endOfBytecode = nullptr;
+    int8_t* m_startOfBytecode = nullptr;
+    int8_t* m_currentBytecode = nullptr;
+    int8_t* m_endOfBytecode = nullptr;
 };
 
 class OpcodeReadIterator {
 public:
     OpcodeReadIterator() = default;
-    OpcodeReadIterator(const uint8_t* buffer, size_t size);
+    OpcodeReadIterator(const int8_t* buffer, size_t size);
     ~OpcodeReadIterator() = default;
 
-    void setBuffer(const uint8_t* address, size_t size);
+    void setBuffer(const int8_t* address, size_t size);
     void reset();
 
     // Returns opcode at current() or kInvalid if outside of buffer.
@@ -115,9 +115,9 @@ public:
     bool xorr(JIT::Reg& target, JIT::Reg& a, JIT::Reg& b);
     bool movr(JIT::Reg& target, JIT::Reg& value);
     bool movi(JIT::Reg& target, Word& value);
-    bool bgei(JIT::Reg& a, Word& b, const uint8_t*& address);
-    bool beqi(JIT::Reg& a, Word& b, const uint8_t*& address);
-    bool jmp(const uint8_t*& address);
+    bool bgei(JIT::Reg& a, Word& b, const int8_t*& address);
+    bool beqi(JIT::Reg& a, Word& b, const int8_t*& address);
+    bool jmp(const int8_t*& address);
     bool jmpr(JIT::Reg& r);
     bool jmpi(UWord& location);
     bool ldr_l(JIT::Reg& target, JIT::Reg& address);
@@ -133,21 +133,21 @@ public:
     bool retr(JIT::Reg& r);
     bool reti(int& value);
 
-    const uint8_t* getCurrent() const { return m_currentBytecode; }
+    const int8_t* getCurrent() const { return m_currentBytecode; }
     bool hasOverflow() const { return m_currentBytecode > m_endOfBytecode; }
     // This can return values larger than |size| in the event of an overflow.
     size_t getSize() const { return m_currentBytecode - m_startOfBytecode; }
 
 private:
-    JIT::Reg reg(uint8_t r);
-    uint8_t readByte();
+    JIT::Reg reg(int8_t r);
+    int8_t readByte();
     Word readWord();
     UWord readUWord();
     int readInt();
 
-    const uint8_t* m_startOfBytecode = nullptr;
-    const uint8_t* m_currentBytecode = nullptr;
-    const uint8_t* m_endOfBytecode = nullptr;
+    const int8_t* m_startOfBytecode = nullptr;
+    const int8_t* m_currentBytecode = nullptr;
+    const int8_t* m_endOfBytecode = nullptr;
 };
 
 } // namespace hadron

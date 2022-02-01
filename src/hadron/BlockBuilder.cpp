@@ -12,13 +12,6 @@
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
 
-#include "schema/Common/Core/Object.hpp"
-#include "schema/Common/Core/Kernel.hpp"
-#include "schema/Common/Collections/Collection.hpp"
-#include "schema/Common/Collections/SequenceableCollection.hpp"
-#include "schema/Common/Collections/ArrayedCollection.hpp"
-#include "schema/Common/Collections/Array.hpp"
-
 #include "fmt/format.h"
 #include "spdlog/spdlog.h"
 
@@ -42,22 +35,17 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
     m_frame = frame.get();
-    frame->argumentOrder = reinterpret_cast<library::Array*>(context->heap->allocateObject(library::kArrayHash,
-            sizeof(library::Array)));
-    frame->argumentDefaults = reinterpret_cast<library::Array*>(context->heap->allocateObject(library::kArrayHash,
-            sizeof(library::Array)));
     frame->rootScope = std::make_unique<Scope>(m_frame, nullptr);
     m_scope = frame->rootScope.get();
     m_scope->blocks.emplace_back(std::make_unique<Block>(m_scope, m_blockSerial));
     ++m_blockSerial;
     m_block = m_scope->blocks.front().get();
 
+    auto name = library::Symbol::fromView(context, "this");
     // First block within rootScope gets argument loads. The *this* pointer is always the first argument to every Frame.
-    frame->argumentOrder = reinterpret_cast<library::Array*>(library::ArrayedCollection::_ArrayAdd(context,
-            Slot::makePointer(frame->argumentOrder), Slot::makeHash(kThisHash)).getPointer());
-    frame->argumentDefaults = reinterpret_cast<library::Array*>(library::ArrayedCollection::_ArrayAdd(context,
-            Slot::makePointer(frame->argumentDefaults), Slot::makeNil()).getPointer());
-    m_block->revisions[kThisHash] = std::make_pair(
+    frame->argumentOrder.add(context, name);
+    frame->argumentDefaults.add(context, Slot::makeNil());
+    m_block->revisions[name] = std::make_pair(
             insertLocal(std::make_unique<hir::LoadArgumentHIR>(0)),
             insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(0)));
 
@@ -72,9 +60,8 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
             const parse::VarDefNode* varDef = varList->definitions.get();
             while (varDef) {
                 assert(varDef->nodeType == parse::NodeType::kVarDef);
-                auto name = m_lexer->tokens()[varDef->tokenIndex].hash;
-                frame->argumentOrder = reinterpret_cast<library::Array*>(library::ArrayedCollection::_ArrayAdd(context,
-                        Slot::makePointer(frame->argumentOrder), Slot::makeHash(name)).getPointer());
+                name = library::Symbol::fromView(context, m_lexer->tokens()[varDef->tokenIndex].range);
+                frame->argumentOrder.add(context, name);
                 Slot initialValue = Slot::makeNil();
                 if (varDef->initialValue) {
                     if (varDef->initialValue->nodeType == parse::NodeType::kLiteral) {
@@ -84,9 +71,7 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
                         // ** TODO: add to list for if-block processing (see below)
                     }
                 }
-                frame->argumentDefaults = reinterpret_cast<library::Array*>(
-                        library::ArrayedCollection::_ArrayAdd(context, Slot::makePointer(frame->argumentDefaults),
-                        initialValue).getPointer());
+                frame->argumentDefaults.add(context, initialValue);
                 m_block->revisions[name] = std::make_pair(
                      insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
                      insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
@@ -98,12 +83,10 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
         // There should be at most one arglist in a parse tree.
         assert(argList->next == nullptr);
         if (argList->varArgsNameIndex) {
-            auto name = m_lexer->tokens()[argList->varArgsNameIndex.value()].hash;
+            name = library::Symbol::fromView(context, m_lexer->tokens()[argList->varArgsNameIndex.value()].range);
             frame->hasVarArgs = true;
-            frame->argumentOrder = reinterpret_cast<library::Array*>(library::ArrayedCollection::_ArrayAdd(context,
-                    Slot::makePointer(frame->argumentOrder), Slot::makeHash(name)).getPointer());
-            frame->argumentDefaults = reinterpret_cast<library::Array*>(library::ArrayedCollection::_ArrayAdd(context,
-                    Slot::makePointer(frame->argumentDefaults), Slot::makeNil()).getPointer());
+            frame->argumentOrder.add(context, name);
+            frame->argumentDefaults.add(context, Slot::makeNil());
             // Type is always a kArray for variable argument lists.
             m_block->revisions[name] = std::make_pair(
                 insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex, true)),
@@ -113,7 +96,6 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const pa
 
     // Load class variables.
     // Load instance variables.
-
 
     if (blockNode->variables) {
         m_block->finalValue = buildFinalValue(context, blockNode->variables.get());
@@ -162,15 +144,15 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
 
     case parse::NodeType::kVarDef: {
         const auto varDef = reinterpret_cast<const parse::VarDefNode*>(node);
-        auto nameToken = m_lexer->tokens()[varDef->tokenIndex];
+        auto name = library::Symbol::fromView(context, m_lexer->tokens()[varDef->tokenIndex].range);
         // TODO: error reporting for variable redefinition
         if (varDef->initialValue) {
             nodeValue = buildFinalValue(context, varDef->initialValue.get());
-            m_block->revisions[nameToken.hash] = nodeValue;
+            m_block->revisions[name] = nodeValue;
         } else {
             nodeValue.first = insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
             nodeValue.second = insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kNil)));
-            m_block->revisions[nameToken.hash] = nodeValue;
+            m_block->revisions[name] = nodeValue;
         }
     } break;
 
@@ -204,7 +186,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
         // TODO: This is broken! Need to be able to look up Meta_Array in the Class Library, not passing the
         // symbol to it here but the actual target class.
         argumentValues.emplace_back(std::make_pair(
-            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(library::kMetaArrayHash))),
+            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeNil())),
             selectorValue.second));
         std::vector<std::pair<Value, Value>> keywordArgumentValues;
         nodeValue = buildDispatchInternal(selectorValue, argumentValues, keywordArgumentValues);
@@ -266,7 +248,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
 
     case parse::NodeType::kName: {
         const auto nameNode = reinterpret_cast<const parse::NameNode*>(node);
-        auto name = m_lexer->tokens()[nameNode->tokenIndex].hash;
+        auto name = library::Symbol::fromView(context, m_lexer->tokens()[nameNode->tokenIndex].range);
         nodeValue = findName(name);
     } break;
 
@@ -281,7 +263,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
         assert(assign->name);
         assert(assign->value);
         nodeValue = buildFinalValue(context, assign->value.get());
-        auto name = m_lexer->tokens()[assign->name->tokenIndex].hash;
+        auto name = library::Symbol::fromView(context, m_lexer->tokens()[assign->name->tokenIndex].range);
         m_block->revisions[name] = nodeValue;
     } break;
 
@@ -291,7 +273,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
         assert(setter->value);
         // Rehash selector with the _ character appended.
         auto selectorToken = m_lexer->tokens()[setter->tokenIndex];
-        auto selector = hash(fmt::format("{}_", selectorToken.range));
+        auto selector = library::Symbol::fromView(context, fmt::format("{}_", selectorToken.range));
         nodeValue = buildDispatch(context, setter->target.get(), selector, setter->value.get(), nullptr);
     } break;
 
@@ -301,14 +283,14 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
 
     case parse::NodeType::kCall: {
         const auto call = reinterpret_cast<const parse::CallNode*>(node);
-        auto selector = m_lexer->tokens()[call->tokenIndex].hash;
+        auto selector = library::Symbol::fromView(context, m_lexer->tokens()[call->tokenIndex].range);
         nodeValue = buildDispatch(context, call->target.get(), selector, call->arguments.get(),
                 call->keywordArguments.get());
     } break;
 
     case parse::NodeType::kBinopCall: {
         const auto binop = reinterpret_cast<const parse::BinopCallNode*>(node);
-        auto selector = m_lexer->tokens()[binop->tokenIndex].hash;
+        auto selector = library::Symbol::fromView(context, m_lexer->tokens()[binop->tokenIndex].range);
         nodeValue = buildDispatch(context, binop->leftHand.get(), selector, binop->rightHand.get(), nullptr);
     } break;
 
@@ -472,14 +454,14 @@ std::pair<Value, Value> BlockBuilder::buildFinalValue(ThreadContext* context, co
     return m_block->finalValue;
 }
 
-std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, const parse::Node* target, Hash selector,
-        const parse::Node* arguments, const parse::KeyValueNode* keywordArguments) {
+std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, const parse::Node* target,
+        library::Symbol selector, const parse::Node* arguments, const parse::KeyValueNode* keywordArguments) {
     // Build argument values starting with target argument as `this`.
     std::vector<std::pair<Value, Value>> argumentValues;
     argumentValues.emplace_back(buildFinalValue(context, target));
 
     auto selectorValue = std::make_pair(
-            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(selector))),
+            insertLocal(std::make_unique<hir::ConstantHIR>(selector.slot())),
             insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kSymbol))));
 
     // Now append any additional arguments.
@@ -543,7 +525,7 @@ Value BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
     return value;
 }
 
-std::pair<Value, Value> BlockBuilder::findName(Hash name) {
+std::pair<Value, Value> BlockBuilder::findName(library::Symbol name) {
     std::unordered_map<int, std::pair<Value, Value>> blockValues;
     std::unordered_set<const Scope*> containingScopes;
     const Scope* scope = m_block->scope;
@@ -554,7 +536,7 @@ std::pair<Value, Value> BlockBuilder::findName(Hash name) {
     return findNamePredecessor(name, m_block, blockValues, containingScopes);
 }
 
-std::pair<Value, Value> BlockBuilder::findNamePredecessor(Hash name, Block* block,
+std::pair<Value, Value> BlockBuilder::findNamePredecessor(library::Symbol name, Block* block,
         std::unordered_map<int, std::pair<Value, Value>>& blockValues,
         const std::unordered_set<const Scope*>& containingScopes) {
     auto cacheIter = blockValues.find(block->number);

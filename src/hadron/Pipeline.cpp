@@ -22,13 +22,6 @@
 #include "hadron/ThreadContext.hpp"
 #include "hadron/VirtualJIT.hpp"
 
-#include "schema/Common/Core/Object.hpp"
-#include "schema/Common/Core/Kernel.hpp"
-#include "schema/Common/Collections/Collection.hpp"
-#include "schema/Common/Collections/SequenceableCollection.hpp"
-#include "schema/Common/Collections/ArrayedCollection.hpp"
-#include "schema/Common/Collections/Array.hpp"
-
 #include "spdlog/spdlog.h"
 
 namespace hadron {
@@ -39,39 +32,32 @@ Pipeline::Pipeline(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporte
 
 Pipeline::~Pipeline() {}
 
-library::FunctionDef* Pipeline::compileCode(ThreadContext* context, std::string_view code) {
+library::FunctionDef Pipeline::compileCode(ThreadContext* context, std::string_view code) {
+
     Lexer lexer(code, m_errorReporter);
-    if (!lexer.lex()) { return nullptr; }
+    if (!lexer.lex()) { return library::FunctionDef(nullptr); }
 
     Parser parser(&lexer, m_errorReporter);
-    if (!parser.parse()) { return nullptr; }
-
+    if (!parser.parse()) { return library::FunctionDef(nullptr); }
     assert(parser.root()->nodeType == parse::NodeType::kBlock);
 
-    auto functionDef = reinterpret_cast<library::FunctionDef*>(context->heap->allocateObject(library::kFunctionDefHash,
-            sizeof(library::FunctionDef)));
-
-    if (!buildBlock(context, functionDef, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer)) {
-        return nullptr;
-    }
+    auto functionDef = library::FunctionDef::alloc(context);
+    buildBlock(context, functionDef, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer);
     return functionDef;
 }
 
-library::FunctionDef* Pipeline::compileBlock(ThreadContext* context, const parse::BlockNode* blockNode,
+library::FunctionDef Pipeline::compileBlock(ThreadContext* context, const parse::BlockNode* blockNode,
         const Lexer* lexer) {
-    auto functionDef = reinterpret_cast<library::FunctionDef*>(context->heap->allocateObject(library::kFunctionDefHash,
-            sizeof(library::FunctionDef)));
-    if (!buildBlock(context, functionDef, blockNode, lexer)) { return nullptr; }
+    auto functionDef = library::FunctionDef::alloc(context);
+    buildBlock(context, functionDef, blockNode, lexer);
     return functionDef;
 }
 
-library::Method* Pipeline::compileMethod(ThreadContext* context, const parse::MethodNode* methodNode,
-        const Lexer* lexer, const library::Class* /* classDef */) {
-    auto methodDef = reinterpret_cast<library::Method*>(context->heap->allocateObject(library::kMethodHash,
-            sizeof(library::Method)));
-    if (!buildBlock(context, methodDef, methodNode->body.get(), lexer)) { return nullptr; }
-    methodDef->ownerClass = Slot::makeNil(); // TODO: should be a pointer to Meta_ClassName instance
-    return methodDef;
+library::Method Pipeline::compileMethod(ThreadContext* context, const parse::MethodNode* methodNode,
+        const Lexer* lexer, const library::Class /* classDef */) {
+    auto method = library::Method::alloc(context);
+    buildBlock(context, library::FunctionDef::wrapUnsafe(method.instance()), methodNode->body.get(), lexer);
+    return method;
 }
 
 #if HADRON_PIPELINE_VALIDATE
@@ -80,7 +66,7 @@ bool Pipeline::afterBlockSerializer(const LinearBlock*) { return true; }
 bool Pipeline::afterLifetimeAnalyzer(const LinearBlock*) { return true; }
 bool Pipeline::afterRegisterAllocator(const LinearBlock*) { return true; }
 bool Pipeline::afterResolver(const LinearBlock*) { return true; }
-bool Pipeline::afterEmitter(const LinearBlock*, Slot) { return true; }
+bool Pipeline::afterEmitter(const LinearBlock*, library::Int8Array) { return true; }
 #endif // HADRON_PIPELINE_VALIDATE
 
 void Pipeline::setDefaults() {
@@ -88,7 +74,7 @@ void Pipeline::setDefaults() {
     m_jitToVirtualMachine = false;
 }
 
-bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef* functionDef, const parse::BlockNode* blockNode,
+bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef functionDef, const parse::BlockNode* blockNode,
         const Lexer* lexer) {
     hadron::BlockBuilder builder(lexer, m_errorReporter);
     auto frame = builder.buildFrame(context, blockNode);
@@ -100,10 +86,8 @@ bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef* function
     size_t numberOfValues = frame->numberOfValues;
 #endif // HADRON_PIPELINE_VALIDATE
 
-    functionDef->raw1 = Slot::makeNil();
-    functionDef->raw2 = Slot::makeNil();
-    functionDef->argNames = Slot::makePointer(frame->argumentOrder);
-    functionDef->prototypeFrame = Slot::makePointer(frame->argumentDefaults);
+    functionDef.setArgNames(frame->argumentOrder);
+    functionDef.setPrototypeFrame(frame->argumentDefaults);
 
     BlockSerializer serializer;
     auto linearBlock = serializer.serialize(std::move(frame));
@@ -139,35 +123,33 @@ bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef* function
         jitMaxSize += 16 + (16 * hir->moves.size());
     }
     std::unique_ptr<JIT> jit;
-    library::Int8Array* bytecodeArray = nullptr;
+    library::Int8Array bytecodeArray;
     if (m_jitToVirtualMachine) {
         jit = std::make_unique<VirtualJIT>(m_numberOfRegisters, m_numberOfRegisters);
-        bytecodeArray = reinterpret_cast<library::Int8Array*>(context->heap->allocateObject(library::kInt8ArrayHash,
-                jitMaxSize));
-        jitMaxSize = context->heap->getAllocationSize(bytecodeArray);
+        bytecodeArray = library::Int8Array::arrayAlloc(context, jitMaxSize);
+        jitMaxSize = context->heap->getAllocationSize(bytecodeArray.instance());
     } else {
         LighteningJIT::markThreadForJITCompilation();
         jit = std::make_unique<LighteningJIT>();
         size_t allocationSize = 0;
-        bytecodeArray = context->heap->allocateJIT(jitMaxSize, allocationSize);
+        bytecodeArray = library::Int8Array::arrayAllocJIT(context, jitMaxSize, allocationSize);
         jitMaxSize = allocationSize;
     }
-    jit->begin(reinterpret_cast<uint8_t*>(bytecodeArray) + sizeof(library::Int8Array),
-        jitMaxSize - sizeof(library::Int8Array));
+    jit->begin(bytecodeArray.start(), bytecodeArray.capacity(context));
 
     Emitter emitter;
     emitter.emit(linearBlock.get(), jit.get());
     assert(!jit->hasJITBufferOverflow());
     size_t finalSize = 0;
     jit->end(&finalSize);
-    bytecodeArray->_sizeInBytes = finalSize + sizeof(library::Int8Array);
+    bytecodeArray.resize(context, finalSize);
 
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateEmission(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return false; }
-    if (!afterEmitter(linearBlock.get(), Slot::makePointer(bytecodeArray))) { return false; }
+    if (!validateEmission(linearBlock.get(), bytecodeArray)) { return false; }
+    if (!afterEmitter(linearBlock.get(), bytecodeArray)) { return false; }
 #endif
 
-    functionDef->code = Slot::makePointer(bytecodeArray);
+    functionDef.setCode(bytecodeArray);
 
     return true;
 }
@@ -175,10 +157,8 @@ bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef* function
 #if HADRON_PIPELINE_VALIDATE
 bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
         const Lexer* lexer ) {
-    int32_t argumentOrderArraySize = library::ArrayedCollection::_BasicSize(context,
-            Slot::makePointer(frame->argumentOrder)).getInt32();
-    int32_t argumentDefaultsArraySize = library::ArrayedCollection::_BasicSize(context,
-            Slot::makePointer(frame->argumentDefaults)).getInt32();
+    int32_t argumentOrderArraySize = frame->argumentOrder.size();
+    int32_t argumentDefaultsArraySize = frame->argumentDefaults.size();
     if (argumentOrderArraySize != argumentDefaultsArraySize) {
         SPDLOG_ERROR("Frame has mismatched argument order and defaults array sizes of {} and {} respectively",
             argumentOrderArraySize, argumentDefaultsArraySize);
@@ -190,10 +170,10 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
         return false;
     }
 
-    Slot argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
-            Slot::makeInt32(0));
-    if (argName != Slot::makeHash(kThisHash)) {
-        SPDLOG_ERROR("First argument to Frame {:16x} not 'this' {:16x}", argName.getHash(), kThisHash);
+    auto argName = frame->argumentOrder.at(0);
+    if (argName.hash() != kThisHash) {
+        SPDLOG_ERROR("First argument to Frame '{}' {:16x} not 'this' {:16x}", argName.view(context), argName.hash(),
+                kThisHash);
         return false;
     }
 
@@ -208,9 +188,8 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
             }
-            argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
-                    Slot::makeInt32(numberOfArguments));
-            if (argName.getHash() != nameHash) {
+            argName = frame->argumentOrder.at(numberOfArguments);
+            if (argName.hash() != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for argument number {} named {}", numberOfArguments,
                         lexer->tokens()[varDef->tokenIndex].range);
                 return false;
@@ -225,9 +204,8 @@ bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const p
                         lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
                 return false;
             }
-            argName = library::ArrayedCollection::_BasicAt(context, Slot::makePointer(frame->argumentOrder),
-                    Slot::makeInt32(numberOfArguments));
-            if (argName.getHash() != nameHash) {
+            argName = frame->argumentOrder.at(numberOfArguments);
+            if (argName.hash() != nameHash) {
                 SPDLOG_ERROR("Mismatched hash for varArgs number {} named {}", numberOfArguments,
                         lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
                 return false;
@@ -520,7 +498,7 @@ bool Pipeline::validateResolution(const LinearBlock*) {
     return true;
 }
 
-bool Pipeline::validateEmission(const LinearBlock*, Slot) {
+bool Pipeline::validateEmission(const LinearBlock*, library::Int8Array) {
     return true;
 }
 

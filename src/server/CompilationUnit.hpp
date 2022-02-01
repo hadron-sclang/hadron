@@ -19,7 +19,7 @@ struct CompilationUnit {
     const hadron::parse::BlockNode* blockNode;
     std::unique_ptr<hadron::Frame> frame;
     std::unique_ptr<hadron::LinearBlock> linearBlock;
-    std::unique_ptr<uint8_t[]> byteCode;
+    std::unique_ptr<int8_t[]> byteCode;
     size_t byteCodeSize;
 };
 

@@ -19,16 +19,9 @@
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
 #include "hadron/SourceFile.hpp"
+#include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
-#include "internal/FileSystem.hpp"
-
-#include "schema/Common/Core/Object.hpp"
-#include "schema/Common/Core/Kernel.hpp"
-
-#include "schema/Common/Collections/Collection.hpp"
-#include "schema/Common/Collections/SequenceableCollection.hpp"
-#include "schema/Common/Collections/ArrayedCollection.hpp"
-#include "schema/Common/Collections/Array.hpp"
+#include "hadron/internal/FileSystem.hpp"
 
 #include "spdlog/spdlog.h"
 
@@ -70,7 +63,7 @@ static const std::array<const char*, 11> kClassFileAllowList{
     "SimpleNumber.sc"
     "Symbol.sc"
 };
-}
+} // namespace
 
 namespace hadron {
 
@@ -91,15 +84,14 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
 
 bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_classMap.clear();
-    if (m_classArray) {
-        context->heap->removeFromRootSet(Slot::makePointer(m_classArray));
+    if (!m_classArray.isNil()) {
+        context->heap->removeFromRootSet(m_classArray.slot());
     }
     m_classFiles.clear();
     m_cachedSubclassArrays.clear();
 
-    m_classArray = reinterpret_cast<library::Array*>(context->heap->allocateObject(library::kArrayHash,
-            sizeof(library::Array)));
-    context->heap->addToRootSet(Slot::makePointer(m_classArray));
+    m_classArray = library::ClassArray::typedArrayAlloc(context, 1);
+    context->heap->addToRootSet(m_classArray.slot());
     return true;
 }
 
@@ -134,7 +126,7 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
             auto parser = std::make_unique<Parser>(lexer.get(), m_errorReporter);
             if (!parser->parseClass()) { return false; }
 
-            auto filename = context->heap->addSymbol(path.string()).getHash();
+            auto filename = library::Symbol::fromView(context, path.string());
             const parse::Node* node = parser->root();
             while (node) {
                 // Class extensions can be skipped in first pass, as they don't change the inheritance tree or add
@@ -163,35 +155,32 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
     return true;
 }
 
-bool ClassLibrary::scanClass(ThreadContext* context, Hash filename, int32_t charPos, const parse::ClassNode* classNode,
-        const Lexer* lexer) {
+bool ClassLibrary::scanClass(ThreadContext* context, library::Symbol filename, int32_t charPos,
+        const parse::ClassNode* classNode, const Lexer* lexer) {
     // Compiling a class actually involves generating an instance of the Class object, and then generating an
     // instance of a Meta_ClassName object derived from the Class object, which is where class methods go.
-    library::Class* classDef = reinterpret_cast<library::Class*>(context->heap->allocateObject(
-            library::kClassHash, sizeof(library::Class)));
-    library::Class* metaClassDef = reinterpret_cast<library::Class*>(context->heap->allocateObject(
-            library::kClassHash, sizeof(library::Class)));
+    library::Class classDef = library::Class::alloc(context);
+    classDef.initToNil();
+    library::Class metaClassDef = library::Class::alloc(context);
+    metaClassDef.initToNil();
 
     SPDLOG_INFO("Class Library compiling class {}", lexer->tokens()[classNode->tokenIndex].range);
-    classDef->name = context->heap->addSymbol(lexer->tokens()[classNode->tokenIndex].range);
-    metaClassDef->name = context->heap->addSymbol(fmt::format("Meta_{}", lexer->tokens()[classNode->tokenIndex].range));
-
-    classDef->nextclass = Slot::makeNil();
-    metaClassDef->nextclass = Slot::makeNil();
+    classDef.setName(library::Symbol::fromView(context, lexer->tokens()[classNode->tokenIndex].range));
+    metaClassDef.setName(library::Symbol::fromView(context,
+            fmt::format("Meta_{}", lexer->tokens()[classNode->tokenIndex].range)));
 
     if (classNode->superClassNameIndex) {
-        classDef->superclass = context->heap->addSymbol(
-                lexer->tokens()[classNode->superClassNameIndex.value()].range);
-        metaClassDef->superclass = context->heap->addSymbol(fmt::format("Meta_{}",
+        classDef.setSuperclass(library::Symbol::fromView(context,
                 lexer->tokens()[classNode->superClassNameIndex.value()].range));
+        metaClassDef.setSuperclass(library::Symbol::fromView(context, fmt::format("Meta_{}",
+                lexer->tokens()[classNode->superClassNameIndex.value()].range)));
     } else {
-        if (classDef->name.getHash() == library::kObjectHash) {
-            classDef->superclass = Slot::makeNil();
+        if (classDef.name(context).hash() == kObjectHash) {
             // The superclass of 'Meta_Object' is 'Class'.
-            metaClassDef->superclass = Slot::makeHash(library::kClassHash);
+            metaClassDef.setSuperclass(library::Symbol::fromView(context, "Class"));
         } else {
-            classDef->superclass = Slot::makeHash(library::kObjectHash);
-            metaClassDef->superclass = Slot::makeHash(library::kMetaObjectHash);
+            classDef.setSuperclass(library::Symbol::fromView(context, "Object"));
+            metaClassDef.setSuperclass(library::Symbol::fromView(context, "Meta_Object"));
         }
     }
 
@@ -199,91 +188,57 @@ bool ClassLibrary::scanClass(ThreadContext* context, Hash filename, int32_t char
     addToSubclassArray(context, classDef);
     addToSubclassArray(context, metaClassDef);
 
-    classDef->subclasses = getSubclassArray(classDef);
-    metaClassDef->subclasses = getSubclassArray(metaClassDef);
+    classDef.setSubclasses(getSubclassArray(context, classDef));
+    metaClassDef.setSubclasses(getSubclassArray(context, metaClassDef));
 
-    classDef->methods = Slot::makeNil();
-    classDef->instVarNames = Slot::makeNil();
-    classDef->classVarNames = Slot::makeNil();
-    classDef->iprototype = Slot::makeNil();
-    classDef->cprototype = Slot::makeNil();
-    classDef->constNames = Slot::makeNil();
-    classDef->constValues = Slot::makeNil();
-    classDef->instanceFormat = Slot::makeNil();
-    classDef->instanceFlags = Slot::makeNil();
-    classDef->classIndex = Slot::makeNil();
-    classDef->classFlags = Slot::makeNil();
-    classDef->maxSubclassIndex = Slot::makeNil();
-    classDef->filenameSymbol = Slot::makeHash(filename);
-    classDef->charPos = Slot::makeInt32(charPos);
-    classDef->classVarIndex = Slot::makeNil();
-
-    metaClassDef->methods = Slot::makeNil();
-    metaClassDef->instVarNames = Slot::makeNil();
-    metaClassDef->classVarNames = Slot::makeNil();
-    metaClassDef->iprototype = Slot::makeNil();
-    metaClassDef->cprototype = Slot::makeNil();
-    metaClassDef->constNames = Slot::makeNil();
-    metaClassDef->constValues = Slot::makeNil();
-    metaClassDef->instanceFormat = Slot::makeNil();
-    metaClassDef->instanceFlags = Slot::makeNil();
-    metaClassDef->classIndex = Slot::makeNil();
-    metaClassDef->classFlags = Slot::makeNil();
-    metaClassDef->maxSubclassIndex = Slot::makeNil();
-    metaClassDef->filenameSymbol = Slot::makeHash(filename);
-    metaClassDef->charPos = Slot::makeInt32(charPos);
-    metaClassDef->classVarIndex = Slot::makeNil();
+    classDef.setFilenameSymbol(filename);
+    classDef.setCharPos(charPos);
+    metaClassDef.setFilenameSymbol(filename);
+    metaClassDef.setCharPos(charPos);
 
     const parse::VarListNode* varList = classNode->variables.get();
     while (varList) {
         auto varHash = lexer->tokens()[varList->tokenIndex].hash;
-        Slot* nameArray = nullptr;
-        Slot* valueArray = nullptr;
-        if (varHash == kVarHash) {
-            nameArray = &classDef->instVarNames;
-            valueArray = &classDef->iprototype;
-        } else if (varHash == kClassVarHash) {
-            nameArray = &classDef->classVarNames;
-            valueArray = &classDef->cprototype;
-        } else if (varHash == kConstHash) {
-            nameArray = &classDef->constNames;
-            valueArray = &classDef->constValues;
-        }
-        // Internal error with VarListNode pointing at a token that isn't 'var', 'classvar', or 'const'.
-        assert(nameArray);
-        assert(valueArray);
-        if (nameArray->isNil()) {
-            *nameArray = Slot::makePointer(context->heap->allocateObject(library::kSymbolArrayHash,
-                    sizeof(library::SymbolArray)));
-        }
-        if (valueArray->isNil()) {
-            *valueArray = Slot::makePointer(context->heap->allocateObject(library::kArrayHash,
-                    sizeof(library::Array)));
-        }
+        library::SymbolArray nameArray;
+        library::Array valueArray;
 
         const parse::VarDefNode* varDef = varList->definitions.get();
         while (varDef) {
-            *nameArray = library::ArrayedCollection::_ArrayAdd(context, *nameArray, context->heap->addSymbol(
-                    lexer->tokens()[varDef->tokenIndex].range));
+            nameArray.add(context, library::Symbol::fromView(context, lexer->tokens()[varDef->tokenIndex].range));
             if (varDef->initialValue) {
                 if (varDef->initialValue->nodeType != parse::NodeType::kLiteral) {
                     SPDLOG_ERROR("non-literal initial value in class.");
                     assert(false);
                 }
                 auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
-                *valueArray = library::ArrayedCollection::_ArrayAdd(context, *valueArray, literal->value);
+                valueArray.add(context, literal->value);
             } else {
-                *valueArray = library::ArrayedCollection::_ArrayAdd(context, *valueArray, Slot::makeNil());
+                valueArray.add(context, Slot::makeNil());
             }
             varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         }
+
+        if (varHash == kVarHash) {
+            classDef.setInstVarNames(nameArray);
+            classDef.setIprototype(valueArray);
+        } else if (varHash == kClassVarHash) {
+            classDef.setClassVarNames(nameArray);
+            classDef.setCprototype(valueArray);
+        } else if (varHash == kConstHash) {
+            classDef.setConstNames(nameArray);
+            classDef.setConstValues(valueArray);
+        } else {
+            // Internal error with VarListNode pointing at a token that isn't 'var', 'classvar', or 'const'.
+            assert(false);
+        }
+
         varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
     }
 
-    m_classMap.emplace(std::make_pair(classDef->name.getHash(), classDef));
-    m_classMap.emplace(std::make_pair(metaClassDef->name.getHash(), metaClassDef));
-    appendToClassArray(context, classDef);
-    appendToClassArray(context, metaClassDef);
+    m_classMap.emplace(std::make_pair(classDef.name(context), classDef));
+    m_classMap.emplace(std::make_pair(metaClassDef.name(context), metaClassDef));
+    m_classArray.typedAdd(context, classDef);
+    m_classArray.typedAdd(context, metaClassDef);
 
     return true;
 }
@@ -291,64 +246,38 @@ bool ClassLibrary::scanClass(ThreadContext* context, Hash filename, int32_t char
 // As we encounter the classes in undefined order during the initial scan, we build the subclassses array in each class
 // object by adding to it if the class already exists, or by caching an array in m_cachedSubclassArrays if the class
 // doesn't exist yet.
-void ClassLibrary::addToSubclassArray(ThreadContext* context, const library::Class* subclass) {
-    auto superclassHash = subclass->superclass.getHash();
-    auto superclassIter = m_classMap.find(superclassHash);
+void ClassLibrary::addToSubclassArray(ThreadContext* context, const library::Class subclass) {
+    auto superclass = subclass.superclass(context);
+    auto superclassIter = m_classMap.find(superclass);
     if (superclassIter != m_classMap.end()) {
-        if (superclassIter->second->subclasses.isNil()) {
-            superclassIter->second->subclasses = Slot::makePointer(context->heap->allocateObject(library::kArrayHash,
-                    sizeof(library::Array)));
-        }
-        superclassIter->second->subclasses = library::Array::_ArrayAdd(context, superclassIter->second->subclasses,
-                Slot::makePointer(subclass));
+        superclassIter->second.setSubclasses(
+                superclassIter->second.subclasses().typedClone().typedAdd(context, subclass));
         return;
     }
-    auto arrayIter = m_cachedSubclassArrays.find(superclassHash);
+    auto arrayIter = m_cachedSubclassArrays.find(superclass);
     if (arrayIter != m_cachedSubclassArrays.end()) {
-        arrayIter->second = reinterpret_cast<library::Array*>(library::Array::_ArrayAdd(context,
-                Slot::makePointer(arrayIter->second), Slot::makePointer(subclass)).getPointer());
+        arrayIter->second.typedAdd(context, subclass);
         return;
     }
-    auto subclassArray = reinterpret_cast<library::Array*>(context->heap->allocateObject(library::kArrayHash,
-            sizeof(library::Array)));
-    m_cachedSubclassArrays.emplace(std::make_pair(superclassHash, reinterpret_cast<library::Array*>(
-            library::Array::_ArrayAdd(context, Slot::makePointer(subclassArray),
-            Slot::makePointer(subclass)).getPointer())));
+    auto subclassArray = library::ClassArray::typedArrayAlloc(context, 1);
+    subclassArray.typedAdd(context, subclass);
+    m_cachedSubclassArrays.emplace(std::make_pair(superclass, subclassArray));
 }
 
-Slot ClassLibrary::getSubclassArray(const library::Class* superclass) {
+library::ClassArray ClassLibrary::getSubclassArray(ThreadContext* context, const library::Class superclass) {
     // First look in the cached arrays, erase and return if found.
-    auto arrayIter = m_cachedSubclassArrays.find(superclass->name.getHash());
+    auto arrayIter = m_cachedSubclassArrays.find(superclass.name(context));
     if (arrayIter != m_cachedSubclassArrays.end()) {
         auto cachedArray = arrayIter->second;
         m_cachedSubclassArrays.erase(arrayIter);
-        return Slot::makePointer(cachedArray);
+        return cachedArray;
     }
 
-    return Slot::makeNil();
-}
-
-void ClassLibrary::appendToClassArray(ThreadContext* context, library::Class* classDef) {
-    auto arraySize = library::Array::_BasicSize(context, Slot::makePointer(m_classArray)).getInt32();
-    if (arraySize > 0) {
-        auto prevClassSlot = library::Array::_BasicAt(context, Slot::makePointer(m_classArray),
-                Slot::makeInt32(arraySize - 1));
-        auto prevClass = reinterpret_cast<library::Class*>(prevClassSlot.getPointer());
-        prevClass->nextclass = Slot::makePointer(classDef);
-    }
-
-    classDef->classIndex = Slot::makeInt32(arraySize);
-
-    auto arraySlot = library::Array::_ArrayAdd(context, Slot::makePointer(m_classArray), Slot::makePointer(classDef));
-    if (arraySlot != Slot::makePointer(m_classArray)) {
-        context->heap->addToRootSet(arraySlot);
-        context->heap->removeFromRootSet(Slot::makePointer(m_classArray));
-        m_classArray = reinterpret_cast<library::Array*>(arraySlot.getPointer());
-    }
+    return library::ClassArray();
 }
 
 bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
-    auto objectIter = m_classMap.find(library::kObjectHash);
+    auto objectIter = m_classMap.find(library::Symbol::fromHash(context, kObjectHash));
     if (objectIter == m_classMap.end()) { assert(false); return false; }
 
     // We start at the root of the class heirarchy with Object.
@@ -358,59 +287,28 @@ bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
     return true;
 }
 
-void ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class* classDef) {
-    auto subclassesSize = library::Array::_BasicSize(context, classDef->subclasses).getInt32();
-    if (subclassesSize > 0) {
-        classDef->maxSubclassIndex = Slot::makeInt32(subclassesSize - 1);
-    } else {
-        classDef->maxSubclassIndex = Slot::makeNil();
+void ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class classDef) {
+    for (int32_t i = 0; i < classDef.subclasses().size(); ++i) {
+        auto subclass = classDef.subclasses().typedAt(i);
+        subclass.setInstVarNames(classDef.instVarNames().copy(
+                context, classDef.instVarNames().size() + subclass.instVarNames().size()).addAll(
+                context, subclass.instVarNames()));
+        subclass.setClassVarNames(classDef.classVarNames().copy(
+                context, classDef.classVarNames().size() + subclass.classVarNames().size()).addAll(
+                context, subclass.classVarNames()));
+        subclass.setIprototype(classDef.iprototype().copy(
+                context, classDef.iprototype().size() + subclass.iprototype().size()).addAll(
+                context, subclass.iprototype()));
+        subclass.setCprototype(classDef.cprototype().copy(
+                context, classDef.cprototype().size() + subclass.cprototype().size()).addAll(
+                context, subclass.cprototype()));
+        subclass.setConstNames(classDef.constNames().copy(
+                context, classDef.constNames().size() + subclass.constNames().size()).addAll(
+                context, subclass.constNames()));
+        subclass.setConstValues(classDef.constValues().copy(
+                context, classDef.constValues().size() + subclass.constValues().size()).addAll(
+                context, subclass.constValues()));
     }
-
-    for (int32_t i = 0; i < subclassesSize; ++i) {
-        auto subclassSlot = library::Array::_BasicAt(context, classDef->subclasses, Slot::makeInt32(i));
-        auto subclass = reinterpret_cast<library::Class*>(subclassSlot.getPointer());
-        assert(subclass->superclass == Slot::makePointer(classDef));
-        subclass->instVarNames = concatenateArrays(context, classDef->instVarNames, subclass->instVarNames);
-        subclass->classVarNames = concatenateArrays(context, classDef->classVarNames, subclass->classVarNames);
-        subclass->iprototype = concatenateArrays(context, classDef->iprototype, subclass->iprototype);
-        subclass->cprototype = concatenateArrays(context, classDef->cprototype, subclass->cprototype);
-        subclass->constNames = concatenateArrays(context, classDef->constNames, subclass->constNames);
-        subclass->constValues = concatenateArrays(context, classDef->constNames, subclass->constValues);
-    }
-}
-
-// TODO: it's a code smell that there's this pure utility function for manipulating arrays in the ClassLibrary class.
-// The sclang Nil class has some nice overloads for adding and concatenating arrays, but that happens on the sclang
-// side, so by the time we get to the primitives they are very much assuming they are method calls on objects in the
-// Array class heirarchy. I considered adding similar convenience code in the primitives, but this makes a big
-// assumption that the return type will be 'Array', when some of these arrays are 'SymbolArray' objects. Hopefully after
-// the ClassLibrary is compiled manipulation of SC data structres can happen *in the sc language,* thus justifying this
-// bootstrap code smell.
-Slot ClassLibrary::concatenateArrays(ThreadContext* context, Slot prefix, Slot suffix) {
-    if (prefix.isNil()) { return suffix; }
-
-    auto prefixSize = library::Array::_BasicSize(context, prefix).getInt32();
-    assert(prefixSize > 0);
-    Hash prefixType = prefix.getPointer()->_className;
-
-    int32_t suffixSize = 0;
-    if (suffix.isPointer()) {
-        suffixSize = library::Array::_BasicSize(context, suffix).getInt32();
-        assert(prefixType == suffix.getPointer()->_className);
-    }
-
-    auto array = context->heap->allocateObject(prefixType, sizeof(ObjectHeader) +
-            ((prefixSize + suffixSize) * sizeof(Slot)));
-    std::memcpy(reinterpret_cast<uint8_t*>(array) + sizeof(ObjectHeader),
-                reinterpret_cast<uint8_t*>(prefix.getPointer()) + sizeof(ObjectHeader),
-                sizeof(Slot) * prefixSize);
-    if (suffixSize > 0) {
-        std::memcpy(reinterpret_cast<uint8_t*>(array) + sizeof(ObjectHeader) + (sizeof(Slot) * prefixSize),
-                reinterpret_cast<uint8_t*>(suffix.getPointer()) + sizeof(ObjectHeader),
-                sizeof(Slot) * suffixSize);
-    }
-
-    return Slot::makePointer(array);
 }
 
 bool ClassLibrary::compileMethods(ThreadContext* /* context */) {
@@ -422,6 +320,5 @@ bool ClassLibrary::cleanUp() {
     m_cachedSubclassArrays.clear();
     return true;
 }
-
 
 } // namespace hadron

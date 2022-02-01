@@ -39,7 +39,7 @@ public:
     FunctionPointer addressToFunctionPointer(Address a);
 
     // ==== JIT overrides
-    void begin(uint8_t* buffer, size_t size) override;
+    void begin(int8_t* buffer, size_t size) override;
     bool hasJITBufferOverflow() override;
     void reset() override;
     Address end(size_t* sizeOut) override;
@@ -78,7 +78,7 @@ public:
     // harmless.
     static void initJITGlobals();
 
-    const uint8_t* getAddress(Address a) const { return static_cast<const uint8_t*>(m_addresses[a]); }
+    const int8_t* getAddress(Address a) const { return static_cast<const int8_t*>(m_addresses[a]); }
 
 private:
     // Converts register number to the Lightening register type.

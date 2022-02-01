@@ -48,8 +48,8 @@ void LighteningJIT::markThreadForJITExecution() {
     pthread_jit_write_protect_np(true);
 }
 
-void LighteningJIT::begin(uint8_t* buffer, size_t size) {
-    jit_begin(m_state, buffer, size);
+void LighteningJIT::begin(int8_t* buffer, size_t size) {
+    jit_begin(m_state, reinterpret_cast<uint8_t*>(buffer), size);
 }
 
 bool LighteningJIT::hasJITBufferOverflow() {

@@ -4,11 +4,11 @@
 
 namespace hadron {
 
-OpcodeWriteIterator::OpcodeWriteIterator(uint8_t* address, size_t size) {
+OpcodeWriteIterator::OpcodeWriteIterator(int8_t* address, size_t size) {
     setBuffer(address, size);
 }
 
-void OpcodeWriteIterator::setBuffer(uint8_t* address, size_t size) {
+void OpcodeWriteIterator::setBuffer(int8_t* address, size_t size) {
     m_startOfBytecode = address;
     m_currentBytecode = address;
     m_endOfBytecode = address + size;
@@ -72,7 +72,7 @@ bool OpcodeWriteIterator::movi(JIT::Reg target, Word value) {
     return !hasOverflow();
 }
 
-uint8_t* OpcodeWriteIterator::bgei(JIT::Reg a, Word b) {
+int8_t* OpcodeWriteIterator::bgei(JIT::Reg a, Word b) {
     addByte(Opcode::kBgei);
     addByte(reg(a));
     addWord(b);
@@ -83,7 +83,7 @@ uint8_t* OpcodeWriteIterator::bgei(JIT::Reg a, Word b) {
     return address;
 }
 
-uint8_t* OpcodeWriteIterator::beqi(JIT::Reg a, Word b) {
+int8_t* OpcodeWriteIterator::beqi(JIT::Reg a, Word b) {
     addByte(Opcode::kBeqi);
     addByte(reg(a));
     addWord(b);
@@ -93,7 +93,7 @@ uint8_t* OpcodeWriteIterator::beqi(JIT::Reg a, Word b) {
     return address;
 }
 
-uint8_t* OpcodeWriteIterator::jmp() {
+int8_t* OpcodeWriteIterator::jmp() {
     addByte(Opcode::kJmp);
     auto address = getCurrent();
     addWord(0xdeadbeef);
@@ -198,7 +198,7 @@ bool OpcodeWriteIterator::reti(int value) {
     return !hasOverflow();
 }
 
-bool OpcodeWriteIterator::patchWord(uint8_t* location, Word value) {
+bool OpcodeWriteIterator::patchWord(int8_t* location, Word value) {
     if (location < m_startOfBytecode || location > m_endOfBytecode - sizeof(Word)) { return false; }
     for (size_t i = 0; i < sizeof(Word); ++i) {
         *location = (value >> (i * 8)) & 0xff;
@@ -207,12 +207,12 @@ bool OpcodeWriteIterator::patchWord(uint8_t* location, Word value) {
     return true;
 }
 
-uint8_t OpcodeWriteIterator::reg(JIT::Reg r) {
+int8_t OpcodeWriteIterator::reg(JIT::Reg r) {
     assert(r >= -2 && r <= 125);
-    return static_cast<uint8_t>(r + 2);
+    return static_cast<int8_t>(r + 2);
 }
 
-bool OpcodeWriteIterator::addByte(uint8_t byte) {
+bool OpcodeWriteIterator::addByte(int8_t byte) {
     bool overflow = true;
     if (m_currentBytecode < m_endOfBytecode) {
         *m_currentBytecode = byte;
@@ -246,11 +246,11 @@ bool OpcodeWriteIterator::addInt(int integer) {
     return nonOverflow;
 }
 
-OpcodeReadIterator::OpcodeReadIterator(const uint8_t* buffer, size_t size) {
+OpcodeReadIterator::OpcodeReadIterator(const int8_t* buffer, size_t size) {
     setBuffer(buffer, size);
 }
 
-void OpcodeReadIterator::setBuffer(const uint8_t* address, size_t size) {
+void OpcodeReadIterator::setBuffer(const int8_t* address, size_t size) {
     m_startOfBytecode = address;
     m_currentBytecode = address;
     m_endOfBytecode = address + size;
@@ -326,28 +326,28 @@ bool OpcodeReadIterator::movi(JIT::Reg& target, Word& value) {
     return !hasOverflow();
 }
 
-bool OpcodeReadIterator::bgei(JIT::Reg& a, Word& b, const uint8_t*& address) {
+bool OpcodeReadIterator::bgei(JIT::Reg& a, Word& b, const int8_t*& address) {
     assert(peek() == Opcode::kBgei);
     ++m_currentBytecode; // kBgei
     a = reg(readByte());
     b = readWord();
-    address = reinterpret_cast<const uint8_t*>(readUWord());
+    address = reinterpret_cast<const int8_t*>(readUWord());
     return !hasOverflow();
 }
 
-bool OpcodeReadIterator::beqi(JIT::Reg& a, Word& b, const uint8_t*& address) {
+bool OpcodeReadIterator::beqi(JIT::Reg& a, Word& b, const int8_t*& address) {
     assert(peek() == Opcode::kBeqi);
     ++m_currentBytecode; // kBeqi
     a = reg(readByte());
     b = readWord();
-    address = reinterpret_cast<const uint8_t*>(readUWord());
+    address = reinterpret_cast<const int8_t*>(readUWord());
     return !hasOverflow();
 }
 
-bool OpcodeReadIterator::jmp(const uint8_t*& address) {
+bool OpcodeReadIterator::jmp(const int8_t*& address) {
     assert(peek() == Opcode::kJmp);
     ++m_currentBytecode; // kJmp
-    address = reinterpret_cast<const uint8_t*>(readUWord());
+    address = reinterpret_cast<const int8_t*>(readUWord());
     return !hasOverflow();
 }
 
@@ -464,12 +464,12 @@ bool OpcodeReadIterator::reti(int& value) {
     return !hasOverflow();
 }
 
-JIT::Reg OpcodeReadIterator::reg(uint8_t r) {
+JIT::Reg OpcodeReadIterator::reg(int8_t r) {
     return static_cast<JIT::Reg>(r) - 2;
 }
 
-uint8_t OpcodeReadIterator::readByte() {
-    uint8_t val = (m_currentBytecode >= m_endOfBytecode) ? 0 : *m_currentBytecode;
+int8_t OpcodeReadIterator::readByte() {
+    int8_t val = (m_currentBytecode >= m_endOfBytecode) ? 0 : *m_currentBytecode;
     ++m_currentBytecode;
     return val;
 }

@@ -1,5 +1,4 @@
 include_directories(
-    "${CMAKE_CURRENT_BINARY_DIR}"
     "${INSTALL_EXT}/include"
 )
 
@@ -144,6 +143,7 @@ list(APPEND SCLANG_CLASS_FILES
     "${SCLANG_PATH}/Common/Collections/Dictionary.sc"
     "${SCLANG_PATH}/Common/Collections/SequenceableCollection.sc"
     "${SCLANG_PATH}/Common/Collections/Set.sc"
+    "${SCLANG_PATH}/Common/Collections/String.sc"
     "${SCLANG_PATH}/Common/Core/AbstractFunction.sc"
 #   "${SCLANG_PATH}/Common/Core/Boolean.sc"
     "${SCLANG_PATH}/Common/Core/Char.sc"
@@ -164,7 +164,7 @@ set(SCHEMA_FILES)
 foreach(CLASS_FILE ${SCLANG_CLASS_FILES})
     string(REGEX REPLACE ".sc$" "" SCHEMA_BASE ${CLASS_FILE})
     string(REGEX REPLACE ${SCLANG_PATH} "" SCHEMA_BASE ${SCHEMA_BASE})
-    set(SCHEMA_FILE ${CMAKE_CURRENT_BINARY_DIR}/schema/${SCHEMA_BASE}.hpp)
+    set(SCHEMA_FILE ${CMAKE_CURRENT_BINARY_DIR}/schema/${SCHEMA_BASE}Schema.hpp)
     set(CASE_FILE ${CMAKE_CURRENT_BINARY_DIR}/case/${SCHEMA_BASE}PrimitiveCases.inl)
     get_filename_component(SCHEMA_FILE_DIRECTORY ${SCHEMA_FILE} DIRECTORY)
     file(MAKE_DIRECTORY ${SCHEMA_FILE_DIRECTORY})
@@ -185,12 +185,16 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
-    library/ArrayedCollection.cpp
-    library/Class.cpp
-    library/IdentityDictionary.cpp
-    library/Kernel.cpp
-    library/Object.cpp
+    library/Array.hpp
+    library/ArrayedCollection.hpp
+    library/Collection.hpp
+    library/Kernel.hpp
+    library/Object.hpp
+    library/Schema.hpp
+    library/SequenceableCollection.hpp
+    library/String.hpp
     library/Symbol.cpp
+    library/Symbol.hpp
 
     Arch.hpp
     BlockBuilder.cpp
@@ -230,6 +234,8 @@ add_library(hadron STATIC
     Runtime.cpp
     Runtime.hpp
     Scope.hpp
+    SymbolTable.cpp
+    SymbolTable.hpp
     ThreadContext.hpp
     VirtualJIT.cpp
     VirtualJIT.hpp
@@ -244,6 +250,9 @@ set(HADRON_COMPILER_UNITTESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/Parser_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Pipeline_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Slot_unittests.cpp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/library/ArrayedCollection_unittests.cpp
+
     PARENT_SCOPE
 )
 

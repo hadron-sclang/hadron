@@ -1,11 +1,25 @@
-#include "schema/Common/Core/Object.hpp"
-#include "schema/Common/Core/Symbol.hpp"
+#include "hadron/library/Symbol.hpp"
+
+#include "hadron/SymbolTable.hpp"
+#include "hadron/ThreadContext.hpp"
 
 namespace hadron {
+namespace library {
 
-// Symbols are represented only by their hash, which packs into the Slot. The garbage collector maintains an
-// IdentityDictionary as part of the root set, with the Symbol hashes as keys and the Strings as values.
+// static
+Symbol Symbol::fromHash(ThreadContext* context, Hash h) {
+    assert(context->symbolTable->isDefined(h));
+    return Symbol(h);
+}
 
+// static
+Symbol Symbol::fromView(ThreadContext* context, std::string_view v) {
+    return Symbol(context->symbolTable->addSymbol(context, v));
+}
 
+std::string_view Symbol::view(ThreadContext* context) const {
+    return context->symbolTable->getString(*this).view();
+}
 
+} // namespace library
 } // namespace hadron

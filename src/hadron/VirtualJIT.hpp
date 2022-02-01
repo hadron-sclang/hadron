@@ -17,7 +17,7 @@ public:
     VirtualJIT(int maxRegisters, int maxFloatRegisters);
     virtual ~VirtualJIT() = default;
 
-    void begin(uint8_t* buffer, size_t size) override;
+    void begin(int8_t* buffer, size_t size) override;
     bool hasJITBufferOverflow() override;
     void reset() override;
     // Because the iterator can continue to record sizes even after overflow, if the buffer has overflowed this will
@@ -59,9 +59,9 @@ private:
     int m_maxFloatRegisters;
     OpcodeWriteIterator m_iterator;
     // Labels are pointers into the bytecode with room reserved for patching the bytecode with address values.
-    std::vector<uint8_t*> m_labels;
+    std::vector<int8_t*> m_labels;
     // Addresses are pointers into the bytecode with no room reserved for patching the bytecode.
-    std::vector<uint8_t*> m_addresses;
+    std::vector<int8_t*> m_addresses;
 };
 
 } // namespace hadron

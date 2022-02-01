@@ -41,7 +41,7 @@ public:
 
     // ===== Serialization
     // Begin recording jit bytecode into the provided |buffer| with maximum |size|.
-    virtual void begin(uint8_t* buffer, size_t size) = 0;
+    virtual void begin(int8_t* buffer, size_t size) = 0;
     // Returns true if the bytecode didn't fit into the provided buffer size.
     virtual bool hasJITBufferOverflow() = 0;
     // Set jit pointer back to beginning of buffer.

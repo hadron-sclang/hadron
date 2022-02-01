@@ -2,7 +2,6 @@
 #define SRC_COMPILER_INCLUDE_HADRON_HEAP_HPP_
 
 #include "hadron/Hash.hpp"
-#include "hadron/ObjectHeader.hpp"
 #include "hadron/Page.hpp"
 #include "hadron/Slot.hpp"
 
@@ -19,10 +18,6 @@ namespace hadron {
 
 struct ObjectHeader;
 
-namespace library {
-struct Int8Array;
-} // namespace library
-
 // Manages dynamic memory allocation for Hadron, including garbage collection. Inspired by the design of the v8 garbage
 // collection system, but greatly simplified.
 class Heap {
@@ -31,18 +26,13 @@ public:
     ~Heap();
 
     // Default allocation, allocates from the young space (unless extra large). Does not initialize the memory to
-    // a known value, Object::_BasicNew does that.
+    // a known value.
     void* allocateNew(size_t sizeInBytes);
-
-    // Allocates space at the desired size and then sets the fields in the ObjectHeader as provided.
-    // TODO: Consider move to ClassLibrary, which will have hardcoded sizes for bootstrap objects, and will know sizes
-    // of all valid dynamically compiled classes, too. Could do template<> with known sizes, etc.
-    ObjectHeader* allocateObject(Hash className, size_t sizeInBytes);
 
     // Used for allocating JIT memory. Returns the maximum usable size in |allocatedSize|, which can be useful as the
     // JIT bytecode is typically based on size estimates. NOTE: calling thread will need to be marked for JIT
     // compilation or this method will segfault on macOS aarch64 devices.
-    library::Int8Array* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
+    void* allocateJIT(size_t sizeInBytes, size_t& allocatedSize);
 
     // Stack segments are always allocated at kLargeObjectSize. They are also allocated and freed in stack ordering,
     // and are exempt from garbage collection. They serve as part of the root set of objects for scanning.
@@ -52,9 +42,6 @@ public:
     // Adds to the list of permanent objects that are the point of origin for all scanning jobs.
     void addToRootSet(Slot object);
     void removeFromRootSet(Slot object);
-
-    // Compute symbol hash, copy symbol data into root set symbol table (if not already set up), returns the Symbol.
-    Slot addSymbol(std::string_view symbol);
 
     // TODO: verify size classes experimentally.
     static constexpr size_t kSmallObjectSize = 256;
@@ -102,8 +89,6 @@ private:
 
     // Address of first byte past the end of each Page, used for mapping an arbitrary address back to owning object.
     std::map<uintptr_t, Page*> m_pageEnds;
-
-    std::unordered_map<Hash, std::string_view> m_symbolTable;
 };
 
 } // namespace hadron
