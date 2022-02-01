@@ -67,6 +67,9 @@ public:
         return wrapper;
     }
 
+    /// Useful to remove const from Array accessors.
+    T clone() const { return T(m_instance); }
+
     inline S* instance() { return m_instance; }
     inline Slot slot() { return Slot::makePointer(m_instance); }
     inline bool isNil() { return m_instance == nullptr; }

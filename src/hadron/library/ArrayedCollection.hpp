@@ -40,16 +40,18 @@ public:
         return *(start() + index);
     }
 
-    void add(ThreadContext* context, E element) {
+    T& add(ThreadContext* context, E element) {
         resize(context, size() + 1);
         *(start() + size()) = element;
+        return *this;
     }
 
-    void addAll(ThreadContext* context, ArrayedCollection<T, S, E> coll) {
+    T& addAll(ThreadContext* context, ArrayedCollection<T, S, E> coll) {
         resize(context, size() + coll.size());
         const T& t = static_cast<const T&>(*this);
         std::memcpy(reinterpret_cast<int8_t*>(t.m_instance) + sizeof(S) + (size() * sizeof(E)),
             coll.start(), coll.size() * sizeof(E));
+        return *this;
     }
 
     // Returns a pointer to the start of the elements, which is just past the schema.

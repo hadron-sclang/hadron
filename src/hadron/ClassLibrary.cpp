@@ -188,8 +188,8 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Symbol filename, i
     addToSubclassArray(context, classDef);
     addToSubclassArray(context, metaClassDef);
 
-    classDef.setSubclasses(getSubclassArray(classDef));
-    metaClassDef.setSubclasses(getSubclassArray(metaClassDef));
+    classDef.setSubclasses(getSubclassArray(context, classDef));
+    metaClassDef.setSubclasses(getSubclassArray(context, metaClassDef));
 
     classDef.setFilenameSymbol(filename);
     classDef.setCharPos(charPos);
@@ -235,8 +235,8 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Symbol filename, i
         varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
     }
 
-    m_classMap.emplace(std::make_pair(classDef.name(), classDef));
-    m_classMap.emplace(std::make_pair(metaClassDef.name(), metaClassDef));
+    m_classMap.emplace(std::make_pair(classDef.name(context), classDef));
+    m_classMap.emplace(std::make_pair(metaClassDef.name(context), metaClassDef));
     appendToClassArray(context, classDef);
     appendToClassArray(context, metaClassDef);
 
@@ -247,33 +247,26 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Symbol filename, i
 // object by adding to it if the class already exists, or by caching an array in m_cachedSubclassArrays if the class
 // doesn't exist yet.
 void ClassLibrary::addToSubclassArray(ThreadContext* context, const library::Class subclass) {
-    auto superclassHash = subclass.superclass.getHash();
-    auto superclassIter = m_classMap.find(superclassHash);
+    auto superclass = subclass.superclass(context);
+    auto superclassIter = m_classMap.find(superclass);
     if (superclassIter != m_classMap.end()) {
-        if (superclassIter->second->subclasses.isNil()) {
-            superclassIter->second->subclasses = Slot::makePointer(context->heap->allocateObject(library::kArrayHash,
-                    sizeof(library::Array)));
-        }
-        superclassIter->second->subclasses = library::Array::_ArrayAdd(context, superclassIter->second->subclasses,
-                Slot::makePointer(subclass));
+        superclassIter->second.setSubclasses(
+                superclassIter->second.subclasses().typedClone().typedAdd(context, subclass));
         return;
     }
-    auto arrayIter = m_cachedSubclassArrays.find(superclassHash);
+    auto arrayIter = m_cachedSubclassArrays.find(superclass);
     if (arrayIter != m_cachedSubclassArrays.end()) {
-        arrayIter->second = reinterpret_cast<library::Array*>(library::Array::_ArrayAdd(context,
-                Slot::makePointer(arrayIter->second), Slot::makePointer(subclass)).getPointer());
+        arrayIter->second.typedAdd(context, subclass);
         return;
     }
-    auto subclassArray = reinterpret_cast<library::Array*>(context->heap->allocateObject(library::kArrayHash,
-            sizeof(library::Array)));
-    m_cachedSubclassArrays.emplace(std::make_pair(superclassHash, reinterpret_cast<library::Array*>(
-            library::Array::_ArrayAdd(context, Slot::makePointer(subclassArray),
-            Slot::makePointer(subclass)).getPointer())));
+    auto subclassArray = library::ClassArray::typedArrayAlloc(context, 1);
+    subclassArray.typedAdd(context, subclass);
+    m_cachedSubclassArrays.emplace(std::make_pair(superclass, subclassArray));
 }
 
-library::ClassArray ClassLibrary::getSubclassArray(const library::Class superclass) {
+library::ClassArray ClassLibrary::getSubclassArray(ThreadContext* context, const library::Class superclass) {
     // First look in the cached arrays, erase and return if found.
-    auto arrayIter = m_cachedSubclassArrays.find(superclass.name());
+    auto arrayIter = m_cachedSubclassArrays.find(superclass.name(context));
     if (arrayIter != m_cachedSubclassArrays.end()) {
         auto cachedArray = arrayIter->second;
         m_cachedSubclassArrays.erase(arrayIter);

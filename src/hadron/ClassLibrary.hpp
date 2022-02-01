@@ -50,7 +50,7 @@ private:
     // Adds subClass to the existing superclass object if it exists, or caches a new list of subclasses if it does not.
     void addToSubclassArray(ThreadContext* context, const library::Class subclass);
     // Returns existing array if cached, or nil if not.
-    library::ClassArray getSubclassArray(const library::Class superclass);
+    library::ClassArray getSubclassArray(ThreadContext* context, const library::Class superclass);
     // Appends to the root set class array, and sets the nextClass pointer.
     void appendToClassArray(ThreadContext* context, library::Class classDef);
 

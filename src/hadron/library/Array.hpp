@@ -33,7 +33,11 @@ public:
     }
 
     T typedAt(int32_t index) const { return T(at(index)); }
-    void typedAdd(ThreadContext* context, T element) { add(context, Slot::makePointer(element.m_instance)); }
+    TypedArray<T>& typedAdd(ThreadContext* context, T element) {
+        add(context, Slot::makePointer(element.m_instance));
+        return *this;
+    }
+    TypedArray<T> typedClone() const { return TypedArray<T>(m_instance); }
 };
 
 } // namespace library
