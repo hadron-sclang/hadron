@@ -17,13 +17,8 @@ class Lexer;
 
 namespace parse {
 
-// TODO: Once symbols are in memory management, enough of the parser should be established that it could make sense to
-// go back and clean up the constructors of the Nodes to match the Bison-generated parser types for symbols. We've added
-// hashes to places where they are useful, it's time to plumb them through the rest of the code, and stop using that
-// awkward parser.lexer()->tokens()[name->nodeIndex] construction, yuck! :)
-
 enum NodeType {
-    kEmpty = 0,
+    kEmpty = 0, // Represents a valid parse of an empty input buffer.
     kVarDef = 1,
     kVarList = 2,
     kArgList = 3,
@@ -59,8 +54,8 @@ enum NodeType {
 };
 
 struct Node {
+    Node(NodeType type, size_t index): nodeType(type), tokenIndex(index), tail(this) {}
     Node() = delete;
-    explicit Node(NodeType type, size_t index): nodeType(type), tokenIndex(index), tail(this) {}
     virtual ~Node() = default;
     void append(std::unique_ptr<Node> node) {
         tail->next = std::move(node);
@@ -171,7 +166,8 @@ struct LiteralNode : public Node {
     virtual ~LiteralNode() = default;
 
     Type type;
-    // Due to unary negation of literals, this value may differ from the token value at tokenIndex.
+    // Due to unary negation of literals, this value may differ from the token value at tokenIndex. This value should be
+    // considered authoritative.
     Slot value;
     // If blockLiteral is non-null, this is a blockLiteral and the Slot is ignored.
     std::unique_ptr<BlockNode> blockLiteral;
@@ -197,7 +193,7 @@ struct CallNode : public Node {
     CallNode(std::pair<size_t, Hash> sel): Node(NodeType::kCall, sel.first), selector(sel.second) {}
     virtual ~CallNode() = default;
 
-    Hash selector;
+    Hash selector; // TODO: not useful, deprecate
     std::unique_ptr<Node> target;
     std::unique_ptr<Node> arguments;
     std::unique_ptr<KeyValueNode> keywordArguments;
