@@ -52,7 +52,7 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const as
 std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, Block* predecessor,
         const ast::BlockAST* blockAST) {
     auto scope = std::make_unique<Scope>(predecessor->scope);
-    scope->blocks.emplace_back(std::make_unique<Block>(scope, scope->frame->numberOfBlocks));
+    scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), scope->frame->numberOfBlocks));
     ++scope->frame->numberOfBlocks;
     auto block = scope->blocks.front().get();
     block->predecessors.emplace_back(predecessor);
@@ -63,7 +63,7 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, Bl
         auto value = blockAST->argumentDefaults.at(argIndex);
         block->revisions[name] = std::make_pair(
                 insert(std::make_unique<hir::ConstantHIR>(value), block),
-                insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(value.getType()))));
+                insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(value.getType())), block));
     }
 
     Block* currentBlock = block;
@@ -119,12 +119,36 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, Block*&
             keywordArgumentValues.emplace_back(buildValue(context, currentBlock, arg.get()));
         }
 
-        nodeValue = buildDispatch(selectorValue, argumentValues, keywordArgumentValues);
+        // Setup the stack for the dispatch.
+        insert(std::make_unique<hir::DispatchSetupStackHIR>(selectorValue, argumentValues.size(),
+                keywordArgumentValues.size() / 2), currentBlock);
+        for (int i = 0; i < static_cast<int>(argumentValues.size()); ++i) {
+            insert(std::make_unique<hir::DispatchStoreArgHIR>(i, argumentValues[i]), currentBlock);
+        }
+        for (int i = 0; i < static_cast<int>(keywordArgumentValues.size()); i += 2) {
+            insert(std::make_unique<hir::DispatchStoreKeyArgHIR>(i / 2, keywordArgumentValues[i],
+                    keywordArgumentValues[i + 1]), currentBlock);
+        }
+
+        // Make the call, this will mark all registers as blocked.
+        insert(std::make_unique<hir::DispatchCallHIR>(), currentBlock);
+
+        nodeValue.first = insert(std::make_unique<hir::DispatchLoadReturnHIR>(), currentBlock);
+        nodeValue.second = insert(std::make_unique<hir::DispatchLoadReturnTypeHIR>(), currentBlock);
+        insert(std::make_unique<hir::DispatchCleanupHIR>(), currentBlock);
     } break;
 
     case ast::ASTType::kName: {
         const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);
-        nodeValue = findName(nameAST->name);
+
+        std::unordered_map<int, std::pair<Value, Value>> blockValues;
+        std::unordered_set<const Scope*> containingScopes;
+        const Scope* scope = currentBlock->scope;
+        while (scope) {
+            containingScopes.emplace(scope);
+            scope = scope->parent;
+        }
+        nodeValue = findName(nameAST->name, currentBlock, blockValues, containingScopes);
     } break;
 
     case ast::ASTType::kAssign: {
@@ -140,146 +164,36 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, Block*&
                 currentBlock);
     } break;
 
-    // ================ BROKEN LINE
-
-    case parse::NodeType::kReturn: {
-        const auto returnNode = reinterpret_cast<const parse::ReturnNode*>(node);
-        assert(returnNode->valueExpr);
-        nodeValue = buildFinalValue(context, returnNode->valueExpr.get());
-        insertLocal(std::make_unique<hir::StoreReturnHIR>(nodeValue));
+    case ast::ASTType::kMethodReturn: {
+        const auto retAST = reinterpret_cast<const ast::MethodReturnAST*>(ast);
+        nodeValue = buildValue(context, currentBlock, retAST->value.get());
     } break;
 
-    case parse::NodeType::kList: {
-        // Create a new array with a dispatch to Array.new()
-        auto selectorValue = std::make_pair(
-            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(hash("new")))),
-            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kSymbol))));
-        std::vector<std::pair<Value, Value>> argumentValues;
-        // TODO: This is broken! Need to be able to look up Meta_Array in the Class Library, not passing the
-        // symbol to it here but the actual target class.
-        argumentValues.emplace_back(std::make_pair(
-            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeNil())),
-            selectorValue.second));
-        std::vector<std::pair<Value, Value>> keywordArgumentValues;
-        nodeValue = buildDispatchInternal(selectorValue, argumentValues, keywordArgumentValues);
-
-        // Evaluate each element in the parse tree in turn and append to list with a call to array.add()
-        selectorValue.first = insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(hash("add"))));
-
-        const auto list = reinterpret_cast<const parse::ListNode*>(node);
-        const parse::ExprSeqNode* element = list->elements.get();
-        while (element) {
-            argumentValues.clear();
-            argumentValues.emplace_back(nodeValue);
-            argumentValues.emplace_back(buildFinalValue(context, element));
-            nodeValue = buildDispatchInternal(selectorValue, argumentValues, keywordArgumentValues);
-
-            element = reinterpret_cast<const parse::ExprSeqNode*>(element->next.get());
-        }
-    } break;
-
-    case parse::NodeType::kDictionary: {
+    case ast::ASTType::kList: {
         assert(false);
     } break;
 
-
-
-    case parse::NodeType::kLiteral: {
-        const auto literal = reinterpret_cast<const parse::LiteralNode*>(node);
-        nodeValue.first = insertLocal(std::make_unique<hir::ConstantHIR>(literal->value));
-        nodeValue.second = insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(literal->type)));
+    case ast::ASTType::kDictionary: {
+        assert(false);
     } break;
-
-    case parse::NodeType::kName: {
-        const auto nameNode = reinterpret_cast<const parse::NameNode*>(node);
-        auto name = library::Symbol::fromView(context, m_lexer->tokens()[nameNode->tokenIndex].range);
-        nodeValue = findName(name);
-    } break;
-
-    case parse::NodeType::kExprSeq: {
-        const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(node);
-        assert(exprSeq->expr);
-        nodeValue = buildFinalValue(context, exprSeq->expr.get());
-    } break;
-
-    case parse::NodeType::kAssign: {
-        const auto assign = reinterpret_cast<const parse::AssignNode*>(node);
-        assert(assign->name);
-        assert(assign->value);
-        nodeValue = buildFinalValue(context, assign->value.get());
-        auto name = library::Symbol::fromView(context, m_lexer->tokens()[assign->name->tokenIndex].range);
-        m_block->revisions[name] = nodeValue;
-    } break;
-
-    case parse::NodeType::kSetter: {
-        const auto setter = reinterpret_cast<const parse::SetterNode*>(node);
-        assert(setter->target);
-        assert(setter->value);
-        // Rehash selector with the _ character appended.
-        auto selectorToken = m_lexer->tokens()[setter->tokenIndex];
-        auto selector = library::Symbol::fromView(context, fmt::format("{}_", selectorToken.range));
-        nodeValue = buildDispatch(context, setter->target.get(), selector, setter->value.get(), nullptr);
-    } break;
-
-    case parse::NodeType::kKeyValue:
-        assert(false);  // Top-level keyvalue pair is a syntax error.
-        break;
-
-    case parse::NodeType::kCall: {
-        const auto call = reinterpret_cast<const parse::CallNode*>(node);
-        auto selector = library::Symbol::fromView(context, m_lexer->tokens()[call->tokenIndex].range);
-        nodeValue = buildDispatch(context, call->target.get(), selector, call->arguments.get(),
-                call->keywordArguments.get());
-    } break;
-
-    case parse::NodeType::kBinopCall: {
-        const auto binop = reinterpret_cast<const parse::BinopCallNode*>(node);
-        auto selector = library::Symbol::fromView(context, m_lexer->tokens()[binop->tokenIndex].range);
-        nodeValue = buildDispatch(context, binop->leftHand.get(), selector, binop->rightHand.get(), nullptr);
-    } break;
-
     }
 
-    nodeValue.first = findValue(nodeValue.first);
-    nodeValue.second = findValue(nodeValue.second);
+    // |currentBlock| may have changed during execution of this function so we re-locate the values to ensure they are
+    // local to this block.
+    std::unordered_map<int, Value> blockValues;
+    nodeValue.first = findValue(nodeValue.first, currentBlock, blockValues);
+    blockValues.clear();
+    nodeValue.second = findValue(nodeValue.second, currentBlock, blockValues);
     return nodeValue;
 }
 
-std::pair<Value, Value> BlockBuilder::buildFinalValue(ThreadContext* context, const parse::Node* node) {
+std::pair<Value, Value> BlockBuilder::buildFinalValue(ThreadContext* context, Block*& currentBlock,
+        const ast::SequenceAST* sequenceAST) {
     std::pair<Value, Value> finalValue;
-    while (node) {
-        m_block->finalValue = buildValue(context, node);
-        node = node->next.get();
+    for (const auto& ast : sequenceAST->sequence) {
+        currentBlock->finalValue = buildValue(context, currentBlock, ast.get());
     }
-    return m_block->finalValue;
-}
-
-std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, const parse::Node* target,
-        library::Symbol selector, const parse::Node* arguments, const parse::KeyValueNode* keywordArguments) {
-
-}
-
-std::pair<Value, Value> BlockBuilder::buildDispatchInternal(std::pair<Value, Value> selectorValue,
-        const std::vector<std::pair<Value, Value>>& argumentValues,
-        const std::vector<std::pair<Value, Value>>& keywordArgumentValues) {
-    // Setup the stack for the dispatch.
-    insertLocal(std::make_unique<hir::DispatchSetupStackHIR>(selectorValue, argumentValues.size(),
-            keywordArgumentValues.size() / 2));
-    for (int i = 0; i < static_cast<int>(argumentValues.size()); ++i) {
-        insertLocal(std::make_unique<hir::DispatchStoreArgHIR>(i, argumentValues[i]));
-    }
-    for (int i = 0; i < static_cast<int>(keywordArgumentValues.size()); i += 2) {
-        insertLocal(std::make_unique<hir::DispatchStoreKeyArgHIR>(i / 2, keywordArgumentValues[i],
-                keywordArgumentValues[i + 1]));
-    }
-
-    // Make the call, this will mark all registers as blocked.
-    insertLocal(std::make_unique<hir::DispatchCallHIR>());
-
-    Value returnValue = insertLocal(std::make_unique<hir::DispatchLoadReturnHIR>());
-    Value returnValueType = insertLocal(std::make_unique<hir::DispatchLoadReturnTypeHIR>());
-    insertLocal(std::make_unique<hir::DispatchCleanupHIR>());
-    return std::make_pair(returnValue, returnValueType);
+    return currentBlock->finalValue;
 }
 
 std::pair<Value, Value> BlockBuilder::buildIf(ThreadContext* context, Block*& currentBlock, const ast::IfAST* ifAST) {
@@ -332,7 +246,7 @@ std::pair<Value, Value> BlockBuilder::buildIf(ThreadContext* context, Block*& cu
     auto exitFalseBranch = std::make_unique<hir::BranchHIR>();
     exitFalseBranch->blockNumber = currentBlock->number;
     insert(std::move(exitFalseBranch), falseScope->blocks.back().get());
-    falseScope->blocks.back()->successors.emplace_back(currentBblock);
+    falseScope->blocks.back()->successors.emplace_back(currentBlock);
     currentBlock->predecessors.emplace_back(falseScope->blocks.back().get());
 
     // Add phis with the final values of both the false and true values here, this is also the value of the
@@ -371,18 +285,7 @@ Value BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
     return value;
 }
 
-std::pair<Value, Value> BlockBuilder::findName(library::Symbol name) {
-    std::unordered_map<int, std::pair<Value, Value>> blockValues;
-    std::unordered_set<const Scope*> containingScopes;
-    const Scope* scope = m_block->scope;
-    while (scope) {
-        containingScopes.emplace(scope);
-        scope = scope->parent;
-    }
-    return findNamePredecessor(name, m_block, blockValues, containingScopes);
-}
-
-std::pair<Value, Value> BlockBuilder::findNamePredecessor(library::Symbol name, Block* block,
+std::pair<Value, Value> BlockBuilder::findName(library::Symbol name, Block* block,
         std::unordered_map<int, std::pair<Value, Value>>& blockValues,
         const std::unordered_set<const Scope*>& containingScopes) {
     auto cacheIter = blockValues.find(block->number);
@@ -404,17 +307,17 @@ std::pair<Value, Value> BlockBuilder::findNamePredecessor(library::Symbol name, 
     // Either no local revision found or the local revision is ignored, we need to search recursively upward. Create
     // a pair of phis for possible insertion into the local map (if not shadowed).
     auto phiForValue = std::make_unique<hir::PhiHIR>();
-    auto phiForValueValue = phiForValue->proposeValue(m_valueSerial);
-    ++m_valueSerial;
+    auto phiForValueValue = phiForValue->proposeValue(block->scope->frame->numberOfValues);
+    ++block->scope->frame->numberOfValues;
     auto phiForType = std::make_unique<hir::PhiHIR>();
-    auto phiForTypeValue = phiForType->proposeValue(m_valueSerial);
-    ++m_valueSerial;
+    auto phiForTypeValue = phiForType->proposeValue(block->scope->frame->numberOfValues);
+    ++block->scope->frame->numberOfValues;
     auto phiValues = std::make_pair(phiForValueValue, phiForTypeValue);
     blockValues.emplace(std::make_pair(block->number, phiValues));
 
     // Search predecessors for the name.
     for (auto pred : block->predecessors) {
-        auto foundValues = findNamePredecessor(name, pred, blockValues, containingScopes);
+        auto foundValues = findName(name, pred, blockValues, containingScopes);
         phiForValue->addInput(foundValues.first);
         phiForType->addInput(foundValues.second);
     }
@@ -461,12 +364,7 @@ std::pair<Value, Value> BlockBuilder::findNamePredecessor(library::Symbol name, 
     return finalValues;
 }
 
-Value BlockBuilder::findValue(Value v) {
-    std::unordered_map<int, Value> blockValues;
-    return findValuePredecessor(v, m_block, blockValues);
-}
-
-Value BlockBuilder::findValuePredecessor(Value v, Block* block, std::unordered_map<int, Value>& blockValues) {
+Value BlockBuilder::findValue(Value v, Block* block, std::unordered_map<int, Value>& blockValues) {
     auto cacheIter = blockValues.find(block->number);
     if (cacheIter != blockValues.end()) {
         return cacheIter->second;
@@ -481,13 +379,13 @@ Value BlockBuilder::findValuePredecessor(Value v, Block* block, std::unordered_m
     // We make a temporary phi with a unique value but we do not put it into the local values map yet. This prevents
     // infinite recursion loops when traversing backedges in the control flow graph.
     auto phi = std::make_unique<hir::PhiHIR>();
-    auto phiValue = phi->proposeValue(m_valueSerial);
-    ++m_valueSerial;
+    auto phiValue = phi->proposeValue(block->scope->frame->numberOfValues);
+    ++block->scope->frame->numberOfValues;
     blockValues.emplace(std::make_pair(block->number, phiValue));
 
     // Recursive search through predecessors for values.
     for (auto pred : block->predecessors) {
-        phi->addInput(findValuePredecessor(v, pred, blockValues));
+        phi->addInput(findValue(v, pred, blockValues));
     }
 
     // If the phi is trivial we use the trivial value directly. If not, insert it into the phi list.

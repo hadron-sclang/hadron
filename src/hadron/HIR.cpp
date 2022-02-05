@@ -35,14 +35,14 @@ Value ConstantHIR::proposeValue(uint32_t number) {
 }
 
 ///////////////////////////////
-// StoreReturnHIR
-StoreReturnHIR::StoreReturnHIR(std::pair<Value, Value> retVal):
-    HIR(kStoreReturn), returnValue(retVal) {
+// MethodReturnHIR
+MethodReturnHIR::MethodReturnHIR(std::pair<Value, Value> retVal):
+    HIR(kMethodReturn), returnValue(retVal) {
     reads.emplace(retVal.first);
     reads.emplace(retVal.second);
 }
 
-Value StoreReturnHIR::proposeValue(uint32_t /* number */) {
+Value MethodReturnHIR::proposeValue(uint32_t /* number */) {
     value.number = 0;
     value.typeFlags = 0;
     return value;

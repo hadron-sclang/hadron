@@ -54,7 +54,7 @@ enum Opcode {
     kLoadArgument,
     kLoadArgumentType,
     kConstant,
-    kStoreReturn,
+    kMethodReturn,
 
     kLoadInstanceVariable,
     kLoadInstanceVariableType,
@@ -72,6 +72,7 @@ enum Opcode {
     kLabel,
 
     // Method calling.
+    // TODO: move to lower level.
     kDispatchSetupStack, // Initialize the stack for a method call.
     kDispatchStoreArg, // Save the provided argument value and type to the call stack.
     kDispatchStoreKeyArg, // Save the provided keyword argument to the call stack.
@@ -145,10 +146,10 @@ struct ConstantHIR : public HIR {
     Value proposeValue(uint32_t number) override;
 };
 
-struct StoreReturnHIR : public HIR {
-    StoreReturnHIR() = delete;
-    StoreReturnHIR(std::pair<Value, Value> retVal);
-    virtual ~StoreReturnHIR() = default;
+struct MethodReturnHIR : public HIR {
+    MethodReturnHIR() = delete;
+    MethodReturnHIR(std::pair<Value, Value> retVal);
+    virtual ~MethodReturnHIR() = default;
     std::pair<Value, Value> returnValue;
 
     // Always returns an invalid value, as this is a read-only operation.
