@@ -197,6 +197,9 @@ add_library(hadron STATIC
     library/Symbol.hpp
 
     Arch.hpp
+    AST.hpp
+    ASTBuilder.cpp
+    ASTBuilder.hpp
     BlockBuilder.cpp
     BlockBuilder.hpp
     BlockSerializer.cpp

@@ -87,8 +87,8 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             assert(false); // TODO
             break;
 
-        case hir::Opcode::kStoreReturn: {
-            const auto storeReturn = reinterpret_cast<const hir::StoreReturnHIR*>(hir);
+        case hir::Opcode::kMethodReturn: {
+            const auto storeReturn = reinterpret_cast<const hir::MethodReturnHIR*>(hir);
             // Add pointer tag to stack pointer to maintain invariant that saved pointers are always tagged.
             jit->ori(JIT::kStackPointerReg, JIT::kStackPointerReg, Slot::kPointerTag);
             // Save the stack pointer to the thread context so we can load the frame pointer in its place.
@@ -128,13 +128,13 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             }
         } break;
 
-        case hir::Opcode::kBranchIfZero: {
-            const auto branchIfZero = reinterpret_cast<const hir::BranchIfZeroHIR*>(hir);
+        case hir::Opcode::kBranchIfTrue: {
+            const auto branchIfTrue = reinterpret_cast<const hir::BranchIfTrueHIR*>(hir);
             // document assumption this is always a forward jump.
-            assert(line + 1 < linearBlock->blockRanges[branchIfZero->blockNumber].first);
+            assert(line + 1 < linearBlock->blockRanges[branchIfTrue->blockNumber].first);
             jmpPatchNeeded.emplace_back(std::make_pair(
-                    jit->beqi(branchIfZero->valueLocations.at(branchIfZero->condition.first.number), 0),
-                    branchIfZero->blockNumber));
+                    jit->beqi(branchIfTrue->valueLocations.at(branchIfTrue->condition.first.number), 1),
+                    branchIfTrue->blockNumber));
         } break;
 
         case hir::Opcode::kLabel:

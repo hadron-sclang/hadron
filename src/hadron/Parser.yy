@@ -1245,6 +1245,7 @@ bool Parser::innerParse() {
         return false;
     }
 
+    // Valid parse of empty input buffer, which we represent with an empty node.
     if (!m_root) {
         m_root = std::make_unique<hadron::parse::Node>(hadron::parse::NodeType::kEmpty, 0);
     }

@@ -1,6 +1,8 @@
 #include "hadron/Pipeline.hpp"
 
 #include "hadron/Arch.hpp"
+#include "hadron/AST.hpp"
+#include "hadron/ASTBuilder.hpp"
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
@@ -8,8 +10,8 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Hash.hpp"
-#include "hadron/HIR.hpp"
 #include "hadron/Heap.hpp"
+#include "hadron/HIR.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
@@ -33,7 +35,6 @@ Pipeline::Pipeline(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporte
 Pipeline::~Pipeline() {}
 
 library::FunctionDef Pipeline::compileCode(ThreadContext* context, std::string_view code) {
-
     Lexer lexer(code, m_errorReporter);
     if (!lexer.lex()) { return library::FunctionDef(nullptr); }
 
@@ -41,27 +42,27 @@ library::FunctionDef Pipeline::compileCode(ThreadContext* context, std::string_v
     if (!parser.parse()) { return library::FunctionDef(nullptr); }
     assert(parser.root()->nodeType == parse::NodeType::kBlock);
 
+    ASTBuilder astBuilder(m_errorReporter);
+    auto blockAST = astBuilder.buildBlock(context, &lexer, reinterpret_cast<const parse::BlockNode*>(parser.root()));
+
+    return compileBlock(context, blockAST.get());
+}
+
+library::FunctionDef Pipeline::compileBlock(ThreadContext* context, const ast::BlockAST* blockAST) {
     auto functionDef = library::FunctionDef::alloc(context);
-    buildBlock(context, functionDef, reinterpret_cast<const parse::BlockNode*>(parser.root()), &lexer);
+    buildBlock(context, blockAST, functionDef);
     return functionDef;
 }
 
-library::FunctionDef Pipeline::compileBlock(ThreadContext* context, const parse::BlockNode* blockNode,
-        const Lexer* lexer) {
-    auto functionDef = library::FunctionDef::alloc(context);
-    buildBlock(context, functionDef, blockNode, lexer);
-    return functionDef;
-}
-
-library::Method Pipeline::compileMethod(ThreadContext* context, const parse::MethodNode* methodNode,
-        const Lexer* lexer, const library::Class /* classDef */) {
+library::Method Pipeline::compileMethod(ThreadContext* context, const library::Class /* classDef */,
+        const ast::BlockAST* blockAST) {
     auto method = library::Method::alloc(context);
-    buildBlock(context, library::FunctionDef::wrapUnsafe(method.instance()), methodNode->body.get(), lexer);
+    buildBlock(context, blockAST, library::FunctionDef::wrapUnsafe(method.instance()));
     return method;
 }
 
 #if HADRON_PIPELINE_VALIDATE
-bool Pipeline::afterBlockBuilder(const Frame*, const parse::BlockNode*, const Lexer*) { return true; }
+bool Pipeline::afterBlockBuilder(const Frame*, const ast::BlockAST*) { return true; }
 bool Pipeline::afterBlockSerializer(const LinearBlock*) { return true; }
 bool Pipeline::afterLifetimeAnalyzer(const LinearBlock*) { return true; }
 bool Pipeline::afterRegisterAllocator(const LinearBlock*) { return true; }
@@ -74,14 +75,13 @@ void Pipeline::setDefaults() {
     m_jitToVirtualMachine = false;
 }
 
-bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef functionDef, const parse::BlockNode* blockNode,
-        const Lexer* lexer) {
-    hadron::BlockBuilder builder(lexer, m_errorReporter);
-    auto frame = builder.buildFrame(context, blockNode);
+bool Pipeline::buildBlock(ThreadContext* context, const ast::BlockAST* blockAST, library::FunctionDef functionDef) {
+    hadron::BlockBuilder builder(m_errorReporter);
+    auto frame = builder.buildFrame(context, blockAST);
     if (!frame) { return false; }
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateFrame(context, frame.get(), blockNode, lexer)) { return false; }
-    if (!afterBlockBuilder(frame.get(), blockNode, lexer)) { return false; }
+    if (!validateFrame(context, frame.get(), blockAST)) { return false; }
+    if (!afterBlockBuilder(frame.get(), blockAST)) { return false; }
     size_t numberOfBlocks = static_cast<size_t>(frame->numberOfBlocks);
     size_t numberOfValues = frame->numberOfValues;
 #endif // HADRON_PIPELINE_VALIDATE
@@ -155,67 +155,12 @@ bool Pipeline::buildBlock(ThreadContext* context, library::FunctionDef functionD
 }
 
 #if HADRON_PIPELINE_VALIDATE
-bool Pipeline::validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
-        const Lexer* lexer ) {
+bool Pipeline::validateFrame(ThreadContext* /* context */, const Frame* frame, const ast::BlockAST* /* blockAST */) {
     int32_t argumentOrderArraySize = frame->argumentOrder.size();
     int32_t argumentDefaultsArraySize = frame->argumentDefaults.size();
     if (argumentOrderArraySize != argumentDefaultsArraySize) {
         SPDLOG_ERROR("Frame has mismatched argument order and defaults array sizes of {} and {} respectively",
             argumentOrderArraySize, argumentDefaultsArraySize);
-        return false;
-    }
-
-    if (argumentOrderArraySize < 1) {
-        SPDLOG_ERROR("First argument to Frame absent.");
-        return false;
-    }
-
-    auto argName = frame->argumentOrder.at(0);
-    if (argName.hash() != kThisHash) {
-        SPDLOG_ERROR("First argument to Frame '{}' {:16x} not 'this' {:16x}", argName.view(context), argName.hash(),
-                kThisHash);
-        return false;
-    }
-
-    // Check argument count and ordering against frame.
-    int32_t numberOfArguments = 1;
-    if (blockNode->arguments && blockNode->arguments->varList) {
-        const hadron::parse::VarDefNode* varDef = blockNode->arguments->varList->definitions.get();
-        while (varDef) {
-            auto nameHash = hadron::hash(lexer->tokens()[varDef->tokenIndex].range);
-            if (argumentOrderArraySize < numberOfArguments) {
-                SPDLOG_ERROR("Missing argument number {} named {} from Frame", numberOfArguments,
-                        lexer->tokens()[varDef->tokenIndex].range);
-                return false;
-            }
-            argName = frame->argumentOrder.at(numberOfArguments);
-            if (argName.hash() != nameHash) {
-                SPDLOG_ERROR("Mismatched hash for argument number {} named {}", numberOfArguments,
-                        lexer->tokens()[varDef->tokenIndex].range);
-                return false;
-            }
-            ++numberOfArguments;
-            varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
-        }
-        if (blockNode->arguments->varArgsNameIndex) {
-            auto nameHash = hadron::hash(lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
-            if (argumentOrderArraySize < numberOfArguments) {
-                SPDLOG_ERROR("Missing varArgs argument number {} named {} from Frame", numberOfArguments,
-                        lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
-                return false;
-            }
-            argName = frame->argumentOrder.at(numberOfArguments);
-            if (argName.hash() != nameHash) {
-                SPDLOG_ERROR("Mismatched hash for varArgs number {} named {}", numberOfArguments,
-                        lexer->tokens()[blockNode->arguments->varArgsNameIndex.value()].range);
-                return false;
-            }
-            ++numberOfArguments;
-        }
-    }
-    if (argumentOrderArraySize != numberOfArguments) {
-        SPDLOG_ERROR("Mismatched argument count in Frame, parse tree has {}, Frame has {}", numberOfArguments,
-            argumentOrderArraySize);
         return false;
     }
 

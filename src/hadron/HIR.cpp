@@ -35,14 +35,14 @@ Value ConstantHIR::proposeValue(uint32_t number) {
 }
 
 ///////////////////////////////
-// StoreReturnHIR
-StoreReturnHIR::StoreReturnHIR(std::pair<Value, Value> retVal):
-    HIR(kStoreReturn), returnValue(retVal) {
+// MethodReturnHIR
+MethodReturnHIR::MethodReturnHIR(std::pair<Value, Value> retVal):
+    HIR(kMethodReturn), returnValue(retVal) {
     reads.emplace(retVal.first);
     reads.emplace(retVal.second);
 }
 
-Value StoreReturnHIR::proposeValue(uint32_t /* number */) {
+Value MethodReturnHIR::proposeValue(uint32_t /* number */) {
     value.number = 0;
     value.typeFlags = 0;
     return value;
@@ -202,13 +202,13 @@ Value BranchHIR::proposeValue(uint32_t /* number */) {
 }
 
 ///////////////////////////////
-// BranchIfZeroHIR
-BranchIfZeroHIR::BranchIfZeroHIR(std::pair<Value, Value> cond): HIR(kBranchIfZero), condition(cond) {
+// BranchIfTrueHIR
+BranchIfTrueHIR::BranchIfTrueHIR(std::pair<Value, Value> cond): HIR(kBranchIfTrue), condition(cond) {
     reads.emplace(cond.first);
     reads.emplace(cond.second);
 }
 
-Value BranchIfZeroHIR::proposeValue(uint32_t /* number */) {
+Value BranchIfTrueHIR::proposeValue(uint32_t /* number */) {
     value.number = 0;
     value.typeFlags = 0;
     return value;

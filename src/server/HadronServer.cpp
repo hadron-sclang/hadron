@@ -1,6 +1,8 @@
 #include "server/HadronServer.hpp"
 
 #include "hadron/Arch.hpp"
+#include "hadron/AST.hpp"
+#include "hadron/ASTBuilder.hpp"
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
@@ -133,10 +135,14 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
 
 void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lexer,
         const hadron::parse::BlockNode* blockNode, std::vector<CompilationUnit>& units) {
+    SPDLOG_TRACE("Compile Diagnostics AST Builder {}", name);
+    hadron::ASTBuilder astBuilder(m_errorReporter);
+    auto blockAST = astBuilder.buildBlock(m_runtime->context(), lexer, blockNode);
+
     // TODO: can this be refactored to use hadron::Pipeline?
     SPDLOG_TRACE("Compile Diagnostics Block Builder {}", name);
-    hadron::BlockBuilder blockBuilder(lexer, m_errorReporter);
-    auto frame = blockBuilder.buildFrame(m_runtime->context(), blockNode);
+    hadron::BlockBuilder blockBuilder(m_errorReporter);
+    auto frame = blockBuilder.buildFrame(m_runtime->context(), blockAST.get());
 
     SPDLOG_TRACE("Compile Diagnostics Block Serializer {}", name);
     hadron::BlockSerializer blockSerializer;
@@ -168,10 +174,10 @@ void HadronServer::addCompilationUnit(std::string name, const hadron::Lexer* lex
 
     SPDLOG_TRACE("Compile Diagnostics Rebuilding Block {}", name);
     // Rebuid frame to include in diagnostics.
-    hadron::BlockBuilder blockRebuilder(lexer, m_errorReporter);
-    frame = blockRebuilder.buildFrame(m_runtime->context(), blockNode);
+    hadron::BlockBuilder blockRebuilder(m_errorReporter);
+    frame = blockRebuilder.buildFrame(m_runtime->context(), blockAST.get());
 
-    units.emplace_back(CompilationUnit{name, blockNode, std::move(frame), std::move(linearBlock),
+    units.emplace_back(CompilationUnit{name, blockNode, std::move(blockAST), std::move(frame), std::move(linearBlock),
             std::move(byteCode), finalSize});
 }
 
