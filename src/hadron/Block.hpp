@@ -1,7 +1,7 @@
 #ifndef SRC_HADRON_BLOCK_HPP_
 #define SRC_HADRON_BLOCK_HPP_
 
-#include "hadron/HIR.hpp"
+#include "hadron/hir/HIR.hpp"
 #include "hadron/library/Symbol.hpp"
 
 #include <memory>

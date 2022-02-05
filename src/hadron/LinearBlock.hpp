@@ -2,6 +2,7 @@
 #define SRC_COMPILER_INCLUDE_HADRON_LINEAR_BLOCK_HPP_
 
 #include "hadron/LifetimeInterval.hpp"
+#include "hadron/lir/LIR.hpp"
 
 #include <vector>
 
@@ -12,7 +13,7 @@ struct LinearBlock {
     ~LinearBlock() = default;
 
     // Flattened list of all instructions, including Labels at the top of each block.
-    std::vector<std::unique_ptr<hir::HIR>> instructions;
+    std::vector<std::unique_ptr<lir::LIR>> instructions;
     // In-order list of each block.
     std::vector<int> blockOrder;
     // TODO: refactor to use Lifetime::Interval

@@ -1,11 +1,8 @@
-#include "hadron/HIR.hpp"
+#include "hadron/hir/HIR.hpp"
 
 namespace hadron {
-
 namespace hir {
 
-///////////////////////////////
-// HIR
 int HIR::numberOfReservedRegisters() const {
     return 0;
 }

@@ -1,10 +1,6 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_BLOCK_BUILDER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_BLOCK_BUILDER_HPP_
 
-#include "hadron/Hash.hpp"
-#include "hadron/HIR.hpp"
-#include "hadron/Slot.hpp"
-
 #include "hadron/library/Symbol.hpp"
 
 #include <memory>
@@ -21,9 +17,12 @@ namespace ast {
 struct AST;
 struct BlockAST;
 struct IfAST;
-struct MessageAST;
 struct SequenceAST;
 } // namespace parse
+
+namespace hir {
+struct HIR;
+} // namespace hir
 
 // Goes from parse tree to a Control Flow Graph of Blocks of HIR code in SSA form.
 //

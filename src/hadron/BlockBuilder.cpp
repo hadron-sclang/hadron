@@ -5,6 +5,7 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
+#include "hadron/hir/HIR.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/LinearBlock.hpp"
 #include "hadron/Scope.hpp"

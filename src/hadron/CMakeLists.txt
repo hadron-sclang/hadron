@@ -185,6 +185,9 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
+    hir/HIR.cpp
+    hir/HIR.hpp
+
     library/Array.hpp
     library/ArrayedCollection.hpp
     library/Collection.hpp
@@ -195,6 +198,8 @@ add_library(hadron STATIC
     library/String.hpp
     library/Symbol.cpp
     library/Symbol.hpp
+
+    lir/LIR.hpp
 
     Arch.hpp
     AST.hpp
@@ -210,8 +215,6 @@ add_library(hadron STATIC
     Emitter.hpp
     Heap.cpp
     Heap.hpp
-    HIR.cpp
-    HIR.hpp
     JIT.hpp
     LifetimeAnalyzer.cpp
     LifetimeAnalyzer.hpp
