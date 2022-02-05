@@ -1179,16 +1179,16 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
         serializeSlot(constant->constant, value, document);
         jsonHIR.AddMember("constant", value, document.GetAllocator());
     } break;
-    case hadron::hir::Opcode::kStoreReturn: {
-        const auto storeReturn = reinterpret_cast<const hadron::hir::StoreReturnHIR*>(hir);
-        jsonHIR.AddMember("opcode", "StoreReturn", document.GetAllocator());
+    case hadron::hir::Opcode::kMethodReturn: {
+        const auto methodReturn = reinterpret_cast<const hadron::hir::MethodReturnHIR*>(hir);
+        jsonHIR.AddMember("opcode", "MethodReturn", document.GetAllocator());
         rapidjson::Value returnValue;
         returnValue.SetArray();
         rapidjson::Value value;
-        serializeValue(storeReturn->returnValue.first, value, document);
+        serializeValue(methodReturn->returnValue.first, value, document);
         returnValue.PushBack(value, document.GetAllocator());
         rapidjson::Value type;
-        serializeValue(storeReturn->returnValue.second, type, document);
+        serializeValue(methodReturn->returnValue.second, type, document);
         returnValue.PushBack(type, document.GetAllocator());
         jsonHIR.AddMember("returnValue", returnValue, document.GetAllocator());
     } break;
@@ -1219,17 +1219,17 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
         jsonHIR.AddMember("opcode", "Branch", document.GetAllocator());
         jsonHIR.AddMember("blockNumber", rapidjson::Value(branch->blockNumber), document.GetAllocator());
     } break;
-    case hadron::hir::Opcode::kBranchIfZero: {
-        const auto branchIfZero = reinterpret_cast<const hadron::hir::BranchIfZeroHIR*>(hir);
-        jsonHIR.AddMember("opcode", "BranchIfZero", document.GetAllocator());
-        jsonHIR.AddMember("blockNumber", rapidjson::Value(branchIfZero->blockNumber), document.GetAllocator());
+    case hadron::hir::Opcode::kBranchIfTrue: {
+        const auto branchIfTrue = reinterpret_cast<const hadron::hir::BranchIfTrueHIR*>(hir);
+        jsonHIR.AddMember("opcode", "BranchIfTrue", document.GetAllocator());
+        jsonHIR.AddMember("blockNumber", rapidjson::Value(branchIfTrue->blockNumber), document.GetAllocator());
         rapidjson::Value condition;
         condition.SetArray();
         rapidjson::Value value;
-        serializeValue(branchIfZero->condition.first, value, document);
+        serializeValue(branchIfTrue->condition.first, value, document);
         condition.PushBack(value, document.GetAllocator());
         rapidjson::Value type;
-        serializeValue(branchIfZero->condition.second, type, document);
+        serializeValue(branchIfTrue->condition.second, type, document);
         condition.PushBack(type, document.GetAllocator());
         jsonHIR.AddMember("condition", condition, document.GetAllocator());
     } break;

@@ -324,6 +324,7 @@ std::pair<Value, Value> BlockBuilder::findName(library::Symbol name, Block* bloc
 
     // TODO: It's possible that phis have 0 inputs here, meaning you'll get an assert on phiForValue->getTrivialValue.
     // That means the name is undefined, and we should return an error.
+    assert(phiForValue->inputs.size() > 0);
 
     auto valueTrivial = phiForValue->getTrivialValue();
     auto typeTrivial = phiForType->getTrivialValue();

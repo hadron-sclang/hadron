@@ -24,10 +24,9 @@ namespace hir {
 struct HIR;
 } // namespace hir
 
-namespace parse {
-struct BlockNode;
-struct MethodNode;
-} // namespace parse
+namespace ast {
+struct BlockAST;
+}
 
 struct Block;
 class ErrorReporter;
@@ -53,17 +52,16 @@ public:
     void setJitToVirtualMachine(bool useVM) { m_jitToVirtualMachine = useVM; }
 
     library::FunctionDef compileCode(ThreadContext* context, std::string_view code);
-    library::FunctionDef compileBlock(ThreadContext* context, const parse::BlockNode* blockNode, const Lexer* lexer);
+    library::FunctionDef compileBlock(ThreadContext* context, const ast::BlockAST* blockAST);
 
-    library::Method compileMethod(ThreadContext* context, const parse::MethodNode* methodNode, const Lexer* lexer,
-            const library::Class classDef);
+    library::Method compileMethod(ThreadContext* context, const library::Class classDef, const ast::BlockAST* blockAST);
 
 #if HADRON_PIPELINE_VALIDATE
     // With pipeline validation on these methods are called after internal validation of each step. Their default
     // implementions do nothing. They are intended primarily for use by the Pipeline unittests, allowing for additional
     // testing work on each pipeline step as needed. Any method that returns false will stop the pipeline from moving
     // to the next step.
-    virtual bool afterBlockBuilder(const Frame* frame, const parse::BlockNode* blockNode, const Lexer* lexer);
+    virtual bool afterBlockBuilder(const Frame* frame, const ast::BlockAST* blockAST);
     virtual bool afterBlockSerializer(const LinearBlock* linearBlock);
     virtual bool afterLifetimeAnalyzer(const LinearBlock* linearBlock);
     virtual bool afterRegisterAllocator(const LinearBlock* linearBlock);
@@ -73,13 +71,11 @@ public:
 
 protected:
     void setDefaults();
-    bool buildBlock(ThreadContext* context, library::FunctionDef functionDef, const parse::BlockNode* blockNode,
-            const Lexer* lexer);
+    bool buildBlock(ThreadContext* context, const ast::BlockAST* blockAST, library::FunctionDef functionDef);
 
 #if HADRON_PIPELINE_VALIDATE
     // Checks for valid SSA form and that all members of Frame and contained Blocks are valid.
-    bool validateFrame(ThreadContext* context, const Frame* frame, const parse::BlockNode* blockNode,
-            const Lexer* lexer);
+    bool validateFrame(ThreadContext* context, const Frame* frame, const ast::BlockAST* blockAST);
     bool validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<int>& blockNumbers);
 
     bool validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks, size_t numberOfValues);
