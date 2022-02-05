@@ -1,13 +1,12 @@
 #include "hadron/BlockBuilder.hpp"
 
+#include "hadron/AST.hpp"
 #include "hadron/Block.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/Keywords.hpp"
-#include "hadron/Lexer.hpp"
 #include "hadron/LinearBlock.hpp"
-#include "hadron/Parser.hpp"
 #include "hadron/Scope.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
@@ -20,155 +19,128 @@
 
 namespace hadron {
 
-BlockBuilder::BlockBuilder(const Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter):
-    m_lexer(lexer),
-    m_errorReporter(errorReporter),
-    m_frame(nullptr),
-    m_scope(nullptr),
-    m_block(nullptr),
-    m_blockSerial(0),
-    m_valueSerial(0) { }
+BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
+    m_errorReporter(errorReporter) { }
 
 BlockBuilder::~BlockBuilder() { }
 
-std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const parse::BlockNode* blockNode) {
+std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const ast::BlockAST* blockAST) {
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
-    m_frame = frame.get();
-    frame->rootScope = std::make_unique<Scope>(m_frame, nullptr);
-    m_scope = frame->rootScope.get();
-    m_scope->blocks.emplace_back(std::make_unique<Block>(m_scope, m_blockSerial));
-    ++m_blockSerial;
-    m_block = m_scope->blocks.front().get();
 
-    auto name = library::Symbol::fromView(context, "this");
-    // First block within rootScope gets argument loads. The *this* pointer is always the first argument to every Frame.
-    frame->argumentOrder.add(context, name);
-    frame->argumentDefaults.add(context, Slot::makeNil());
-    m_block->revisions[name] = std::make_pair(
-            insertLocal(std::make_unique<hir::LoadArgumentHIR>(0)),
-            insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(0)));
+    frame->argumentOrder = blockAST->argumentNames;
+    frame->argumentDefaults = blockAST->argumentDefaults;
 
-    // Build the rest of the argument order.
-    const parse::ArgListNode* argList = blockNode->arguments.get();
-    int argIndex = 1;
-    if (argList) {
-        assert(argList->nodeType == parse::NodeType::kArgList);
-        const parse::VarListNode* varList = argList->varList.get();
-        while (varList) {
-            assert(varList->nodeType == parse::NodeType::kVarList);
-            const parse::VarDefNode* varDef = varList->definitions.get();
-            while (varDef) {
-                assert(varDef->nodeType == parse::NodeType::kVarDef);
-                name = library::Symbol::fromView(context, m_lexer->tokens()[varDef->tokenIndex].range);
-                frame->argumentOrder.add(context, name);
-                Slot initialValue = Slot::makeNil();
-                if (varDef->initialValue) {
-                    if (varDef->initialValue->nodeType == parse::NodeType::kLiteral) {
-                        const auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
-                        initialValue = literal->value;
-                    } else {
-                        // ** TODO: add to list for if-block processing (see below)
-                    }
-                }
-                frame->argumentDefaults.add(context, initialValue);
-                m_block->revisions[name] = std::make_pair(
-                     insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex)),
-                     insertLocal(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex)));
-                ++argIndex;
-                varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
-            }
-            varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
-        }
-        // There should be at most one arglist in a parse tree.
-        assert(argList->next == nullptr);
-        if (argList->varArgsNameIndex) {
-            name = library::Symbol::fromView(context, m_lexer->tokens()[argList->varArgsNameIndex.value()].range);
-            frame->hasVarArgs = true;
-            frame->argumentOrder.add(context, name);
-            frame->argumentDefaults.add(context, Slot::makeNil());
-            // Type is always a kArray for variable argument lists.
-            m_block->revisions[name] = std::make_pair(
-                insertLocal(std::make_unique<hir::LoadArgumentHIR>(argIndex, true)),
-                insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kArray))));
-        }
+    frame->rootScope = std::make_unique<Scope>(frame.get());
+    auto scope = frame->rootScope.get();
+    scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
+    ++frame->numberOfBlocks;
+    auto block = scope->blocks.front().get();
+
+    for (int32_t argIndex = 0; argIndex < frame->argumentOrder.size(); ++argIndex) {
+        auto name = frame->argumentOrder.at(argIndex);
+        block->revisions[name] = std::make_pair(
+                insert(std::make_unique<hir::LoadArgumentHIR>(argIndex), block),
+                insert(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex), block));
     }
 
-    // Load class variables.
-    // Load instance variables.
-
-    if (blockNode->variables) {
-        m_block->finalValue = buildFinalValue(context, blockNode->variables.get());
-    }
-
-    // ** TODO: If this is the entry scope for a frame, insert any non-literal value initalizations here as
-    // ifNil blocks.
-
-    if (blockNode->body) {
-        m_block->finalValue = buildFinalValue(context, blockNode->body.get());
-    }
-
-    frame->numberOfBlocks = m_blockSerial;
-    frame->numberOfValues = m_valueSerial;
+    Block* currentBlock = block;
+    block->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
     return frame;
 }
 
-std::unique_ptr<Scope> BlockBuilder::buildSubScope(ThreadContext* context, const parse::BlockNode* blockNode) {
-    assert(blockNode);
-    auto scope = std::make_unique<Scope>(m_frame, m_scope);
-    m_scope = scope.get();
-    // Make an entry block and add to frame.
-    scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), m_blockSerial));
-    ++m_blockSerial;
-    scope->blocks.front()->predecessors.emplace_back(m_block);
-    m_block = scope->blocks.begin()->get();
+std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, Block* predecessor,
+        const ast::BlockAST* blockAST) {
+    auto scope = std::make_unique<Scope>(predecessor->scope);
+    scope->blocks.emplace_back(std::make_unique<Block>(scope, scope->frame->numberOfBlocks));
+    ++scope->frame->numberOfBlocks;
+    auto block = scope->blocks.front().get();
+    block->predecessors.emplace_back(predecessor);
 
-    if (blockNode->variables) {
-        m_block->finalValue = buildFinalValue(context, blockNode->variables.get());
+    // Inline blocks can have arguments but they are treated as constants with their default values.
+    for (int32_t argIndex = 0; argIndex < blockAST->argumentNames.size(); ++argIndex) {
+        auto name = blockAST->argumentNames.at(argIndex);
+        auto value = blockAST->argumentDefaults.at(argIndex);
+        block->revisions[name] = std::make_pair(
+                insert(std::make_unique<hir::ConstantHIR>(value), block),
+                insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(value.getType()))));
     }
 
-    if (blockNode->body) {
-        m_block->finalValue = buildFinalValue(context, blockNode->body.get());
-    }
-
+    Block* currentBlock = block;
+    block->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
     return scope;
 }
 
-std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const parse::Node* node) {
+std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock, const ast::AST* ast) {
     std::pair<Value, Value> nodeValue;
 
-    switch(node->nodeType) {
-    case parse::NodeType::kEmpty:
-        assert(false); // kEmpty is invalid node type.
+    switch(ast->astType) {
+    case ast::ASTType::kEmpty:
+        nodeValue.first = insert(std::make_unique<hir::ConstantHIR>(Slot::makeNil()), currentBlock);
+        nodeValue.second = insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kNil)), currentBlock);
         break;
 
-    case parse::NodeType::kVarDef: {
-        const auto varDef = reinterpret_cast<const parse::VarDefNode*>(node);
-        auto name = library::Symbol::fromView(context, m_lexer->tokens()[varDef->tokenIndex].range);
-        // TODO: error reporting for variable redefinition
-        if (varDef->initialValue) {
-            nodeValue = buildFinalValue(context, varDef->initialValue.get());
-            m_block->revisions[name] = nodeValue;
-        } else {
-            nodeValue.first = insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
-            nodeValue.second = insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kNil)));
-            m_block->revisions[name] = nodeValue;
-        }
+    case ast::ASTType::kSequence: {
+        const auto seq = reinterpret_cast<const ast::SequenceAST*>(ast);
+        nodeValue = buildFinalValue(context, currentBlock, seq);
     } break;
 
-    case parse::NodeType::kVarList: {
-        const auto varList = reinterpret_cast<const parse::VarListNode*>(node);
-        if (varList->definitions) {
-            nodeValue = buildFinalValue(context, varList->definitions.get());
-        }
+    // Blocks inline are block literals. We need to compile the AST down to bytecode, then in this context the
+    // finalValue is a pointer back to the Function object which references the compiled FunctionDef.
+    case ast::ASTType::kBlock: {
+        assert(false);
     } break;
 
-    case parse::NodeType::kArgList:
-    case parse::NodeType::kMethod:
-    case parse::NodeType::kClassExt:
-    case parse::NodeType::kClass:
-        assert(false); // internal error, not a valid node within a block
-        break;
+    case ast::ASTType::kIf: {
+        const auto ifAST = reinterpret_cast<const ast::IfAST*>(ast);
+        nodeValue = buildIf(context, currentBlock, ifAST);
+    } break;
+
+    case ast::ASTType::kMessage: {
+        const auto message = reinterpret_cast<const ast::MessageAST*>(ast);
+        // Build argument values starting with target argument as `this`.
+        std::vector<std::pair<Value, Value>> argumentValues;
+        argumentValues.reserve(message->arguments->sequence.size() + 1);
+        argumentValues.emplace_back(buildValue(context, currentBlock, message->target.get()));
+
+        auto selectorValue = std::make_pair(
+                insert(std::make_unique<hir::ConstantHIR>(message->selector.slot()), currentBlock),
+                insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kSymbol)), currentBlock));
+
+        // Append any additional arguments.
+        for (const auto& arg : message->arguments->sequence) {
+            argumentValues.emplace_back(buildValue(context, currentBlock, arg.get()));
+        }
+
+        // Build keyword argument pairs.
+        std::vector<std::pair<Value, Value>> keywordArgumentValues;
+        keywordArgumentValues.reserve(message->keywordArguments->sequence.size());
+        for (const auto& arg : message->keywordArguments->sequence) {
+            keywordArgumentValues.emplace_back(buildValue(context, currentBlock, arg.get()));
+        }
+
+        nodeValue = buildDispatch(selectorValue, argumentValues, keywordArgumentValues);
+    } break;
+
+    case ast::ASTType::kName: {
+        const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);
+        nodeValue = findName(nameAST->name);
+    } break;
+
+    case ast::ASTType::kAssign: {
+        const auto assign = reinterpret_cast<const ast::AssignAST*>(ast);
+        nodeValue = buildValue(context, currentBlock, assign->value.get());
+        currentBlock->revisions[assign->name->name] = nodeValue;
+    } break;
+
+    case ast::ASTType::kConstant: {
+        const auto constAST = reinterpret_cast<const ast::ConstantAST*>(ast);
+        nodeValue.first = insert(std::make_unique<hir::ConstantHIR>(constAST->constant), currentBlock);
+        nodeValue.second = insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(constAST->constant.getType())),
+                currentBlock);
+    } break;
+
+    // ================ BROKEN LINE
 
     case parse::NodeType::kReturn: {
         const auto returnNode = reinterpret_cast<const parse::ReturnNode*>(node);
@@ -210,35 +182,7 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
         assert(false);
     } break;
 
-    // This only works for inline blocks <- when do these happen? Are they blockLiterals?
-    case parse::NodeType::kBlock: {
-        assert(false); // TODO: figure out when these happen and what's going on here.
-        const auto blockNode = reinterpret_cast<const parse::BlockNode*>(node);
-        // Preserve current scope and block, for wiring into the new scope and block. Encountering a block always
-        // terminates the current block.
-        Scope* parentScope = m_scope;
-        Block* lastBlock = m_block;
 
-        // Recursively build the subframe.
-        auto subScope = buildSubScope(context, blockNode);
-
-        // Wire the entry block in the new frame as a successor in the block graph.
-        Block* frameEntryBlock = subScope->blocks.front().get();
-        lastBlock->successors.emplace_back(frameEntryBlock);
-        frameEntryBlock->predecessors.emplace_back(lastBlock);
-
-        // We need a new block in the parent frame as a sucessor to the exit block from the sub frame.
-        assert(m_block == subScope->blocks.back().get());
-        auto parentBlock = std::make_unique<Block>(parentScope, m_blockSerial);
-        ++m_blockSerial;
-        Block* frameExitBlock = m_block;
-        parentBlock->predecessors.emplace_back(frameExitBlock);
-        frameExitBlock->successors.emplace_back(parentBlock.get());
-        m_block = parentBlock.get();
-        parentScope->blocks.emplace_back(std::move(parentBlock));
-        parentScope->subScopes.emplace_back(std::move(subScope));
-        m_scope = parentScope;
-    } break;
 
     case parse::NodeType::kLiteral: {
         const auto literal = reinterpret_cast<const parse::LiteralNode*>(node);
@@ -294,150 +238,6 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, const p
         nodeValue = buildDispatch(context, binop->leftHand.get(), selector, binop->rightHand.get(), nullptr);
     } break;
 
-    case parse::NodeType::kPerformList: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kNumericSeries: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kCurryArgument: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kArrayRead: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kArrayWrite: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kCopySeries: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kNew: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kSeries: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kSeriesIter: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kLiteralList: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kLiteralDict: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kMultiAssignVars: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kMultiAssign: {
-        assert(false); // TODO
-    } break;
-
-    case parse::NodeType::kIf: {
-        const auto ifNode = reinterpret_cast<const parse::IfNode*>(node);
-        // Compute value of the condition.
-        auto condition = buildFinalValue(context, ifNode->condition.get());
-        // We will always make an else condition, even if just to store the value of the block as `nil` in the default
-        // case. Create a branch to jump to that else block.
-        auto condBranchOwning = std::make_unique<hir::BranchIfZeroHIR>(condition);
-        // Insert the if HIR but keep a copy of the pointer around to connect it to the continuation or else blocks
-        hir::BranchIfZeroHIR* condBranch = condBranchOwning.get();
-        nodeValue.first = insertLocal(std::move(condBranchOwning));
-        condBranchOwning = nullptr;
-        // Also insert a branch to the condition true block.
-        auto branchOwning = std::make_unique<hir::BranchHIR>();
-        hir::BranchHIR* branch = branchOwning.get();
-        insertLocal(std::move(branchOwning));
-
-        // Preserve the current block and frame for insertion of the new subframes as children.
-        Scope* parentScope = m_scope;
-        Block* ifBlock = m_block;
-
-        // Build the true condition block.
-        assert(ifNode->trueBlock);
-        auto trueScopeOwning = buildSubScope(context, ifNode->trueBlock.get());
-        Scope* trueScope = trueScopeOwning.get();
-        parentScope->subScopes.emplace_back(std::move(trueScopeOwning));
-        branch->blockNumber = trueScope->blocks.front()->number;
-        ifBlock->successors.emplace_back(trueScope->blocks.front().get());
-        trueScope->blocks.front()->predecessors.emplace_back(ifBlock);
-
-        // Build the else condition block if present, if not build a default nil valued one. The BranchIfZero will
-        // target branching here.
-        Scope* falseScope = nullptr;
-        if (ifNode->falseBlock) {
-            auto falseScopeOwning = buildSubScope(context, ifNode->falseBlock.get());
-            falseScope = falseScopeOwning.get();
-            parentScope->subScopes.emplace_back(std::move(falseScopeOwning));
-        } else {
-            auto falseScopeOwning = std::make_unique<Scope>(m_frame, parentScope);
-            falseScope = falseScopeOwning.get();
-            parentScope->subScopes.emplace_back(std::move(falseScopeOwning));
-            falseScope->parent = parentScope;
-            auto falseBlockOwning = std::make_unique<Block>(falseScope, m_blockSerial);
-            ++m_blockSerial;
-            Block* falseBlock = falseBlockOwning.get();
-            falseScope->blocks.emplace_back(std::move(falseBlockOwning));
-            falseBlock->finalValue.first = insert(std::make_unique<hir::ConstantHIR>(Slot::makeNil()), falseBlock);
-            falseBlock->finalValue.second = insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kNil)),
-                    falseBlock);
-        }
-        condBranch->blockNumber = falseScope->blocks.front()->number;
-        ifBlock->successors.emplace_back(falseScope->blocks.front().get());
-        falseScope->blocks.front()->predecessors.emplace_back(ifBlock);
-
-        // Create a new block in the parent frame for code after the if statement.
-        auto continueBlock = std::make_unique<Block>(parentScope, m_blockSerial);
-        ++m_blockSerial;
-        m_block = continueBlock.get();
-        parentScope->blocks.emplace_back(std::move(continueBlock));
-        m_scope = parentScope;
-
-        // Add phis with the final values of both the false and true values here, this is also the value of the
-        // if statement.
-        auto valuePhi = std::make_unique<hir::PhiHIR>();
-        valuePhi->addInput(trueScope->blocks.back()->finalValue.first);
-        valuePhi->addInput(falseScope->blocks.back()->finalValue.first);
-        nodeValue.first = valuePhi->proposeValue(m_valueSerial);
-        m_block->localValues.emplace(std::make_pair(nodeValue.first, nodeValue.first));
-        ++m_valueSerial;
-        m_block->phis.emplace_back(std::move(valuePhi));
-        auto typePhi = std::make_unique<hir::PhiHIR>();
-        typePhi->addInput(trueScope->blocks.back()->finalValue.second);
-        typePhi->addInput(falseScope->blocks.back()->finalValue.second);
-        nodeValue.second = typePhi->proposeValue(m_valueSerial);
-        m_block->localValues.emplace(std::make_pair(nodeValue.second, nodeValue.second));
-        ++m_valueSerial;
-        m_block->phis.emplace_back(std::move(typePhi));
-
-        // Wire trueScope exit block to the continue block here.
-        auto trueBranch = std::make_unique<hir::BranchHIR>();
-        trueBranch->blockNumber = m_block->number;
-        insert(std::move(trueBranch), trueScope->blocks.back().get());
-        trueScope->blocks.back()->successors.emplace_back(m_block);
-        m_block->predecessors.emplace_back(trueScope->blocks.back().get());
-
-        // Wire falseFrame exit block to the continue block here.
-        assert(falseScope);
-        auto falseBranch = std::make_unique<hir::BranchHIR>();
-        falseBranch->blockNumber = m_block->number;
-        insert(std::move(falseBranch), falseScope->blocks.back().get());
-        falseScope->blocks.back()->successors.emplace_back(m_block);
-        m_block->predecessors.emplace_back(falseScope->blocks.back().get());
-    } break;
     }
 
     nodeValue.first = findValue(nodeValue.first);
@@ -456,31 +256,7 @@ std::pair<Value, Value> BlockBuilder::buildFinalValue(ThreadContext* context, co
 
 std::pair<Value, Value> BlockBuilder::buildDispatch(ThreadContext* context, const parse::Node* target,
         library::Symbol selector, const parse::Node* arguments, const parse::KeyValueNode* keywordArguments) {
-    // Build argument values starting with target argument as `this`.
-    std::vector<std::pair<Value, Value>> argumentValues;
-    argumentValues.emplace_back(buildFinalValue(context, target));
 
-    auto selectorValue = std::make_pair(
-            insertLocal(std::make_unique<hir::ConstantHIR>(selector.slot())),
-            insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kSymbol))));
-
-    // Now append any additional arguments.
-    while (arguments) {
-        argumentValues.emplace_back(buildValue(context, arguments));
-        arguments = arguments->next.get();
-    }
-
-    std::vector<std::pair<Value, Value>> keywordArgumentValues;
-    while (keywordArguments) {
-        assert(keywordArguments->nodeType == parse::NodeType::kKeyValue);
-        auto keyName = m_lexer->tokens()[keywordArguments->tokenIndex].hash;
-        keywordArgumentValues.emplace_back(std::make_pair(
-                    insertLocal(std::make_unique<hir::ConstantHIR>(Slot::makeHash(keyName))),
-                    selectorValue.second));
-        keywordArgumentValues.emplace_back(buildFinalValue(context, keywordArguments->value.get()));
-        keywordArguments = reinterpret_cast<const parse::KeyValueNode*>(keywordArguments->next.get());
-    }
-    return buildDispatchInternal(selectorValue, argumentValues, keywordArgumentValues);
 }
 
 std::pair<Value, Value> BlockBuilder::buildDispatchInternal(std::pair<Value, Value> selectorValue,
@@ -506,18 +282,88 @@ std::pair<Value, Value> BlockBuilder::buildDispatchInternal(std::pair<Value, Val
     return std::make_pair(returnValue, returnValueType);
 }
 
-Value BlockBuilder::insertLocal(std::unique_ptr<hir::HIR> hir) {
-    return insert(std::move(hir), m_block);
+std::pair<Value, Value> BlockBuilder::buildIf(ThreadContext* context, Block*& currentBlock, const ast::IfAST* ifAST) {
+    std::pair<Value, Value> nodeValue;
+    // Compute final value of the condition.
+    auto condition = buildFinalValue(context, currentBlock, ifAST->condition.get());
+
+    // Add branch to the true block if the condition is true.
+    auto trueBranchOwning = std::make_unique<hir::BranchIfTrueHIR>(condition);
+    auto trueBranch = trueBranchOwning.get();
+    insert(std::move(trueBranchOwning), currentBlock);
+
+    // Insert absolute branch to the false block.
+    auto falseBranchOwning = std::make_unique<hir::BranchHIR>();
+    hir::BranchHIR* falseBranch = falseBranchOwning.get();
+    insert(std::move(falseBranchOwning), currentBlock);
+
+    // Preserve the current block and frame for insertion of the new subframes as children.
+    Scope* parentScope = currentBlock->scope;
+    Block* conditionBlock = currentBlock;
+
+    // Build the true condition block.
+    auto trueScopeOwning = buildInlineBlock(context, conditionBlock, ifAST->trueBlock.get());
+    Scope* trueScope = trueScopeOwning.get();
+    parentScope->subScopes.emplace_back(std::move(trueScopeOwning));
+    trueBranch->blockNumber = trueScope->blocks.front()->number;
+    conditionBlock->successors.emplace_back(trueScope->blocks.front().get());
+
+    // Build the false condition block.
+    auto falseScopeOwning = buildInlineBlock(context, conditionBlock, ifAST->falseBlock.get());
+    Scope* falseScope = falseScopeOwning.get();
+    parentScope->subScopes.emplace_back(std::move(falseScopeOwning));
+    falseBranch->blockNumber = falseScope->blocks.front()->number;
+    conditionBlock->successors.emplace_back(falseScope->blocks.front().get());
+
+    // Create a new block in the parent frame for code after the if statement.
+    auto continueBlock = std::make_unique<Block>(parentScope, parentScope->frame->numberOfBlocks);
+    ++parentScope->frame->numberOfBlocks;
+    currentBlock = continueBlock.get();
+    parentScope->blocks.emplace_back(std::move(continueBlock));
+
+    // Wire trueScope exit block to the continue block here.
+    auto exitTrueBranch = std::make_unique<hir::BranchHIR>();
+    exitTrueBranch->blockNumber = currentBlock->number;
+    insert(std::move(exitTrueBranch), trueScope->blocks.back().get());
+    trueScope->blocks.back()->successors.emplace_back(currentBlock);
+    currentBlock->predecessors.emplace_back(trueScope->blocks.back().get());
+
+    // Wire falseFrame exit block to the continue block here.
+    auto exitFalseBranch = std::make_unique<hir::BranchHIR>();
+    exitFalseBranch->blockNumber = currentBlock->number;
+    insert(std::move(exitFalseBranch), falseScope->blocks.back().get());
+    falseScope->blocks.back()->successors.emplace_back(currentBblock);
+    currentBlock->predecessors.emplace_back(falseScope->blocks.back().get());
+
+    // Add phis with the final values of both the false and true values here, this is also the value of the
+    // if statement.
+    auto valuePhi = std::make_unique<hir::PhiHIR>();
+    valuePhi->addInput(trueScope->blocks.back()->finalValue.first);
+    valuePhi->addInput(falseScope->blocks.back()->finalValue.first);
+    nodeValue.first = valuePhi->proposeValue(currentBlock->scope->frame->numberOfValues);
+    ++currentBlock->scope->frame->numberOfValues;
+    currentBlock->localValues.emplace(std::make_pair(nodeValue.first, nodeValue.first));
+    currentBlock->phis.emplace_back(std::move(valuePhi));
+
+    auto typePhi = std::make_unique<hir::PhiHIR>();
+    typePhi->addInput(trueScope->blocks.back()->finalValue.second);
+    typePhi->addInput(falseScope->blocks.back()->finalValue.second);
+    nodeValue.second = typePhi->proposeValue(currentBlock->scope->frame->numberOfValues);
+    ++currentBlock->scope->frame->numberOfValues;
+    currentBlock->localValues.emplace(std::make_pair(nodeValue.second, nodeValue.second));
+    currentBlock->phis.emplace_back(std::move(typePhi));
+
+    return nodeValue;
 }
 
 Value BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
     // Phis should only be inserted by findValuePredecessor().
     assert(hir->opcode != hir::Opcode::kPhi);
-    auto valueNumber = m_valueSerial;
+    auto valueNumber = block->scope->frame->numberOfValues;
     auto value = hir->proposeValue(valueNumber);
     // We don't bump the value serial for invalid values (meaning read-only operations)
     if (value.isValid()) {
-        ++m_valueSerial;
+        ++block->scope->frame->numberOfValues;
         block->values.emplace(std::make_pair(value, hir.get()));
         block->localValues.emplace(std::make_pair(value, value));
     }

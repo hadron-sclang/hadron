@@ -67,7 +67,7 @@ enum Opcode {
     // Control flow
     kPhi,
     kBranch,
-    kBranchIfZero,
+    kBranchIfTrue,
     // For Linear HIR represents the start of a block as well as a container for any phis at the start of the block.
     kLabel,
 
@@ -247,10 +247,10 @@ struct BranchHIR : public HIR {
     Value proposeValue(uint32_t number) override;
 };
 
-struct BranchIfZeroHIR : public HIR {
-    BranchIfZeroHIR() = delete;
-    BranchIfZeroHIR(std::pair<Value, Value> cond);
-    virtual ~BranchIfZeroHIR() = default;
+struct BranchIfTrueHIR : public HIR {
+    BranchIfTrueHIR() = delete;
+    BranchIfTrueHIR(std::pair<Value, Value> cond);
+    virtual ~BranchIfTrueHIR() = default;
 
     std::pair<Value, Value> condition;
     int blockNumber;

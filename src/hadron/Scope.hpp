@@ -18,7 +18,10 @@ struct Block;
 // have at most a single predecessor.
 struct Scope {
     Scope() = delete;
-    Scope(Frame* owningFrame, Scope* parentScope): frame(owningFrame), parent(parentScope) {}
+    // Make an entry Scope to a frame, so it has no parent Scope.
+    explicit Scope(Frame* owningFrame): frame(owningFrame), parent(nullptr) {}
+    // Make a subscope for the existing parent scope.
+    explicit Scope(Scope* parentScope): frame(parentScope->frame), parent(parentScope) {}
     ~Scope() = default;
 
     // Set of locally defined variable names.
