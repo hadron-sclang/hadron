@@ -185,8 +185,14 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
+    hir/ConstantHIR.cpp
+    hir/ConstantHIR.hpp
     hir/HIR.cpp
     hir/HIR.hpp
+    hir/LoadArgumentHIR.cpp
+    hir/LoadArgumentHIR.hpp
+    hir/MethodReturnHIR.cpp
+    hir/MethodReturnHIR.hpp
 
     library/Array.hpp
     library/ArrayedCollection.hpp

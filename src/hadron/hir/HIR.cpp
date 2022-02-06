@@ -9,11 +9,6 @@ int HIR::numberOfReservedRegisters() const {
 
 ///////////////////////////////
 // LoadArgumentHIR
-Value LoadArgumentHIR::proposeValue(uint32_t number) {
-    value.number = number;
-    value.typeFlags = isVarArgs ? Type::kArray : Type::kAny;
-    return value;
-}
 
 ///////////////////////////////
 // LoadArgumentTypeHIR
@@ -31,19 +26,6 @@ Value ConstantHIR::proposeValue(uint32_t number) {
     return value;
 }
 
-///////////////////////////////
-// MethodReturnHIR
-MethodReturnHIR::MethodReturnHIR(std::pair<Value, Value> retVal):
-    HIR(kMethodReturn), returnValue(retVal) {
-    reads.emplace(retVal.first);
-    reads.emplace(retVal.second);
-}
-
-Value MethodReturnHIR::proposeValue(uint32_t /* number */) {
-    value.number = 0;
-    value.typeFlags = 0;
-    return value;
-}
 
 ///////////////////////////////
 // LoadInstanceVariableHIR

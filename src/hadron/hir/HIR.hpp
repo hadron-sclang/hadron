@@ -1,22 +1,15 @@
 #ifndef SRC_HADRON_HIR_HIR_HPP_
 #define SRC_HADRON_HIR_HIR_HPP_
 
-#include "hadron/Slot.hpp"
 #include "hadron/library/Symbol.hpp"
+#include "hadron/Type.hpp"
 
-#include <functional>
-#include <list>
-#include <memory>
-#include <string>
-#include <unordered_map>
 #include <unordered_set>
-#include <vector>
 
 namespace hadron {
 
 struct Block;
 struct Frame;
-
 
 namespace hir {
 
@@ -24,8 +17,10 @@ using NVID = int32_t;
 static constexpr int32_t kInvalidNVID = -1;
 
 struct NamedValue {
+    NamedValue(): id(kInvalidNVID), typeFlags(Type::kNone), name() {}
+    NamedValue(NVID nvid, Type flags, library::Symbol valueName): id(nvid), typeFlags(flags), name(valueName) {}
     NVID id;
-    int32_t typeFlags;
+    Type typeFlags;
     library::Symbol name; // Can be nil for anonymous values
 };
 
@@ -34,6 +29,7 @@ enum Opcode {
     kConstant,
     kMethodReturn,
 
+    // Class state changes
     kLoadInstanceVariable,
     kLoadClassVariable,
     kStoreInstanceVariable,
@@ -44,6 +40,10 @@ enum Opcode {
     kBranch,
     kBranchIfTrue,
 
+    // SC is a heavily message-based language, and HIR treats almost all operations as messages. There's lots of options
+    // for optimization for messages, mostly inlining, that can happen on lowering MessageHIR to LIR. But, because of
+    // the diversity of ways to pass message in LSC, we route everything through MessageHIR first, to manage inlining in
+    // a central point inside of MessageHIR.
     kMessage
 };
 
@@ -51,81 +51,20 @@ enum Opcode {
 // the reads member.
 struct HIR {
     HIR() = delete;
-    explicit HIR(Opcode op): opcode(op) {}
     virtual ~HIR() = default;
     Opcode opcode;
-    NVID valueID;
+    NamedValue value;
+
     std::unordered_set<NVID> reads;
 
-    // Recommended way to set the |valueID| member. Allows the HIR object to modify the proposed value type. For
+    // Recommended way to set the id  in |value| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
     // that this operation only consumes values but doesn't generate a new one.
-    virtual NamedValue proposeValue(int32_t number) = 0;
-};
+    virtual NVID proposeValue(NVID id) = 0;
 
-// Loads the argument at |index| from the stack.
-struct LoadArgumentHIR : public HIR {
-    LoadArgumentHIR() = delete;
-    LoadArgumentHIR(int argIndex, bool varArgs = false): HIR(kLoadArgument), index(argIndex), isVarArgs(varArgs) {}
-    virtual ~LoadArgumentHIR() = default;
-    int index;
-    bool isVarArgs;
-
-    // Forces the kAny type for all arguments.
-    Value proposeValue(uint32_t number) override;
-};
-
-// Represents the type associated with the value at |index|.
-struct LoadArgumentTypeHIR : public HIR {
-    LoadArgumentTypeHIR(int argIndex): HIR(kLoadArgumentType), index(argIndex) {}
-    virtual ~LoadArgumentTypeHIR() = default;
-    int index;
-
-    // Forces the kType type for all arguments.
-    Value proposeValue(uint32_t number) override;
-};
-
-struct ConstantHIR : public HIR {
-    ConstantHIR(const Slot& c): HIR(kConstant), constant(c) {}
-    virtual ~ConstantHIR() = default;
-    Slot constant;
-
-    // Forces the type of the |constant| Slot.
-    Value proposeValue(uint32_t number) override;
-};
-
-struct MethodReturnHIR : public HIR {
-    MethodReturnHIR() = delete;
-    MethodReturnHIR(std::pair<Value, Value> retVal);
-    virtual ~MethodReturnHIR() = default;
-    std::pair<Value, Value> returnValue;
-
-    // Always returns an invalid value, as this is a read-only operation.
-    Value proposeValue(uint32_t number) override;
-};
-
-struct LoadInstanceVariableHIR : public HIR {
-    LoadInstanceVariableHIR() = delete;
-    LoadInstanceVariableHIR(std::pair<Value, Value> thisVal, int32_t index);
-    virtual ~LoadInstanceVariableHIR() = default;
-
-    // Need to load the |this| pointer to deference an instance variable.
-    std::pair<Value, Value> thisValue;
-    int32_t variableIndex;
-
-    Value proposeValue(uint32_t number) override;
-};
-
-struct LoadInstanceVariableTypeHIR : public HIR {
-    LoadInstanceVariableTypeHIR() = delete;
-    LoadInstanceVariableTypeHIR(std::pair<Value, Value> thisVal, int32_t index);
-    virtual ~LoadInstanceVariableTypeHIR() = default;
-
-    // Need to load the |this| pointer to deference an instance variable.
-    std::pair<Value, Value> thisValue;
-    int32_t variableIndex;
-
-    Value proposeValue(uint32_t number) override;
+protected:
+    explicit HIR(Opcode op): opcode(op) {}
+    HIR(Opcode op, Type typeFlags, library::Symbol valueName): opcode(op), value(kInvalidNVID, typeFlags, valueName) {}
 };
 
 struct LoadClassVariableHIR : public HIR {

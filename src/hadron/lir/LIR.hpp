@@ -3,6 +3,8 @@
 
 #include "hadron/JIT.hpp"
 
+#include <unordered_map>
+
 namespace hadron {
 
 namespace lir {
@@ -35,7 +37,6 @@ struct LIR {
     // requires origins be copied only once, so enforcing unique keys means trying to insert a move from an origin
     // already scheduled for a move is an error. These are *predicate* moves, meaning they are executed before the HIR.
     std::unordered_map<int, int> moves;
-
 
     // Returns how many additional registers this LIR will need. A negative value means that all registers should be
     // reserved, typically used for register preservation during a function call. Reserved registers are allocated from
