@@ -67,66 +67,6 @@ protected:
     HIR(Opcode op, Type typeFlags, library::Symbol valueName): opcode(op), value(kInvalidNVID, typeFlags, valueName) {}
 };
 
-struct LoadClassVariableHIR : public HIR {
-    LoadClassVariableHIR() = delete;
-    LoadClassVariableHIR(std::pair<Value, Value> thisVal, int32_t index);
-    virtual ~LoadClassVariableHIR() = default;
-
-    // Need to load the |this| pointer to deference a class variable.
-    std::pair<Value, Value> thisValue;
-    int32_t variableIndex;
-
-    Value proposeValue(uint32_t number) override;
-};
-
-struct LoadClassVariableTypeHIR : public HIR {
-    LoadClassVariableTypeHIR() = delete;
-    LoadClassVariableTypeHIR(std::pair<Value, Value> thisVal, int32_t index);
-    virtual ~LoadClassVariableTypeHIR() = default;
-
-    // Need to load the |this| pointer to deference class variable.
-    std::pair<Value, Value> thisValue;
-    int32_t variableIndex;
-
-    Value proposeValue(uint32_t number) override;
-};
-
-struct StoreInstanceVariableHIR : public HIR {
-    StoreInstanceVariableHIR() = delete;
-    StoreInstanceVariableHIR(std::pair<Value, Value> thisVal, std::pair<Value, Value> storeVal, int32_t index);
-    virtual ~StoreInstanceVariableHIR() = default;
-
-    std::pair<Value, Value> thisValue;
-    std::pair<Value, Value> storeValue;
-    int32_t variableIndex;
-
-    Value proposeValue(uint32_t number) override;
-};
-
-struct StoreClassVariableHIR : public HIR {
-    StoreClassVariableHIR() = delete;
-    StoreClassVariableHIR(std::pair<Value, Value> thisVal, std::pair<Value, Value> storeVal, int32_t index);
-    virtual ~StoreClassVariableHIR() = default;
-
-    std::pair<Value, Value> thisValue;
-    std::pair<Value, Value> storeValue;
-    int32_t variableIndex;
-
-    Value proposeValue(uint32_t number) override;
-};
-
-struct PhiHIR : public HIR {
-    PhiHIR(): HIR(kPhi) {}
-
-    std::vector<Value> inputs;
-    void addInput(Value v);
-    // A phi is *trivial* if it has only one distinct input value that is not self-referential. If this phi is trivial,
-    // return the trivial value. Otherwise return an invalid value.
-    Value getTrivialValue() const;
-
-    Value proposeValue(uint32_t number) override;
-};
-
 struct BranchHIR : public HIR {
     BranchHIR(): HIR(kBranch) {}
     virtual ~BranchHIR() = default;

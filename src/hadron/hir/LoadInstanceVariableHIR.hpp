@@ -8,14 +8,15 @@ namespace hir {
 
 struct LoadInstanceVariableHIR : public HIR {
     LoadInstanceVariableHIR() = delete;
-    LoadInstanceVariableHIR(std::pair<Value, Value> thisVal, int32_t index);
+    // Need a reference to the instance pointer.
+    LoadInstanceVariableHIR(NVID instance, int index, library::Symbol variableName);
     virtual ~LoadInstanceVariableHIR() = default;
 
     // Need to load the |this| pointer to deference an instance variable.
-    std::pair<Value, Value> thisValue;
-    int32_t variableIndex;
+    NVID instanceID;
+    int variableIndex;
 
-    Value proposeValue(uint32_t number) override;
+    NVID proposeValue(NVID id) override;
 };
 
 } // namespace hir
