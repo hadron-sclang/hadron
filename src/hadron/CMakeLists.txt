@@ -185,14 +185,21 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
+    hir/BranchHIR.cpp
+    hir/BranchHIR.hpp
+    hir/BranchIfTrueHIR.cpp
+    hir/BranchIfTrueHIR.hpp
     hir/ConstantHIR.cpp
     hir/ConstantHIR.hpp
-    hir/HIR.cpp
     hir/HIR.hpp
     hir/LoadArgumentHIR.cpp
     hir/LoadArgumentHIR.hpp
+    hir/LoadClassVariableHIR.cpp
+    hir/LoadClassVariableHIR.hpp
     hir/LoadInstanceVariableHIR.cpp
     hir/LoadInstanceVariableHIR.hpp
+    hir/MessageHIR.cpp
+    hir/MessageHIR.hpp
     hir/MethodReturnHIR.cpp
     hir/MethodReturnHIR.hpp
     hir/PhiHIR.cpp
@@ -213,6 +220,8 @@ add_library(hadron STATIC
     library/Symbol.cpp
     library/Symbol.hpp
 
+    lir/LabelLIR.cpp
+    lir/LabelLIR.hpp
     lir/LIR.hpp
 
     Arch.hpp

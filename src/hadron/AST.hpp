@@ -20,7 +20,7 @@ enum ASTType {
     kAssign = 6,
     kConstant = 7,
     kMethodReturn = 8,
-    kList = 9,
+    kList = 9, // TODO: are these redundant with List.new and Dictionary.new messages?
     kDictionary = 10,
 };
 

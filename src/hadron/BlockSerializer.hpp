@@ -5,9 +5,6 @@
 #include <memory>
 #include <vector>
 
-#include "hadron/HIR.hpp"
-#include "hadron/LifetimeInterval.hpp"
-
 namespace hadron {
 
 struct Block;
@@ -23,14 +20,12 @@ public:
     ~BlockSerializer() = default;
 
     // Destructively modify baseFrame to produce a single LinearBlock with blocks serialized in the required order.
-    std::unique_ptr<LinearBlock> serialize(std::unique_ptr<Frame> frame);
+    std::unique_ptr<LinearBlock> serialize(const Frame* frame);
 
 private:
-    // Map of block number to Block struct, useful when recursing through control flow graph.
-    std::vector<Block*> m_blocks;
 
     // Does the recursive postorder traversal of the blocks and saves the output in |blockOrder|.
-    void orderBlocks(Block* block, std::vector<int>& blockOrder);
+    void orderBlocks(Block* block, std::vector<Block*>& blockPointers, std::vector<int>& blockOrder);
 };
 
 } // namespace hadron

@@ -133,44 +133,7 @@ Value StoreClassVariableHIR::proposeValue(uint32_t /* number */) {
 
 ///////////////////////////////
 // PhiHIR
-void PhiHIR::addInput(Value v) {
-    inputs.emplace_back(v);
-    reads.emplace(v);
-}
 
-Value PhiHIR::getTrivialValue() const {
-    // More than two distinct values means that even if one of them is self-referential this phi has two or more
-    // non self-referential distinct values and is therefore nontrivial.
-    if (reads.size() > 2) {
-        return Value();
-    }
-
-    // Exactly two distinct values means that if either of the two values are self-referential than the phi is trivial
-    // and we should return the other non-self-referential value.
-    if (reads.size() == 2) {
-        Value nonSelf;
-        bool trivial = false;
-        for (auto v : reads) {
-            if (v != value) {
-                nonSelf = v;
-            } else {
-                trivial = true;
-            }
-        }
-        if (trivial) {
-            return nonSelf;
-        }
-    }
-
-    assert(reads.size());
-    return *(reads.begin());
-}
-
-Value PhiHIR::proposeValue(uint32_t number) {
-    value.number = number;
-    value.typeFlags = Type::kAny;
-    return value;
-}
 
 ///////////////////////////////
 // BranchHIR

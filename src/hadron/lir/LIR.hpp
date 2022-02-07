@@ -4,17 +4,17 @@
 #include "hadron/JIT.hpp"
 
 #include <unordered_map>
+#include <vector>
 
 namespace hadron {
-
 namespace lir {
 
 using VReg = int32_t;
 static constexpr int32_t kInvalidVReg = -1;
 
 enum Opcode {
-    kLoadFromStack,
-    kStoreToStack,
+    kLoadSlotFromStack,
+    kStoreSlotToStack,
 
     kLabel
 };
@@ -48,6 +48,80 @@ protected:
     explicit LIR(Opcode op): opcode(op) {}
 };
 
+/*
+
+struct DispatchSetupStackHIR : public HIR {
+    DispatchSetupStackHIR() = delete;
+    DispatchSetupStackHIR(std::pair<Value, Value> selector, int numArgs, int numKeyArgs);
+    virtual ~DispatchSetupStackHIR() = default;
+
+    std::pair<Value, Value> selectorValue;
+    int numberOfArguments;
+    int numberOfKeywordArguments;
+
+    Value proposeValue(uint32_t number) override;
+    int numberOfReservedRegisters() const override;
+};
+
+// Argument value and type is stored in |reads|
+struct DispatchStoreArgHIR : public HIR {
+    DispatchStoreArgHIR() = delete;
+    DispatchStoreArgHIR(int argNum, std::pair<Value, Value> argVal);
+    virtual ~DispatchStoreArgHIR() = default;
+
+    int argumentNumber;
+    std::pair<Value, Value> argumentValue;
+
+    Value proposeValue(uint32_t number) override;
+    int numberOfReservedRegisters() const override;
+};
+
+struct DispatchStoreKeyArgHIR : public HIR {
+    DispatchStoreKeyArgHIR() = delete;
+    DispatchStoreKeyArgHIR(int keyArgNum, std::pair<Value, Value> key, std::pair<Value, Value> keyVal);
+    virtual ~DispatchStoreKeyArgHIR() = default;
+
+    int keywordArgumentNumber;
+    std::pair<Value, Value> keyword;
+    std::pair<Value, Value> keywordValue;
+
+    Value proposeValue(uint32_t number) override;
+    int numberOfReservedRegisters() const override;
+};
+
+struct DispatchCallHIR : public HIR {
+    DispatchCallHIR(): HIR(kDispatchCall) {}
+    virtual ~DispatchCallHIR() = default;
+
+    Value proposeValue(uint32_t number) override;
+    int numberOfReservedRegisters() const override;
+};
+
+// TODO: Could make this "read" the return value of the DispatchCall, to make the dependency clear, although a bit
+// redundant since Dispatches can't ever be culled due to possible side effects.
+struct DispatchLoadReturnHIR : public HIR {
+    DispatchLoadReturnHIR(): HIR(kDispatchLoadReturn) {}
+    virtual ~DispatchLoadReturnHIR() = default;
+
+    // Forces the kAny type for the return.
+    Value proposeValue(uint32_t number) override;
+};
+
+struct DispatchLoadReturnTypeHIR : public HIR {
+    DispatchLoadReturnTypeHIR(): HIR(kDispatchLoadReturnType) {}
+    virtual ~DispatchLoadReturnTypeHIR() = default;
+
+    Value proposeValue(uint32_t number) override;
+};
+
+struct DispatchCleanupHIR : public HIR {
+    DispatchCleanupHIR(): HIR(kDispatchCleanup) {}
+    virtual ~DispatchCleanupHIR() = default;
+
+    // Always returns an invalid value, as this is a read-only operation.
+    Value proposeValue(uint32_t number) override;
+};
+*/
 
 } // namespace lir
 } // namespace hadron

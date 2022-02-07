@@ -11,6 +11,10 @@ namespace hadron {
 struct Block;
 struct Frame;
 
+namespace lir {
+struct LIR;
+}
+
 namespace hir {
 
 using NVID = int32_t;
@@ -62,115 +66,16 @@ struct HIR {
     // that this operation only consumes values but doesn't generate a new one.
     virtual NVID proposeValue(NVID id) = 0;
 
+    // Given this HIR, and all other HIR |values| in the frame, output zero or more LIR instructions to |append|.
+    virtual void lower(const std::vector<std::unique_ptr<hir::HIR>>& values,
+            std::vector<std::unique_ptr<lir::LIR>>& append) const = 0;
+
 protected:
     explicit HIR(Opcode op): opcode(op) {}
     HIR(Opcode op, Type typeFlags, library::Symbol valueName): opcode(op), value(kInvalidNVID, typeFlags, valueName) {}
 };
 
-struct BranchHIR : public HIR {
-    BranchHIR(): HIR(kBranch) {}
-    virtual ~BranchHIR() = default;
-
-    int blockNumber;
-    Value proposeValue(uint32_t number) override;
-};
-
-struct BranchIfTrueHIR : public HIR {
-    BranchIfTrueHIR() = delete;
-    BranchIfTrueHIR(std::pair<Value, Value> cond);
-    virtual ~BranchIfTrueHIR() = default;
-
-    std::pair<Value, Value> condition;
-    int blockNumber;
-
-    Value proposeValue(uint32_t number) override;
-};
-
-struct LabelHIR : public HIR {
-    LabelHIR() = delete;
-    LabelHIR(int blockNum): HIR(kLabel), blockNumber(blockNum) {}
-    int blockNumber;
-    std::vector<int> predecessors;
-    std::vector<int> successors;
-    std::list<std::unique_ptr<PhiHIR>> phis;
-
-    Value proposeValue(uint32_t number) override;
-};
-
-struct DispatchSetupStackHIR : public HIR {
-    DispatchSetupStackHIR() = delete;
-    DispatchSetupStackHIR(std::pair<Value, Value> selector, int numArgs, int numKeyArgs);
-    virtual ~DispatchSetupStackHIR() = default;
-
-    std::pair<Value, Value> selectorValue;
-    int numberOfArguments;
-    int numberOfKeywordArguments;
-
-    Value proposeValue(uint32_t number) override;
-    int numberOfReservedRegisters() const override;
-};
-
-// Argument value and type is stored in |reads|
-struct DispatchStoreArgHIR : public HIR {
-    DispatchStoreArgHIR() = delete;
-    DispatchStoreArgHIR(int argNum, std::pair<Value, Value> argVal);
-    virtual ~DispatchStoreArgHIR() = default;
-
-    int argumentNumber;
-    std::pair<Value, Value> argumentValue;
-
-    Value proposeValue(uint32_t number) override;
-    int numberOfReservedRegisters() const override;
-};
-
-struct DispatchStoreKeyArgHIR : public HIR {
-    DispatchStoreKeyArgHIR() = delete;
-    DispatchStoreKeyArgHIR(int keyArgNum, std::pair<Value, Value> key, std::pair<Value, Value> keyVal);
-    virtual ~DispatchStoreKeyArgHIR() = default;
-
-    int keywordArgumentNumber;
-    std::pair<Value, Value> keyword;
-    std::pair<Value, Value> keywordValue;
-
-    Value proposeValue(uint32_t number) override;
-    int numberOfReservedRegisters() const override;
-};
-
-struct DispatchCallHIR : public HIR {
-    DispatchCallHIR(): HIR(kDispatchCall) {}
-    virtual ~DispatchCallHIR() = default;
-
-    Value proposeValue(uint32_t number) override;
-    int numberOfReservedRegisters() const override;
-};
-
-// TODO: Could make this "read" the return value of the DispatchCall, to make the dependency clear, although a bit
-// redundant since Dispatches can't ever be culled due to possible side effects.
-struct DispatchLoadReturnHIR : public HIR {
-    DispatchLoadReturnHIR(): HIR(kDispatchLoadReturn) {}
-    virtual ~DispatchLoadReturnHIR() = default;
-
-    // Forces the kAny type for the return.
-    Value proposeValue(uint32_t number) override;
-};
-
-struct DispatchLoadReturnTypeHIR : public HIR {
-    DispatchLoadReturnTypeHIR(): HIR(kDispatchLoadReturnType) {}
-    virtual ~DispatchLoadReturnTypeHIR() = default;
-
-    Value proposeValue(uint32_t number) override;
-};
-
-struct DispatchCleanupHIR : public HIR {
-    DispatchCleanupHIR(): HIR(kDispatchCleanup) {}
-    virtual ~DispatchCleanupHIR() = default;
-
-    // Always returns an invalid value, as this is a read-only operation.
-    Value proposeValue(uint32_t number) override;
-};
-
 } // namespace hir
-
 } // namespace hadron
 
 #endif  // SRC_HADRON_HIR_HPP_

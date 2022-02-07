@@ -16,7 +16,7 @@ struct LinearBlock {
     std::vector<std::unique_ptr<lir::LIR>> instructions;
     // In-order list of each block.
     std::vector<int> blockOrder;
-    // TODO: refactor to use Lifetime::Interval
+    // TODO: refactor to use LiveRange?
     // index is block number, value is [start, end) of block instructions.
     std::vector<std::pair<size_t, size_t>> blockRanges;
     // Index is value number
