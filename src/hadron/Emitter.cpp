@@ -1,11 +1,11 @@
 #include "hadron/Emitter.hpp"
 
 #include "hadron/BlockBuilder.hpp"
-#include "hadron/HIR.hpp"
 #include "hadron/JIT.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LinearBlock.hpp"
-#include "hadron/MoveScheduler.hpp"
+#include "hadron/lir/LabelLIR.hpp"
+#include "hadron/lir/LIR.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
 
@@ -18,47 +18,50 @@
 namespace hadron {
 
 void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
-    MoveScheduler moveScheduler;
     // Key is block number, value is known addresses of labels, built as they are encountered.
     std::unordered_map<int, JIT::Address> labelAddresses;
-    // For forward jumps we record the Label returned and the block number they are targetd to, and patch them all at
+    // For forward jumps we record the Label returned and the block number they are targeted to, and patch them all at
     // the end when all the addresses are known.
     std::vector<std::pair<JIT::Label, int>> jmpPatchNeeded;
 
     for (size_t line = 0; line < linearBlock->instructions.size(); ++line) {
         SPDLOG_DEBUG("Emitting line {}", line);
 
-        const hir::HIR* hir = linearBlock->instructions[line].get();
+        const lir::LIR* lir = linearBlock->instructions[line].get();
 
         // Labels need to capture their address before any move predicates so we handle them separately here.
-        if (hir->opcode == hir::Opcode::kLabel) {
-            const auto label = reinterpret_cast<const hir::LabelHIR*>(hir);
+        if (lir->opcode == lir::Opcode::kLabel) {
+            const auto label = reinterpret_cast<const lir::LabelLIR*>(lir);
             JIT::Address address = jit->address();
             labelAddresses.emplace(std::make_pair(label->blockNumber, address));
         }
 
+        lir->emit(jit);
+
+/*
+
         // Emit any predicate moves if required.
-        if (hir->moves.size()) {
-            moveScheduler.scheduleMoves(hir->moves, jit);
+        if (lir->moves.size()) {
+            moveScheduler.scheduleMoves(lir->moves, jit);
         }
 
-        switch(hir->opcode) {
-        case hir::Opcode::kLoadArgument: {
-            const auto loadArgument = reinterpret_cast<const hir::LoadArgumentHIR*>(hir);
+        switch(lir->opcode) {
+        case lir::Opcode::kLoadArgument: {
+            const auto loadArgument = reinterpret_cast<const lir::LoadArgumentLIR*>(lir);
             jit->ldxi_l(loadArgument->valueLocations.at(loadArgument->value.number), JIT::kStackPointerReg,
                     loadArgument->index * kSlotSize);
         } break;
 
-        case hir::Opcode::kLoadArgumentType: {
-            const auto loadArgumentType = reinterpret_cast<const hir::LoadArgumentTypeHIR*>(hir);
+        case lir::Opcode::kLoadArgumentType: {
+            const auto loadArgumentType = reinterpret_cast<const lir::LoadArgumentTypeLIR*>(lir);
             jit->ldxi_l(loadArgumentType->valueLocations.at(loadArgumentType->value.number), JIT::kStackPointerReg,
                     loadArgumentType->index * kSlotSize);
         } break;
 
-        case hir::Opcode::kConstant: {
-            // Presence of a ConstantHIR this late in compilation must mean the constant value is needed in the
+        case lir::Opcode::kConstant: {
+            // Presence of a ConstantLIR this late in compilation must mean the constant value is needed in the
             // allocated register, so transfer it there.
-            const auto constant = reinterpret_cast<const hir::ConstantHIR*>(hir);
+            const auto constant = reinterpret_cast<const lir::ConstantLIR*>(lir);
             switch (constant->constant.getType()) {
             case Type::kNil:
                 jit->movi(constant->valueLocations.at(constant->value.number), Slot::kNilTag);
@@ -78,17 +81,17 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             }
         } break;
 
-        case hir::Opcode::kLoadInstanceVariable:
-        case hir::Opcode::kLoadInstanceVariableType:
-        case hir::Opcode::kLoadClassVariable:
-        case hir::Opcode::kLoadClassVariableType:
-        case hir::Opcode::kStoreInstanceVariable:
-        case hir::Opcode::kStoreClassVariable:
+        case lir::Opcode::kLoadInstanceVariable:
+        case lir::Opcode::kLoadInstanceVariableType:
+        case lir::Opcode::kLoadClassVariable:
+        case lir::Opcode::kLoadClassVariableType:
+        case lir::Opcode::kStoreInstanceVariable:
+        case lir::Opcode::kStoreClassVariable:
             assert(false); // TODO
             break;
 
-        case hir::Opcode::kMethodReturn: {
-            const auto storeReturn = reinterpret_cast<const hir::MethodReturnHIR*>(hir);
+        case lir::Opcode::kMethodReturn: {
+            const auto storeReturn = reinterpret_cast<const lir::MethodReturnLIR*>(lir);
             // Add pointer tag to stack pointer to maintain invariant that saved pointers are always tagged.
             jit->ori(JIT::kStackPointerReg, JIT::kStackPointerReg, Slot::kPointerTag);
             // Save the stack pointer to the thread context so we can load the frame pointer in its place.
@@ -107,13 +110,13 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             jit->andi(JIT::kStackPointerReg, JIT::kStackPointerReg, ~Slot::kTagMask);
         } break;
 
-        case hir::Opcode::kPhi:
+        case lir::Opcode::kPhi:
             // Should not be encountered inline in resolved code.
             assert(false);
             break;
 
-        case hir::Opcode::kBranch: {
-            const auto branch = reinterpret_cast<const hir::BranchHIR*>(hir);
+        case lir::Opcode::kBranch: {
+            const auto branch = reinterpret_cast<const lir::BranchLIR*>(lir);
             auto targetRange = linearBlock->blockRanges[branch->blockNumber];
             // If the block is before line this is a backwards jump, the address is already known, jump immediately
             // there.
@@ -123,13 +126,13 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
             } else if (line + 1 < targetRange.first) {
                 // If the branch is to the first instruction in the next consecutive block, and this branch is the
                 // instruction directly before that block, we can omit the branch. So we only take action if the forward
-                // jump is for greater than the next HIR instruction.
+                // jump is for greater than the next LIR instruction.
                 jmpPatchNeeded.emplace_back(std::make_pair(jit->jmp(), branch->blockNumber));
             }
         } break;
 
-        case hir::Opcode::kBranchIfTrue: {
-            const auto branchIfTrue = reinterpret_cast<const hir::BranchIfTrueHIR*>(hir);
+        case lir::Opcode::kBranchIfTrue: {
+            const auto branchIfTrue = reinterpret_cast<const lir::BranchIfTrueLIR*>(lir);
             // document assumption this is always a forward jump.
             assert(line + 1 < linearBlock->blockRanges[branchIfTrue->blockNumber].first);
             jmpPatchNeeded.emplace_back(std::make_pair(
@@ -137,31 +140,32 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
                     branchIfTrue->blockNumber));
         } break;
 
-        case hir::Opcode::kLabel:
+        case lir::Opcode::kLabel:
             // Should handle labels before move predicates, making them no-ops here.
             break;
 
-        case hir::Opcode::kDispatchSetupStack: {
+        case lir::Opcode::kDispatchSetupStack: {
         } break;
 
-        case hir::Opcode::kDispatchStoreArg: {
+        case lir::Opcode::kDispatchStoreArg: {
         } break;
 
-        case hir::Opcode::kDispatchStoreKeyArg: {
+        case lir::Opcode::kDispatchStoreKeyArg: {
         } break;
 
-        case hir::Opcode::kDispatchCall: {
+        case lir::Opcode::kDispatchCall: {
         } break;
 
-        case hir::Opcode::kDispatchLoadReturn: {
+        case lir::Opcode::kDispatchLoadReturn: {
         } break;
 
-        case hir::Opcode::kDispatchLoadReturnType: {
+        case lir::Opcode::kDispatchLoadReturnType: {
         } break;
 
-        case hir::Opcode::kDispatchCleanup: {
+        case lir::Opcode::kDispatchCleanup: {
         } break;
         }
+    */
     }
 
     // Update any patches needed for forward jumps.

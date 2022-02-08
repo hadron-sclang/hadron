@@ -2,13 +2,12 @@
 #define SRC_HADRON_LIR_LABEL_LIR_HPP_
 
 #include "hadron/lir/LIR.hpp"
+#include "hadron/lir/PhiLIR.hpp"
 
-#include <list>
+#include <vector>
 
 namespace hadron {
 namespace lir {
-
-struct PhiLIR;
 
 struct LabelLIR : public LIR {
     LabelLIR() = delete;
@@ -20,8 +19,6 @@ struct LabelLIR : public LIR {
     std::vector<int32_t> successors;
 
     std::vector<std::unique_ptr<PhiLIR>> phis;
-
-    Value proposeValue(uint32_t number) override;
 };
 
 } // namespace lir

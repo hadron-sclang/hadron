@@ -2,6 +2,7 @@
 #define SRC_HADRON_HIR_HIR_HPP_
 
 #include "hadron/library/Symbol.hpp"
+#include "hadron/lir/LIR.hpp"
 #include "hadron/Type.hpp"
 
 #include <unordered_set>
@@ -10,10 +11,6 @@ namespace hadron {
 
 struct Block;
 struct Frame;
-
-namespace lir {
-struct LIR;
-}
 
 namespace hir {
 
@@ -32,6 +29,7 @@ enum Opcode {
     kLoadArgument,
     kConstant,
     kMethodReturn,
+    kAlias, // TODO
 
     // Class state changes
     kLoadInstanceVariable,
@@ -67,8 +65,12 @@ struct HIR {
     virtual NVID proposeValue(NVID id) = 0;
 
     // Given this HIR, and all other HIR |values| in the frame, output zero or more LIR instructions to |append|.
-    virtual void lower(const std::vector<std::unique_ptr<hir::HIR>>& values,
-            std::vector<std::unique_ptr<lir::LIR>>& append) const = 0;
+    virtual void lower(const std::vector<HIR*>& values,
+            std::vector<std::unique_ptr<lir::LIR>>* append) const = 0;
+
+    // Most HIR directly translates from NamedValue id to lir::VReg, but we introduce a function as a means of allowing
+    // for HIR-specific changes to this.
+    virtual lir::VReg vReg() const { return static_cast<lir::VReg>(value.id); }
 
 protected:
     explicit HIR(Opcode op): opcode(op) {}

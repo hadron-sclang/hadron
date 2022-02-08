@@ -56,7 +56,14 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const as
     }
 
     Block* currentBlock = block;
-    block->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
+    currentBlock->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
+
+     // We append a return statement of the final value in the final block, if one wasn't already provided.
+    if (!currentBlock->hasMethodReturn) {
+        insert(std::make_unique<hir::MethodReturnHIR>(currentBlock->finalValue), currentBlock);
+        currentBlock->hasMethodReturn = true;
+    }
+
     return frame;
 }
 
@@ -77,7 +84,7 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, Bl
     }
 
     Block* currentBlock = block;
-    block->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
+    currentBlock->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
     return scope;
 }
 
@@ -145,6 +152,7 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
     case ast::ASTType::kAssign: {
         const auto assign = reinterpret_cast<const ast::AssignAST*>(ast);
         nodeValue = buildValue(context, currentBlock, assign->value.get());
+        assert(false); // TODO: StoreInstanceVariable? StoreClassVariable?
         currentBlock->revisions[assign->name->name] = nodeValue;
     } break;
 
@@ -156,6 +164,8 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
     case ast::ASTType::kMethodReturn: {
         const auto retAST = reinterpret_cast<const ast::MethodReturnAST*>(ast);
         nodeValue = buildValue(context, currentBlock, retAST->value.get());
+        insert(std::make_unique<hir::MethodReturnHIR>(nodeValue), currentBlock);
+        currentBlock->hasMethodReturn = true;
     } break;
 
     case ast::ASTType::kList: {
@@ -174,6 +184,8 @@ hir::NVID BlockBuilder::buildFinalValue(ThreadContext* context, Block*& currentB
         const ast::SequenceAST* sequenceAST) {
     for (const auto& ast : sequenceAST->sequence) {
         currentBlock->finalValue = buildValue(context, currentBlock, ast.get());
+        // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
+        if (currentBlock->hasMethodReturn) { break; }
     }
     return currentBlock->finalValue;
 }

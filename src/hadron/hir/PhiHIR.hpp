@@ -7,6 +7,11 @@
 #include <vector>
 
 namespace hadron {
+
+namespace lir {
+struct PhiLIR;
+}
+
 namespace hir {
 
 struct PhiHIR : public HIR {
@@ -19,7 +24,10 @@ struct PhiHIR : public HIR {
     // return the trivial value. Otherwise return an invalid value.
     NVID getTrivialValue() const;
 
+    std::unique_ptr<lir::PhiLIR> lowerPhi(const std::vector<HIR*>& values);
+
     NVID proposeValue(NVID id) override;
+    void lower(const std::vector<HIR*>& values, std::vector<std::unique_ptr<lir::LIR>>* append) const override;
 };
 
 } // namespace hir

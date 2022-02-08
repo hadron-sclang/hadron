@@ -220,9 +220,12 @@ add_library(hadron STATIC
     library/Symbol.cpp
     library/Symbol.hpp
 
-    lir/LabelLIR.cpp
+    lir/BranchIfTrueLIR.hpp
+    lir/BranchLIR.hpp
     lir/LabelLIR.hpp
+    lir/LIR.cpp
     lir/LIR.hpp
+    lir/PhiLIR.hpp
 
     Arch.hpp
     AST.hpp

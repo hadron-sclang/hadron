@@ -10,7 +10,7 @@ struct BranchHIR : public HIR {
     BranchHIR();
     virtual ~BranchHIR() = default;
 
-    int blockNumber;
+    int32_t blockNumber;
     NVID proposeValue(NVID id) override;
 };
 

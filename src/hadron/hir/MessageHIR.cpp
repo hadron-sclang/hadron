@@ -5,7 +5,6 @@ namespace hir {
 
 MessageHIR::MessageHIR():
         HIR(kMessage, Type::kAny, library::Symbol()),
-        target(kInvalidNVID),
         selector(kInvalidNVID) {}
 
 NVID MessageHIR::proposeValue(NVID id) {

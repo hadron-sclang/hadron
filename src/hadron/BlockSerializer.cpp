@@ -40,14 +40,16 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(const Frame* frame) {
             label->successors.emplace_back(succ->number);
         }
         for (const auto& phi : block->phis) {
-            phi->lower(block->frame.values, label->phis);
+            label->phis.emplace_back(phi->lowerPhi(block->frame->values));
         }
 
         auto blockRange = std::make_pair(linearBlock->instructions.size(), 0);
 
         // Start the block with a label and then append all contained instructions.
         linearBlock->instructions.emplace_back(std::move(label));
-        std::move(block->statements.begin(), block->statements.end(), std::back_inserter(linearBlock->instructions));
+        for (const auto& hir : block->statements) {
+            hir->lower(block->frame->values, &(linearBlock->instructions));
+        }
 
         // Update end range on the block now that it's complete.
         blockRange.second = linearBlock->instructions.size();

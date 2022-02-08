@@ -1,5 +1,7 @@
 #include "hadron/hir/PhiHIR.hpp"
 
+#include "hadron/lir/PhiLIR.hpp"
+
 namespace hadron {
 namespace hir {
 
@@ -39,10 +41,19 @@ NVID PhiHIR::getTrivialValue() const {
     return *(reads.begin());
 }
 
+std::unique_ptr<lir::PhiLIR> PhiHIR::lowerPhi(const std::vector<HIR*>& values) {
+    auto phiLIR = std::make_unique<lir::PhiLIR>();
+    for (auto nvid : inputs) {
+        phiLIR->addInput(values[nvid]->vReg());
+    }
+    return phiLIR;
+}
+
 NVID PhiHIR::proposeValue(NVID id) {
     value.id = id;
     return id;
 }
+
 
 } // namespace hir
 } // namespace hadron

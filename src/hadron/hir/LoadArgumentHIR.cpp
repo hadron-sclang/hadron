@@ -3,12 +3,12 @@
 namespace hadron {
 namespace hir {
 
-LoadArgumentHIR::LoadArgumentHIR(int argIndex, library::Symbol name, bool varArgs = false):
+LoadArgumentHIR::LoadArgumentHIR(int argIndex, library::Symbol name, bool varArgs):
         HIR(kLoadArgument, varArgs ? Type::kArray : Type::kAny, name),
         index(argIndex),
         isVarArgs(varArgs) {}
 
-NamedValue LoadArgumentHIR::proposeValue(NVID id) {
+NVID LoadArgumentHIR::proposeValue(NVID id) {
     value.id = id;
     return id;
 }

@@ -2,8 +2,12 @@
 
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/LinearBlock.hpp"
+#include "hadron/lir/LabelLIR.hpp"
+#include "hadron/lir/LIR.hpp"
 
 #include "spdlog/spdlog.h"
+
+#include <unordered_set>
 
 namespace hadron {
 
@@ -47,15 +51,15 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
     for (int i = linearBlock->blockOrder.size() - 1; i >= 0; --i) {
         int blockNumber = linearBlock->blockOrder[i];
         auto blockRange = linearBlock->blockRanges[blockNumber];
-        assert(linearBlock->instructions[blockRange.first]->opcode == hir::kLabel);
-        auto blockLabel = reinterpret_cast<hir::LabelHIR*>(linearBlock->instructions[blockRange.first].get());
+        assert(linearBlock->instructions[blockRange.first]->opcode == lir::kLabel);
+        auto blockLabel = reinterpret_cast<lir::LabelLIR*>(linearBlock->instructions[blockRange.first].get());
 
         // live = union of successor.liveIn for each successor of b
         std::unordered_set<size_t> live;
         for (auto succNumber : blockLabel->successors) {
             auto succRange = linearBlock->blockRanges[succNumber];
-            assert(linearBlock->instructions[succRange.first]->opcode == hir::kLabel);
-            const auto succLabel = reinterpret_cast<const hir::LabelHIR*>(
+            assert(linearBlock->instructions[succRange.first]->opcode == lir::kLabel);
+            const auto succLabel = reinterpret_cast<const lir::LabelLIR*>(
                     linearBlock->instructions[succRange.first].get());
 
             live.insert(liveIns[succNumber].begin(), liveIns[succNumber].end());
@@ -70,7 +74,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
             // for each phi function phi of successors of b do
             //   live.add(phi.inputOf(b))
             for (const auto& phi : succLabel->phis) {
-                live.insert(phi->inputs[inputNumber].number);
+                live.insert(phi->inputs[inputNumber]);
             }
         }
 
@@ -88,26 +92,26 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
 
         // for each operation op of b in reverse order do
         for (size_t j = blockRange.second - 1; j >= blockRange.first; --j) {
-            const hir::HIR* hir = linearBlock->instructions[j].get();
-            // In Hadron there's at most 1 valid output from an HIR so this for loop is instead an if statement.
+            const lir::LIR* lir = linearBlock->instructions[j].get();
+            // In Hadron there's at most 1 valid output from an LIR so this for loop is instead an if statement.
             // for each output operand opd of op do
-            if (hir->value.isValid()) {
+            if (lir->value != lir::kInvalidVReg) {
                 // intervals[opd].setFrom(op.id)
-                blockVariableRanges[hir->value.number].first = j;
-                linearBlock->valueLifetimes[hir->value.number][0]->usages.emplace(j);
+                blockVariableRanges[lir->value].first = j;
+                linearBlock->valueLifetimes[lir->value][0]->usages.emplace(j);
 
                 // live.remove(opd)
-                live.erase(hir->value.number);
+                live.erase(lir->value);
             }
 
             // for each input operand opd of op do
-            for (auto opd : hir->reads) {
+            for (auto opd : lir->reads) {
                 // intervals[opd].addRange(b.from, op.id)
-                blockVariableRanges[opd.number].first = blockRange.first;
-                blockVariableRanges[opd.number].second = std::max(j + 1, blockVariableRanges[opd.number].second);
-                linearBlock->valueLifetimes[opd.number][0]->usages.emplace(j);
+                blockVariableRanges[opd].first = blockRange.first;
+                blockVariableRanges[opd].second = std::max(j + 1, blockVariableRanges[opd].second);
+                linearBlock->valueLifetimes[opd][0]->usages.emplace(j);
                 // live.add(opd)
-                live.insert(opd.number);
+                live.insert(opd);
             }
 
             // Avoid unsigned comparison causing infinite loops with >= 0.
@@ -117,7 +121,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
         // for each phi function phi of b do
         for (const auto& phi : blockLabel->phis) {
             // live.remove(phi.output)
-            live.erase(phi->value.number);
+            live.erase(phi->value);
         }
 
         // TODO: loop header step

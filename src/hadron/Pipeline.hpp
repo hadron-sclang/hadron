@@ -12,6 +12,7 @@
 
 #include "hadron/Slot.hpp"
 #include "hadron/library/Kernel.hpp"
+#include "hadron/lir/LIR.hpp"
 
 #include <memory>
 #include <string_view>
@@ -19,10 +20,6 @@
 #include <unordered_set>
 
 namespace hadron {
-
-namespace hir {
-struct HIR;
-} // namespace hir
 
 namespace ast {
 struct BlockAST;
@@ -79,7 +76,7 @@ protected:
     bool validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<int>& blockNumbers);
 
     bool validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks, size_t numberOfValues);
-    bool validateSsaHir(const hir::HIR* hir, std::unordered_set<uint32_t>& values);
+    bool validateSsaLir(const lir::LIR* lir, std::unordered_set<lir::VReg>& values);
 
     bool validateLifetimes(const LinearBlock* linearBlock);
 

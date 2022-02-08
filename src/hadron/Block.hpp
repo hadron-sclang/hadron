@@ -4,6 +4,7 @@
 #include "hadron/hir/HIR.hpp"
 #include "hadron/hir/PhiHIR.hpp"
 #include "hadron/library/Symbol.hpp"
+#include "hadron/Scope.hpp"
 
 #include <memory>
 #include <unordered_map>
@@ -11,11 +12,15 @@
 namespace hadron {
 
 struct Frame;
-struct Scope;
 
 struct Block {
     Block() = delete;
-    Block(Scope* owningScope, int blockNumber): scope(owningScope), frame(owningScope->frame), number(blockNumber) {}
+    Block(Scope* owningScope, int blockNumber):
+            scope(owningScope),
+            frame(owningScope->frame),
+            number(blockNumber),
+            finalValue(hir::kInvalidNVID),
+            hasMethodReturn(false) {}
     ~Block() = default;
 
     // Map of names to most recent revision of local values.
@@ -42,6 +47,7 @@ struct Block {
 
     // The value of executing any block is the final value that was created in the block.
     hir::NVID finalValue;
+    bool hasMethodReturn;
 };
 
 } // namespace hadron

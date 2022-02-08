@@ -1,7 +1,7 @@
 #include "hadron/RegisterAllocator.hpp"
 
-#include "hadron/HIR.hpp"
 #include "hadron/LinearBlock.hpp"
+#include "hadron/lir/LIR.hpp"
 
 #include <algorithm>
 
@@ -218,7 +218,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
     // Append any final lifetimes to the linearBlock.
     for (size_t reg = 0; reg < m_active.size(); ++reg) {
         if (m_active[reg]) {
-            if (m_active[reg]->valueNumber != kInvalidValue) {
+            if (m_active[reg]->valueNumber != lir::kInvalidVReg) {
                 SPDLOG_DEBUG("* saving lifetime value {} in active reg {}", m_active[reg]->valueNumber, reg);
                 handled(std::move(m_active[reg]), linearBlock);
             }
@@ -227,7 +227,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
 
         auto iter = m_inactive[reg].begin();
         while (iter != m_inactive[reg].end()) {
-            if ((*iter)->valueNumber != kInvalidValue) {
+            if ((*iter)->valueNumber != lir::kInvalidVReg) {
                 SPDLOG_DEBUG("* saving lifetime value {} in inactive reg {}", (*iter)->valueNumber, reg);
                 handled(std::move(*iter), linearBlock);
                 *iter = nullptr;
@@ -404,7 +404,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
             // Looking for intervals that are for actual values (instead of register reservations with kInvalidValue),
             // and that begin sometime before position, because these have been evicted from the register at position,
             // and so will need to be reprocessed after the split.
-            if ((*it)->valueNumber != kInvalidValue && (*it)->start() < m_current->start()) {
+            if ((*it)->valueNumber != lir::kInvalidVReg && (*it)->start() < m_current->start()) {
                 m_unhandled.emplace_back((*it)->splitAt(m_current->start()));
                 std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
                 handled(std::move(*it), linearBlock);
@@ -433,7 +433,7 @@ void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
             interval->valueNumber, interval->registerNumber, interval->start(), interval->end(),
             interval->ranges.size(), interval->usages.size());
     // No spilling of register blocks.
-    assert(interval->valueNumber != kInvalidValue);
+    assert(interval->valueNumber != lir::kInvalidVReg);
 
     size_t spillSlot = 0;
     // Update our active spill map in case we can re-use any spill slot no longer needed.

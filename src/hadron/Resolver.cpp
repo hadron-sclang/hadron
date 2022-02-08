@@ -1,8 +1,10 @@
 #include "hadron/Resolver.hpp"
 
 #include "hadron/BlockSerializer.hpp"
-#include "hadron/HIR.hpp"
 #include "hadron/LinearBlock.hpp"
+#include "hadron/lir/BranchLIR.hpp"
+#include "hadron/lir/LabelLIR.hpp"
+#include "hadron/lir/LIR.hpp"
 
 #include <cassert>
 #include <unordered_map>
@@ -35,16 +37,16 @@ void Resolver::resolve(LinearBlock* linearBlock) {
     // for each control flow edge from predecessor to successor do
     for (auto blockNumber : linearBlock->blockOrder) {
         auto blockRange = linearBlock->blockRanges[blockNumber];
-        assert(linearBlock->instructions[blockRange.first]->opcode == hir::kLabel);
-        const auto blockLabel = reinterpret_cast<const hir::LabelHIR*>(
+        assert(linearBlock->instructions[blockRange.first]->opcode == lir::kLabel);
+        const auto blockLabel = reinterpret_cast<const lir::LabelLIR*>(
                 linearBlock->instructions[blockRange.first].get());
         for (auto successorNumber : blockLabel->successors) {
             std::unordered_map<int, int> moves;
 
             // for each interval it live at begin of successor do
             auto successorRange = linearBlock->blockRanges[successorNumber];
-            assert(linearBlock->instructions[successorRange.first]->opcode == hir::kLabel);
-            auto successorLabel = reinterpret_cast<hir::LabelHIR*>(
+            assert(linearBlock->instructions[successorRange.first]->opcode == lir::kLabel);
+            auto successorLabel = reinterpret_cast<lir::LabelLIR*>(
                 linearBlock->instructions[successorRange.first].get());
             size_t blockIndex = 0;
             for (; blockIndex < successorLabel->predecessors.size(); ++blockIndex) {
@@ -58,7 +60,7 @@ void Resolver::resolve(LinearBlock* linearBlock) {
                 int moveFrom, moveTo;
 
                 // if it starts at begin of successor then
-                const hir::PhiHIR* livePhi = nullptr;
+                const lir::PhiLIR* livePhi = nullptr;
                 for (const auto& phi : successorLabel->phis) {
                     if (phi->value.number == live) {
                         livePhi = phi.get();
@@ -98,8 +100,8 @@ void Resolver::resolve(LinearBlock* linearBlock) {
                 // instructions to the outbound branch.
                 if (blockLabel->successors.size() == 1 || successorNumber == blockLabel->successors.back()) {
                     // Last instruction should always be a branch.
-                    assert(linearBlock->instructions[blockRange.second - 1]->opcode == hir::kBranch);
-                    auto branch = reinterpret_cast<hir::BranchHIR*>(
+                    assert(linearBlock->instructions[blockRange.second - 1]->opcode == lir::kBranch);
+                    auto branch = reinterpret_cast<lir::BranchLIR*>(
                             linearBlock->instructions[blockRange.second -1].get());
                     branch->moves.merge(std::move(moves));
                 } else if (successorLabel->predecessors.size() == 1) {

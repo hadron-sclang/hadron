@@ -11,12 +11,12 @@
 #include "hadron/Frame.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
-#include "hadron/HIR.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/LinearBlock.hpp"
+#include "hadron/lir/LabelLIR.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
@@ -83,14 +83,14 @@ bool Pipeline::buildBlock(ThreadContext* context, const ast::BlockAST* blockAST,
     if (!validateFrame(context, frame.get(), blockAST)) { return false; }
     if (!afterBlockBuilder(frame.get(), blockAST)) { return false; }
     size_t numberOfBlocks = static_cast<size_t>(frame->numberOfBlocks);
-    size_t numberOfValues = frame->numberOfValues;
+    size_t numberOfValues = frame->values.size();
 #endif // HADRON_PIPELINE_VALIDATE
 
     functionDef.setArgNames(frame->argumentOrder);
     functionDef.setPrototypeFrame(frame->argumentDefaults);
 
     BlockSerializer serializer;
-    auto linearBlock = serializer.serialize(std::move(frame));
+    auto linearBlock = serializer.serialize(frame.get());
     if (!linearBlock) { return false; }
 #if HADRON_PIPELINE_VALIDATE
     if (!validateSerializedBlock(linearBlock.get(), numberOfBlocks, numberOfValues)) { return false; }
@@ -119,8 +119,8 @@ bool Pipeline::buildBlock(ThreadContext* context, const ast::BlockAST* blockAST,
 #endif // HADRON_PIPELINE_VALIDATE
 
     size_t jitMaxSize = sizeof(library::Int8Array);
-    for (const auto& hir : linearBlock->instructions) {
-        jitMaxSize += 16 + (16 * hir->moves.size());
+    for (const auto& lir : linearBlock->instructions) {
+        jitMaxSize += 16 + (16 * lir->moves.size());
     }
     std::unique_ptr<JIT> jit;
     library::Int8Array bytecodeArray;
@@ -233,13 +233,13 @@ bool Pipeline::validateSerializedBlock(const LinearBlock* linearBlock, size_t nu
             return false;
         }
         // Every block needs to begin with a label.
-        if (linearBlock->instructions[blockStart]->opcode != hadron::hir::Opcode::kLabel) {
+        if (linearBlock->instructions[blockStart]->opcode != hadron::lir::Opcode::kLabel) {
             SPDLOG_ERROR("Block not starting with label at instruction {}", blockStart);
             return false;
         }
 
         // The label should have the correct blockNumber
-        auto label = reinterpret_cast<const hir::LabelHIR*>(linearBlock->instructions[blockStart].get());
+        auto label = reinterpret_cast<const lir::LabelLIR*>(linearBlock->instructions[blockStart].get());
         if (label->blockNumber != blockNumber) {
             SPDLOG_ERROR("Block label number mistmatch");
             return false;
@@ -278,32 +278,32 @@ bool Pipeline::validateSerializedBlock(const LinearBlock* linearBlock, size_t nu
     }
 
     // Check for valid SSA form by ensuring all values are written only once, and they are written before they are read.
-    std::unordered_set<uint32_t> values;
+    std::unordered_set<lir::VReg> values;
     for (size_t i = 0; i < linearBlock->instructions.size(); ++i) {
-        const hir::HIR* hir = linearBlock->instructions[i].get();
-        if (hir->opcode == hir::Opcode::kLabel) {
-            auto label = reinterpret_cast<const hir::LabelHIR*>(hir);
+        const lir::LIR* lir = linearBlock->instructions[i].get();
+        if (lir->opcode == lir::Opcode::kLabel) {
+            auto label = reinterpret_cast<const lir::LabelLIR*>(lir);
             for (const auto& phi : label->phis) {
-                if (!validateSsaHir(phi.get(), values)) { return false; }
+                if (!validateSsaLir(phi.get(), values)) { return false; }
             }
         }
-        if (!validateSsaHir(hir, values)) { return false; }
+        if (!validateSsaLir(lir, values)) { return false; }
     }
 
     return true;
 }
 
-bool Pipeline::validateSsaHir(const hir::HIR* hir, std::unordered_set<uint32_t>& values) {
-    if (hir->value.isValid()) {
-        if (values.count(hir->value.number)) {
-            SPDLOG_ERROR("Duplicate definition of value {} in linear block.", hir->value.number);
+bool Pipeline::validateSsaLir(const lir::LIR* lir, std::unordered_set<lir::VReg>& values) {
+    if (lir->value != lir::kInvalidVReg) {
+        if (values.count(lir->value)) {
+            SPDLOG_ERROR("Duplicate definition of value {} in linear block.", lir->value);
             return false;
         }
-        values.emplace(hir->value.number);
+        values.emplace(lir->value);
     }
-    for (auto v : hir->reads) {
-        if (!values.count(v.number)) {
-            SPDLOG_ERROR("Value {} read before written.", v.number);
+    for (auto v : lir->reads) {
+        if (!values.count(v)) {
+            SPDLOG_ERROR("Value {} read before written.", v);
             return false;
         }
     }
@@ -323,32 +323,32 @@ bool Pipeline::validateLifetimes(const LinearBlock* linearBlock) {
 
     std::vector<size_t> usageCounts(linearBlock->valueLifetimes.size(), 0);
     for (size_t i = 0; i < linearBlock->instructions.size(); ++i) {
-        const auto hir = linearBlock->instructions[i].get();
-        if (hir->value.isValid()) {
-            if (!linearBlock->valueLifetimes[hir->value.number][0]->covers(i)) {
-                SPDLOG_ERROR("value {} written outside of lifetime", hir->value.number);
+        const auto lir = linearBlock->instructions[i].get();
+        if (lir->value != lir::kInvalidVReg) {
+            if (!linearBlock->valueLifetimes[lir->value][0]->covers(i)) {
+                SPDLOG_ERROR("value {} written outside of lifetime", lir->value);
                 return false;
             }
-            if (linearBlock->valueLifetimes[hir->value.number][0]->usages.count(i) != 1) {
-                SPDLOG_ERROR("value {} written but not marked as used", hir->value.number);
+            if (linearBlock->valueLifetimes[lir->value][0]->usages.count(i) != 1) {
+                SPDLOG_ERROR("value {} written but not marked as used", lir->value);
                 return false;
             }
-            ++usageCounts[hir->value.number];
+            ++usageCounts[lir->value];
         }
-        for (const auto& value : hir->reads) {
-            if (!linearBlock->valueLifetimes[value.number][0]->covers(i)) {
-                SPDLOG_ERROR("value {} read outside of lifetime at instruction {}", value.number, i);
+        for (auto value : lir->reads) {
+            if (!linearBlock->valueLifetimes[value][0]->covers(i)) {
+                SPDLOG_ERROR("value {} read outside of lifetime at instruction {}", value, i);
                 return false;
             }
-            if (linearBlock->valueLifetimes[value.number][0]->usages.count(i) != 1) {
-                SPDLOG_ERROR("value {} read without being marked as used at instruction {}", value.number, i);
+            if (linearBlock->valueLifetimes[value][0]->usages.count(i) != 1) {
+                SPDLOG_ERROR("value {} read without being marked as used at instruction {}", value, i);
                 return false;
             }
-            ++usageCounts[value.number];
+            ++usageCounts[value];
         }
     }
 
-    for (size_t i = 0; i < linearBlock->valueLifetimes.size(); ++i) {
+    for (int32_t i = 0; i < static_cast<int32_t>(linearBlock->valueLifetimes.size()); ++i) {
         if (linearBlock->valueLifetimes[i][0]->valueNumber != i) {
             SPDLOG_ERROR("Value number mismatch at value {}", i);
             return false;
@@ -414,7 +414,7 @@ bool Pipeline::validateRegisterCoverage(const LinearBlock* linearBlock, size_t i
 
 bool Pipeline::validateAllocation(const hadron::LinearBlock* linearBlock) {
     // Value numbers should align across the valueLifetimes arrays.
-    for (size_t i = 0; i < linearBlock->valueLifetimes.size(); ++i) {
+    for (int32_t i = 0; i < static_cast<int32_t>(linearBlock->valueLifetimes.size()); ++i) {
         for (const auto& lt : linearBlock->valueLifetimes[i]) {
             if (lt->valueNumber != i) {
                 SPDLOG_ERROR("Mismatch value number at {}", i);
@@ -425,12 +425,12 @@ bool Pipeline::validateAllocation(const hadron::LinearBlock* linearBlock) {
 
     // Every usage of every virtual register should have a single physical register assigned.
     for (size_t i = 0; i < linearBlock->instructions.size(); ++i) {
-        const auto* hir = linearBlock->instructions[i].get();
-        if (hir->value.isValid()) {
-            if (!validateRegisterCoverage(linearBlock, i, hir->value.number)) { return false; }
+        const auto* lir = linearBlock->instructions[i].get();
+        if (lir->value != lir::kInvalidVReg) {
+            if (!validateRegisterCoverage(linearBlock, i, lir->value)) { return false; }
         }
-        for (const auto& value : hir->reads) {
-            if (!validateRegisterCoverage(linearBlock, i, value.number)) { return false; }
+        for (const auto& value : lir->reads) {
+            if (!validateRegisterCoverage(linearBlock, i, value)) { return false; }
         }
     }
 

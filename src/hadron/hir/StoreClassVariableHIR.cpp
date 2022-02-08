@@ -8,7 +8,7 @@ StoreClassVariableHIR::StoreClassVariableHIR(NVID storeVal, int index):
     storeValue(storeVal),
     variableIndex(index) { reads.emplace(storeValue); }
 
-NVID StoreClassVariableHIR::proposeValue(NVID id) {
+NVID StoreClassVariableHIR::proposeValue(NVID /* id */) {
     return kInvalidNVID;
 }
 
