@@ -15,6 +15,8 @@ struct MethodReturnHIR : public HIR {
 
     // Always returns an invalid value, as this is a read-only operation.
     NVID proposeValue(NVID id) override;
+    void lower(const std::vector<HIR*>& values, std::vector<lir::LIR*>& vRegs,
+            std::list<std::unique_ptr<lir::LIR>>& append) const override;
 };
 
 } // namespace hir

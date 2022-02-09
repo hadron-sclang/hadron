@@ -2,6 +2,7 @@
 #define SRC_HADRON_LIR_HPP_
 
 #include "hadron/JIT.hpp"
+#include "hadron/Type.hpp"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -14,8 +15,24 @@ using VReg = int32_t;
 static constexpr int32_t kInvalidVReg = -1;
 
 enum Opcode {
-    kLoadSlotFromStack,
-    kStoreSlotToStack,
+    kLoadFromStack,
+    kStoreToStack,
+    kLoadFramePointer,
+    kStoreToPointer,
+    kLoadFromPointer,
+    kJumpToPointer,
+
+    // Slot unpacking and repacking. Unless type is certain at compile time values are generally packed.
+    kUnpack,
+    kPackFloat,
+    kPackNil,
+    kPackInt32,
+    kPackBool,
+    kPackPointer,
+    kPackHash,
+    kPackChar,
+
+    kThrowException,
 
     kPhi,
     kLabel,
@@ -29,6 +46,7 @@ struct LIR {
 
     Opcode opcode;
     VReg value;
+    Type typeFlags;
     std::unordered_set<VReg> reads;
 
     // Built during register allocation, a map of all virtual registers in |arguments| and |vReg| to physical registers.
@@ -42,18 +60,12 @@ struct LIR {
     // already scheduled for a move is an error. These are *predicate* moves, meaning they are executed before the HIR.
     std::unordered_map<int, int> moves;
 
-    // Returns how many additional registers this LIR will need. A negative value means that all registers should be
-    // reserved, typically used for register preservation during a function call. Reserved registers are allocated from
-    // the highest number down, in the hopes they will not interfere with value register allocation, which starts at
-    // register 0. Default implementation returns 0.
-    virtual int numberOfReservedRegisters() const { return 0; }
-
     // Emits machine code into the provided JIT buffer. Base implementation should be called first by derived classes,
     // and emits any needed register moves.
     virtual void emit(JIT* jit) const;
 
 protected:
-    explicit LIR(Opcode op): opcode(op) {}
+    LIR(Opcode op, VReg v, Type t): opcode(op), value(v), typeFlags(t) {}
 };
 
 } // namespace lir

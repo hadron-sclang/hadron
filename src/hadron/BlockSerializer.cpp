@@ -48,7 +48,7 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(const Frame* frame) {
         // Start the block with a label and then append all contained instructions.
         linearBlock->instructions.emplace_back(std::move(label));
         for (const auto& hir : block->statements) {
-            hir->lower(block->frame->values, &(linearBlock->instructions));
+            hir->lower(block->frame->values, linearBlock->instructions);
         }
 
         // Update end range on the block now that it's complete.

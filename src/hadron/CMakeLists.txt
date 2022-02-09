@@ -225,6 +225,7 @@ add_library(hadron STATIC
     lir/LabelLIR.hpp
     lir/LIR.cpp
     lir/LIR.hpp
+    lir/LoadFromStackLIR.hpp
     lir/PhiLIR.hpp
 
     Arch.hpp

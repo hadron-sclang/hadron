@@ -5,7 +5,9 @@
 #include "hadron/lir/LIR.hpp"
 #include "hadron/Type.hpp"
 
+#include <list>
 #include <unordered_set>
+#include <vector>
 
 namespace hadron {
 
@@ -65,8 +67,8 @@ struct HIR {
     virtual NVID proposeValue(NVID id) = 0;
 
     // Given this HIR, and all other HIR |values| in the frame, output zero or more LIR instructions to |append|.
-    virtual void lower(const std::vector<HIR*>& values,
-            std::vector<std::unique_ptr<lir::LIR>>* append) const = 0;
+    virtual void lower(const std::vector<HIR*>& values, std::vector<lir::LIR*>& vRegs,
+            std::list<std::unique_ptr<lir::LIR>>& append) const = 0;
 
     // Most HIR directly translates from NamedValue id to lir::VReg, but we introduce a function as a means of allowing
     // for HIR-specific changes to this.

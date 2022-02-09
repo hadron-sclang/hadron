@@ -8,7 +8,7 @@ namespace lir {
 
 struct BranchLIR : public LIR {
     BranchLIR() = delete;
-    explicit BranchLIR(int32_t blockNum): LIR(kBranch), blockNumber(blockNum) {}
+    explicit BranchLIR(int32_t blockNum): LIR(kBranch, kInvalidVReg, Type::kNone), blockNumber(blockNum) {}
     virtual ~BranchLIR() = default;
 
     int32_t blockNumber;

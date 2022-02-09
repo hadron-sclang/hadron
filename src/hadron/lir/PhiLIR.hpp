@@ -1,11 +1,14 @@
 #ifndef SRC_HADRON_LIR_PHI_LIR_HPP_
 #define SRC_HADRON_LIR_PHI_LIR_HPP_
 
+#include "hadron/lir/LIR.hpp"
+
 namespace hadron {
 namespace lir {
 
 struct PhiLIR : public LIR {
-    PhiLIR(): LIR(kPhi) {}
+    PhiLIR() = delete;
+    explicit PhiLIR(VReg v): LIR(kPhi, v) {}
     virtual ~PhiLIR() = default;
 
     std::vector<VReg> inputs;

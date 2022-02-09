@@ -82,7 +82,7 @@ public:
     // 0xfff8000000000000: 11111111|11111000|00000000|00000000|00000000|00000000|00000000|00000000
     static constexpr uint64_t kMaxDouble  = 0xfff8000000000000;
     static constexpr uint64_t kNilTag     = kMaxDouble;
-    static constexpr uint64_t kInt32Tag   = 0xffff000000000000;
+    static constexpr uint64_t kInt32Tag   = 0xfff9000000000000;
     static constexpr uint64_t kBooleanTag = 0xfffa000000000000;
     static constexpr uint64_t kPointerTag = 0xfffb000000000000;
     static constexpr uint64_t kHashTag    = 0xfffc000000000000;

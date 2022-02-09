@@ -11,7 +11,7 @@ namespace lir {
 
 struct LabelLIR : public LIR {
     LabelLIR() = delete;
-    LabelLIR(int32_t blockNum): LIR(kLabel), blockNumber(blockNum) {}
+    LabelLIR(int32_t blockNum): LIR(kLabel, kInvalidVReg), blockNumber(blockNum) {}
     virtual ~LabelLIR() = default;
 
     int32_t blockNumber;
