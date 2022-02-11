@@ -23,10 +23,12 @@ enum Opcode {
     kLoadFromStack,
     kStoreToStack,
     kLoadFramePointer,
+    kAdvanceFramePointer,
     kStoreToPointer,
     kLoadFromPointer,
     kJumpToPointer,
     kLoadConstant,
+
 
     // Slot unpacking and repacking. Unless type is certain at compile time values are generally packed.
     kUnpack,

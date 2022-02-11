@@ -15,7 +15,7 @@ entry the stack is laid out as follows:
 | `fp` + 3      | Caller Frame Pointer   |               |
 | `fp` + 2      | Caller Stack Pointer   |               |
 | `fp` + 1      | Caller Return Address  |               |
-| `fp`          | Return Value Slot      |               |
+| `fp`          | Return Value Slot      |               | // decision - just use ARG0 slot
 |               | < dispatch work area > |               |
 |               | Argument n - 1         | `sp` + n      |
 |               |  ...                   |  ...          |
