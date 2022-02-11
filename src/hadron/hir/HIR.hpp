@@ -18,6 +18,8 @@ namespace hir {
 
 using NVID = int32_t;
 static constexpr int32_t kInvalidNVID = -1;
+// This assumption has crept into the code so document it and enfore with the compiler.
+static_assert(kInvalidNVID == lir::kInvalidVReg);
 
 struct NamedValue {
     NamedValue(): id(kInvalidNVID), typeFlags(Type::kNone), name() {}
@@ -67,8 +69,8 @@ struct HIR {
     virtual NVID proposeValue(NVID id) = 0;
 
     // Given this HIR, and all other HIR |values| in the frame, output zero or more LIR instructions to |append|.
-    virtual void lower(const std::vector<HIR*>& values, std::vector<lir::LIR*>& vRegs,
-            std::list<std::unique_ptr<lir::LIR>>& append) const = 0;
+    virtual void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs,
+            LIRList& append) const = 0;
 
     // Most HIR directly translates from NamedValue id to lir::VReg, but we introduce a function as a means of allowing
     // for HIR-specific changes to this.

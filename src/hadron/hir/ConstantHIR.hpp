@@ -16,6 +16,7 @@ struct ConstantHIR : public HIR {
 
     // Forces the type of the |constant| Slot.
     NVID proposeValue(NVID id) override;
+    void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };
 
 } // namespace hir

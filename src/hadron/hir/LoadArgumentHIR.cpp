@@ -15,9 +15,10 @@ NVID LoadArgumentHIR::proposeValue(NVID id) {
     return id;
 }
 
-void LoadArgumentHIR::lower(const std::vector<HIR*>& /* values */,
-        std::vector<std::unique_ptr<lir::LIR>>& append) const {
+void LoadArgumentHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& vRegs,
+        LIRList& append) const {
     append.emplace_back(std::make_unique<lir::LoadFromStackLIR>(vReg(), index));
+    vRegs[vReg()] = --append.end();
 }
 
 } // namespace hir

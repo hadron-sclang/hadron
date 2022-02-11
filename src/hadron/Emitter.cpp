@@ -24,10 +24,10 @@ void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
     // the end when all the addresses are known.
     std::vector<std::pair<JIT::Label, int>> jmpPatchNeeded;
 
-    for (size_t line = 0; line < linearBlock->instructions.size(); ++line) {
+    for (size_t line = 0; line < linearBlock->lineNumbers.size(); ++line) {
         SPDLOG_DEBUG("Emitting line {}", line);
 
-        const lir::LIR* lir = linearBlock->instructions[line].get();
+        const lir::LIR* lir = linearBlock->lineNumbers[line];
 
         // Labels need to capture their address before any move predicates so we handle them separately here.
         if (lir->opcode == lir::Opcode::kLabel) {

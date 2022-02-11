@@ -18,6 +18,7 @@ struct MessageHIR : public HIR {
     std::vector<NVID> keywordArguments;
 
     NVID proposeValue(NVID id) override;
+    void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };
 
 } // namespace hir

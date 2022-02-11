@@ -83,7 +83,6 @@ bool Pipeline::buildBlock(ThreadContext* context, const ast::BlockAST* blockAST,
     if (!validateFrame(context, frame.get(), blockAST)) { return false; }
     if (!afterBlockBuilder(frame.get(), blockAST)) { return false; }
     size_t numberOfBlocks = static_cast<size_t>(frame->numberOfBlocks);
-    size_t numberOfValues = frame->values.size();
 #endif // HADRON_PIPELINE_VALIDATE
 
     functionDef.setArgNames(frame->argumentOrder);
@@ -93,7 +92,7 @@ bool Pipeline::buildBlock(ThreadContext* context, const ast::BlockAST* blockAST,
     auto linearBlock = serializer.serialize(frame.get());
     if (!linearBlock) { return false; }
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateSerializedBlock(linearBlock.get(), numberOfBlocks, numberOfValues)) { return false; }
+    if (!validateSerializedBlock(linearBlock.get(), numberOfBlocks)) { return false; }
     if (!afterBlockSerializer(linearBlock.get())) { return false; }
 #endif // HADRON_PIPELINE_VALIDATE
 
@@ -213,81 +212,23 @@ bool Pipeline::validateSubScope(const Scope* scope, const Scope* parent, std::un
 // surfaces between BlockBuilder, BlockSerializer, and LifetimeAnalyzer to remain relatively stable, barring algorithm
 // changes, so the hope is that the serializer changes relatively infrequently and therefore the maintenence cost is low
 // compared to the increased confidence that the inputs to the rest of the compiler pipeline are valid.
-bool Pipeline::validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks, size_t numberOfValues) {
+bool Pipeline::validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks) {
     if (linearBlock->blockOrder.size() != numberOfBlocks || linearBlock->blockRanges.size() != numberOfBlocks) {
         SPDLOG_ERROR("Mismatch block count on serialization, expecting: {} blockOrder: {} blockRanges: {}",
                 numberOfBlocks, linearBlock->blockOrder.size(), linearBlock->blockRanges.size());
         return false;
     }
 
-    // The block order should see the ranges increasing with no gaps and covering all the instructions.
-    size_t blockStart = 0;
-    for (auto blockNumber : linearBlock->blockOrder) {
-        if (blockNumber >= static_cast<int>(linearBlock->blockRanges.size()) || blockNumber < 0) {
-            SPDLOG_ERROR("Block number {} out of range", blockNumber);
-            return false;
-        }
-        auto range = linearBlock->blockRanges[blockNumber];
-        if (range.first != blockStart) {
-            SPDLOG_ERROR("Block not starting on correct line, expecting {} got {}", blockStart, range.first);
-            return false;
-        }
-        // Every block needs to begin with a label.
-        if (linearBlock->instructions[blockStart]->opcode != hadron::lir::Opcode::kLabel) {
-            SPDLOG_ERROR("Block not starting with label at instruction {}", blockStart);
-            return false;
-        }
-
-        // The label should have the correct blockNumber
-        auto label = reinterpret_cast<const lir::LabelLIR*>(linearBlock->instructions[blockStart].get());
-        if (label->blockNumber != blockNumber) {
-            SPDLOG_ERROR("Block label number mistmatch");
-            return false;
-        }
-
-        // Next block should start at the end of this block.
-        blockStart = range.second;
-    }
-    if (linearBlock->instructions.size() != blockStart) {
-        SPDLOG_ERROR("Final block doesn't end at end of instructions");
-        return false;
-    }
-
-    // Value lifetimes should be the size of numberOfValues with one empty lifetime in each vector.
-    if (linearBlock->valueLifetimes.size() != numberOfValues) {
-        SPDLOG_ERROR("Mismatch value count on serialization, have {}, expected {}", linearBlock->valueLifetimes.size(),
-                numberOfValues);
-        return false;
-    }
-
-    for (size_t i = 0; i < numberOfValues; ++i) {
-        if (linearBlock->valueLifetimes[i].size() != 1) {
-            SPDLOG_ERROR("Expected 1 lifetime per value, value {} has {}", i, linearBlock->valueLifetimes[i].size());
-            return false;
-        }
-        if (!linearBlock->valueLifetimes[i][0]->isEmpty()) {
-            SPDLOG_ERROR("Non-empty value lifetime at value {}", i);
-            return false;
-        }
-    }
-
-    // The spill slot counter should remain at the default until register allocation.
-    if (linearBlock->numberOfSpillSlots != 1) {
-        SPDLOG_ERROR("Non-default value of {} for number of spill slots", linearBlock->numberOfSpillSlots);
-        return false;
-    }
-
     // Check for valid SSA form by ensuring all values are written only once, and they are written before they are read.
     std::unordered_set<lir::VReg> values;
-    for (size_t i = 0; i < linearBlock->instructions.size(); ++i) {
-        const lir::LIR* lir = linearBlock->instructions[i].get();
+    for (const auto& lir : linearBlock->instructions) {
         if (lir->opcode == lir::Opcode::kLabel) {
-            auto label = reinterpret_cast<const lir::LabelLIR*>(lir);
+            auto label = reinterpret_cast<const lir::LabelLIR*>(lir.get());
             for (const auto& phi : label->phis) {
                 if (!validateSsaLir(phi.get(), values)) { return false; }
             }
         }
-        if (!validateSsaLir(lir, values)) { return false; }
+        if (!validateSsaLir(lir.get(), values)) { return false; }
     }
 
     return true;
@@ -321,9 +262,49 @@ bool Pipeline::validateLifetimes(const LinearBlock* linearBlock) {
         }
     }
 
+    // The block order should see the ranges increasing with no gaps and covering all the instructions.
+    size_t blockStart = 0;
+    for (auto blockNumber : linearBlock->blockOrder) {
+        if (blockNumber >= static_cast<int>(linearBlock->blockRanges.size()) || blockNumber < 0) {
+            SPDLOG_ERROR("Block number {} out of range", blockNumber);
+            return false;
+        }
+        auto range = linearBlock->blockRanges[blockNumber];
+        if (range.first != blockStart) {
+            SPDLOG_ERROR("Block not starting on correct line, expecting {} got {}", blockStart, range.first);
+            return false;
+        }
+        // Every block needs to begin with a label.
+        if (linearBlock->lineNumbers[blockStart]->opcode != hadron::lir::Opcode::kLabel) {
+            SPDLOG_ERROR("Block not starting with label at instruction {}", blockStart);
+            return false;
+        }
+
+        // The label should have the correct blockNumber
+        auto label = reinterpret_cast<const lir::LabelLIR*>(linearBlock->lineNumbers[blockStart]);
+        if (label->blockNumber != blockNumber) {
+            SPDLOG_ERROR("Block label number mistmatch");
+            return false;
+        }
+
+        // Next block should start at the end of this block.
+        blockStart = range.second;
+    }
+    if (linearBlock->instructions.size() != blockStart) {
+        SPDLOG_ERROR("Final block doesn't end at end of instructions");
+        return false;
+    }
+
+    // The spill slot counter should remain at the default until register allocation.
+    if (linearBlock->numberOfSpillSlots != 1) {
+        SPDLOG_ERROR("Non-default value of {} for number of spill slots", linearBlock->numberOfSpillSlots);
+        return false;
+    }
+
+
     std::vector<size_t> usageCounts(linearBlock->valueLifetimes.size(), 0);
-    for (size_t i = 0; i < linearBlock->instructions.size(); ++i) {
-        const auto lir = linearBlock->instructions[i].get();
+    for (size_t i = 0; i < linearBlock->lineNumbers.size(); ++i) {
+        const auto lir = linearBlock->lineNumbers[i];
         if (lir->value != lir::kInvalidVReg) {
             if (!linearBlock->valueLifetimes[lir->value][0]->covers(i)) {
                 SPDLOG_ERROR("value {} written outside of lifetime", lir->value);
@@ -388,8 +369,8 @@ bool Pipeline::validateRegisterCoverage(const LinearBlock* linearBlock, size_t i
     }
 
     // Check the valueLocations map at the instruction to make sure it's accurate.
-    auto iter = linearBlock->instructions[i]->valueLocations.find(vReg);
-    if (iter == linearBlock->instructions[i]->valueLocations.end() || reg != static_cast<size_t>(iter->second)) {
+    auto iter = linearBlock->lineNumbers[i]->valueLocations.find(vReg);
+    if (iter == linearBlock->lineNumbers[i]->valueLocations.end() || reg != static_cast<size_t>(iter->second)) {
         SPDLOG_ERROR("Value {} at register {} absent or different in map at instruction {}", vReg, reg, i);
         return false;
     }
@@ -425,7 +406,7 @@ bool Pipeline::validateAllocation(const hadron::LinearBlock* linearBlock) {
 
     // Every usage of every virtual register should have a single physical register assigned.
     for (size_t i = 0; i < linearBlock->instructions.size(); ++i) {
-        const auto* lir = linearBlock->instructions[i].get();
+        const auto* lir = linearBlock->lineNumbers[i];
         if (lir->value != lir::kInvalidVReg) {
             if (!validateRegisterCoverage(linearBlock, i, lir->value)) { return false; }
         }

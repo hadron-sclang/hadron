@@ -41,10 +41,11 @@ NVID PhiHIR::getTrivialValue() const {
     return *(reads.begin());
 }
 
-std::unique_ptr<lir::PhiLIR> PhiHIR::lowerPhi(const std::vector<HIR*>& values) const {
+std::unique_ptr<lir::PhiLIR> PhiHIR::lowerPhi(const std::vector<HIR*>& values,
+        std::vector<LIRList::iterator>& vRegs) const {
     auto phiLIR = std::make_unique<lir::PhiLIR>(vReg());
     for (auto nvid : inputs) {
-        phiLIR->addInput(values[nvid]->vReg());
+        phiLIR->addInput(values[nvid]->vReg(), vRegs);
     }
     return phiLIR;
 }
@@ -54,8 +55,9 @@ NVID PhiHIR::proposeValue(NVID id) {
     return id;
 }
 
-void PhiHIR::lower(const std::vector<HIR*>& values, std::vector<std::unique_ptr<lir::LIR>>& append) const {
-    append.emplace_back(lowerPhi(values));
+void PhiHIR::lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const {
+    append.emplace_back(lowerPhi(values, vRegs));
+    vRegs[vReg()] = --append.end();
 }
 
 } // namespace hir

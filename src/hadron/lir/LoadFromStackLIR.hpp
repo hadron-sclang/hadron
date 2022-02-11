@@ -8,7 +8,7 @@ namespace lir {
 
 struct LoadFromStackLIR : public LIR {
     LoadFromStackLIR() = delete;
-    explicit LoadFromStackLIR(VReg v, int32_t off): LIR(kLoadFromStack, v), offset(off) {}
+    explicit LoadFromStackLIR(VReg v, int32_t off): LIR(kLoadFromStack, v, Type::kAny), offset(off) {}
     virtual ~LoadFromStackLIR() = default;
 
     int32_t offset;

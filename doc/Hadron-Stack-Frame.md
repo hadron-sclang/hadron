@@ -4,11 +4,11 @@
 
 Hadron reserves two registers, GPR0 and GPR1, while running any machine code. GPR0 will always point to the
 thread-specific ThreadContext structure. GPR1 serves as the stack pointer. Hadron maintains its own stack, which is
-slot-aligned, meaning every entry is expected to be a 16-byte slot.
+slot-aligned, meaning every entry is an 8 byte slot.
 
 Stacks grow down, so pushing something onto the Hadron stack means *decrementing* the stack pointer. Thread context also
 maintains a *frame* pointer, which points at the bottom of the stack frame for the current calling code. At function
-entry point the stack is laid out as follows:
+entry the stack is laid out as follows:
 
 | frame pointer | contents               | stack pointer |
 |---------------|------------------------|---------------|
@@ -17,10 +17,9 @@ entry point the stack is laid out as follows:
 | `fp` + 1      | Caller Return Address  |               |
 | `fp`          | Return Value Slot      |               |
 |               | < dispatch work area > |               |
-|               | Argument 0 (this)      | `sp` + n      |
-|               | Argument 1 (selector)  | `sp` + n - 1  |
+|               | Argument n - 1         | `sp` + n      |
 |               |  ...                   |  ...          |
-|               | Argument n - 1         | `sp` + 1      |
+|               | Argument 0 (this)      | `sp` + 1      |
 |               | < register spill area> | `sp`          |
 
 Because the dispatch work area can occupy a variable number of slots, only the return value is located using the frame
@@ -31,7 +30,7 @@ function execution.
 ## Method Dispatch
 
 To dispatch a method the caller must first determine the callee frame pointer location and make room there for the
-previous frame pointer storage, the caller return address, and the return value slot, initalized to `nil`. Then the
+previous frame pointer storage, the caller return address, and the return value slot, initialized to `nil`. Then the
 dispatch area is setup as follows:
 
 | frame pointer | contents                   | stack pointer |

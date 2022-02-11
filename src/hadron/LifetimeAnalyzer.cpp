@@ -45,22 +45,40 @@ BUILDINTERVALS
 */
 
 void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
+    linearBlock->lineNumbers.reserve(linearBlock->instructions.size());
+    size_t blockStart = 0;
+    for (auto& lir : linearBlock->instructions) {
+        linearBlock->lineNumbers.emplace_back(lir.get());
+        if (lir->opcode == lir::kLabel) {
+            linearBlock->blockRanges.emplace_back(std::make_pair(blockStart, linearBlock->lineNumbers.size()));
+            blockStart = linearBlock->lineNumbers.size();
+        }
+    }
+    linearBlock->blockRanges.emplace_back(std::make_pair(blockStart, linearBlock->lineNumbers.size()));
+    assert(linearBlock->lineNumbers.size() == linearBlock->instructions.size());
+    assert(linearBlock->blockRanges.size() == linearBlock->blockLabels.size());
+
     std::vector<std::unordered_set<size_t>> liveIns(linearBlock->blockOrder.size());
+    linearBlock->valueLifetimes.resize(linearBlock->vRegs.size());
+    for (size_t i = 0; i < linearBlock->vRegs.size(); ++i) {
+        linearBlock->valueLifetimes[i].emplace_back(std::make_unique<LifetimeInterval>());
+        linearBlock->valueLifetimes[i][0]->valueNumber = i;
+    }
 
     // for each block b in reverse order do
     for (int i = linearBlock->blockOrder.size() - 1; i >= 0; --i) {
         int blockNumber = linearBlock->blockOrder[i];
         auto blockRange = linearBlock->blockRanges[blockNumber];
-        assert(linearBlock->instructions[blockRange.first]->opcode == lir::kLabel);
-        auto blockLabel = reinterpret_cast<lir::LabelLIR*>(linearBlock->instructions[blockRange.first].get());
+        assert(linearBlock->lineNumbers[blockRange.first]->opcode == lir::kLabel);
+        auto blockLabel = reinterpret_cast<lir::LabelLIR*>(linearBlock->lineNumbers[blockRange.first]);
 
         // live = union of successor.liveIn for each successor of b
         std::unordered_set<size_t> live;
         for (auto succNumber : blockLabel->successors) {
             auto succRange = linearBlock->blockRanges[succNumber];
-            assert(linearBlock->instructions[succRange.first]->opcode == lir::kLabel);
+            assert(linearBlock->lineNumbers[succRange.first]->opcode == lir::kLabel);
             const auto succLabel = reinterpret_cast<const lir::LabelLIR*>(
-                    linearBlock->instructions[succRange.first].get());
+                    linearBlock->lineNumbers[succRange.first]);
 
             live.insert(liveIns[succNumber].begin(), liveIns[succNumber].end());
 
@@ -92,7 +110,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
 
         // for each operation op of b in reverse order do
         for (size_t j = blockRange.second - 1; j >= blockRange.first; --j) {
-            const lir::LIR* lir = linearBlock->instructions[j].get();
+            const lir::LIR* lir = linearBlock->lineNumbers[j];
             // In Hadron there's at most 1 valid output from an LIR so this for loop is instead an if statement.
             // for each output operand opd of op do
             if (lir->value != lir::kInvalidVReg) {

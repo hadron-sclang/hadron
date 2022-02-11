@@ -75,7 +75,7 @@ protected:
     bool validateFrame(ThreadContext* context, const Frame* frame, const ast::BlockAST* blockAST);
     bool validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<int>& blockNumbers);
 
-    bool validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks, size_t numberOfValues);
+    bool validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks);
     bool validateSsaLir(const lir::LIR* lir, std::unordered_set<lir::VReg>& values);
 
     bool validateLifetimes(const LinearBlock* linearBlock);

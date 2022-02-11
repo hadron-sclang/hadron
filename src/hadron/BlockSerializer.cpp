@@ -14,12 +14,9 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(const Frame* frame) {
     // Prepare the LinearBlock for recording of value lifetimes.
     auto linearBlock = std::make_unique<LinearBlock>();
     linearBlock->blockOrder.reserve(frame->numberOfBlocks);
-    linearBlock->blockRanges.resize(frame->numberOfBlocks, std::make_pair(0, 0));
-    linearBlock->valueLifetimes.resize(frame->values.size());
-    for (size_t i = 0; i < frame->values.size(); ++i) {
-        linearBlock->valueLifetimes[i].emplace_back(std::make_unique<LifetimeInterval>());
-        linearBlock->valueLifetimes[i][0]->valueNumber = i;
-    }
+    linearBlock->blockLabels.resize(frame->numberOfBlocks, linearBlock->instructions.end());
+    // Reserve room for all the values in the HIR, so new values are appended after.
+    linearBlock->vRegs.resize(frame->values.size(), linearBlock->instructions.end());
 
     // Map of block number to Block struct, useful when recursing through control flow graph.
     std::vector<Block*> blockPointers;
@@ -40,20 +37,14 @@ std::unique_ptr<LinearBlock> BlockSerializer::serialize(const Frame* frame) {
             label->successors.emplace_back(succ->number);
         }
         for (const auto& phi : block->phis) {
-            label->phis.emplace_back(phi->lowerPhi(block->frame->values));
+            label->phis.emplace_back(phi->lowerPhi(block->frame->values, linearBlock->vRegs));
         }
-
-        auto blockRange = std::make_pair(linearBlock->instructions.size(), 0);
-
         // Start the block with a label and then append all contained instructions.
         linearBlock->instructions.emplace_back(std::move(label));
+        linearBlock->blockLabels[block->number] = --linearBlock->instructions.end();
         for (const auto& hir : block->statements) {
-            hir->lower(block->frame->values, linearBlock->instructions);
+            hir->lower(block->frame->values, linearBlock->vRegs, linearBlock->instructions);
         }
-
-        // Update end range on the block now that it's complete.
-        blockRange.second = linearBlock->instructions.size();
-        linearBlock->blockRanges[block->number] = std::move(blockRange);
     }
 
     return linearBlock;

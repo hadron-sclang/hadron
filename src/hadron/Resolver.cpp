@@ -36,18 +36,12 @@ namespace hadron {
 void Resolver::resolve(LinearBlock* linearBlock) {
     // for each control flow edge from predecessor to successor do
     for (auto blockNumber : linearBlock->blockOrder) {
-        auto blockRange = linearBlock->blockRanges[blockNumber];
-        assert(linearBlock->instructions[blockRange.first]->opcode == lir::kLabel);
-        const auto blockLabel = reinterpret_cast<const lir::LabelLIR*>(
-                linearBlock->instructions[blockRange.first].get());
+        assert((*linearBlock->blockLabels[blockNumber])->opcode == lir::kLabel);
+        const auto blockLabel = reinterpret_cast<const lir::LabelLIR*>(linearBlock->blockLabels[blockNumber]->get());
         for (auto successorNumber : blockLabel->successors) {
-            std::unordered_map<int, int> moves;
-
             // for each interval it live at begin of successor do
-            auto successorRange = linearBlock->blockRanges[successorNumber];
-            assert(linearBlock->instructions[successorRange.first]->opcode == lir::kLabel);
-            auto successorLabel = reinterpret_cast<lir::LabelLIR*>(
-                linearBlock->instructions[successorRange.first].get());
+            assert((*linearBlock->blockLabels[successorNumber])->opcode == lir::kLabel);
+            auto successorLabel = reinterpret_cast<lir::LabelLIR*>(linearBlock->blockLabels[successorNumber]->get());
             size_t blockIndex = 0;
             for (; blockIndex < successorLabel->predecessors.size(); ++blockIndex) {
                 if (successorLabel->predecessors[blockIndex] == blockNumber) {
@@ -55,6 +49,8 @@ void Resolver::resolve(LinearBlock* linearBlock) {
                 }
             }
             assert(blockIndex < successorLabel->predecessors.size());
+
+            std::unordered_map<int, int> moves;
 /*
             for (auto live : successorLabel->liveIns) {
                 int moveFrom, moveTo;
@@ -99,10 +95,13 @@ void Resolver::resolve(LinearBlock* linearBlock) {
                 // If the block has only one successor, or this is the last successor, we can simply prepend the move
                 // instructions to the outbound branch.
                 if (blockLabel->successors.size() == 1 || successorNumber == blockLabel->successors.back()) {
+                    // A block with a successor should never be the last block in the frame.
+                    assert(blockNumber + 1 < static_cast<int32_t>(linearBlock->blockLabels.size()));
+                    auto lastInstruction = linearBlock->blockLabels[blockNumber + 1];
+                    --lastInstruction;
                     // Last instruction should always be a branch.
-                    assert(linearBlock->instructions[blockRange.second - 1]->opcode == lir::kBranch);
-                    auto branch = reinterpret_cast<lir::BranchLIR*>(
-                            linearBlock->instructions[blockRange.second -1].get());
+                    assert((*lastInstruction)->opcode == lir::kBranch);
+                    auto branch = reinterpret_cast<lir::BranchLIR*>(lastInstruction->get());
                     branch->moves.merge(std::move(moves));
                 } else if (successorLabel->predecessors.size() == 1) {
                     // If the successor has only the predecessor we can prepend the move instructions in the successor

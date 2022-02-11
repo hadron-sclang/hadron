@@ -129,19 +129,13 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         m_inactive[i].emplace_back(std::move(regLifetime));
     }
     // Iterate through all instructions and add additional reservations as needed.
-    for (size_t i = 0; i < numberOfInstructions; ++i) {
-        int reservedRegisters = linearBlock->instructions[i]->numberOfReservedRegisters();
-        if (reservedRegisters < 0) { reservedRegisters = m_numberOfRegisters; }
-        SPDLOG_DEBUG("Reserving {} registers at instruction {}", reservedRegisters, i);
-        // A HIR cannot reserve and read more registers than are available on the machine. This is a sign of a flaw in
-        // the HIR design, and probably means the HIR needs to be broken out to more instructions that can handle the
-        // values separately. Register allocation will fail at any instruction requiring more registers than available.
-        assert(reservedRegisters + static_cast<int>(linearBlock->instructions[i]->reads.size()) <=
-                static_cast<int>(m_numberOfRegisters));
-        for (int j = 0; j < reservedRegisters; ++j) {
-            auto regLifetime = m_inactive[m_numberOfRegisters - j - 1].back().get();
-            regLifetime->addLiveRange(i, i + 1);
-            regLifetime->usages.emplace(i);
+    for (size_t i = 0; i < linearBlock->lineNumbers.size(); ++i) {
+        if (linearBlock->lineNumbers[i]->shouldPreserveRegisters()) {
+            for (size_t j = 0; j < m_numberOfRegisters; ++j) {
+                auto regLifetime = m_inactive[j].back().get();
+                regLifetime->addLiveRange(i, i + 1);
+                regLifetime->usages.emplace(i);
+            }
         }
     }
 
@@ -457,7 +451,7 @@ void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
     assert(spillSlot > 0);
 
     // Add spill instruction to moves list.
-    linearBlock->instructions[interval->start()]->moves.emplace(std::make_pair(interval->registerNumber,
+    linearBlock->lineNumbers[interval->start()]->moves.emplace(std::make_pair(interval->registerNumber,
         -static_cast<int>(spillSlot)));
 
     interval->isSpill = true;
@@ -475,7 +469,7 @@ void RegisterAllocator::handled(LtIRef interval, LinearBlock* linearBlock) {
     // Check if previous lifetime was a spill, to issue unspill commands if needed.
     if (linearBlock->valueLifetimes[interval->valueNumber].size() &&
             linearBlock->valueLifetimes[interval->valueNumber].back()->isSpill) {
-        linearBlock->instructions[interval->start()]->moves.emplace(std::make_pair(
+        linearBlock->lineNumbers[interval->start()]->moves.emplace(std::make_pair(
             -static_cast<int>(linearBlock->valueLifetimes[interval->valueNumber].back()->spillSlot),
             interval->registerNumber));
     }
@@ -487,7 +481,7 @@ void RegisterAllocator::handled(LtIRef interval, LinearBlock* linearBlock) {
             break;
         }
         if (interval->covers(i)) {
-            linearBlock->instructions[i]->valueLocations.emplace(std::make_pair(interval->valueNumber,
+            linearBlock->lineNumbers[i]->valueLocations.emplace(std::make_pair(interval->valueNumber,
                 static_cast<int>(interval->registerNumber)));
         }
     }

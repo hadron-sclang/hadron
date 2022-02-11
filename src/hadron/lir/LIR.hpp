@@ -4,16 +4,21 @@
 #include "hadron/JIT.hpp"
 #include "hadron/Type.hpp"
 
+#include <list>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 namespace hadron {
 namespace lir {
-
 using VReg = int32_t;
 static constexpr int32_t kInvalidVReg = -1;
+struct LIR;
+} // namespace lir
 
+using LIRList = std::list<std::unique_ptr<lir::LIR>>;
+
+namespace lir {
 enum Opcode {
     kLoadFromStack,
     kStoreToStack,
@@ -21,6 +26,7 @@ enum Opcode {
     kStoreToPointer,
     kLoadFromPointer,
     kJumpToPointer,
+    kLoadConstant,
 
     // Slot unpacking and repacking. Unless type is certain at compile time values are generally packed.
     kUnpack,
@@ -37,7 +43,8 @@ enum Opcode {
     kPhi,
     kLabel,
     kBranch,
-    kBranchIfTrue
+    kBranchIfTrue,
+    kBranchToRegister
 };
 
 struct LIR {
@@ -63,6 +70,10 @@ struct LIR {
     // Emits machine code into the provided JIT buffer. Base implementation should be called first by derived classes,
     // and emits any needed register moves.
     virtual void emit(JIT* jit) const;
+
+    // If true, the register allocation system will assume that this instruction destroys all register values during
+    // execution, and will spill all outstanding register allocations. Typically used for message dispatch.
+    virtual bool shouldPreserveRegisters() const { return false; }
 
 protected:
     LIR(Opcode op, VReg v, Type t): opcode(op), value(v), typeFlags(t) {}
