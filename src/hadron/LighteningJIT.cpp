@@ -99,7 +99,7 @@ JIT::Reg LighteningJIT::getCStackPointerRegister() const {
 #   else
 #   error "Undefined chipset"
 #   endif
-    r = r - 2;  // Adjust register number for the two reserved registers.
+    r = r - kNumberOfReservedRegisters;  // Adjust register number for the reserved registers.
 
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wc99-extensions"
@@ -256,7 +256,7 @@ void LighteningJIT::initJITGlobals() {
 jit_gpr_t LighteningJIT::reg(Reg r) const {
     assert(r < getRegisterCount());
     // Account for the two reserved registers.
-    r = r + 2;
+    r = r + kNumberOfReservedRegisters;
     jit_gpr gpr;
     gpr.regno = r;
     return gpr;
