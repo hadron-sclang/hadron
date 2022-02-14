@@ -8,14 +8,19 @@ namespace lir {
 
 struct LoadFromStackLIR : public LIR {
     LoadFromStackLIR() = delete;
-    explicit LoadFromStackLIR(VReg v, int32_t off): LIR(kLoadFromStack, v, Type::kAny), offset(off) {}
+    LoadFromStackLIR(VReg v, bool useFP, int32_t off):
+            LIR(kLoadFromStack, v, Type::kAny),
+            useFramePointer(useFP),
+            offset(off) {}
     virtual ~LoadFromStackLIR() = default;
 
+    bool useFramePointer;
     int32_t offset;
 
     void emit(JIT* jit) const override {
         LIR::emit(jit);
-        jit->ldxi_l(valueLocations.at(value), JIT::kStackPointerReg, offset * kSlotSize);
+        jit->ldxi_w(valueLocations.at(value), useFramePointer ? JIT::kFramePointerReg : JIT::kStackPointerReg,
+            offset * kSlotSize);
     }
 };
 

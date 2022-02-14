@@ -222,11 +222,16 @@ add_library(hadron STATIC
 
     lir/BranchIfTrueLIR.hpp
     lir/BranchLIR.hpp
+    lir/BranchToRegisterLIR.hpp
     lir/LabelLIR.hpp
     lir/LIR.cpp
     lir/LIR.hpp
+    lir/LoadConstantLIR.hpp
+    lir/LoadFromPointerLIR.hpp
     lir/LoadFromStackLIR.hpp
     lir/PhiLIR.hpp
+    lir/StoreToPointerLIR.hpp
+    lir/StoreToStackLIR.hpp
 
     Arch.hpp
     AST.hpp

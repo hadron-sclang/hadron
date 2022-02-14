@@ -17,7 +17,7 @@ NVID LoadArgumentHIR::proposeValue(NVID id) {
 
 void LoadArgumentHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& vRegs,
         LIRList& append) const {
-    append.emplace_back(std::make_unique<lir::LoadFromStackLIR>(vReg(), index));
+    append.emplace_back(std::make_unique<lir::LoadFromStackLIR>(vReg(), false, index));
     vRegs[vReg()] = --append.end();
 }
 

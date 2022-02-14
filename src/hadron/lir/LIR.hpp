@@ -19,33 +19,18 @@ struct LIR;
 using LIRList = std::list<std::unique_ptr<lir::LIR>>;
 
 namespace lir {
+
 enum Opcode {
-    kLoadFromStack,
-    kStoreToStack,
-    kLoadFramePointer,
-    kAdvanceFramePointer,
-    kStoreToPointer,
-    kLoadFromPointer,
-    kJumpToPointer,
-    kLoadConstant,
-
-    // Slot unpacking and repacking. Unless type is certain at compile time values are generally packed.
-    kUnpack,
-    kPackFloat,
-    kPackNil,
-    kPackInt32,
-    kPackBool,
-    kPackPointer,
-    kPackHash,
-    kPackChar,
-
-    kThrowException,
-
-    kPhi,
-    kLabel,
     kBranch,
     kBranchIfTrue,
-    kBranchToRegister
+    kBranchToRegister,
+    kLabel,
+    kLoadConstant,
+    kLoadFromPointer,
+    kLoadFromStack,
+    kPhi,
+    kStoreToPointer,
+    kStoreToStack
 };
 
 struct LIR {

@@ -1,7 +1,6 @@
 #include "hadron/hir/MethodReturnHIR.hpp"
 
 #include "hadron/lir/BranchToRegisterLIR.hpp"
-#include "hadron/lir/LoadFramePointerLIR.hpp"
 #include "hadron/lir/LoadFromPointerLIR.hpp"
 #include "hadron/lir/StoreToPointerLIR.hpp"
 
@@ -19,10 +18,6 @@ NVID MethodReturnHIR::proposeValue(NVID /* id */) {
 
 void MethodReturnHIR::lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs,
         LIRList& append) const {
-    // Load the Frame Pointer into a virtual register.
-    append.emplace_back(std::make_unique<lir::LoadFramePointerLIR>(static_cast<lir::VReg>(vRegs.size())));
-    vRegs.emplace_back(--append.end());
-
     // Store the function return value to the frame pointer + 0.
     lir::VReg framePointer = append.back()->value;
     append.emplace_back(std::make_unique<lir::StoreToPointerLIR>(framePointer, values[returnValue]->vReg(), 0));
