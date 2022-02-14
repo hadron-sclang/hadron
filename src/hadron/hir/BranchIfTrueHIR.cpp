@@ -9,5 +9,10 @@ NVID BranchIfTrueHIR::proposeValue(NVID /* id */) {
     return kInvalidNVID;
 }
 
+void BranchIfTrueHIR::lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append)
+        const {
+    append.emplace_back(std::make_unique)
+}
+
 } // namespace hir
 } // namespace hadron

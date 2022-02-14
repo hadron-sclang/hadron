@@ -12,7 +12,8 @@ NVID MessageHIR::proposeValue(NVID id) {
     return id;
 }
 
-void MessageHIR::lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const {
+void MessageHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
+        LIRList& /* append */) const {
     // The problem: we want to set up a new stack frame beyond the current register spill area. However we won't know
     // until *after* register allocation how many spill slots we need. Always assuming we need numberOfReg - 2 + 1
     // spill slots seems wasteful, that's potentially 248 bytes of extra space on the stack for every function call.
@@ -29,6 +30,7 @@ void MessageHIR::lower(const std::vector<HIR*>& values, std::vector<LIRList::ite
     // v3 <- LoadBytecodeAddress     // need to make sure creation of additional JIT::Label doesn't mess things up,
                                      // and how are these patched?
     // StoreToPointer(v2, v3, 2)     // return addy
+    
 
 }
 
