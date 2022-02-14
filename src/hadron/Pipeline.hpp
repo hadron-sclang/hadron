@@ -30,7 +30,7 @@ struct Block;
 class ErrorReporter;
 struct Frame;
 class Lexer;
-struct LinearBlock;
+struct LinearFrame;
 struct Scope;
 struct ThreadContext;
 
@@ -60,11 +60,11 @@ public:
     // testing work on each pipeline step as needed. Any method that returns false will stop the pipeline from moving
     // to the next step.
     virtual bool afterBlockBuilder(const Frame* frame, const ast::BlockAST* blockAST);
-    virtual bool afterBlockSerializer(const LinearBlock* linearBlock);
-    virtual bool afterLifetimeAnalyzer(const LinearBlock* linearBlock);
-    virtual bool afterRegisterAllocator(const LinearBlock* linearBlock);
-    virtual bool afterResolver(const LinearBlock* linearBlock);
-    virtual bool afterEmitter(const LinearBlock* linearBlock, library::Int8Array bytecodeArray);
+    virtual bool afterBlockSerializer(const LinearFrame* linearFrame);
+    virtual bool afterLifetimeAnalyzer(const LinearFrame* linearFrame);
+    virtual bool afterRegisterAllocator(const LinearFrame* linearFrame);
+    virtual bool afterResolver(const LinearFrame* linearFrame);
+    virtual bool afterEmitter(const LinearFrame* linearFrame, library::Int8Array bytecodeArray);
 #endif // HADRON_PIPELINE_VALIDATE
 
 protected:
@@ -76,17 +76,17 @@ protected:
     bool validateFrame(ThreadContext* context, const Frame* frame, const ast::BlockAST* blockAST);
     bool validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<Block::ID>& blockIds);
 
-    bool validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks);
+    bool validateSerializedBlock(const LinearFrame* linearFrame, size_t numberOfBlocks);
     bool validateSsaLir(const lir::LIR* lir, std::unordered_set<lir::VReg>& values);
 
-    bool validateLifetimes(const LinearBlock* linearBlock);
+    bool validateLifetimes(const LinearFrame* linearFrame);
 
-    bool validateAllocation(const LinearBlock* linearBlock);
-    bool validateRegisterCoverage(const LinearBlock* linearBlock, size_t i, uint32_t vReg);
+    bool validateAllocation(const LinearFrame* linearFrame);
+    bool validateRegisterCoverage(const LinearFrame* linearFrame, size_t i, uint32_t vReg);
 
-    bool validateResolution(const LinearBlock* linearBlock);
+    bool validateResolution(const LinearFrame* linearFrame);
 
-    bool validateEmission(const LinearBlock* linearBlock, library::Int8Array bytecodeArray);
+    bool validateEmission(const LinearFrame* linearFrame, library::Int8Array bytecodeArray);
 #endif // HADRON_PIPELINE_VALIDATE
 
     std::shared_ptr<ErrorReporter> m_errorReporter;

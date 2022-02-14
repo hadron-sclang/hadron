@@ -1,5 +1,5 @@
-#ifndef SRC_COMPILER_INCLUDE_HADRON_LINEAR_BLOCK_HPP_
-#define SRC_COMPILER_INCLUDE_HADRON_LINEAR_BLOCK_HPP_
+#ifndef SRC_COMPILER_INCLUDE_HADRON_LINEAR_FRAME_HPP_
+#define SRC_COMPILER_INCLUDE_HADRON_LINEAR_FRAME_HPP_
 
 #include "hadron/Block.hpp"
 #include "hadron/LifetimeInterval.hpp"
@@ -9,9 +9,9 @@
 
 namespace hadron {
 
-struct LinearBlock {
-    LinearBlock() = default;
-    ~LinearBlock() = default;
+struct LinearFrame {
+    LinearFrame() = default;
+    ~LinearFrame() = default;
 
     // Flattened list of all instructions, including Labels at the top of each block.
     LIRList instructions;
@@ -37,4 +37,4 @@ struct LinearBlock {
 
 } // namespace hadron
 
-#endif // SRC_COMPILER_INCLUDE_HADRON_LINEAR_BLOCK_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_LINEAR_FRAME_HPP_

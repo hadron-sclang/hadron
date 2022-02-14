@@ -8,9 +8,9 @@
 
 namespace hadron {
 
-struct LinearBlock;
+struct LinearFrame;
 
-// The RegisterAllocator takes a LinearBlock in SSA form with lifetime ranges and outputs a register allocation
+// The RegisterAllocator takes a LinearFrame in SSA form with lifetime ranges and outputs a register allocation
 // schedule for each value.
 //
 // This class implements the Linear Scan algorithm detailed in [RA4] in the bibliography, "Optimized Interval Splitting
@@ -22,13 +22,13 @@ public:
     RegisterAllocator(size_t numberOfRegisters);
     ~RegisterAllocator() = default;
 
-    void allocateRegisters(LinearBlock* linearBlock);
+    void allocateRegisters(LinearFrame* linearFrame);
 
 private:
     bool tryAllocateFreeReg();
-    void allocateBlockedReg(LinearBlock* linearBlock);
-    void spill(LtIRef interval, LinearBlock* linearBlock);
-    void handled(LtIRef interval, LinearBlock* linearBlock);
+    void allocateBlockedReg(LinearFrame* linearFrame);
+    void spill(LtIRef interval, LinearFrame* linearFrame);
+    void handled(LtIRef interval, LinearFrame* linearFrame);
 
     LtIRef m_current;
     std::vector<LtIRef> m_unhandled;

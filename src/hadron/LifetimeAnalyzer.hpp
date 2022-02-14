@@ -3,7 +3,7 @@
 
 namespace hadron {
 
-struct LinearBlock;
+struct LinearFrame;
 
 // This is a literal implementation of the pseudocode described in the BuildIntervals algorithm of [RA5] in the
 // Bibliography,  "Linear Scan Register Allocation on SSA Form" by C. Wimmer and M. Franz.
@@ -12,7 +12,7 @@ public:
     LifetimeAnalyzer() = default;
     ~LifetimeAnalyzer() = default;
 
-    void buildLifetimes(LinearBlock* linearBlock);
+    void buildLifetimes(LinearFrame* linearFrame);
 };
 
 } // namespace hadron

@@ -12,7 +12,7 @@
 #include "hadron/Lexer.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
-#include "hadron/LinearBlock.hpp"
+#include "hadron/LinearFrame.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
@@ -147,28 +147,28 @@ void HadronServer::addCompilationUnit(std::string name, std::shared_ptr<hadron::
 
     SPDLOG_TRACE("Compile Diagnostics Block Serializer {}", name);
     hadron::BlockSerializer blockSerializer;
-    auto linearBlock = blockSerializer.serialize(frame.get());
+    auto linearFrame = blockSerializer.serialize(frame.get());
 
     SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer {}", name);
     hadron::LifetimeAnalyzer lifetimeAnalyzer;
 
-    lifetimeAnalyzer.buildLifetimes(linearBlock.get());
+    lifetimeAnalyzer.buildLifetimes(linearFrame.get());
 
     SPDLOG_TRACE("Compile Diagnostics Register Allocator {}", name);
     hadron::RegisterAllocator registerAllocator(hadron::kNumberOfPhysicalRegisters);
-    registerAllocator.allocateRegisters(linearBlock.get());
+    registerAllocator.allocateRegisters(linearFrame.get());
 
     SPDLOG_TRACE("Compile Diagnostics Resolver {}", name);
     hadron::Resolver resolver;
-    resolver.resolve(linearBlock.get());
+    resolver.resolve(linearFrame.get());
 
     SPDLOG_TRACE("Compile Diagnostics Emitter {}", name);
     hadron::Emitter emitter;
     hadron::VirtualJIT jit;
-    size_t byteCodeSize = linearBlock->instructions.size() * 16;
+    size_t byteCodeSize = linearFrame->instructions.size() * 16;
     auto byteCode = std::make_unique<int8_t[]>(byteCodeSize);
     jit.begin(byteCode.get(), byteCodeSize);
-    emitter.emit(linearBlock.get(), &jit);
+    emitter.emit(linearFrame.get(), &jit);
     size_t finalSize = 0;
     jit.end(&finalSize);
     assert(finalSize < byteCodeSize);
@@ -176,7 +176,7 @@ void HadronServer::addCompilationUnit(std::string name, std::shared_ptr<hadron::
     SPDLOG_TRACE("Compile Diagnostics Rebuilding Block {}", name);
 
     units.emplace_back(CompilationUnit{name, lexer, parser, blockNode, std::move(blockAST), std::move(frame),
-            std::move(linearBlock), std::move(byteCode), finalSize});
+            std::move(linearFrame), std::move(byteCode), finalSize});
 }
 
 } // namespace server

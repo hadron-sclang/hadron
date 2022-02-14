@@ -13,7 +13,7 @@
 
 namespace hadron {
 struct Frame;
-struct LinearBlock;
+struct LinearFrame;
 class VirtualJIT;
 namespace parse {
 struct Node;

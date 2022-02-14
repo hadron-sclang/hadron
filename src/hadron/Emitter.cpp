@@ -4,7 +4,7 @@
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/JIT.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
-#include "hadron/LinearBlock.hpp"
+#include "hadron/LinearFrame.hpp"
 #include "hadron/lir/LabelLIR.hpp"
 #include "hadron/lir/LIR.hpp"
 #include "hadron/Slot.hpp"
@@ -18,17 +18,17 @@
 
 namespace hadron {
 
-void Emitter::emit(LinearBlock* linearBlock, JIT* jit) {
+void Emitter::emit(LinearFrame* linearFrame, JIT* jit) {
     // Key is block number, value is known addresses of labels, built as they are encountered.
     std::unordered_map<Block::ID, JIT::Address> labelAddresses;
     // For forward jumps we record the Label returned and the block number they are targeted to, and patch them all at
     // the end when all the addresses are known.
     std::vector<std::pair<JIT::Label, int>> jmpPatchNeeded;
 
-    for (size_t line = 0; line < linearBlock->lineNumbers.size(); ++line) {
+    for (size_t line = 0; line < linearFrame->lineNumbers.size(); ++line) {
         SPDLOG_DEBUG("Emitting line {}", line);
 
-        const lir::LIR* lir = linearBlock->lineNumbers[line];
+        const lir::LIR* lir = linearFrame->lineNumbers[line];
 
         // Labels need to capture their address before any move predicates so we handle them separately here.
         if (lir->opcode == lir::Opcode::kLabel) {

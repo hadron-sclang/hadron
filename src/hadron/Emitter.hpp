@@ -4,15 +4,15 @@
 namespace hadron {
 
 class JIT;
-struct LinearBlock;
+struct LinearFrame;
 
-// The Emitter takes a completed LinearBlock and emits machine code using the provided JIT class.
+// The Emitter takes a completed LinearFrame and emits machine code using the provided JIT class.
 class Emitter {
 public:
     Emitter() = default;
     ~Emitter() = default;
 
-    void emit(LinearBlock* linearBlock, JIT* jit);
+    void emit(LinearFrame* linearFrame, JIT* jit);
 };
 
 } // namespace hadron

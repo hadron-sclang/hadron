@@ -11,7 +11,7 @@
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/internal/BuildInfo.hpp"
 #include "hadron/LifetimeInterval.hpp"
-#include "hadron/LinearBlock.hpp"
+#include "hadron/LinearFrame.hpp"
 #include "hadron/OpcodeIterator.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Scope.hpp"
@@ -63,7 +63,7 @@ private:
             rapidjson::Document& document);
     void serializeScope(const hadron::Scope* scope, int& scopeSerial, rapidjson::Value& jsonScope,
             rapidjson::Document& document);
-    void serializeLinearBlock(const hadron::LinearBlock* linearBlock, rapidjson::Value& jsonBlock,
+    void serializeLinearFrame(const hadron::LinearFrame* linearFrame, rapidjson::Value& jsonBlock,
             rapidjson::Document& document);
     void serializeJIT(const int8_t* byteCode, size_t byteCodeSize, rapidjson::Value& jsonJIT,
             rapidjson::Document& document);
@@ -330,10 +330,10 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id,
         serializeFrame(unit.frame.get(), rootFrame, document);
         jsonUnit.AddMember("rootFrame", rootFrame, document.GetAllocator());
 
-        SPDLOG_TRACE("Serializing linearBlock for {}", unit.name);
+        SPDLOG_TRACE("Serializing linearFrame for {}", unit.name);
         rapidjson::Value jsonBlock;
-        serializeLinearBlock(unit.linearBlock.get(), jsonBlock, document);
-        jsonUnit.AddMember("linearBlock", jsonBlock, document.GetAllocator());
+        serializeLinearFrame(unit.linearFrame.get(), jsonBlock, document);
+        jsonUnit.AddMember("linearFrame", jsonBlock, document.GetAllocator());
 
         SPDLOG_TRACE("Serializing machine code for {}", unit.name);
         rapidjson::Value jsonJIT;
@@ -869,13 +869,13 @@ void JSONTransport::JSONTransportImpl::serializeScope(const hadron::Scope* scope
     jsonScope.AddMember("subScopes", subScopes, document.GetAllocator());
 }
 
-void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::LinearBlock* linearBlock,
+void JSONTransport::JSONTransportImpl::serializeLinearFrame(const hadron::LinearFrame* linearFrame,
         rapidjson::Value& jsonBlock, rapidjson::Document& document) {
     jsonBlock.SetObject();
     rapidjson::Value instructions;
     instructions.SetArray();
 /* TODO: serialize LIR
-    for (const auto& hir : linearBlock->instructions) {
+    for (const auto& hir : linearFrame->instructions) {
         rapidjson::Value jsonHIR;
         serializeHIR(hir.get(), jsonHIR, document);
         instructions.PushBack(jsonHIR, document.GetAllocator());
@@ -885,14 +885,14 @@ void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::Linear
 
     rapidjson::Value blockOrder;
     blockOrder.SetArray();
-    for (auto number : linearBlock->blockOrder) {
+    for (auto number : linearFrame->blockOrder) {
         blockOrder.PushBack(rapidjson::Value(number), document.GetAllocator());
     }
     jsonBlock.AddMember("blockOrder", blockOrder, document.GetAllocator());
 
     rapidjson::Value blockRanges;
     blockRanges.SetArray();
-    for (auto range : linearBlock->blockRanges) {
+    for (auto range : linearFrame->blockRanges) {
         rapidjson::Value jsonRange;
         jsonRange.SetArray();
         jsonRange.PushBack(rapidjson::Value(static_cast<uint64_t>(range.first)), document.GetAllocator());
@@ -902,10 +902,10 @@ void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::Linear
     jsonBlock.AddMember("blockRanges", blockRanges, document.GetAllocator());
 
     rapidjson::Value valueLifetimes;
-    serializeLifetimeIntervals(linearBlock->valueLifetimes, valueLifetimes, document);
+    serializeLifetimeIntervals(linearFrame->valueLifetimes, valueLifetimes, document);
     jsonBlock.AddMember("valueLifetimes", valueLifetimes, document.GetAllocator());
 
-    jsonBlock.AddMember("numberOfSpillSlots", rapidjson::Value(static_cast<uint64_t>(linearBlock->numberOfSpillSlots)),
+    jsonBlock.AddMember("numberOfSpillSlots", rapidjson::Value(static_cast<uint64_t>(linearFrame->numberOfSpillSlots)),
             document.GetAllocator());
 }
 

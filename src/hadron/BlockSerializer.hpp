@@ -9,9 +9,9 @@ namespace hadron {
 
 struct Block;
 struct Frame;
-struct LinearBlock;
+struct LinearFrame;
 
-// Serializes a Frame containing a control flow graph of blocks and HIR instructions into a single LinearBlock struct
+// Serializes a Frame containing a control flow graph of blocks and HIR instructions into a single LinearFrame struct
 // with LabelHIR instructions at the top of each block. Serialization order is in reverse postorder traversal, with
 // all loops intact, which is a requirement for the lifetime analysis and register allocation stages of compilation.
 class BlockSerializer {
@@ -19,8 +19,8 @@ public:
     BlockSerializer() = default;
     ~BlockSerializer() = default;
 
-    // Destructively modify baseFrame to produce a single LinearBlock with blocks serialized in the required order.
-    std::unique_ptr<LinearBlock> serialize(const Frame* frame);
+    // Destructively modify baseFrame to produce a single LinearFrame with blocks serialized in the required order.
+    std::unique_ptr<LinearFrame> serialize(const Frame* frame);
 
 private:
 

@@ -17,7 +17,7 @@
 #include "hadron/hir/StoreClassVariableHIR.hpp"
 #include "hadron/hir/StoreInstanceVariableHIR.hpp"
 #include "hadron/Keywords.hpp"
-#include "hadron/LinearBlock.hpp"
+#include "hadron/LinearFrame.hpp"
 #include "hadron/Scope.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"

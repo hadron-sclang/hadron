@@ -7,7 +7,7 @@
 namespace hadron {
 struct Frame;
 class Lexer;
-struct LinearBlock;
+struct LinearFrame;
 class Parser;
 
 namespace ast {
@@ -29,7 +29,7 @@ struct CompilationUnit {
     const hadron::parse::BlockNode* blockNode;
     std::unique_ptr<hadron::ast::BlockAST> blockAST;
     std::unique_ptr<hadron::Frame> frame;
-    std::unique_ptr<hadron::LinearBlock> linearBlock;
+    std::unique_ptr<hadron::LinearFrame> linearFrame;
     std::unique_ptr<int8_t[]> byteCode;
     size_t byteCodeSize;
 };

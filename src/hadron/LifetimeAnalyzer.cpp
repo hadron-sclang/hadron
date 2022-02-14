@@ -1,7 +1,7 @@
 #include "hadron/LifetimeAnalyzer.hpp"
 
 #include "hadron/BlockSerializer.hpp"
-#include "hadron/LinearBlock.hpp"
+#include "hadron/LinearFrame.hpp"
 #include "hadron/lir/LabelLIR.hpp"
 #include "hadron/lir/LIR.hpp"
 
@@ -44,41 +44,41 @@ BUILDINTERVALS
         b.liveIn = live
 */
 
-void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
-    linearBlock->lineNumbers.reserve(linearBlock->instructions.size());
+void LifetimeAnalyzer::buildLifetimes(LinearFrame* linearFrame) {
+    linearFrame->lineNumbers.reserve(linearFrame->instructions.size());
     size_t blockStart = 0;
-    for (auto& lir : linearBlock->instructions) {
-        linearBlock->lineNumbers.emplace_back(lir.get());
+    for (auto& lir : linearFrame->instructions) {
+        linearFrame->lineNumbers.emplace_back(lir.get());
         if (lir->opcode == lir::kLabel) {
-            linearBlock->blockRanges.emplace_back(std::make_pair(blockStart, linearBlock->lineNumbers.size()));
-            blockStart = linearBlock->lineNumbers.size();
+            linearFrame->blockRanges.emplace_back(std::make_pair(blockStart, linearFrame->lineNumbers.size()));
+            blockStart = linearFrame->lineNumbers.size();
         }
     }
-    linearBlock->blockRanges.emplace_back(std::make_pair(blockStart, linearBlock->lineNumbers.size()));
-    assert(linearBlock->lineNumbers.size() == linearBlock->instructions.size());
-    assert(linearBlock->blockRanges.size() == linearBlock->blockLabels.size());
+    linearFrame->blockRanges.emplace_back(std::make_pair(blockStart, linearFrame->lineNumbers.size()));
+    assert(linearFrame->lineNumbers.size() == linearFrame->instructions.size());
+    assert(linearFrame->blockRanges.size() == linearFrame->blockLabels.size());
 
-    std::vector<std::unordered_set<size_t>> liveIns(linearBlock->blockOrder.size());
-    linearBlock->valueLifetimes.resize(linearBlock->vRegs.size());
-    for (size_t i = 0; i < linearBlock->vRegs.size(); ++i) {
-        linearBlock->valueLifetimes[i].emplace_back(std::make_unique<LifetimeInterval>());
-        linearBlock->valueLifetimes[i][0]->valueNumber = i;
+    std::vector<std::unordered_set<size_t>> liveIns(linearFrame->blockOrder.size());
+    linearFrame->valueLifetimes.resize(linearFrame->vRegs.size());
+    for (size_t i = 0; i < linearFrame->vRegs.size(); ++i) {
+        linearFrame->valueLifetimes[i].emplace_back(std::make_unique<LifetimeInterval>());
+        linearFrame->valueLifetimes[i][0]->valueNumber = i;
     }
 
     // for each block b in reverse order do
-    for (int i = linearBlock->blockOrder.size() - 1; i >= 0; --i) {
-        int blockNumber = linearBlock->blockOrder[i];
-        auto blockRange = linearBlock->blockRanges[blockNumber];
-        assert(linearBlock->lineNumbers[blockRange.first]->opcode == lir::kLabel);
-        auto blockLabel = reinterpret_cast<lir::LabelLIR*>(linearBlock->lineNumbers[blockRange.first]);
+    for (int i = linearFrame->blockOrder.size() - 1; i >= 0; --i) {
+        int blockNumber = linearFrame->blockOrder[i];
+        auto blockRange = linearFrame->blockRanges[blockNumber];
+        assert(linearFrame->lineNumbers[blockRange.first]->opcode == lir::kLabel);
+        auto blockLabel = reinterpret_cast<lir::LabelLIR*>(linearFrame->lineNumbers[blockRange.first]);
 
         // live = union of successor.liveIn for each successor of b
         std::unordered_set<size_t> live;
         for (auto succNumber : blockLabel->successors) {
-            auto succRange = linearBlock->blockRanges[succNumber];
-            assert(linearBlock->lineNumbers[succRange.first]->opcode == lir::kLabel);
+            auto succRange = linearFrame->blockRanges[succNumber];
+            assert(linearFrame->lineNumbers[succRange.first]->opcode == lir::kLabel);
             const auto succLabel = reinterpret_cast<const lir::LabelLIR*>(
-                    linearBlock->lineNumbers[succRange.first]);
+                    linearFrame->lineNumbers[succRange.first]);
 
             live.insert(liveIns[succNumber].begin(), liveIns[succNumber].end());
 
@@ -99,7 +99,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
         // The next part of the algorithm adds live ranges to the variables used within the block. One operation calls
         // for a modification of a lifetime range (setFrom). Our Lifetime structure doesn't currently support modifying
         // ranges once added, so we save temporary ranges here until final and add them all in then.
-        std::vector<std::pair<size_t, size_t>> blockVariableRanges(linearBlock->valueLifetimes.size(),
+        std::vector<std::pair<size_t, size_t>> blockVariableRanges(linearFrame->valueLifetimes.size(),
                 std::make_pair(std::numeric_limits<size_t>::max(), 0));
 
         // for each opd in live do
@@ -110,13 +110,13 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
 
         // for each operation op of b in reverse order do
         for (size_t j = blockRange.second - 1; j >= blockRange.first; --j) {
-            const lir::LIR* lir = linearBlock->lineNumbers[j];
+            const lir::LIR* lir = linearFrame->lineNumbers[j];
             // In Hadron there's at most 1 valid output from an LIR so this for loop is instead an if statement.
             // for each output operand opd of op do
             if (lir->value != lir::kInvalidVReg) {
                 // intervals[opd].setFrom(op.id)
                 blockVariableRanges[lir->value].first = j;
-                linearBlock->valueLifetimes[lir->value][0]->usages.emplace(j);
+                linearFrame->valueLifetimes[lir->value][0]->usages.emplace(j);
 
                 // live.remove(opd)
                 live.erase(lir->value);
@@ -127,7 +127,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
                 // intervals[opd].addRange(b.from, op.id)
                 blockVariableRanges[opd].first = blockRange.first;
                 blockVariableRanges[opd].second = std::max(j + 1, blockVariableRanges[opd].second);
-                linearBlock->valueLifetimes[opd][0]->usages.emplace(j);
+                linearFrame->valueLifetimes[opd][0]->usages.emplace(j);
                 // live.add(opd)
                 live.insert(opd);
             }
@@ -165,7 +165,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearBlock* linearBlock) {
                     blockVariableRanges[j].second = blockVariableRanges[j].first + 1;
                 }
                 assert(blockVariableRanges[j].second > blockVariableRanges[j].first);
-                linearBlock->valueLifetimes[j][0]->addLiveRange(blockVariableRanges[j].first,
+                linearFrame->valueLifetimes[j][0]->addLiveRange(blockVariableRanges[j].first,
                     blockVariableRanges[j].second);
             }
         }

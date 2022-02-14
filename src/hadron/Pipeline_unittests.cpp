@@ -4,7 +4,7 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/hir/HIR.hpp"
 #include "hadron/LifetimeInterval.hpp"
-#include "hadron/LinearBlock.hpp"
+#include "hadron/LinearFrame.hpp"
 #include "hadron/Runtime.hpp"
 #include "hadron/ThreadContext.hpp"
 

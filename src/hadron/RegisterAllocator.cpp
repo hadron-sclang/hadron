@@ -1,6 +1,6 @@
 #include "hadron/RegisterAllocator.hpp"
 
-#include "hadron/LinearBlock.hpp"
+#include "hadron/LinearFrame.hpp"
 #include "hadron/lir/LIR.hpp"
 
 #include <algorithm>
@@ -103,14 +103,14 @@ RegisterAllocator::RegisterAllocator(size_t numberOfRegisters): m_numberOfRegist
     m_inactive.resize(m_numberOfRegisters);
 }
 
-void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
+void RegisterAllocator::allocateRegisters(LinearFrame* linearFrame) {
     // We build a min-heap of nonemtpy value lifetimes, ordered by start time. Higher-number values are likely to start
     // later in the block, so we add them to the heap in reverse order.
-    m_unhandled.reserve(linearBlock->valueLifetimes.size());
-    for (int i = linearBlock->valueLifetimes.size() - 1; i >= 0; --i) {
-        if (!linearBlock->valueLifetimes[i][0]->isEmpty()) {
-            m_unhandled.emplace_back(std::move(linearBlock->valueLifetimes[i][0]));
-            linearBlock->valueLifetimes[i].clear();
+    m_unhandled.reserve(linearFrame->valueLifetimes.size());
+    for (int i = linearFrame->valueLifetimes.size() - 1; i >= 0; --i) {
+        if (!linearFrame->valueLifetimes[i][0]->isEmpty()) {
+            m_unhandled.emplace_back(std::move(linearFrame->valueLifetimes[i][0]));
+            linearFrame->valueLifetimes[i].clear();
         }
     }
     std::make_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
@@ -120,7 +120,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
 
     // Populate m_inactive with any register reservations, and add at least one usage for every register at the end
     // of the program, useful for minimizing corner cases in calculation of register next usage during allocation.
-    size_t numberOfInstructions = linearBlock->instructions.size();
+    size_t numberOfInstructions = linearFrame->instructions.size();
     for (size_t i = 0; i < m_numberOfRegisters; ++i) {
         auto regLifetime = std::make_unique<LifetimeInterval>();
         regLifetime->registerNumber = i;
@@ -129,8 +129,8 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         m_inactive[i].emplace_back(std::move(regLifetime));
     }
     // Iterate through all instructions and add additional reservations as needed.
-    for (size_t i = 0; i < linearBlock->lineNumbers.size(); ++i) {
-        if (linearBlock->lineNumbers[i]->shouldPreserveRegisters()) {
+    for (size_t i = 0; i < linearFrame->lineNumbers.size(); ++i) {
+        if (linearFrame->lineNumbers[i]->shouldPreserveRegisters()) {
             for (size_t j = 0; j < m_numberOfRegisters; ++j) {
                 auto regLifetime = m_inactive[j].back().get();
                 regLifetime->addLiveRange(i, i + 1);
@@ -139,7 +139,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         }
     }
 
-    m_activeSpills.resize(linearBlock->numberOfSpillSlots);
+    m_activeSpills.resize(linearFrame->numberOfSpillSlots);
 
     // while unhandled =/= { } do
     while (m_unhandled.size()) {
@@ -164,7 +164,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
                 // move it from active to handled
                 SPDLOG_DEBUG("* at position {} moving value {} from active to handled", position,
                         m_active[reg]->valueNumber);
-                handled(std::move(m_active[reg]), linearBlock);
+                handled(std::move(m_active[reg]), linearFrame);
                 m_active[reg] = nullptr;
             } else {
                 // else if it does not cover position then
@@ -186,7 +186,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
                     // move it from inactive to handled
                     SPDLOG_DEBUG("* at position {} moving value {} from inactive to handled", position,
                             (*iter)->valueNumber);
-                    handled(std::move(*iter), linearBlock);
+                    handled(std::move(*iter), linearFrame);
                     iter = m_inactive[reg].erase(iter);
                 } else {
                     // else if it covers position then
@@ -203,18 +203,18 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         // TRYALLOCATEFREEREG
         if (!tryAllocateFreeReg()) {
             // if allocation failed then ALLOCATEBLOCKEDREG
-            allocateBlockedReg(linearBlock);
+            allocateBlockedReg(linearFrame);
         }
     }
 
     SPDLOG_DEBUG("unhandled heap completed.");
 
-    // Append any final lifetimes to the linearBlock.
+    // Append any final lifetimes to the linearFrame.
     for (size_t reg = 0; reg < m_active.size(); ++reg) {
         if (m_active[reg]) {
             if (m_active[reg]->valueNumber != lir::kInvalidVReg) {
                 SPDLOG_DEBUG("* saving lifetime value {} in active reg {}", m_active[reg]->valueNumber, reg);
-                handled(std::move(m_active[reg]), linearBlock);
+                handled(std::move(m_active[reg]), linearFrame);
             }
             m_active[reg] = nullptr;
         }
@@ -223,7 +223,7 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
         while (iter != m_inactive[reg].end()) {
             if ((*iter)->valueNumber != lir::kInvalidVReg) {
                 SPDLOG_DEBUG("* saving lifetime value {} in inactive reg {}", (*iter)->valueNumber, reg);
-                handled(std::move(*iter), linearBlock);
+                handled(std::move(*iter), linearFrame);
                 *iter = nullptr;
                 iter = m_inactive[reg].erase(iter);
             } else {
@@ -235,13 +235,13 @@ void RegisterAllocator::allocateRegisters(LinearBlock* linearBlock) {
 
     for (size_t spill = 1; spill < m_activeSpills.size(); ++spill) {
         if (m_activeSpills[spill] != nullptr) {
-            linearBlock->valueLifetimes[m_activeSpills[spill]->valueNumber].emplace_back(
+            linearFrame->valueLifetimes[m_activeSpills[spill]->valueNumber].emplace_back(
                     std::move(m_activeSpills[spill]));
             m_activeSpills[spill] = nullptr;
         }
     }
 
-    linearBlock->numberOfSpillSlots = m_activeSpills.size();
+    linearFrame->numberOfSpillSlots = m_activeSpills.size();
 }
 
 bool RegisterAllocator::tryAllocateFreeReg() {
@@ -307,7 +307,7 @@ bool RegisterAllocator::tryAllocateFreeReg() {
     return true;
 }
 
-void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
+void RegisterAllocator::allocateBlockedReg(LinearFrame* linearFrame) {
     // set nextUsePos of all physical registers to maxInt
     std::vector<size_t> nextUsePos(m_numberOfRegisters, std::numeric_limits<size_t>::max());
 
@@ -364,7 +364,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
         SPDLOG_DEBUG("* allocateBlocked spilling current, new start: {} end: {}, unhandled start: {}, end: {}",
                 m_current->start(), m_current->end(), m_unhandled.back()->start(), m_unhandled.back()->end());
         std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
-        spill(std::move(m_current), linearBlock);
+        spill(std::move(m_current), linearFrame);
         m_current = nullptr;
     } else {
         // else
@@ -379,7 +379,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
         auto activeSpill = m_active[reg]->splitAt(m_current->start());
         assert(!m_active[reg]->isEmpty());
         // What came before the split is handled, save it.
-        handled(std::move(m_active[reg]), linearBlock);
+        handled(std::move(m_active[reg]), linearFrame);
         m_active[reg] = nullptr;
 
         // The spilled region for the active interval has to end at the next use of the interval.
@@ -390,7 +390,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
         assert(!afterSpill->isEmpty());
         m_unhandled.emplace_back(std::move(afterSpill));
         std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
-        spill(std::move(activeSpill), linearBlock);
+        spill(std::move(activeSpill), linearFrame);
 
         // split any inactive interval for reg at the end of its lifetime hole
         auto it = m_inactive[reg].begin();
@@ -401,7 +401,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
             if ((*it)->valueNumber != lir::kInvalidVReg && (*it)->start() < m_current->start()) {
                 m_unhandled.emplace_back((*it)->splitAt(m_current->start()));
                 std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
-                handled(std::move(*it), linearBlock);
+                handled(std::move(*it), linearFrame);
                 *it = nullptr;
                 it = m_inactive[reg].erase(it);
             } else {
@@ -422,7 +422,7 @@ void RegisterAllocator::allocateBlockedReg(LinearBlock* linearBlock) {
     }
 }
 
-void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
+void RegisterAllocator::spill(LtIRef interval, LinearFrame* linearFrame) {
     SPDLOG_DEBUG("** spill interval value: {} reg: {} start: {} end: {}, with {} ranges and {} usages.",
             interval->valueNumber, interval->registerNumber, interval->start(), interval->end(),
             interval->ranges.size(), interval->usages.size());
@@ -434,7 +434,7 @@ void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
     for (size_t i = 1; i < m_activeSpills.size(); ++i) {
         if (m_activeSpills[i]) {
             if (m_activeSpills[i]->end() <= interval->start()) {
-                linearBlock->valueLifetimes[m_activeSpills[i]->valueNumber].emplace_back(std::move(m_activeSpills[i]));
+                linearFrame->valueLifetimes[m_activeSpills[i]->valueNumber].emplace_back(std::move(m_activeSpills[i]));
                 m_activeSpills[i] = nullptr;
                 spillSlot = i;
             }
@@ -451,7 +451,7 @@ void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
     assert(spillSlot > 0);
 
     // Add spill instruction to moves list.
-    linearBlock->lineNumbers[interval->start()]->moves.emplace(std::make_pair(interval->registerNumber,
+    linearFrame->lineNumbers[interval->start()]->moves.emplace(std::make_pair(interval->registerNumber,
         -static_cast<int>(spillSlot)));
 
     interval->isSpill = true;
@@ -459,7 +459,7 @@ void RegisterAllocator::spill(LtIRef interval, LinearBlock* linearBlock) {
     m_activeSpills[spillSlot] = std::move(interval);
 }
 
-void RegisterAllocator::handled(LtIRef interval, LinearBlock* linearBlock) {
+void RegisterAllocator::handled(LtIRef interval, LinearFrame* linearFrame) {
     SPDLOG_DEBUG("** handled interval value: {} reg: {} start: {} end: {}, with {} ranges and {} usages.",
             interval->valueNumber, interval->registerNumber, interval->start(), interval->end(),
             interval->ranges.size(), interval->usages.size());
@@ -467,27 +467,27 @@ void RegisterAllocator::handled(LtIRef interval, LinearBlock* linearBlock) {
     assert(!interval->isEmpty());
 
     // Check if previous lifetime was a spill, to issue unspill commands if needed.
-    if (linearBlock->valueLifetimes[interval->valueNumber].size() &&
-            linearBlock->valueLifetimes[interval->valueNumber].back()->isSpill) {
-        linearBlock->lineNumbers[interval->start()]->moves.emplace(std::make_pair(
-            -static_cast<int>(linearBlock->valueLifetimes[interval->valueNumber].back()->spillSlot),
+    if (linearFrame->valueLifetimes[interval->valueNumber].size() &&
+            linearFrame->valueLifetimes[interval->valueNumber].back()->isSpill) {
+        linearFrame->lineNumbers[interval->start()]->moves.emplace(std::make_pair(
+            -static_cast<int>(linearFrame->valueLifetimes[interval->valueNumber].back()->spillSlot),
             interval->registerNumber));
     }
 
     // Update map at every hir for this value number.
     for (size_t i = interval->start(); i < interval->end(); ++i) {
         // No need to add register locations for the guard intervals at the end of the program.
-        if (i >= linearBlock->instructions.size()) {
+        if (i >= linearFrame->instructions.size()) {
             break;
         }
         if (interval->covers(i)) {
-            linearBlock->lineNumbers[i]->valueLocations.emplace(std::make_pair(interval->valueNumber,
+            linearFrame->lineNumbers[i]->valueLocations.emplace(std::make_pair(interval->valueNumber,
                 static_cast<int>(interval->registerNumber)));
         }
     }
 
     // Preserve the interval in the valueLifetimes array.
-    linearBlock->valueLifetimes[interval->valueNumber].emplace_back(std::move(interval));
+    linearFrame->valueLifetimes[interval->valueNumber].emplace_back(std::move(interval));
 }
 
 } // namespace hadron

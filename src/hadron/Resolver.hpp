@@ -5,13 +5,13 @@
 
 namespace hadron {
 
-struct LinearBlock;
+struct LinearFrame;
 
 namespace hir {
 struct MoveOperand;
 }
 
-// The Resolver takes a LinearBlock that has completed register allocation, and schedules the various register transfers
+// The Resolver takes a LinearFrame that has completed register allocation, and schedules the various register transfers
 // required both to keep values consistent across register allocation changes as well as between different blocks across
 // control flow. This class implements the RESOLVE algorithm described in [RA5], "Linear Scan Register Allocation on SSA
 // Form." by C. Wimmer and M. Franz.
@@ -20,10 +20,10 @@ public:
     Resolver() = default;
     ~Resolver() = default;
 
-    void resolve(LinearBlock* linearBlock);
+    void resolve(LinearFrame* linearFrame);
 
 private:
-    bool findAt(size_t valueNumber, LinearBlock* linearBlock, size_t line, int& location);
+    bool findAt(size_t valueNumber, LinearFrame* linearFrame, size_t line, int& location);
 };
 
 } // namespace hadron
