@@ -208,7 +208,7 @@ bool OpcodeWriteIterator::patchWord(int8_t* location, Word value) {
 }
 
 int8_t OpcodeWriteIterator::reg(JIT::Reg r) {
-    assert(r >= -2 && r <= 125);
+    assert(r >= -static_cast<JIT::Reg>(kNumberOfReservedRegisters) && r <= 125);
     return static_cast<int8_t>(r + kNumberOfReservedRegisters);
 }
 

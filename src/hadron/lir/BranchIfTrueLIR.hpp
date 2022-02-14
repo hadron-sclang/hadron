@@ -9,9 +9,9 @@ namespace lir {
 struct BranchIfTrueLIR : public LIR {
     BranchIfTrueLIR() = delete;
     explicit BranchIfTrueLIR(VReg cond, int32_t blockNum):
-            LIR(kBranchIfTrue),
+            LIR(kBranchIfTrue, kInvalidVReg, Type::kNone),
             condition(cond),
-            blockNumber(blockNum) { arguments.emplace_back(condition); }
+            blockNumber(blockNum) { reads.emplace(condition); }
     virtual ~BranchIfTrueLIR() = default;
 
     VReg condition;

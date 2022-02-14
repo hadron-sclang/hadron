@@ -6,7 +6,9 @@
 
 namespace hadron {
 struct Frame;
+class Lexer;
 struct LinearBlock;
+class Parser;
 
 namespace ast {
 struct BlockAST;
@@ -21,7 +23,9 @@ namespace server {
 
 struct CompilationUnit {
     std::string name;
-    // Spooky reference to a parse tree that is externally held by a Parser object.
+    std::shared_ptr<hadron::Lexer> lexer;
+    std::shared_ptr<hadron::Parser> parser;
+
     const hadron::parse::BlockNode* blockNode;
     std::unique_ptr<hadron::ast::BlockAST> blockAST;
     std::unique_ptr<hadron::Frame> frame;

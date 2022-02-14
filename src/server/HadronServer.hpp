@@ -12,6 +12,7 @@
 namespace hadron {
 class ErrorReporter;
 class Lexer;
+class Parser;
 class Runtime;
 namespace parse {
 struct BlockNode;
@@ -43,7 +44,8 @@ public:
     ServerState state() const { return m_state; }
 
 private:
-    void addCompilationUnit(std::string name, const hadron::Lexer* lexer, const hadron::parse::BlockNode* blockNode,
+    void addCompilationUnit(std::string name, std::shared_ptr<hadron::Lexer> lexer,
+            std::shared_ptr<hadron::Parser> parser, const hadron::parse::BlockNode* blockNode,
             std::vector<CompilationUnit>& units);
 
     std::unique_ptr<JSONTransport> m_jsonTransport;

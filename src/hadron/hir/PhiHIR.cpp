@@ -5,6 +5,8 @@
 namespace hadron {
 namespace hir {
 
+PhiHIR::PhiHIR(): HIR(kPhi) {}
+
 void PhiHIR::addInput(const HIR* input) {
     inputs.emplace_back(input->value.id);
     reads.emplace(input->value.id);
