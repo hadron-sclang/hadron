@@ -11,17 +11,17 @@ namespace hadron {
 namespace ast {
 
 enum ASTType {
-    kEmpty = 0,
-    kSequence = 1,
-    kBlock = 2,
-    kIf = 3,
-    kMessage = 4,
-    kName = 5,
-    kAssign = 6,
-    kConstant = 7,
+    kAssign = 0,
+    kBlock = 1,
+    kConstant = 2,
+    kDictionary = 3,
+    kEmpty = 4,
+    kIf = 5,
+    kList = 6,
+    kMessage = 7,
     kMethodReturn = 8,
-    kList = 9, // TODO: are these redundant with List.new and Dictionary.new messages?
-    kDictionary = 10,
+    kName = 9,
+    kSequence = 10,
 };
 
 struct AST {

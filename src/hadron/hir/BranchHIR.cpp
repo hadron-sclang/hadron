@@ -13,7 +13,7 @@ NVID BranchHIR::proposeValue(NVID /* id */) {
 
 void BranchHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
         LIRList& append) const {
-    append.emplace_back(std::make_unique<lir::BranchLIR>(blockNumber));
+    append.emplace_back(std::make_unique<lir::BranchLIR>(blockId));
 }
 
 } // namespace hir

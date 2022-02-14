@@ -10,9 +10,10 @@
 #endif // NDEBUG
 #endif // HADRON_PIPELINE_VALIDATE
 
-#include "hadron/Slot.hpp"
+#include "hadron/Block.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/lir/LIR.hpp"
+#include "hadron/Slot.hpp"
 
 #include <memory>
 #include <string_view>
@@ -73,7 +74,7 @@ protected:
 #if HADRON_PIPELINE_VALIDATE
     // Checks for valid SSA form and that all members of Frame and contained Blocks are valid.
     bool validateFrame(ThreadContext* context, const Frame* frame, const ast::BlockAST* blockAST);
-    bool validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<int>& blockNumbers);
+    bool validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<Block::ID>& blockIds);
 
     bool validateSerializedBlock(const LinearBlock* linearBlock, size_t numberOfBlocks);
     bool validateSsaLir(const lir::LIR* lir, std::unordered_set<lir::VReg>& values);

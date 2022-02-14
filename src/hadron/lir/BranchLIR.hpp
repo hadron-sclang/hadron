@@ -1,6 +1,7 @@
 #ifndef SRC_HADRON_LIR_BRANCH_LIR_HPP_
 #define SRC_HADRON_LIR_BRANCH_LIR_HPP_
 
+#include "hadron/Block.hpp"
 #include "hadron/lir/LIR.hpp"
 
 namespace hadron {
@@ -8,10 +9,10 @@ namespace lir {
 
 struct BranchLIR : public LIR {
     BranchLIR() = delete;
-    explicit BranchLIR(int32_t blockNum): LIR(kBranch, kInvalidVReg, Type::kNone), blockNumber(blockNum) {}
+    explicit BranchLIR(Block::ID block): LIR(kBranch, kInvalidVReg, Type::kNone), blockId(block) {}
     virtual ~BranchLIR() = default;
 
-    int32_t blockNumber;
+    Block::ID blockId;
 };
 
 } // namespace lir

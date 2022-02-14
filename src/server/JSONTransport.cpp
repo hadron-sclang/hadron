@@ -827,17 +827,17 @@ void JSONTransport::JSONTransportImpl::serializeScope(const hadron::Scope* scope
     for (const auto& block : scope->blocks) {
         rapidjson::Value jsonBlock;
         jsonBlock.SetObject();
-        jsonBlock.AddMember("number", rapidjson::Value(block->number), document.GetAllocator());
+        jsonBlock.AddMember("number", rapidjson::Value(block->id), document.GetAllocator());
         rapidjson::Value predecessors;
         predecessors.SetArray();
         for (const auto pred : block->predecessors) {
-            predecessors.PushBack(rapidjson::Value(pred->number), document.GetAllocator());
+            predecessors.PushBack(rapidjson::Value(pred->id), document.GetAllocator());
         }
         jsonBlock.AddMember("predecessors", predecessors, document.GetAllocator());
         rapidjson::Value successors;
         successors.SetArray();
         for (const auto succ : block->successors) {
-            successors.PushBack(rapidjson::Value(succ->number), document.GetAllocator());
+            successors.PushBack(rapidjson::Value(succ->id), document.GetAllocator());
         }
         jsonBlock.AddMember("successors", successors, document.GetAllocator());
         rapidjson::Value phis;
@@ -1217,12 +1217,12 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
     case hadron::hir::Opcode::kBranch: {
         const auto branch = reinterpret_cast<const hadron::hir::BranchHIR*>(hir);
         jsonHIR.AddMember("opcode", "Branch", document.GetAllocator());
-        jsonHIR.AddMember("blockNumber", rapidjson::Value(branch->blockNumber), document.GetAllocator());
+        jsonHIR.AddMember("blockNumber", rapidjson::Value(branch->blockId), document.GetAllocator());
     } break;
     case hadron::hir::Opcode::kBranchIfTrue: {
         const auto branchIfTrue = reinterpret_cast<const hadron::hir::BranchIfTrueHIR*>(hir);
         jsonHIR.AddMember("opcode", "BranchIfTrue", document.GetAllocator());
-        jsonHIR.AddMember("blockNumber", rapidjson::Value(branchIfTrue->blockNumber), document.GetAllocator());
+        jsonHIR.AddMember("blockNumber", rapidjson::Value(branchIfTrue->blockId), document.GetAllocator());
         rapidjson::Value condition;
         serializeValue(branchIfTrue->condition, frame, condition, document);
         jsonHIR.AddMember("condition", condition, document.GetAllocator());

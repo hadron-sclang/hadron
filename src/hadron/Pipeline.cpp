@@ -3,7 +3,6 @@
 #include "hadron/Arch.hpp"
 #include "hadron/AST.hpp"
 #include "hadron/ASTBuilder.hpp"
-#include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
@@ -179,7 +178,7 @@ bool Pipeline::validateFrame(ThreadContext* /* context */, const Frame* frame, c
     return true;
 }
 
-bool Pipeline::validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<int>& blockNumbers) {
+bool Pipeline::validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<Block::ID>& blockIds) {
     if (scope->parent != parent) {
         SPDLOG_ERROR("Scope parent mismatch");
         return false;
@@ -190,16 +189,16 @@ bool Pipeline::validateSubScope(const Scope* scope, const Scope* parent, std::un
             SPDLOG_ERROR("Block frame mismatch");
             return false;
         }
-        // Block numbers must be unique.
-        if (blockNumbers.find(block->number) != blockNumbers.end()) {
-            SPDLOG_ERROR("Non-unique block number {}", block->number);
+        // Block ids must be unique.
+        if (blockIds.find(block->id) != blockIds.end()) {
+            SPDLOG_ERROR("Non-unique block number {}", block->id);
             return false;
         }
 
-        blockNumbers.emplace(block->number);
+        blockIds.emplace(block->id);
     }
     for (const auto& subScope : scope->subScopes) {
-        if (!validateSubScope(subScope.get(), scope, blockNumbers)) { return false; }
+        if (!validateSubScope(subScope.get(), scope, blockIds)) { return false; }
     }
 
     return true;
@@ -264,12 +263,12 @@ bool Pipeline::validateLifetimes(const LinearBlock* linearBlock) {
 
     // The block order should see the ranges increasing with no gaps and covering all the instructions.
     size_t blockStart = 0;
-    for (auto blockNumber : linearBlock->blockOrder) {
-        if (blockNumber >= static_cast<int>(linearBlock->blockRanges.size()) || blockNumber < 0) {
-            SPDLOG_ERROR("Block number {} out of range", blockNumber);
+    for (auto blockId : linearBlock->blockOrder) {
+        if (blockId >= static_cast<Block::ID>(linearBlock->blockRanges.size()) || blockId < 0) {
+            SPDLOG_ERROR("Block number {} out of range", blockId);
             return false;
         }
-        auto range = linearBlock->blockRanges[blockNumber];
+        auto range = linearBlock->blockRanges[blockId];
         if (range.first != blockStart) {
             SPDLOG_ERROR("Block not starting on correct line, expecting {} got {}", blockStart, range.first);
             return false;
@@ -282,7 +281,7 @@ bool Pipeline::validateLifetimes(const LinearBlock* linearBlock) {
 
         // The label should have the correct blockNumber
         auto label = reinterpret_cast<const lir::LabelLIR*>(linearBlock->lineNumbers[blockStart]);
-        if (label->blockNumber != blockNumber) {
+        if (label->blockId != blockId) {
             SPDLOG_ERROR("Block label number mistmatch");
             return false;
         }

@@ -1,6 +1,7 @@
 #ifndef SRC_HADRON_HIR_BRANCH_IF_TRUE_HIR_HPP_
 #define SRC_HADRON_HIR_BRANCH_IF_TRUE_HIR_HPP_
 
+#include "hadron/Block.hpp"
 #include "hadron/hir/HIR.hpp"
 
 namespace hadron {
@@ -12,7 +13,7 @@ struct BranchIfTrueHIR : public HIR {
     virtual ~BranchIfTrueHIR() = default;
 
     NVID condition;
-    int blockNumber;
+    Block::ID blockId;
 
     NVID proposeValue(NVID id) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;

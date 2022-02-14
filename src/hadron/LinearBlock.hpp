@@ -1,6 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_LINEAR_BLOCK_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_LINEAR_BLOCK_HPP_
 
+#include "hadron/Block.hpp"
 #include "hadron/LifetimeInterval.hpp"
 #include "hadron/lir/LIR.hpp"
 
@@ -17,7 +18,7 @@ struct LinearBlock {
     // vReg lookup table.
     std::vector<LIRList::iterator> vRegs;
     // In-order list of each block.
-    std::vector<int> blockOrder;
+    std::vector<Block::ID> blockOrder;
     // List iterators pointing at the first instruction in each block (which must be a LabelLIR)
     std::vector<LIRList::iterator> blockLabels;
 

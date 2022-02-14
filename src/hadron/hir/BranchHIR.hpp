@@ -1,6 +1,7 @@
 #ifndef SRC_HADRON_HIR_BRANCH_HIR_HPP_
 #define SRC_HADRON_HIR_BRANCH_HIR_HPP_
 
+#include "hadron/Block.hpp"
 #include "hadron/hir/HIR.hpp"
 
 namespace hadron {
@@ -10,7 +11,7 @@ struct BranchHIR : public HIR {
     BranchHIR();
     virtual ~BranchHIR() = default;
 
-    int32_t blockNumber;
+    Block::ID blockId;
     NVID proposeValue(NVID id) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };

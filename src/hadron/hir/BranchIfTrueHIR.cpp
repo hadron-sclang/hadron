@@ -13,7 +13,7 @@ NVID BranchIfTrueHIR::proposeValue(NVID /* id */) {
 
 void BranchIfTrueHIR::lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& /* vRegs */,
         LIRList& append) const {
-    append.emplace_back(std::make_unique<lir::BranchIfTrueLIR>(values[condition]->vReg(), blockNumber));
+    append.emplace_back(std::make_unique<lir::BranchIfTrueLIR>(values[condition]->vReg(), blockId));
 }
 
 } // namespace hir

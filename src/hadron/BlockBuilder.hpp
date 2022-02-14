@@ -1,6 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_BLOCK_BUILDER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_BLOCK_BUILDER_HPP_
 
+#include "hadron/Block.hpp"
 #include "hadron/hir/HIR.hpp"
 #include "hadron/library/Symbol.hpp"
 
@@ -54,7 +55,7 @@ private:
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
     // tables.
     hir::NVID findName(library::Symbol name, Block* block,
-                std::unordered_map<int32_t, hir::NVID>& blockValues,
+                std::unordered_map<Block::ID, hir::NVID>& blockValues,
                 const std::unordered_set<const Scope*>& containingScopes);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;

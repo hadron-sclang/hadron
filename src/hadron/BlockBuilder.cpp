@@ -1,7 +1,6 @@
 #include "hadron/BlockBuilder.hpp"
 
 #include "hadron/AST.hpp"
-#include "hadron/Block.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
@@ -213,14 +212,14 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, Block*& currentBlock, co
     auto trueScopeOwning = buildInlineBlock(context, conditionBlock, ifAST->trueBlock.get());
     Scope* trueScope = trueScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(trueScopeOwning));
-    trueBranch->blockNumber = trueScope->blocks.front()->number;
+    trueBranch->blockId = trueScope->blocks.front()->id;
     conditionBlock->successors.emplace_back(trueScope->blocks.front().get());
 
     // Build the false condition block.
     auto falseScopeOwning = buildInlineBlock(context, conditionBlock, ifAST->falseBlock.get());
     Scope* falseScope = falseScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(falseScopeOwning));
-    falseBranch->blockNumber = falseScope->blocks.front()->number;
+    falseBranch->blockId = falseScope->blocks.front()->id;
     conditionBlock->successors.emplace_back(falseScope->blocks.front().get());
 
     // Create a new block in the parent frame for code after the if statement.
@@ -231,14 +230,14 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, Block*& currentBlock, co
 
     // Wire trueScope exit block to the continue block here.
     auto exitTrueBranch = std::make_unique<hir::BranchHIR>();
-    exitTrueBranch->blockNumber = currentBlock->number;
+    exitTrueBranch->blockId = currentBlock->id;
     insert(std::move(exitTrueBranch), trueScope->blocks.back().get());
     trueScope->blocks.back()->successors.emplace_back(currentBlock);
     currentBlock->predecessors.emplace_back(trueScope->blocks.back().get());
 
     // Wire falseFrame exit block to the continue block here.
     auto exitFalseBranch = std::make_unique<hir::BranchHIR>();
-    exitFalseBranch->blockNumber = currentBlock->number;
+    exitFalseBranch->blockId = currentBlock->id;
     insert(std::move(exitFalseBranch), falseScope->blocks.back().get());
     falseScope->blocks.back()->successors.emplace_back(currentBlock);
     currentBlock->predecessors.emplace_back(falseScope->blocks.back().get());
@@ -271,9 +270,10 @@ hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
     return value;
 }
 
-hir::NVID BlockBuilder::findName(library::Symbol name, Block* block, std::unordered_map<int, hir::NVID>& blockValues,
+hir::NVID BlockBuilder::findName(library::Symbol name, Block* block,
+        std::unordered_map<Block::ID, hir::NVID>& blockValues,
         const std::unordered_set<const Scope*>& containingScopes) {
-    auto cacheIter = blockValues.find(block->number);
+    auto cacheIter = blockValues.find(block->id);
     if (cacheIter != blockValues.end()) {
         return cacheIter->second;
     }
@@ -294,7 +294,7 @@ hir::NVID BlockBuilder::findName(library::Symbol name, Block* block, std::unorde
     auto phi = std::make_unique<hir::PhiHIR>();
     auto phiValue = phi->proposeValue(static_cast<hir::NVID>(block->frame->values.size()));
     block->frame->values.emplace_back(phi.get());
-    blockValues.emplace(std::make_pair(block->number, phiValue));
+    blockValues.emplace(std::make_pair(block->id, phiValue));
 
     // Search predecessors for the name.
     for (auto pred : block->predecessors) {
@@ -315,7 +315,7 @@ hir::NVID BlockBuilder::findName(library::Symbol name, Block* block, std::unorde
     if (isShadowed) {
         assert(trivialValue != hir::kInvalidNVID);
         // Overwrite block value with the trivial value.
-        blockValues.emplace(std::make_pair(block->number, trivialValue));
+        blockValues.emplace(std::make_pair(block->id, trivialValue));
         return trivialValue;
     }
 
@@ -332,7 +332,7 @@ hir::NVID BlockBuilder::findName(library::Symbol name, Block* block, std::unorde
     // Update block revisions and the blockValues map with the final values.
     block->revisions.emplace(std::make_pair(name, finalValue));
     block->localValues.emplace(std::make_pair(finalValue, finalValue));
-    blockValues.emplace(std::make_pair(block->number, finalValue));
+    blockValues.emplace(std::make_pair(block->id, finalValue));
 
     return finalValue;
 }

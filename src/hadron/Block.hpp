@@ -14,11 +14,13 @@ namespace hadron {
 struct Frame;
 
 struct Block {
+    using ID = int32_t;
+
     Block() = delete;
-    Block(Scope* owningScope, int blockNumber):
+    Block(Scope* owningScope, ID blockID):
             scope(owningScope),
             frame(owningScope->frame),
-            number(blockNumber),
+            id(blockID),
             finalValue(hir::kInvalidNVID),
             hasMethodReturn(false) {}
     ~Block() = default;
@@ -34,8 +36,7 @@ struct Block {
     // The top-level frame that contains this block.
     Frame* frame;
 
-    // Unique block number.
-    int32_t number;
+    ID id;
     std::list<Block*> predecessors;
     std::list<Block*> successors;
 
