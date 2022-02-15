@@ -13,20 +13,19 @@ struct StoreToStackLIR : public LIR {
         toStore(store),
         useFramePointer(useFP),
         offset(off) {}
-    virtual ~StoreToPointerLIR() = default;
+    virtual ~StoreToStackLIR() = default;
 
     VReg toStore;
     bool useFramePointer;
     int32_t offset;
 
-    void emit(JIT* jit) const override {
-        LIR::emit(jit);
+    void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
+        emitBase(jit);
         jit->stxi_w(offset, useFramePointer ? JIT::kFramePointerReg : JIT::kStackPointerReg, offset * kSlotSize);
     }
 };
 
 } // namespace lir
 } // namespace hadron
-
 
 #endif // SRC_HADRON_LIR_STORE_TO_STACK_LIR_HPP_

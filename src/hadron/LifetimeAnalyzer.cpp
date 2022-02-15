@@ -46,17 +46,24 @@ BUILDINTERVALS
 
 void LifetimeAnalyzer::buildLifetimes(LinearFrame* linearFrame) {
     linearFrame->lineNumbers.reserve(linearFrame->instructions.size());
+    linearFrame->blockRanges.resize(linearFrame->blockLabels.size());
     size_t blockStart = 0;
+    const lir::LabelLIR* lastLabel = nullptr;
     for (auto& lir : linearFrame->instructions) {
-        linearFrame->lineNumbers.emplace_back(lir.get());
         if (lir->opcode == lir::kLabel) {
-            linearFrame->blockRanges.emplace_back(std::make_pair(blockStart, linearFrame->lineNumbers.size()));
+            if (lastLabel) {
+                linearFrame->blockRanges[lastLabel->id] = std::make_pair(blockStart, linearFrame->lineNumbers.size());
+            }
+            lastLabel = reinterpret_cast<const lir::LabelLIR*>(lir.get());
             blockStart = linearFrame->lineNumbers.size();
         }
+        linearFrame->lineNumbers.emplace_back(lir.get());
     }
-    linearFrame->blockRanges.emplace_back(std::make_pair(blockStart, linearFrame->lineNumbers.size()));
+    assert(lastLabel);
+    // Save final block range.
+    linearFrame->blockRanges[lastLabel->id] = std::make_pair(blockStart, linearFrame->lineNumbers.size());
+
     assert(linearFrame->lineNumbers.size() == linearFrame->instructions.size());
-    assert(linearFrame->blockRanges.size() == linearFrame->blockLabels.size());
 
     std::vector<std::unordered_set<size_t>> liveIns(linearFrame->blockOrder.size());
     linearFrame->valueLifetimes.resize(linearFrame->vRegs.size());
@@ -91,7 +98,9 @@ void LifetimeAnalyzer::buildLifetimes(LinearFrame* linearFrame) {
             }
             // for each phi function phi of successors of b do
             //   live.add(phi.inputOf(b))
-            for (const auto& phi : succLabel->phis) {
+            for (const auto& lir : succLabel->phis) {
+                assert(lir->opcode == lir::kPhi);
+                const auto phi = reinterpret_cast<lir::PhiLIR*>(lir.get());
                 live.insert(phi->inputs[inputNumber]);
             }
         }
@@ -110,6 +119,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearFrame* linearFrame) {
 
         // for each operation op of b in reverse order do
         for (size_t j = blockRange.second - 1; j >= blockRange.first; --j) {
+            assert(j < linearFrame->instructions.size());
             const lir::LIR* lir = linearFrame->lineNumbers[j];
             // In Hadron there's at most 1 valid output from an LIR so this for loop is instead an if statement.
             // for each output operand opd of op do

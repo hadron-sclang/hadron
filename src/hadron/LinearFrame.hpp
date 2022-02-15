@@ -1,7 +1,6 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_LINEAR_FRAME_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_LINEAR_FRAME_HPP_
 
-#include "hadron/Block.hpp"
 #include "hadron/LifetimeInterval.hpp"
 #include "hadron/lir/LIR.hpp"
 
@@ -18,7 +17,7 @@ struct LinearFrame {
     // vReg lookup table.
     std::vector<LIRList::iterator> vRegs;
     // In-order list of each block.
-    std::vector<Block::ID> blockOrder;
+    std::vector<lir::LabelID> blockOrder;
     // List iterators pointing at the first instruction in each block (which must be a LabelLIR)
     std::vector<LIRList::iterator> blockLabels;
 

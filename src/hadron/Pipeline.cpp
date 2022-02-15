@@ -91,7 +91,7 @@ bool Pipeline::buildBlock(ThreadContext* context, const ast::BlockAST* blockAST,
     auto linearFrame = serializer.serialize(frame.get());
     if (!linearFrame) { return false; }
 #if HADRON_PIPELINE_VALIDATE
-    if (!validateSerializedBlock(linearFrame.get(), numberOfBlocks)) { return false; }
+    if (!validateLinearFrame(linearFrame.get(), numberOfBlocks)) { return false; }
     if (!afterBlockSerializer(linearFrame.get())) { return false; }
 #endif // HADRON_PIPELINE_VALIDATE
 
@@ -162,23 +162,25 @@ bool Pipeline::validateFrame(ThreadContext* /* context */, const Frame* frame, c
         return false;
     }
 
-    std::unordered_set<int> blockNumbers;
-    if (!validateSubScope(frame->rootScope.get(), nullptr, blockNumbers)) { return false; }
+    std::unordered_set<Block::ID> blockIds;
+    std::unordered_set<hir::NVID> valueIds;
+    if (!validateSubScope(frame->rootScope.get(), nullptr, blockIds, valueIds)) { return false; }
 
-    if (frame->numberOfBlocks != static_cast<int>(blockNumbers.size())) {
+    if (frame->numberOfBlocks != static_cast<int>(blockIds.size())) {
         SPDLOG_ERROR("Base frame number of blocks {} mismatches counted amount of {}", frame->numberOfBlocks,
-                blockNumbers.size());
+                blockIds.size());
         return false;
     }
     // There should be at least one Block.
-    if (blockNumbers.size() < 1) {
+    if (blockIds.size() < 1) {
         SPDLOG_ERROR("Base frame has no blocks");
         return false;
     }
     return true;
 }
 
-bool Pipeline::validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<Block::ID>& blockIds) {
+bool Pipeline::validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<Block::ID>& blockIds,
+        std::unordered_set<hir::NVID>& valueIds) {
     if (scope->parent != parent) {
         SPDLOG_ERROR("Scope parent mismatch");
         return false;
@@ -195,10 +197,36 @@ bool Pipeline::validateSubScope(const Scope* scope, const Scope* parent, std::un
             return false;
         }
 
+        for (const auto& phi : block->phis) {
+            if (valueIds.count(phi->value.id)) {
+                SPDLOG_ERROR("Duplicate NVID {} found in phi in block {}", phi->value.id, block->id);
+                return false;
+            }
+            if (scope->frame->values[phi->value.id] != phi.get()) {
+                SPDLOG_ERROR("Mismatch in phi between value id and pointer for NVID {}", phi->value.id);
+                return false;
+            }
+            valueIds.emplace(phi->value.id);
+        }
+
+        for (const auto& hir : block->statements) {
+            if (hir->value.id != hir::kInvalidNVID) {
+                if (valueIds.count(hir->value.id)) {
+                    SPDLOG_ERROR("Duplicate NVID {} found for hir in block {}", hir->value.id, block->id);
+                    return false;
+                }
+                if (scope->frame->values[hir->value.id] != hir.get()) {
+                    SPDLOG_ERROR("Mismatch between value id and pointer for NVID {}", hir->value.id);
+                    return false;
+                }
+                valueIds.emplace(hir->value.id);
+            }
+        }
+
         blockIds.emplace(block->id);
     }
     for (const auto& subScope : scope->subScopes) {
-        if (!validateSubScope(subScope.get(), scope, blockIds)) { return false; }
+        if (!validateSubScope(subScope.get(), scope, blockIds, valueIds)) { return false; }
     }
 
     return true;
@@ -211,10 +239,10 @@ bool Pipeline::validateSubScope(const Scope* scope, const Scope* parent, std::un
 // surfaces between BlockBuilder, BlockSerializer, and LifetimeAnalyzer to remain relatively stable, barring algorithm
 // changes, so the hope is that the serializer changes relatively infrequently and therefore the maintenence cost is low
 // compared to the increased confidence that the inputs to the rest of the compiler pipeline are valid.
-bool Pipeline::validateSerializedBlock(const LinearFrame* linearFrame, size_t numberOfBlocks) {
-    if (linearFrame->blockOrder.size() != numberOfBlocks || linearFrame->blockRanges.size() != numberOfBlocks) {
-        SPDLOG_ERROR("Mismatch block count on serialization, expecting: {} blockOrder: {} blockRanges: {}",
-                numberOfBlocks, linearFrame->blockOrder.size(), linearFrame->blockRanges.size());
+bool Pipeline::validateLinearFrame(const LinearFrame* linearFrame, size_t numberOfBlocks) {
+    if (linearFrame->blockOrder.size() != numberOfBlocks || linearFrame->blockLabels.size() != numberOfBlocks) {
+        SPDLOG_ERROR("Mismatch block count on serialization, expecting: {} blockOrder: {} blockLabels: {}",
+                numberOfBlocks, linearFrame->blockOrder.size(), linearFrame->blockLabels.size());
         return false;
     }
 
@@ -236,14 +264,18 @@ bool Pipeline::validateSerializedBlock(const LinearFrame* linearFrame, size_t nu
 bool Pipeline::validateSsaLir(const lir::LIR* lir, std::unordered_set<lir::VReg>& values) {
     if (lir->value != lir::kInvalidVReg) {
         if (values.count(lir->value)) {
-            SPDLOG_ERROR("Duplicate definition of value {} in linear block.", lir->value);
+            SPDLOG_ERROR("Duplicate definition of vReg {} in linear block.", lir->value);
             return false;
         }
         values.emplace(lir->value);
     }
     for (auto v : lir->reads) {
+        if (v == lir::kInvalidVReg) {
+            SPDLOG_ERROR("Invalid vReg value in reads set.");
+            return false;
+        }
         if (!values.count(v)) {
-            SPDLOG_ERROR("Value {} read before written.", v);
+            SPDLOG_ERROR("LIR vReg {} read before written.", v);
             return false;
         }
     }
@@ -263,12 +295,12 @@ bool Pipeline::validateLifetimes(const LinearFrame* linearFrame) {
 
     // The block order should see the ranges increasing with no gaps and covering all the instructions.
     size_t blockStart = 0;
-    for (auto blockId : linearFrame->blockOrder) {
-        if (blockId >= static_cast<Block::ID>(linearFrame->blockRanges.size()) || blockId < 0) {
-            SPDLOG_ERROR("Block number {} out of range", blockId);
+    for (auto labelId : linearFrame->blockOrder) {
+        if (labelId >= static_cast<Block::ID>(linearFrame->blockRanges.size()) || labelId < 0) {
+            SPDLOG_ERROR("Block number {} out of range", labelId);
             return false;
         }
-        auto range = linearFrame->blockRanges[blockId];
+        auto range = linearFrame->blockRanges[labelId];
         if (range.first != blockStart) {
             SPDLOG_ERROR("Block not starting on correct line, expecting {} got {}", blockStart, range.first);
             return false;
@@ -281,7 +313,7 @@ bool Pipeline::validateLifetimes(const LinearFrame* linearFrame) {
 
         // The label should have the correct blockNumber
         auto label = reinterpret_cast<const lir::LabelLIR*>(linearFrame->lineNumbers[blockStart]);
-        if (label->blockId != blockId) {
+        if (label->id != labelId) {
             SPDLOG_ERROR("Block label number mistmatch");
             return false;
         }
@@ -299,7 +331,6 @@ bool Pipeline::validateLifetimes(const LinearFrame* linearFrame) {
         SPDLOG_ERROR("Non-default value of {} for number of spill slots", linearFrame->numberOfSpillSlots);
         return false;
     }
-
 
     std::vector<size_t> usageCounts(linearFrame->valueLifetimes.size(), 0);
     for (size_t i = 0; i < linearFrame->lineNumbers.size(); ++i) {
@@ -368,8 +399,8 @@ bool Pipeline::validateRegisterCoverage(const LinearFrame* linearFrame, size_t i
     }
 
     // Check the valueLocations map at the instruction to make sure it's accurate.
-    auto iter = linearFrame->lineNumbers[i]->valueLocations.find(vReg);
-    if (iter == linearFrame->lineNumbers[i]->valueLocations.end() || reg != static_cast<size_t>(iter->second)) {
+    auto iter = linearFrame->lineNumbers[i]->locations.find(vReg);
+    if (iter == linearFrame->lineNumbers[i]->locations.end() || reg != static_cast<size_t>(iter->second)) {
         SPDLOG_ERROR("Value {} at register {} absent or different in map at instruction {}", vReg, reg, i);
         return false;
     }

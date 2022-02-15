@@ -13,12 +13,20 @@ struct StoreToPointerLIR : public LIR {
         LIR(kStoreToPointer, kInvalidVReg, Type::kNone),
         pointer(p),
         toStore(store),
-        offset(off) {}
+        offset(off) {
+        reads.emplace(pointer);
+        reads.emplace(toStore);
+    }
     virtual ~StoreToPointerLIR() = default;
 
     VReg pointer;
     VReg toStore;
     int32_t offset;
+
+    void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
+        emitBase(jit);
+        jit->stxi_w(offset * kSlotSize, locations.at(pointer), locations.at(toStore));
+    }
 };
 
 } // namespace lir

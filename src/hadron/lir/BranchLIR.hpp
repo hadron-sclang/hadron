@@ -9,10 +9,15 @@ namespace lir {
 
 struct BranchLIR : public LIR {
     BranchLIR() = delete;
-    explicit BranchLIR(Block::ID block): LIR(kBranch, kInvalidVReg, Type::kNone), blockId(block) {}
+    explicit BranchLIR(LabelID label): LIR(kBranch, kInvalidVReg, Type::kNone), labelId(label) {}
     virtual ~BranchLIR() = default;
 
-    Block::ID blockId;
+    LabelID labelId;
+
+    void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& patchNeeded) const override {
+        emitBase(jit);
+        patchNeeded.emplace_back(std::make_pair(jit->jmp(), labelId));
+    }
 };
 
 } // namespace lir

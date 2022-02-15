@@ -208,6 +208,8 @@ add_library(hadron STATIC
     hir/StoreClassVariableHIR.hpp
     hir/StoreInstanceVariableHIR.cpp
     hir/StoreInstanceVariableHIR.hpp
+    hir/StoreReturnHIR.cpp
+    hir/StoreReturnHIR.hpp
 
     library/Array.hpp
     library/ArrayedCollection.hpp

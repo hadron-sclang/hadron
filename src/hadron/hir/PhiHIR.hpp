@@ -24,8 +24,6 @@ struct PhiHIR : public HIR {
     // return the trivial value. Otherwise return an invalid value.
     NVID getTrivialValue() const;
 
-    std::unique_ptr<lir::PhiLIR> lowerPhi(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs) const;
-
     NVID proposeValue(NVID id) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };

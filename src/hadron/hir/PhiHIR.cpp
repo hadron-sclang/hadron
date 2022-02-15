@@ -8,6 +8,7 @@ namespace hir {
 PhiHIR::PhiHIR(): HIR(kPhi) {}
 
 void PhiHIR::addInput(const HIR* input) {
+    assert(input->value.id != hir::kInvalidNVID);
     inputs.emplace_back(input->value.id);
     reads.emplace(input->value.id);
     value.typeFlags = static_cast<Type>(static_cast<int32_t>(value.typeFlags) |
@@ -38,18 +39,9 @@ NVID PhiHIR::getTrivialValue() const {
         }
     }
 
-    // Phis with no values are invalid.
+    // Phis with no inputs are invalid.
     assert(reads.size() == 1);
     return *(reads.begin());
-}
-
-std::unique_ptr<lir::PhiLIR> PhiHIR::lowerPhi(const std::vector<HIR*>& values,
-        std::vector<LIRList::iterator>& vRegs) const {
-    auto phiLIR = std::make_unique<lir::PhiLIR>(vReg());
-    for (auto nvid : inputs) {
-        phiLIR->addInput(values[nvid]->vReg(), vRegs);
-    }
-    return phiLIR;
 }
 
 NVID PhiHIR::proposeValue(NVID id) {
@@ -58,8 +50,14 @@ NVID PhiHIR::proposeValue(NVID id) {
 }
 
 void PhiHIR::lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const {
-    append.emplace_back(lowerPhi(values, vRegs));
-    vRegs[vReg()] = --append.end();
+    auto phiLIROwning = std::make_unique<lir::PhiLIR>(vReg());
+    lir::PhiLIR* phiLIR = phiLIROwning.get();
+    append.emplace_back(std::move(phiLIROwning));
+    vRegs[vReg()] = --(append.end());
+
+    for (auto nvid : inputs) {
+        phiLIR->addInput(values[nvid]->vReg(), vRegs);
+    }
 }
 
 } // namespace hir

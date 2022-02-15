@@ -17,8 +17,8 @@ NVID ConstantHIR::proposeValue(NVID id) {
 
 void ConstantHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& vRegs,
         LIRList& append) const {
-    append.emplace_back(std::make_unique<lir::LoadConstantLIR>(vRegs.size(), constant));
-    vRegs.emplace_back(--append.end());
+    append.emplace_back(std::make_unique<lir::LoadConstantLIR>(vReg(), constant));
+    vRegs[vReg()] = --(append.end());
 }
 
 } // namespace hir

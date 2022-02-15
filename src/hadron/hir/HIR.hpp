@@ -5,6 +5,7 @@
 #include "hadron/lir/LIR.hpp"
 #include "hadron/Type.hpp"
 
+#include <cassert>
 #include <list>
 #include <unordered_set>
 #include <vector>
@@ -30,27 +31,18 @@ struct NamedValue {
 };
 
 enum Opcode {
-    kLoadArgument,
-    kConstant,
-    kMethodReturn,
-    kAlias, // TODO
-
-    // Class state changes
-    kLoadInstanceVariable,
-    kLoadClassVariable,
-    kStoreInstanceVariable,
-    kStoreClassVariable,
-
-    // Control flow
-    kPhi,
     kBranch,
     kBranchIfTrue,
-
-    // SC is a heavily message-based language, and HIR treats almost all operations as messages. There's lots of options
-    // for optimization for messages, mostly inlining, that can happen on lowering MessageHIR to LIR. But, because of
-    // the diversity of ways to pass message in LSC, we route everything through MessageHIR first, to manage inlining in
-    // a central point inside of MessageHIR.
-    kMessage
+    kConstant,
+    kLoadArgument,
+    kLoadClassVariable,
+    kLoadInstanceVariable,
+    kMessage,
+    kMethodReturn,
+    kPhi,
+    kStoreClassVariable,
+    kStoreInstanceVariable,
+    kStoreReturn
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in
@@ -74,7 +66,9 @@ struct HIR {
 
     // Most HIR directly translates from NamedValue id to lir::VReg, but we introduce a function as a means of allowing
     // for HIR-specific changes to this.
-    virtual lir::VReg vReg() const { return static_cast<lir::VReg>(value.id); }
+    virtual lir::VReg vReg() const {
+        return value.id != kInvalidNVID ? static_cast<lir::VReg>(value.id) : lir::kInvalidVReg;
+    }
 
 protected:
     explicit HIR(Opcode op): opcode(op) {}

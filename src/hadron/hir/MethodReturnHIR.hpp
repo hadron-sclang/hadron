@@ -7,11 +7,8 @@ namespace hadron {
 namespace hir {
 
 struct MethodReturnHIR : public HIR {
-    MethodReturnHIR() = delete;
-    explicit MethodReturnHIR(NVID retVal);
+    MethodReturnHIR();
     virtual ~MethodReturnHIR() = default;
-
-    NVID returnValue;
 
     // Always returns an invalid value, as this is a read-only operation.
     NVID proposeValue(NVID id) override;

@@ -13,6 +13,7 @@ namespace hadron {
 namespace lir {
 using VReg = int32_t;
 static constexpr int32_t kInvalidVReg = -1;
+using LabelID = int32_t;
 struct LIR;
 } // namespace lir
 
@@ -43,7 +44,7 @@ struct LIR {
     std::unordered_set<VReg> reads;
 
     // Built during register allocation, a map of all virtual registers in |arguments| and |vReg| to physical registers.
-    std::unordered_map<VReg, JIT::Reg> valueLocations;
+    std::unordered_map<VReg, JIT::Reg> locations;
 
     // Due to register allocation and SSA form deconstruction any HIR operand may have a series of moves to and from
     // physical registers and/or spill storage. Record them here for scheduling later during machine code generation.
@@ -55,7 +56,7 @@ struct LIR {
 
     // Emits machine code into the provided JIT buffer. Base implementation should be called first by derived classes,
     // and emits any needed register moves.
-    virtual void emit(JIT* jit) const;
+    virtual void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& patchNeeded) const = 0;
 
     // If true, the register allocation system will assume that this instruction destroys all register values during
     // execution, and will spill all outstanding register allocations. Typically used for message dispatch.
@@ -63,6 +64,7 @@ struct LIR {
 
 protected:
     LIR(Opcode op, VReg v, Type t): opcode(op), value(v), typeFlags(t) {}
+    void emitBase(JIT* jit) const;
 };
 
 } // namespace lir

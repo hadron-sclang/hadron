@@ -5,7 +5,7 @@
 namespace hadron {
 namespace lir {
 
-void LIR::emit(JIT* jit) const {
+void LIR::emitBase(JIT* jit) const {
     if (moves.size()) {
         MoveScheduler moveScheduler;
         moveScheduler.scheduleMoves(moves, jit);

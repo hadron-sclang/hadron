@@ -16,6 +16,7 @@
 #include "hadron/hir/PhiHIR.hpp"
 #include "hadron/hir/StoreClassVariableHIR.hpp"
 #include "hadron/hir/StoreInstanceVariableHIR.hpp"
+#include "hadron/hir/StoreReturnHIR.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/LinearFrame.hpp"
 #include "hadron/Scope.hpp"
@@ -48,6 +49,9 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const as
     ++frame->numberOfBlocks;
     auto block = scope->blocks.front().get();
 
+    // TODO: class and instance variables need loaded.
+
+    // Load all arguments here.
     for (int32_t argIndex = 0; argIndex < frame->argumentOrder.size(); ++argIndex) {
         auto name = frame->argumentOrder.at(argIndex);
         block->revisions.emplace(std::make_pair(name,
@@ -57,9 +61,9 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const as
     Block* currentBlock = block;
     currentBlock->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
 
-     // We append a return statement of the final value in the final block, if one wasn't already provided.
+     // We append a return statement in the final block, if one wasn't already provided.
     if (!currentBlock->hasMethodReturn) {
-        insert(std::make_unique<hir::MethodReturnHIR>(currentBlock->finalValue), currentBlock);
+        insert(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
         currentBlock->hasMethodReturn = true;
     }
 
@@ -151,7 +155,7 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
     case ast::ASTType::kAssign: {
         const auto assign = reinterpret_cast<const ast::AssignAST*>(ast);
         nodeValue = buildValue(context, currentBlock, assign->value.get());
-        assert(false); // TODO: StoreInstanceVariable? StoreClassVariable?
+        // TODO: StoreInstanceVariable? StoreClassVariable?
         currentBlock->revisions[assign->name->name] = nodeValue;
     } break;
 
@@ -163,7 +167,8 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
     case ast::ASTType::kMethodReturn: {
         const auto retAST = reinterpret_cast<const ast::MethodReturnAST*>(ast);
         nodeValue = buildValue(context, currentBlock, retAST->value.get());
-        insert(std::make_unique<hir::MethodReturnHIR>(nodeValue), currentBlock);
+        insert(std::make_unique<hir::StoreReturnHIR>(nodeValue), currentBlock);
+        insert(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
         currentBlock->hasMethodReturn = true;
     } break;
 

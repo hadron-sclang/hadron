@@ -481,7 +481,7 @@ void RegisterAllocator::handled(LtIRef interval, LinearFrame* linearFrame) {
             break;
         }
         if (interval->covers(i)) {
-            linearFrame->lineNumbers[i]->valueLocations.emplace(std::make_pair(interval->valueNumber,
+            linearFrame->lineNumbers[i]->locations.emplace(std::make_pair(interval->valueNumber,
                 static_cast<int>(interval->registerNumber)));
         }
     }

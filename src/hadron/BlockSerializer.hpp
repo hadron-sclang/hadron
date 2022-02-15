@@ -1,6 +1,8 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_BLOCK_SERIALIZER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_BLOCK_SERIALIZER_HPP_
 
+#include "hadron/lir/LIR.hpp"
+
 #include <list>
 #include <memory>
 #include <vector>
@@ -25,7 +27,7 @@ public:
 private:
 
     // Does the recursive postorder traversal of the blocks and saves the output in |blockOrder|.
-    void orderBlocks(Block* block, std::vector<Block*>& blockPointers, std::vector<int>& blockOrder);
+    void orderBlocks(Block* block, std::vector<Block*>& blockPointers, std::vector<lir::LabelID>& blockOrder);
 };
 
 } // namespace hadron

@@ -1184,11 +1184,7 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
         jsonHIR.AddMember("constant", value, document.GetAllocator());
     } break;
     case hadron::hir::Opcode::kMethodReturn: {
-        const auto methodReturn = reinterpret_cast<const hadron::hir::MethodReturnHIR*>(hir);
         jsonHIR.AddMember("opcode", "MethodReturn", document.GetAllocator());
-        rapidjson::Value returnValue;
-        serializeValue(methodReturn->returnValue, frame, returnValue, document);
-        jsonHIR.AddMember("returnValue", returnValue, document.GetAllocator());
     } break;
 
 /*

@@ -15,6 +15,11 @@ struct LoadConstantLIR : public LIR {
     virtual ~LoadConstantLIR() = default;
 
     Slot constant;
+
+    void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
+        emitBase(jit);
+        jit->movi(locations.at(value), constant.asBits());
+    }
 };
 
 } // namespace lir

@@ -17,9 +17,9 @@ struct LoadFromStackLIR : public LIR {
     bool useFramePointer;
     int32_t offset;
 
-    void emit(JIT* jit) const override {
-        LIR::emit(jit);
-        jit->ldxi_w(valueLocations.at(value), useFramePointer ? JIT::kFramePointerReg : JIT::kStackPointerReg,
+    void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
+        emitBase(jit);
+        jit->ldxi_w(locations.at(value), useFramePointer ? JIT::kFramePointerReg : JIT::kStackPointerReg,
             offset * kSlotSize);
     }
 };

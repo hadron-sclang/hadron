@@ -1,7 +1,6 @@
 #ifndef SRC_HADRON_LIR_LABEL_LIR_HPP_
 #define SRC_HADRON_LIR_LABEL_LIR_HPP_
 
-#include "hadron/Block.hpp"
 #include "hadron/lir/LIR.hpp"
 #include "hadron/lir/PhiLIR.hpp"
 
@@ -12,14 +11,18 @@ namespace lir {
 
 struct LabelLIR : public LIR {
     LabelLIR() = delete;
-    LabelLIR(Block::ID block): LIR(kLabel, kInvalidVReg, Type::kNone), blockId(block) {}
+    explicit LabelLIR(LabelID labelId): LIR(kLabel, kInvalidVReg, Type::kNone), id(labelId) {}
     virtual ~LabelLIR() = default;
 
-    Block::ID blockId;
-    std::vector<Block::ID> predecessors;
-    std::vector<Block::ID> successors;
+    LabelID id;
+    std::vector<LabelID> predecessors;
+    std::vector<LabelID> successors;
 
-    std::vector<std::unique_ptr<PhiLIR>> phis;
+    LIRList phis;
+
+    void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
+        emitBase(jit);
+    }
 };
 
 } // namespace lir
