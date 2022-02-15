@@ -3,10 +3,15 @@
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/Frame.hpp"
-#include "hadron/HIR.hpp"
+#include "hadron/hir/BranchHIR.hpp"
+#include "hadron/hir/BranchIfTrueHIR.hpp"
+#include "hadron/hir/ConstantHIR.hpp"
+#include "hadron/hir/HIR.hpp"
+#include "hadron/hir/LoadArgumentHIR.hpp"
+#include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/internal/BuildInfo.hpp"
 #include "hadron/LifetimeInterval.hpp"
-#include "hadron/LinearBlock.hpp"
+#include "hadron/LinearFrame.hpp"
 #include "hadron/OpcodeIterator.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Scope.hpp"
@@ -58,12 +63,14 @@ private:
             rapidjson::Document& document);
     void serializeScope(const hadron::Scope* scope, int& scopeSerial, rapidjson::Value& jsonScope,
             rapidjson::Document& document);
-    void serializeLinearBlock(const hadron::LinearBlock* linearBlock, rapidjson::Value& jsonBlock,
+    void serializeLinearFrame(const hadron::LinearFrame* linearFrame, rapidjson::Value& jsonBlock,
             rapidjson::Document& document);
     void serializeJIT(const int8_t* byteCode, size_t byteCodeSize, rapidjson::Value& jsonJIT,
             rapidjson::Document& document);
-    void serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR, rapidjson::Document& document);
-    void serializeValue(hadron::Value value, rapidjson::Value& jsonValue, rapidjson::Document& document);
+    void serializeHIR(const hadron::hir::HIR* hir, const hadron::Frame* frame, rapidjson::Value& jsonHIR,
+            rapidjson::Document& document);
+    void serializeValue(hadron::hir::NVID valueId, const hadron::Frame* frame, rapidjson::Value& jsonValue,
+            rapidjson::Document& document);
     void serializeLifetimeIntervals(const std::vector<std::vector<hadron::LtIRef>>& lifetimeIntervals,
             rapidjson::Value& jsonIntervals, rapidjson::Document& document);
 
@@ -323,10 +330,10 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(lsp::ID id,
         serializeFrame(unit.frame.get(), rootFrame, document);
         jsonUnit.AddMember("rootFrame", rootFrame, document.GetAllocator());
 
-        SPDLOG_TRACE("Serializing linearBlock for {}", unit.name);
+        SPDLOG_TRACE("Serializing linearFrame for {}", unit.name);
         rapidjson::Value jsonBlock;
-        serializeLinearBlock(unit.linearBlock.get(), jsonBlock, document);
-        jsonUnit.AddMember("linearBlock", jsonBlock, document.GetAllocator());
+        serializeLinearFrame(unit.linearFrame.get(), jsonBlock, document);
+        jsonUnit.AddMember("linearFrame", jsonBlock, document.GetAllocator());
 
         SPDLOG_TRACE("Serializing machine code for {}", unit.name);
         rapidjson::Value jsonJIT;
@@ -806,8 +813,6 @@ void JSONTransport::JSONTransportImpl::serializeFrame(const hadron::Frame* frame
     int scopeSerial = 1;
     serializeScope(frame->rootScope.get(), scopeSerial, rootScope, document);
     jsonFrame.AddMember("rootScope", rootScope, document.GetAllocator());
-    jsonFrame.AddMember("numberOfValues", rapidjson::Value(static_cast<uint64_t>(frame->numberOfValues)),
-            document.GetAllocator());
     jsonFrame.AddMember("numberOfBlocks", rapidjson::Value(frame->numberOfBlocks), document.GetAllocator());
 }
 
@@ -822,24 +827,24 @@ void JSONTransport::JSONTransportImpl::serializeScope(const hadron::Scope* scope
     for (const auto& block : scope->blocks) {
         rapidjson::Value jsonBlock;
         jsonBlock.SetObject();
-        jsonBlock.AddMember("number", rapidjson::Value(block->number), document.GetAllocator());
+        jsonBlock.AddMember("number", rapidjson::Value(block->id), document.GetAllocator());
         rapidjson::Value predecessors;
         predecessors.SetArray();
         for (const auto pred : block->predecessors) {
-            predecessors.PushBack(rapidjson::Value(pred->number), document.GetAllocator());
+            predecessors.PushBack(rapidjson::Value(pred->id), document.GetAllocator());
         }
         jsonBlock.AddMember("predecessors", predecessors, document.GetAllocator());
         rapidjson::Value successors;
         successors.SetArray();
         for (const auto succ : block->successors) {
-            successors.PushBack(rapidjson::Value(succ->number), document.GetAllocator());
+            successors.PushBack(rapidjson::Value(succ->id), document.GetAllocator());
         }
         jsonBlock.AddMember("successors", successors, document.GetAllocator());
         rapidjson::Value phis;
         phis.SetArray();
         for (const auto& phi : block->phis) {
             rapidjson::Value jsonPhi;
-            serializeHIR(phi.get(), jsonPhi, document);
+            serializeHIR(phi.get(), scope->frame, jsonPhi, document);
             phis.PushBack(jsonPhi, document.GetAllocator());
         }
         jsonBlock.AddMember("phis", phis, document.GetAllocator());
@@ -847,7 +852,7 @@ void JSONTransport::JSONTransportImpl::serializeScope(const hadron::Scope* scope
         statements.SetArray();
         for (const auto& hir : block->statements) {
             rapidjson::Value jsonHIR;
-            serializeHIR(hir.get(), jsonHIR, document);
+            serializeHIR(hir.get(), scope->frame, jsonHIR, document);
             statements.PushBack(jsonHIR, document.GetAllocator());
         }
         jsonBlock.AddMember("statements", statements, document.GetAllocator());
@@ -864,28 +869,30 @@ void JSONTransport::JSONTransportImpl::serializeScope(const hadron::Scope* scope
     jsonScope.AddMember("subScopes", subScopes, document.GetAllocator());
 }
 
-void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::LinearBlock* linearBlock,
+void JSONTransport::JSONTransportImpl::serializeLinearFrame(const hadron::LinearFrame* linearFrame,
         rapidjson::Value& jsonBlock, rapidjson::Document& document) {
     jsonBlock.SetObject();
     rapidjson::Value instructions;
     instructions.SetArray();
-    for (const auto& hir : linearBlock->instructions) {
+/* TODO: serialize LIR
+    for (const auto& hir : linearFrame->instructions) {
         rapidjson::Value jsonHIR;
         serializeHIR(hir.get(), jsonHIR, document);
         instructions.PushBack(jsonHIR, document.GetAllocator());
     }
+*/
     jsonBlock.AddMember("instructions", instructions, document.GetAllocator());
 
     rapidjson::Value blockOrder;
     blockOrder.SetArray();
-    for (auto number : linearBlock->blockOrder) {
+    for (auto number : linearFrame->blockOrder) {
         blockOrder.PushBack(rapidjson::Value(number), document.GetAllocator());
     }
     jsonBlock.AddMember("blockOrder", blockOrder, document.GetAllocator());
 
     rapidjson::Value blockRanges;
     blockRanges.SetArray();
-    for (auto range : linearBlock->blockRanges) {
+    for (auto range : linearFrame->blockRanges) {
         rapidjson::Value jsonRange;
         jsonRange.SetArray();
         jsonRange.PushBack(rapidjson::Value(static_cast<uint64_t>(range.first)), document.GetAllocator());
@@ -895,10 +902,10 @@ void JSONTransport::JSONTransportImpl::serializeLinearBlock(const hadron::Linear
     jsonBlock.AddMember("blockRanges", blockRanges, document.GetAllocator());
 
     rapidjson::Value valueLifetimes;
-    serializeLifetimeIntervals(linearBlock->valueLifetimes, valueLifetimes, document);
+    serializeLifetimeIntervals(linearFrame->valueLifetimes, valueLifetimes, document);
     jsonBlock.AddMember("valueLifetimes", valueLifetimes, document.GetAllocator());
 
-    jsonBlock.AddMember("numberOfSpillSlots", rapidjson::Value(static_cast<uint64_t>(linearBlock->numberOfSpillSlots)),
+    jsonBlock.AddMember("numberOfSpillSlots", rapidjson::Value(static_cast<uint64_t>(linearFrame->numberOfSpillSlots)),
             document.GetAllocator());
 }
 
@@ -1127,20 +1134,21 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const int8_t* byteCode, size
 }
 
 
-void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir, rapidjson::Value& jsonHIR,
-        rapidjson::Document& document) {
+void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir, const hadron::Frame* frame,
+        rapidjson::Value& jsonHIR, rapidjson::Document& document) {
     jsonHIR.SetObject();
     rapidjson::Value value;
-    serializeValue(hir->value, value, document);
+    serializeValue(hir->value.id, frame, value, document);
     jsonHIR.AddMember("value", value, document.GetAllocator());
     rapidjson::Value reads;
     reads.SetArray();
     for (auto read : hir->reads) {
         rapidjson::Value jsonRead;
-        serializeValue(read, jsonRead, document);
+        serializeValue(read, frame, jsonRead, document);
         reads.PushBack(jsonRead, document.GetAllocator());
     }
     jsonHIR.AddMember("reads", reads, document.GetAllocator());
+/* TODO: move to LIR serialization
     rapidjson::Value moves;
     moves.SetArray();
     for (auto move : hir->moves) {
@@ -1161,16 +1169,12 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
         valueLocations.PushBack(jsonLoc, document.GetAllocator());
     }
     jsonHIR.AddMember("valueLocations", valueLocations, document.GetAllocator());
+*/
     switch(hir->opcode) {
     case hadron::hir::Opcode::kLoadArgument: {
         const auto loadArg = reinterpret_cast<const hadron::hir::LoadArgumentHIR*>(hir);
         jsonHIR.AddMember("opcode", "LoadArgument", document.GetAllocator());
         jsonHIR.AddMember("index", rapidjson::Value(loadArg->index), document.GetAllocator());
-    } break;
-    case hadron::hir::Opcode::kLoadArgumentType: {
-        const auto loadArgType = reinterpret_cast<const hadron::hir::LoadArgumentTypeHIR*>(hir);
-        jsonHIR.AddMember("opcode", "LoadArgumentType", document.GetAllocator());
-        jsonHIR.AddMember("index", rapidjson::Value(loadArgType->index), document.GetAllocator());
     } break;
     case hadron::hir::Opcode::kConstant: {
         const auto constant = reinterpret_cast<const hadron::hir::ConstantHIR*>(hir);
@@ -1180,19 +1184,10 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
         jsonHIR.AddMember("constant", value, document.GetAllocator());
     } break;
     case hadron::hir::Opcode::kMethodReturn: {
-        const auto methodReturn = reinterpret_cast<const hadron::hir::MethodReturnHIR*>(hir);
         jsonHIR.AddMember("opcode", "MethodReturn", document.GetAllocator());
-        rapidjson::Value returnValue;
-        returnValue.SetArray();
-        rapidjson::Value value;
-        serializeValue(methodReturn->returnValue.first, value, document);
-        returnValue.PushBack(value, document.GetAllocator());
-        rapidjson::Value type;
-        serializeValue(methodReturn->returnValue.second, type, document);
-        returnValue.PushBack(type, document.GetAllocator());
-        jsonHIR.AddMember("returnValue", returnValue, document.GetAllocator());
     } break;
 
+/*
     case hadron::hir::Opcode::kLoadInstanceVariable:
     case hadron::hir::Opcode::kLoadInstanceVariableType:
     case hadron::hir::Opcode::kLoadClassVariable:
@@ -1201,6 +1196,7 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
     case hadron::hir::Opcode::kStoreClassVariable:
         assert(false); // TODO
         break;
+*/
 
     case hadron::hir::Opcode::kPhi: {
         const auto phi = reinterpret_cast<const hadron::hir::PhiHIR*>(hir);
@@ -1209,7 +1205,7 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
         inputs.SetArray();
         for (auto input : phi->inputs) {
             rapidjson::Value value;
-            serializeValue(input, value, document);
+            serializeValue(input, frame, value, document);
             inputs.PushBack(value, document.GetAllocator());
         }
         jsonHIR.AddMember("inputs", inputs, document.GetAllocator());
@@ -1217,22 +1213,17 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
     case hadron::hir::Opcode::kBranch: {
         const auto branch = reinterpret_cast<const hadron::hir::BranchHIR*>(hir);
         jsonHIR.AddMember("opcode", "Branch", document.GetAllocator());
-        jsonHIR.AddMember("blockNumber", rapidjson::Value(branch->blockNumber), document.GetAllocator());
+        jsonHIR.AddMember("blockNumber", rapidjson::Value(branch->blockId), document.GetAllocator());
     } break;
     case hadron::hir::Opcode::kBranchIfTrue: {
         const auto branchIfTrue = reinterpret_cast<const hadron::hir::BranchIfTrueHIR*>(hir);
         jsonHIR.AddMember("opcode", "BranchIfTrue", document.GetAllocator());
-        jsonHIR.AddMember("blockNumber", rapidjson::Value(branchIfTrue->blockNumber), document.GetAllocator());
+        jsonHIR.AddMember("blockNumber", rapidjson::Value(branchIfTrue->blockId), document.GetAllocator());
         rapidjson::Value condition;
-        condition.SetArray();
-        rapidjson::Value value;
-        serializeValue(branchIfTrue->condition.first, value, document);
-        condition.PushBack(value, document.GetAllocator());
-        rapidjson::Value type;
-        serializeValue(branchIfTrue->condition.second, type, document);
-        condition.PushBack(type, document.GetAllocator());
+        serializeValue(branchIfTrue->condition, frame, condition, document);
         jsonHIR.AddMember("condition", condition, document.GetAllocator());
     } break;
+/*
     case hadron::hir::Opcode::kLabel: {
         const auto label = reinterpret_cast<const hadron::hir::LabelHIR*>(hir);
         jsonHIR.AddMember("opcode", "Label", document.GetAllocator());
@@ -1258,71 +1249,55 @@ void JSONTransport::JSONTransportImpl::serializeHIR(const hadron::hir::HIR* hir,
         }
         jsonHIR.AddMember("phis", phis, document.GetAllocator());
     } break;
-    case hadron::hir::Opcode::kDispatchSetupStack:
-        jsonHIR.AddMember("opcode", "DispatchSetupStack", document.GetAllocator());
-        break;
-    case hadron::hir::Opcode::kDispatchStoreArg:
-        jsonHIR.AddMember("opcode", "DispatchStoreArg", document.GetAllocator());
-        break;
-    case hadron::hir::Opcode::kDispatchStoreKeyArg:
-        jsonHIR.AddMember("opcode", "DispatchStoreKeyArg", document.GetAllocator());
-        break;
-    case hadron::hir::Opcode::kDispatchCall:
-        jsonHIR.AddMember("opcode", "DispatchCall", document.GetAllocator());
-        break;
-    case hadron::hir::Opcode::kDispatchLoadReturn:
-        jsonHIR.AddMember("opcode", "DispatchLoadReturn", document.GetAllocator());
-        break;
-    case hadron::hir::Opcode::kDispatchLoadReturnType:
-        jsonHIR.AddMember("opcode", "DispatchLoadReturnType", document.GetAllocator());
-        break;
-    case hadron::hir::Opcode::kDispatchCleanup:
-        jsonHIR.AddMember("opcode", "DispatchCleanup", document.GetAllocator());
-        break;
+*/
+    default:
+        assert(false);
     }
 }
 
-void JSONTransport::JSONTransportImpl::serializeValue(hadron::Value value, rapidjson::Value& jsonValue,
-        rapidjson::Document& document) {
+void JSONTransport::JSONTransportImpl::serializeValue(hadron::hir::NVID valueId, const hadron::Frame* frame,
+        rapidjson::Value& jsonValue, rapidjson::Document& document) {
     jsonValue.SetObject();
-    jsonValue.AddMember("number", rapidjson::Value(static_cast<uint64_t>(value.number)), document.GetAllocator());
-    rapidjson::Value typeFlags;
-    typeFlags.SetArray();
-    if (value.typeFlags == hadron::Type::kAny) {
-        typeFlags.PushBack(rapidjson::Value("any"), document.GetAllocator());
+    jsonValue.AddMember("number", rapidjson::Value(valueId), document.GetAllocator());
+
+    hadron::Type typeFlags = frame->values[valueId]->value.typeFlags;
+    rapidjson::Value jsonTypeFlags;
+    jsonTypeFlags.SetArray();
+    if (typeFlags == hadron::Type::kAny) {
+        jsonTypeFlags.PushBack(rapidjson::Value("any"), document.GetAllocator());
     } else {
-        if (value.typeFlags & hadron::Type::kNil) {
-            typeFlags.PushBack(rapidjson::Value("nil"), document.GetAllocator());
+        if (typeFlags & hadron::Type::kNil) {
+            jsonTypeFlags.PushBack(rapidjson::Value("nil"), document.GetAllocator());
         }
-        if (value.typeFlags & hadron::Type::kInteger) {
-            typeFlags.PushBack(rapidjson::Value("integer"), document.GetAllocator());
+        if (typeFlags & hadron::Type::kInteger) {
+            jsonTypeFlags.PushBack(rapidjson::Value("integer"), document.GetAllocator());
         }
-        if (value.typeFlags & hadron::Type::kFloat) {
-            typeFlags.PushBack(rapidjson::Value("float"), document.GetAllocator());
+        if (typeFlags & hadron::Type::kFloat) {
+            jsonTypeFlags.PushBack(rapidjson::Value("float"), document.GetAllocator());
         }
-        if (value.typeFlags & hadron::Type::kBoolean) {
-            typeFlags.PushBack(rapidjson::Value("boolean"), document.GetAllocator());
+        if (typeFlags & hadron::Type::kBoolean) {
+            jsonTypeFlags.PushBack(rapidjson::Value("boolean"), document.GetAllocator());
         }
-        if (value.typeFlags & hadron::Type::kString) {
-            typeFlags.PushBack(rapidjson::Value("string"), document.GetAllocator());
+        if (typeFlags & hadron::Type::kString) {
+            jsonTypeFlags.PushBack(rapidjson::Value("string"), document.GetAllocator());
         }
-        if (value.typeFlags & hadron::Type::kSymbol) {
-            typeFlags.PushBack(rapidjson::Value("symbol"), document.GetAllocator());
+        if (typeFlags & hadron::Type::kSymbol) {
+            jsonTypeFlags.PushBack(rapidjson::Value("symbol"), document.GetAllocator());
         }
-        if (value.typeFlags & hadron::Type::kClass) {
-            typeFlags.PushBack(rapidjson::Value("class"), document.GetAllocator());
+        if (typeFlags & hadron::Type::kClass) {
+            jsonTypeFlags.PushBack(rapidjson::Value("class"), document.GetAllocator());
         }
-        if (value.typeFlags & hadron::Type::kObject) {
-            typeFlags.PushBack(rapidjson::Value("object"), document.GetAllocator());
+        if (typeFlags & hadron::Type::kObject) {
+            jsonTypeFlags.PushBack(rapidjson::Value("object"), document.GetAllocator());
         }
-        if (value.typeFlags & hadron::Type::kArray) {
-            typeFlags.PushBack(rapidjson::Value("array"), document.GetAllocator());
+        if (typeFlags & hadron::Type::kArray) {
+            jsonTypeFlags.PushBack(rapidjson::Value("array"), document.GetAllocator());
         }
-        if (value.typeFlags & hadron::Type::kType) {
-            typeFlags.PushBack(rapidjson::Value("type"), document.GetAllocator());
+        if (typeFlags & hadron::Type::kType) {
+            jsonTypeFlags.PushBack(rapidjson::Value("type"), document.GetAllocator());
         }
     }
-    jsonValue.AddMember("typeFlags", typeFlags, document.GetAllocator());
+    jsonValue.AddMember("typeFlags", jsonTypeFlags, document.GetAllocator());
 }
 
 void JSONTransport::JSONTransportImpl::serializeLifetimeIntervals(

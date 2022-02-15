@@ -9,6 +9,7 @@ namespace hadron {
 // type & (kInteger | kFloat) to determine if a type is numeric or
 // type & (kString | kSymbol) for character types, etc.
 enum Type : std::int32_t {
+    kNone    = 0x0000,
     kNil     = 0x0001,
     kInteger = 0x0002,
     kFloat   = 0x0004,

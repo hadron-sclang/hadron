@@ -1,12 +1,24 @@
 #include "hadron/BlockBuilder.hpp"
 
 #include "hadron/AST.hpp"
-#include "hadron/Block.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
+#include "hadron/hir/BranchHIR.hpp"
+#include "hadron/hir/BranchIfTrueHIR.hpp"
+#include "hadron/hir/ConstantHIR.hpp"
+#include "hadron/hir/HIR.hpp"
+#include "hadron/hir/LoadArgumentHIR.hpp"
+#include "hadron/hir/LoadClassVariableHIR.hpp"
+#include "hadron/hir/LoadInstanceVariableHIR.hpp"
+#include "hadron/hir/MessageHIR.hpp"
+#include "hadron/hir/MethodReturnHIR.hpp"
+#include "hadron/hir/PhiHIR.hpp"
+#include "hadron/hir/StoreClassVariableHIR.hpp"
+#include "hadron/hir/StoreInstanceVariableHIR.hpp"
+#include "hadron/hir/StoreReturnHIR.hpp"
 #include "hadron/Keywords.hpp"
-#include "hadron/LinearBlock.hpp"
+#include "hadron/LinearFrame.hpp"
 #include "hadron/Scope.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
@@ -37,15 +49,24 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const as
     ++frame->numberOfBlocks;
     auto block = scope->blocks.front().get();
 
+    // TODO: class and instance variables need loaded.
+
+    // Load all arguments here.
     for (int32_t argIndex = 0; argIndex < frame->argumentOrder.size(); ++argIndex) {
         auto name = frame->argumentOrder.at(argIndex);
-        block->revisions[name] = std::make_pair(
-                insert(std::make_unique<hir::LoadArgumentHIR>(argIndex), block),
-                insert(std::make_unique<hir::LoadArgumentTypeHIR>(argIndex), block));
+        block->revisions.emplace(std::make_pair(name,
+                insert(std::make_unique<hir::LoadArgumentHIR>(argIndex, name), block)));
     }
 
     Block* currentBlock = block;
-    block->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
+    currentBlock->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
+
+     // We append a return statement in the final block, if one wasn't already provided.
+    if (!currentBlock->hasMethodReturn) {
+        insert(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
+        currentBlock->hasMethodReturn = true;
+    }
+
     return frame;
 }
 
@@ -61,23 +82,21 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, Bl
     for (int32_t argIndex = 0; argIndex < blockAST->argumentNames.size(); ++argIndex) {
         auto name = blockAST->argumentNames.at(argIndex);
         auto value = blockAST->argumentDefaults.at(argIndex);
-        block->revisions[name] = std::make_pair(
-                insert(std::make_unique<hir::ConstantHIR>(value), block),
-                insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(value.getType())), block));
+        block->revisions.emplace(std::make_pair(name,
+                insert(std::make_unique<hir::ConstantHIR>(value, name), block)));
     }
 
     Block* currentBlock = block;
-    block->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
+    currentBlock->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
     return scope;
 }
 
-std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock, const ast::AST* ast) {
-    std::pair<Value, Value> nodeValue;
+hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock, const ast::AST* ast) {
+    hir::NVID nodeValue;
 
     switch(ast->astType) {
     case ast::ASTType::kEmpty:
-        nodeValue.first = insert(std::make_unique<hir::ConstantHIR>(Slot::makeNil()), currentBlock);
-        nodeValue.second = insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kNil)), currentBlock);
+        nodeValue = insert(std::make_unique<hir::ConstantHIR>(Slot::makeNil()), currentBlock);
         break;
 
     case ast::ASTType::kSequence: {
@@ -98,50 +117,32 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, Block*&
 
     case ast::ASTType::kMessage: {
         const auto message = reinterpret_cast<const ast::MessageAST*>(ast);
-        // Build argument values starting with target argument as `this`.
-        std::vector<std::pair<Value, Value>> argumentValues;
-        argumentValues.reserve(message->arguments->sequence.size() + 1);
-        argumentValues.emplace_back(buildValue(context, currentBlock, message->target.get()));
 
-        auto selectorValue = std::make_pair(
-                insert(std::make_unique<hir::ConstantHIR>(message->selector.slot()), currentBlock),
-                insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(Type::kSymbol)), currentBlock));
+        auto messageHIR = std::make_unique<hir::MessageHIR>();
+        messageHIR->selector = insert(std::make_unique<hir::ConstantHIR>(message->selector.slot()), currentBlock);
+
+        // Build arguments starting with target argument.
+        messageHIR->arguments.reserve(message->arguments->sequence.size() + 1);
+        messageHIR->arguments.emplace_back(buildValue(context, currentBlock, message->target.get()));
 
         // Append any additional arguments.
         for (const auto& arg : message->arguments->sequence) {
-            argumentValues.emplace_back(buildValue(context, currentBlock, arg.get()));
+            messageHIR->arguments.emplace_back(buildValue(context, currentBlock, arg.get()));
         }
 
         // Build keyword argument pairs.
-        std::vector<std::pair<Value, Value>> keywordArgumentValues;
-        keywordArgumentValues.reserve(message->keywordArguments->sequence.size());
+        messageHIR->keywordArguments.reserve(message->keywordArguments->sequence.size());
         for (const auto& arg : message->keywordArguments->sequence) {
-            keywordArgumentValues.emplace_back(buildValue(context, currentBlock, arg.get()));
+            messageHIR->keywordArguments.emplace_back(buildValue(context, currentBlock, arg.get()));
         }
 
-        // Setup the stack for the dispatch.
-        insert(std::make_unique<hir::DispatchSetupStackHIR>(selectorValue, argumentValues.size(),
-                keywordArgumentValues.size() / 2), currentBlock);
-        for (int i = 0; i < static_cast<int>(argumentValues.size()); ++i) {
-            insert(std::make_unique<hir::DispatchStoreArgHIR>(i, argumentValues[i]), currentBlock);
-        }
-        for (int i = 0; i < static_cast<int>(keywordArgumentValues.size()); i += 2) {
-            insert(std::make_unique<hir::DispatchStoreKeyArgHIR>(i / 2, keywordArgumentValues[i],
-                    keywordArgumentValues[i + 1]), currentBlock);
-        }
-
-        // Make the call, this will mark all registers as blocked.
-        insert(std::make_unique<hir::DispatchCallHIR>(), currentBlock);
-
-        nodeValue.first = insert(std::make_unique<hir::DispatchLoadReturnHIR>(), currentBlock);
-        nodeValue.second = insert(std::make_unique<hir::DispatchLoadReturnTypeHIR>(), currentBlock);
-        insert(std::make_unique<hir::DispatchCleanupHIR>(), currentBlock);
+        nodeValue = insert(std::move(messageHIR), currentBlock);
     } break;
 
     case ast::ASTType::kName: {
         const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);
 
-        std::unordered_map<int, std::pair<Value, Value>> blockValues;
+        std::unordered_map<int32_t, hir::NVID> blockValues;
         std::unordered_set<const Scope*> containingScopes;
         const Scope* scope = currentBlock->scope;
         while (scope) {
@@ -154,19 +155,21 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, Block*&
     case ast::ASTType::kAssign: {
         const auto assign = reinterpret_cast<const ast::AssignAST*>(ast);
         nodeValue = buildValue(context, currentBlock, assign->value.get());
+        // TODO: StoreInstanceVariable? StoreClassVariable?
         currentBlock->revisions[assign->name->name] = nodeValue;
     } break;
 
     case ast::ASTType::kConstant: {
         const auto constAST = reinterpret_cast<const ast::ConstantAST*>(ast);
-        nodeValue.first = insert(std::make_unique<hir::ConstantHIR>(constAST->constant), currentBlock);
-        nodeValue.second = insert(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(constAST->constant.getType())),
-                currentBlock);
+        nodeValue = insert(std::make_unique<hir::ConstantHIR>(constAST->constant), currentBlock);
     } break;
 
     case ast::ASTType::kMethodReturn: {
         const auto retAST = reinterpret_cast<const ast::MethodReturnAST*>(ast);
         nodeValue = buildValue(context, currentBlock, retAST->value.get());
+        insert(std::make_unique<hir::StoreReturnHIR>(nodeValue), currentBlock);
+        insert(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
+        currentBlock->hasMethodReturn = true;
     } break;
 
     case ast::ASTType::kList: {
@@ -178,26 +181,21 @@ std::pair<Value, Value> BlockBuilder::buildValue(ThreadContext* context, Block*&
     } break;
     }
 
-    // |currentBlock| may have changed during execution of this function so we re-locate the values to ensure they are
-    // local to this block.
-    std::unordered_map<int, Value> blockValues;
-    nodeValue.first = findValue(nodeValue.first, currentBlock, blockValues);
-    blockValues.clear();
-    nodeValue.second = findValue(nodeValue.second, currentBlock, blockValues);
     return nodeValue;
 }
 
-std::pair<Value, Value> BlockBuilder::buildFinalValue(ThreadContext* context, Block*& currentBlock,
+hir::NVID BlockBuilder::buildFinalValue(ThreadContext* context, Block*& currentBlock,
         const ast::SequenceAST* sequenceAST) {
-    std::pair<Value, Value> finalValue;
     for (const auto& ast : sequenceAST->sequence) {
         currentBlock->finalValue = buildValue(context, currentBlock, ast.get());
+        // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
+        if (currentBlock->hasMethodReturn) { break; }
     }
     return currentBlock->finalValue;
 }
 
-std::pair<Value, Value> BlockBuilder::buildIf(ThreadContext* context, Block*& currentBlock, const ast::IfAST* ifAST) {
-    std::pair<Value, Value> nodeValue;
+hir::NVID BlockBuilder::buildIf(ThreadContext* context, Block*& currentBlock, const ast::IfAST* ifAST) {
+    hir::NVID nodeValue;
     // Compute final value of the condition.
     auto condition = buildFinalValue(context, currentBlock, ifAST->condition.get());
 
@@ -219,14 +217,14 @@ std::pair<Value, Value> BlockBuilder::buildIf(ThreadContext* context, Block*& cu
     auto trueScopeOwning = buildInlineBlock(context, conditionBlock, ifAST->trueBlock.get());
     Scope* trueScope = trueScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(trueScopeOwning));
-    trueBranch->blockNumber = trueScope->blocks.front()->number;
+    trueBranch->blockId = trueScope->blocks.front()->id;
     conditionBlock->successors.emplace_back(trueScope->blocks.front().get());
 
     // Build the false condition block.
     auto falseScopeOwning = buildInlineBlock(context, conditionBlock, ifAST->falseBlock.get());
     Scope* falseScope = falseScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(falseScopeOwning));
-    falseBranch->blockNumber = falseScope->blocks.front()->number;
+    falseBranch->blockId = falseScope->blocks.front()->id;
     conditionBlock->successors.emplace_back(falseScope->blocks.front().get());
 
     // Create a new block in the parent frame for code after the if statement.
@@ -237,58 +235,50 @@ std::pair<Value, Value> BlockBuilder::buildIf(ThreadContext* context, Block*& cu
 
     // Wire trueScope exit block to the continue block here.
     auto exitTrueBranch = std::make_unique<hir::BranchHIR>();
-    exitTrueBranch->blockNumber = currentBlock->number;
+    exitTrueBranch->blockId = currentBlock->id;
     insert(std::move(exitTrueBranch), trueScope->blocks.back().get());
     trueScope->blocks.back()->successors.emplace_back(currentBlock);
     currentBlock->predecessors.emplace_back(trueScope->blocks.back().get());
 
     // Wire falseFrame exit block to the continue block here.
     auto exitFalseBranch = std::make_unique<hir::BranchHIR>();
-    exitFalseBranch->blockNumber = currentBlock->number;
+    exitFalseBranch->blockId = currentBlock->id;
     insert(std::move(exitFalseBranch), falseScope->blocks.back().get());
     falseScope->blocks.back()->successors.emplace_back(currentBlock);
     currentBlock->predecessors.emplace_back(falseScope->blocks.back().get());
 
-    // Add phis with the final values of both the false and true values here, this is also the value of the
-    // if statement.
+    // Add a Phi with the final value of both the false and true blocks here, and which serves as the value of the
+    // if statement overall.
     auto valuePhi = std::make_unique<hir::PhiHIR>();
-    valuePhi->addInput(trueScope->blocks.back()->finalValue.first);
-    valuePhi->addInput(falseScope->blocks.back()->finalValue.first);
-    nodeValue.first = valuePhi->proposeValue(currentBlock->scope->frame->numberOfValues);
-    ++currentBlock->scope->frame->numberOfValues;
-    currentBlock->localValues.emplace(std::make_pair(nodeValue.first, nodeValue.first));
+    valuePhi->addInput(currentBlock->frame->values[trueScope->blocks.back()->finalValue]);
+    valuePhi->addInput(currentBlock->frame->values[falseScope->blocks.back()->finalValue]);
+    nodeValue = valuePhi->proposeValue(static_cast<hir::NVID>(currentBlock->frame->values.size()));
+    currentBlock->frame->values.emplace_back(valuePhi.get());
+    currentBlock->localValues.emplace(std::make_pair(nodeValue, nodeValue));
     currentBlock->phis.emplace_back(std::move(valuePhi));
-
-    auto typePhi = std::make_unique<hir::PhiHIR>();
-    typePhi->addInput(trueScope->blocks.back()->finalValue.second);
-    typePhi->addInput(falseScope->blocks.back()->finalValue.second);
-    nodeValue.second = typePhi->proposeValue(currentBlock->scope->frame->numberOfValues);
-    ++currentBlock->scope->frame->numberOfValues;
-    currentBlock->localValues.emplace(std::make_pair(nodeValue.second, nodeValue.second));
-    currentBlock->phis.emplace_back(std::move(typePhi));
 
     return nodeValue;
 }
 
-Value BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
-    // Phis should only be inserted by findValuePredecessor().
+hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
+    // Phis should only be inserted by findName().
     assert(hir->opcode != hir::Opcode::kPhi);
-    auto valueNumber = block->scope->frame->numberOfValues;
+
+    auto valueNumber = static_cast<hir::NVID>(block->frame->values.size());
     auto value = hir->proposeValue(valueNumber);
     // We don't bump the value serial for invalid values (meaning read-only operations)
-    if (value.isValid()) {
-        ++block->scope->frame->numberOfValues;
-        block->values.emplace(std::make_pair(value, hir.get()));
+    if (value != hir::kInvalidNVID) {
+        block->frame->values.emplace_back(hir.get());
         block->localValues.emplace(std::make_pair(value, value));
     }
     block->statements.emplace_back(std::move(hir));
     return value;
 }
 
-std::pair<Value, Value> BlockBuilder::findName(library::Symbol name, Block* block,
-        std::unordered_map<int, std::pair<Value, Value>>& blockValues,
+hir::NVID BlockBuilder::findName(library::Symbol name, Block* block,
+        std::unordered_map<Block::ID, hir::NVID>& blockValues,
         const std::unordered_set<const Scope*>& containingScopes) {
-    auto cacheIter = blockValues.find(block->number);
+    auto cacheIter = blockValues.find(block->id);
     if (cacheIter != blockValues.end()) {
         return cacheIter->second;
     }
@@ -306,102 +296,50 @@ std::pair<Value, Value> BlockBuilder::findName(library::Symbol name, Block* bloc
 
     // Either no local revision found or the local revision is ignored, we need to search recursively upward. Create
     // a pair of phis for possible insertion into the local map (if not shadowed).
-    auto phiForValue = std::make_unique<hir::PhiHIR>();
-    auto phiForValueValue = phiForValue->proposeValue(block->scope->frame->numberOfValues);
-    ++block->scope->frame->numberOfValues;
-    auto phiForType = std::make_unique<hir::PhiHIR>();
-    auto phiForTypeValue = phiForType->proposeValue(block->scope->frame->numberOfValues);
-    ++block->scope->frame->numberOfValues;
-    auto phiValues = std::make_pair(phiForValueValue, phiForTypeValue);
-    blockValues.emplace(std::make_pair(block->number, phiValues));
+    auto phi = std::make_unique<hir::PhiHIR>();
+    auto phiValue = phi->proposeValue(static_cast<hir::NVID>(block->frame->values.size()));
+    block->frame->values.emplace_back(phi.get());
+    blockValues.emplace(std::make_pair(block->id, phiValue));
 
     // Search predecessors for the name.
     for (auto pred : block->predecessors) {
-        auto foundValues = findName(name, pred, blockValues, containingScopes);
-        phiForValue->addInput(foundValues.first);
-        phiForType->addInput(foundValues.second);
+        auto foundValue = findName(name, pred, blockValues, containingScopes);
+        phi->addInput(block->frame->values[foundValue]);
     }
 
     // TODO: It's possible that phis have 0 inputs here, meaning you'll get an assert on phiForValue->getTrivialValue.
     // That means the name is undefined, and we should return an error.
-    assert(phiForValue->inputs.size() > 0);
+    assert(phi->inputs.size() > 0);
 
-    auto valueTrivial = phiForValue->getTrivialValue();
-    auto typeTrivial = phiForType->getTrivialValue();
+    auto trivialValue = phi->getTrivialValue();
 
     // Shadowed variables should always result in trivial phis, due to the fact that Scopes must always have exactly
     // one entry Block with at most one predecessor. The local Scope is shadowing the name we're looking for, and
     // so won't modify the unshadowed value, meaning the value of the name at entry to the Scope should be the same
     // throughout every Block in the scope.
     if (isShadowed) {
-        assert(valueTrivial.isValid());
-        assert(typeTrivial.isValid());
-        auto trivialPair = std::make_pair(valueTrivial, typeTrivial);
-        // Overwrite block values with the trivial values.
-        blockValues.emplace(std::make_pair(block->number, trivialPair));
-        return trivialPair;
-    }
-
-    std::pair<Value, Value> finalValues;
-    if (valueTrivial.isValid()) {
-        finalValues.first = valueTrivial;
-    } else {
-        finalValues.first = phiValues.first;
-        block->phis.emplace_back(std::move(phiForValue));
-    }
-    if (typeTrivial.isValid()) {
-        finalValues.second = typeTrivial;
-    } else {
-        finalValues.second = phiValues.second;
-        block->phis.emplace_back(std::move(phiForType));
-    }
-
-    // Update block revisions and the blockValues map with the final values.
-    block->revisions.emplace(name, finalValues);
-    blockValues.emplace(std::make_pair(block->number, finalValues));
-
-    // TODO: what happens to local values? Shouldn't need to update local value map, or should we?
-
-    return finalValues;
-}
-
-Value BlockBuilder::findValue(Value v, Block* block, std::unordered_map<int, Value>& blockValues) {
-    auto cacheIter = blockValues.find(block->number);
-    if (cacheIter != blockValues.end()) {
-        return cacheIter->second;
-    }
-
-    // Quick check if value exists in local block lookup already.
-    auto localIter = block->localValues.find(v);
-    if (localIter != block->localValues.end()) {
-        return localIter->second;
-    }
-
-    // We make a temporary phi with a unique value but we do not put it into the local values map yet. This prevents
-    // infinite recursion loops when traversing backedges in the control flow graph.
-    auto phi = std::make_unique<hir::PhiHIR>();
-    auto phiValue = phi->proposeValue(block->scope->frame->numberOfValues);
-    ++block->scope->frame->numberOfValues;
-    blockValues.emplace(std::make_pair(block->number, phiValue));
-
-    // Recursive search through predecessors for values.
-    for (auto pred : block->predecessors) {
-        phi->addInput(findValue(v, pred, blockValues));
-    }
-
-    // If the phi is trivial we use the trivial value directly. If not, insert it into the phi list.
-    auto trivialValue = phi->getTrivialValue();
-    if (trivialValue.isValid()) {
-        block->localValues.emplace(std::make_pair(v, trivialValue));
-        // Overwrite this block's blockValue with the updated trivial value.
-        blockValues.emplace(std::make_pair(block->number, trivialValue));
+        assert(trivialValue != hir::kInvalidNVID);
+        // Overwrite block value with the trivial value.
+        blockValues.emplace(std::make_pair(block->id, trivialValue));
         return trivialValue;
     }
 
-    // Nontrivial phi, add it to local values, phis, and return.
-    block->localValues.emplace(std::make_pair(v, phiValue));
-    block->phis.emplace_back(std::move(phi));
-    return phiValue;
+    hir::NVID finalValue;
+    if (trivialValue != hir::kInvalidNVID) {
+        finalValue = trivialValue;
+        // Mark value as invalid in frame.
+        block->frame->values[phiValue] = nullptr;
+    } else {
+        finalValue = phiValue;
+        block->phis.emplace_back(std::move(phi));
+    }
+
+    // Update block revisions and the blockValues map with the final values.
+    block->revisions.emplace(std::make_pair(name, finalValue));
+    block->localValues.emplace(std::make_pair(finalValue, finalValue));
+    blockValues.emplace(std::make_pair(block->id, finalValue));
+
+    return finalValue;
 }
 
 } // namespace hadron

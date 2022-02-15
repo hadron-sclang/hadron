@@ -2,65 +2,65 @@
 
 #include "hadron/Block.hpp"
 #include "hadron/Frame.hpp"
-#include "hadron/LinearBlock.hpp"
+#include "hadron/LinearFrame.hpp"
+#include "hadron/lir/LabelLIR.hpp"
 #include "hadron/Scope.hpp"
 
 #include <algorithm>
 
 namespace hadron {
 
-std::unique_ptr<LinearBlock> BlockSerializer::serialize(std::unique_ptr<Frame> frame) {
-    // Prepare the LinearBlock for recording of value lifetimes.
-    auto linearBlock = std::make_unique<LinearBlock>();
-    linearBlock->blockOrder.reserve(frame->numberOfBlocks);
-    linearBlock->blockRanges.resize(frame->numberOfBlocks, std::make_pair(0, 0));
-    linearBlock->valueLifetimes.resize(frame->numberOfValues);
-    for (size_t i = 0; i < frame->numberOfValues; ++i) {
-        linearBlock->valueLifetimes[i].emplace_back(std::make_unique<LifetimeInterval>());
-        linearBlock->valueLifetimes[i][0]->valueNumber = i;
-    }
+std::unique_ptr<LinearFrame> BlockSerializer::serialize(const Frame* frame) {
+    // Prepare the LinearFrame for recording of value lifetimes.
+    auto linearFrame = std::make_unique<LinearFrame>();
+    linearFrame->blockOrder.reserve(frame->numberOfBlocks);
+    linearFrame->blockLabels.resize(frame->numberOfBlocks, linearFrame->instructions.end());
+    // Reserve room for all the values in the HIR, so new values are appended after.
+    linearFrame->vRegs.resize(frame->values.size(), linearFrame->instructions.end());
 
-    m_blocks.resize(frame->numberOfBlocks, nullptr);
+    // Map of block number to Block struct, useful when recursing through control flow graph.
+    std::vector<Block*> blockPointers;
+    blockPointers.resize(frame->numberOfBlocks, nullptr);
 
     // Determine linear block order from reverse postorder traversal.
-    orderBlocks(frame->rootScope->blocks.front().get(), linearBlock->blockOrder);
-    std::reverse(linearBlock->blockOrder.begin(), linearBlock->blockOrder.end());
+    orderBlocks(frame->rootScope->blocks.front().get(), blockPointers, linearFrame->blockOrder);
+    std::reverse(linearFrame->blockOrder.begin(), linearFrame->blockOrder.end());
 
-    // Fill linear block in computed order.
-    for (auto blockNumber : linearBlock->blockOrder) {
-        auto block = m_blocks[blockNumber];
-        auto label = std::make_unique<hir::LabelHIR>(block->number);
+    // Fill linear frame with LIR in computed order.
+    for (auto blockNumber : linearFrame->blockOrder) {
+        auto block = blockPointers[blockNumber];
+        auto label = std::make_unique<lir::LabelLIR>(block->id);
         for (auto pred : block->predecessors) {
-            label->predecessors.emplace_back(pred->number);
+            label->predecessors.emplace_back(pred->id);
         }
         for (auto succ : block->successors) {
-            label->successors.emplace_back(succ->number);
+            label->successors.emplace_back(succ->id);
         }
-        label->phis = std::move(block->phis);
-
-        auto blockRange = std::make_pair(linearBlock->instructions.size(), 0);
-
+        for (const auto& phi : block->phis) {
+            phi->lower(block->frame->values, linearFrame->vRegs, label->phis);
+        }
         // Start the block with a label and then append all contained instructions.
-        linearBlock->instructions.emplace_back(std::move(label));
-        std::move(block->statements.begin(), block->statements.end(), std::back_inserter(linearBlock->instructions));
+        linearFrame->instructions.emplace_back(std::move(label));
+        linearFrame->blockLabels[block->id] = --(linearFrame->instructions.end());
 
-        // Update end range on the block now that it's complete.
-        blockRange.second = linearBlock->instructions.size();
-        linearBlock->blockRanges[block->number] = std::move(blockRange);
+        for (const auto& hir : block->statements) {
+            hir->lower(block->frame->values, linearFrame->vRegs, linearFrame->instructions);
+        }
     }
 
-    return linearBlock;
+    return linearFrame;
 }
 
-void BlockSerializer::orderBlocks(Block* block, std::vector<int>& blockOrder) {
+void BlockSerializer::orderBlocks(Block* block, std::vector<Block*>& blockPointers,
+        std::vector<lir::LabelID>& blockOrder) {
     // Mark block as visited by updating number to pointer map.
-    m_blocks[block->number] = block;
+    blockPointers[block->id] = block;
     for (const auto succ : block->successors) {
-        if (m_blocks[succ->number] == nullptr) {
-            orderBlocks(succ, blockOrder);
+        if (blockPointers[succ->id] == nullptr) {
+            orderBlocks(succ, blockPointers, blockOrder);
         }
     }
-    blockOrder.emplace_back(block->number);
+    blockOrder.emplace_back(static_cast<lir::LabelID>(block->id));
 }
 
 } // namespace hadron

@@ -185,6 +185,32 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
+    hir/BranchHIR.cpp
+    hir/BranchHIR.hpp
+    hir/BranchIfTrueHIR.cpp
+    hir/BranchIfTrueHIR.hpp
+    hir/ConstantHIR.cpp
+    hir/ConstantHIR.hpp
+    hir/HIR.hpp
+    hir/LoadArgumentHIR.cpp
+    hir/LoadArgumentHIR.hpp
+    hir/LoadClassVariableHIR.cpp
+    hir/LoadClassVariableHIR.hpp
+    hir/LoadInstanceVariableHIR.cpp
+    hir/LoadInstanceVariableHIR.hpp
+    hir/MessageHIR.cpp
+    hir/MessageHIR.hpp
+    hir/MethodReturnHIR.cpp
+    hir/MethodReturnHIR.hpp
+    hir/PhiHIR.cpp
+    hir/PhiHIR.hpp
+    hir/StoreClassVariableHIR.cpp
+    hir/StoreClassVariableHIR.hpp
+    hir/StoreInstanceVariableHIR.cpp
+    hir/StoreInstanceVariableHIR.hpp
+    hir/StoreReturnHIR.cpp
+    hir/StoreReturnHIR.hpp
+
     library/Array.hpp
     library/ArrayedCollection.hpp
     library/Collection.hpp
@@ -195,6 +221,19 @@ add_library(hadron STATIC
     library/String.hpp
     library/Symbol.cpp
     library/Symbol.hpp
+
+    lir/BranchIfTrueLIR.hpp
+    lir/BranchLIR.hpp
+    lir/BranchToRegisterLIR.hpp
+    lir/LabelLIR.hpp
+    lir/LIR.cpp
+    lir/LIR.hpp
+    lir/LoadConstantLIR.hpp
+    lir/LoadFromPointerLIR.hpp
+    lir/LoadFromStackLIR.hpp
+    lir/PhiLIR.hpp
+    lir/StoreToPointerLIR.hpp
+    lir/StoreToStackLIR.hpp
 
     Arch.hpp
     AST.hpp
@@ -210,8 +249,6 @@ add_library(hadron STATIC
     Emitter.hpp
     Heap.cpp
     Heap.hpp
-    HIR.cpp
-    HIR.hpp
     JIT.hpp
     LifetimeAnalyzer.cpp
     LifetimeAnalyzer.hpp
@@ -219,7 +256,7 @@ add_library(hadron STATIC
     LifetimeInterval.hpp
     LighteningJIT.cpp
     LighteningJIT.hpp
-    LinearBlock.hpp
+    LinearFrame.hpp
     MoveScheduler.cpp
     MoveScheduler.hpp
     OpcodeIterator.cpp

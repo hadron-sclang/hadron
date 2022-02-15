@@ -1,11 +1,12 @@
 #ifndef SRC_HADRON_FRAME_HPP_
 #define SRC_HADRON_FRAME_HPP_
 
-#include <memory>
-
+#include "hadron/hir/HIR.hpp"
 #include "hadron/library/Array.hpp"
 #include "hadron/library/ArrayedCollection.hpp"
-#include "hadron/Slot.hpp"
+
+#include <memory>
+#include <vector>
 
 namespace hadron {
 
@@ -26,8 +27,13 @@ struct Frame {
 
     std::unique_ptr<Scope> rootScope;
 
-    size_t numberOfValues = 0; // actual number of values used could be less than this due to optimization
-    int numberOfBlocks = 0;
+    // Map of value IDs as index to HIR objects. During optimization HIR can change, for example simplifying MessageHIR
+    // to a constant, so we identify values by their NVID and maintain a single frame-wide map here of the authoritative
+    // map between IDs and HIR.
+    std::vector<hir::HIR*> values;
+
+    // Counters used as serial numbers to uniquely number values and blocks.
+    int32_t numberOfBlocks = 0;
 };
 
 } // namespace hadron

@@ -1,7 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_LIFETIME_INTERVAL_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_LIFETIME_INTERVAL_HPP_
 
-#include "hadron/HIR.hpp"
+#include "hadron/lir/LIR.hpp"
 
 #include <cassert>
 #include <list>
@@ -53,7 +53,7 @@ struct LifetimeInterval {
     std::list<LiveRange> ranges;
     std::set<size_t> usages;
 
-    size_t valueNumber = kInvalidValue;
+    lir::VReg valueNumber = lir::kInvalidVReg;
     size_t registerNumber = 0;
     bool isSplit = false;
     bool isSpill = false;

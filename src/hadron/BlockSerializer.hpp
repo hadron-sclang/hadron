@@ -1,20 +1,19 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_BLOCK_SERIALIZER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_BLOCK_SERIALIZER_HPP_
 
+#include "hadron/lir/LIR.hpp"
+
 #include <list>
 #include <memory>
 #include <vector>
-
-#include "hadron/HIR.hpp"
-#include "hadron/LifetimeInterval.hpp"
 
 namespace hadron {
 
 struct Block;
 struct Frame;
-struct LinearBlock;
+struct LinearFrame;
 
-// Serializes a Frame containing a control flow graph of blocks and HIR instructions into a single LinearBlock struct
+// Serializes a Frame containing a control flow graph of blocks and HIR instructions into a single LinearFrame struct
 // with LabelHIR instructions at the top of each block. Serialization order is in reverse postorder traversal, with
 // all loops intact, which is a requirement for the lifetime analysis and register allocation stages of compilation.
 class BlockSerializer {
@@ -22,15 +21,13 @@ public:
     BlockSerializer() = default;
     ~BlockSerializer() = default;
 
-    // Destructively modify baseFrame to produce a single LinearBlock with blocks serialized in the required order.
-    std::unique_ptr<LinearBlock> serialize(std::unique_ptr<Frame> frame);
+    // Destructively modify baseFrame to produce a single LinearFrame with blocks serialized in the required order.
+    std::unique_ptr<LinearFrame> serialize(const Frame* frame);
 
 private:
-    // Map of block number to Block struct, useful when recursing through control flow graph.
-    std::vector<Block*> m_blocks;
 
     // Does the recursive postorder traversal of the blocks and saves the output in |blockOrder|.
-    void orderBlocks(Block* block, std::vector<int>& blockOrder);
+    void orderBlocks(Block* block, std::vector<Block*>& blockPointers, std::vector<lir::LabelID>& blockOrder);
 };
 
 } // namespace hadron

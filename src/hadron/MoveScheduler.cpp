@@ -1,7 +1,7 @@
 #include "hadron/MoveScheduler.hpp"
 
-#include "hadron/HIR.hpp"
 #include "hadron/JIT.hpp"
+#include "hadron/lir/LIR.hpp"
 #include "hadron/Slot.hpp"
 
 namespace hadron {
