@@ -130,7 +130,7 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
         addCompilationUnit("INTERPRET", lexer, parser,
                 reinterpret_cast<const hadron::parse::BlockNode*>(parser->root()), units);
     }
-    m_jsonTransport->sendCompilationDiagnostics(id, units);
+    m_jsonTransport->sendCompilationDiagnostics(m_runtime->context(), id, units);
 }
 
 void HadronServer::addCompilationUnit(std::string name, std::shared_ptr<hadron::Lexer> lexer,
