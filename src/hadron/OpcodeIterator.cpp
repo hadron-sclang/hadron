@@ -72,6 +72,13 @@ bool OpcodeWriteIterator::movi(JIT::Reg target, Word value) {
     return !hasOverflow();
 }
 
+bool OpcodeWriteIterator::movi_u(JIT::Reg target, UWord value) {
+    addByte(Opcode::kMoviU);
+    addByte(reg(target));
+    addUWord(value);
+    return !hasOverflow();
+}
+
 int8_t* OpcodeWriteIterator::bgei(JIT::Reg a, Word b) {
     addByte(Opcode::kBgei);
     addByte(reg(a));
@@ -323,6 +330,14 @@ bool OpcodeReadIterator::movi(JIT::Reg& target, Word& value) {
     ++m_currentBytecode; // kMovi
     target = reg(readByte());
     value = readWord();
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::movi_u(JIT::Reg& target, UWord& value) {
+    assert(peek() == Opcode::kMoviU);
+    ++m_currentBytecode; // kMoviU
+    target = reg(readByte());
+    value = readUWord();
     return !hasOverflow();
 }
 

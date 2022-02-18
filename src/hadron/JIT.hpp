@@ -75,6 +75,8 @@ public:
     virtual void movr(Reg target, Reg value) = 0;
     // %target <- value
     virtual void movi(Reg target, Word value) = 0;
+    // %target <- value (unsigned)
+    virtual void movi_u(Reg target, UWord value) = 0;
 
     // * branches
     // if a >= b goto Label

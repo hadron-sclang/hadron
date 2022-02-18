@@ -17,27 +17,28 @@ enum Opcode : int8_t {
     kXorr       = 0x05,
     kMovr       = 0x06,
     kMovi       = 0x07,
-    kBgei       = 0x08,
-    kBeqi       = 0x09,
-    kJmp        = 0x0a,
-    kJmpr       = 0x0b,
-    kJmpi       = 0x0c,
-    kLdrL       = 0x0d,
-    kLdxiW      = 0x0e,
-    kLdxiI      = 0x0f,
-    kLdxiL      = 0x10,
-    kStrI       = 0x11,
-    kStrL       = 0x12,
-    kStxiW      = 0x13,
-    kStxiI      = 0x14,
-    kStxiL      = 0x15,
-    kRet        = 0x16,
-    kRetr       = 0x17,
-    kReti       = 0x18,
-    kLabel      = 0x19,
-    kAddress    = 0x1a,
-    kPatchHere  = 0x1b,
-    kPatchThere = 0x1c,
+    kMoviU      = 0x08,
+    kBgei       = 0x09,
+    kBeqi       = 0x0a,
+    kJmp        = 0x0b,
+    kJmpr       = 0x0c,
+    kJmpi       = 0x0d,
+    kLdrL       = 0x0e,
+    kLdxiW      = 0x0f,
+    kLdxiI      = 0x10,
+    kLdxiL      = 0x11,
+    kStrI       = 0x12,
+    kStrL       = 0x13,
+    kStxiW      = 0x14,
+    kStxiI      = 0x15,
+    kStxiL      = 0x16,
+    kRet        = 0x17,
+    kRetr       = 0x18,
+    kReti       = 0x19,
+    kLabel      = 0x1a,
+    kAddress    = 0x1b,
+    kPatchHere  = 0x1c,
+    kPatchThere = 0x1d,
 
     kInvalid    = -1
 };
@@ -59,6 +60,7 @@ public:
     bool xorr(JIT::Reg target, JIT::Reg a, JIT::Reg b);
     bool movr(JIT::Reg target, JIT::Reg value);
     bool movi(JIT::Reg target, Word value);
+    bool movi_u(JIT::Reg target, UWord value);
     // Returns the location of the branch address for later use with patchWord() or nullptr if in overflow.
     int8_t* bgei(JIT::Reg a, Word b);
     int8_t* beqi(JIT::Reg a, Word b);
@@ -115,6 +117,7 @@ public:
     bool xorr(JIT::Reg& target, JIT::Reg& a, JIT::Reg& b);
     bool movr(JIT::Reg& target, JIT::Reg& value);
     bool movi(JIT::Reg& target, Word& value);
+    bool movi_u(JIT::Reg& target, UWord& value);
     bool bgei(JIT::Reg& a, Word& b, const int8_t*& address);
     bool beqi(JIT::Reg& a, Word& b, const int8_t*& address);
     bool jmp(const int8_t*& address);

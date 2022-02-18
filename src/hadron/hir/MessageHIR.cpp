@@ -5,9 +5,7 @@
 namespace hadron {
 namespace hir {
 
-MessageHIR::MessageHIR():
-        HIR(kMessage, Type::kAny, library::Symbol()),
-        selector(kInvalidNVID) {}
+MessageHIR::MessageHIR(): HIR(kMessage, Type::kAny, library::Symbol()) {}
 
 NVID MessageHIR::proposeValue(NVID id) {
     value.id = id;

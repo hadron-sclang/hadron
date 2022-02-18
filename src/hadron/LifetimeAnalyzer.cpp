@@ -118,15 +118,15 @@ void LifetimeAnalyzer::buildLifetimes(LinearFrame* linearFrame) {
         }
 
         // for each operation op of b in reverse order do
-        for (size_t j = blockRange.second - 1; j >= blockRange.first; --j) {
-            assert(j < linearFrame->instructions.size());
+        for (int j = static_cast<int>(blockRange.second) - 1; j >= static_cast<int>(blockRange.first); --j) {
+            assert(0 <= j && j < static_cast<int>(linearFrame->instructions.size()));
             const lir::LIR* lir = linearFrame->lineNumbers[j];
             // In Hadron there's at most 1 valid output from an LIR so this for loop is instead an if statement.
             // for each output operand opd of op do
             if (lir->value != lir::kInvalidVReg) {
                 // intervals[opd].setFrom(op.id)
-                blockVariableRanges[lir->value].first = j;
-                linearFrame->valueLifetimes[lir->value][0]->usages.emplace(j);
+                blockVariableRanges[lir->value].first = static_cast<size_t>(j);
+                linearFrame->valueLifetimes[lir->value][0]->usages.emplace(static_cast<size_t>(j));
 
                 // live.remove(opd)
                 live.erase(lir->value);
@@ -136,14 +136,11 @@ void LifetimeAnalyzer::buildLifetimes(LinearFrame* linearFrame) {
             for (auto opd : lir->reads) {
                 // intervals[opd].addRange(b.from, op.id)
                 blockVariableRanges[opd].first = blockRange.first;
-                blockVariableRanges[opd].second = std::max(j + 1, blockVariableRanges[opd].second);
+                blockVariableRanges[opd].second = std::max(static_cast<size_t>(j + 1), blockVariableRanges[opd].second);
                 linearFrame->valueLifetimes[opd][0]->usages.emplace(j);
                 // live.add(opd)
                 live.insert(opd);
             }
-
-            // Avoid unsigned comparison causing infinite loops with >= 0.
-            if (j == 0) { break; }
         }
 
         // for each phi function phi of b do
@@ -176,7 +173,7 @@ void LifetimeAnalyzer::buildLifetimes(LinearFrame* linearFrame) {
                 }
                 assert(blockVariableRanges[j].second > blockVariableRanges[j].first);
                 linearFrame->valueLifetimes[j][0]->addLiveRange(blockVariableRanges[j].first,
-                    blockVariableRanges[j].second);
+                        blockVariableRanges[j].second);
             }
         }
     }

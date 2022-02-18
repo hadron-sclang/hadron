@@ -155,6 +155,17 @@ void LighteningJIT::movi(Reg target, Word value) {
     jit_movi(m_state, reg(target), value);
 }
 
+void LighteningJIT::movi_u(Reg target, UWord value) {
+    Word signedValue;
+    if (value < std::numeric_limits<Word>::max()) {
+        signedValue = static_cast<int64_t>(value);
+    } else {
+        signedValue = static_cast<int64_t>(value - std::numeric_limits<Word>::max() - 1) +
+                std::numeric_limits<Word>::min();
+    }
+    jit_movi(m_state, reg(target), signedValue);
+}
+
 JIT::Label LighteningJIT::bgei(Reg a, Word b) {
     m_labels.emplace_back(jit_bgei(m_state, reg(a), b));
     return m_labels.size() - 1;

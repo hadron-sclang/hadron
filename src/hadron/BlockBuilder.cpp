@@ -78,8 +78,9 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, Bl
     auto block = scope->blocks.front().get();
     block->predecessors.emplace_back(predecessor);
 
-    // Inline blocks can have arguments but they are treated as constants with their default values.
-    for (int32_t argIndex = 0; argIndex < blockAST->argumentNames.size(); ++argIndex) {
+    // Inline blocks can have arguments but they are treated as constants with their default values. We skip the
+    // *this* pointer for inline blocks so it doesn't shadow the frame level this pointer.
+    for (int32_t argIndex = 1; argIndex < blockAST->argumentNames.size(); ++argIndex) {
         auto name = blockAST->argumentNames.at(argIndex);
         auto value = blockAST->argumentDefaults.at(argIndex);
         block->revisions.emplace(std::make_pair(name,
@@ -119,7 +120,7 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
         const auto message = reinterpret_cast<const ast::MessageAST*>(ast);
 
         auto messageHIR = std::make_unique<hir::MessageHIR>();
-        messageHIR->selector = insert(std::make_unique<hir::ConstantHIR>(message->selector.slot()), currentBlock);
+        messageHIR->selector = message->selector;
 
         // Build arguments starting with target argument.
         messageHIR->arguments.reserve(message->arguments->sequence.size() + 1);

@@ -12,12 +12,7 @@
 #include <vector>
 
 namespace hadron {
-struct Frame;
-struct LinearFrame;
-class VirtualJIT;
-namespace parse {
-struct Node;
-} // namespace parse
+struct ThreadContext;
 } // namespace hadron
 
 namespace server {
@@ -63,9 +58,8 @@ public:
 
     // Responses from the server for Hadron messages
 
-    void sendCompilationDiagnostics(lsp::ID id, const std::vector<CompilationUnit>& compilationUnits);
-    void sendParseTree(lsp::ID id, const hadron::parse::Node* node);
-    void sendControlFlow(lsp::ID id, const hadron::Frame* frame);
+    void sendCompilationDiagnostics(hadron::ThreadContext* context, lsp::ID id,
+            const std::vector<CompilationUnit>& compilationUnits);
 
 private:
     // pIMPL pattern to keep JSON headers from leaking into rest of server namespace.

@@ -11,11 +11,13 @@ def reg(reg):
     if reg == -1:
         return 'SP'
     elif reg == -2:
+        return 'FP'
+    elif reg == -3:
         return 'CONTEXT'
-    return 'GPR{}'.format(reg)
+    return 'R{}'.format(reg)
 
 def buildMachineCode(outFile, machineCode):
-    outFile.write('\n<h3>machine code</h3>\n<span style="font-family: monospace">')
+    outFile.write('\n<h3>debug machine code</h3>\n<span style="font-family: monospace">')
     for inst in machineCode['instructions']:
         outFile.write('{:08x}: '.format(int(inst[0])))
         if inst[1] == 'addr':
@@ -32,12 +34,14 @@ def buildMachineCode(outFile, machineCode):
             outFile.write('movr {}, {}<br>\n'.format(reg(inst[2]), reg(inst[3])))
         elif inst[1] == 'movi':
             outFile.write('movi {}, {}<br>\n'.format(reg(inst[2]), inst[3]))
+        elif inst[1] == 'movi_u':
+            outFile.write('movi_u {}, 0x{:016x}<br>\n'.format(reg(inst[2]), inst[3]))
         elif inst[1] == 'bgei':
-            outFile.write('bgei {}, {}, {:08x}<br>\n'.format(reg(inst[2]), inst[3], inst[4]))
+            outFile.write('bgei {}, {}, 0x{:08x}<br>\n'.format(reg(inst[2]), inst[3], inst[4]))
         elif inst[1] == 'beqi':
-            outFile.write('beqi {}, {}, {:08x}<br>\n'.format(reg(inst[2]), inst[3], inst[4]))
+            outFile.write('beqi {}, {}, 0x{:08x}<br>\n'.format(reg(inst[2]), inst[3], inst[4]))
         elif inst[1] == 'jmp':
-            outFile.write('jmp {:08x}<br>\n'.format(inst[2]))
+            outFile.write('jmp 0x{:08x}<br>\n'.format(inst[2]))
         elif inst[1] == 'jmpr':
             outFile.write('jmpr {}<br>\n'.format(reg(inst[2])))
         elif inst[1] == 'jmpi':
@@ -80,90 +84,117 @@ def findContainingLifetime(i, lifetimeList):
                 return lifetime
     return None
 
-def buildLinearBlock(outFile, linearBlock):
-    outFile.write('\n<h3>linear block</h3>\n\n<table>\n<tr><th>line</th><th>label</th><th>hir</th>')
-    for i in range(0, len(linearBlock['valueLifetimes'])):
-        outFile.write('<th>v<sub>{}</sub></th>'.format(i))
-    outFile.write('</tr>\n')
-    for i in range(0, len(linearBlock['instructions'])):
-        outFile.write('<tr><td align="right">{}</td>'.format(i))
-        inst = linearBlock['instructions'][i]
-        if inst['opcode'] == 'Label':
-            outFile.write('<td>label_{}:</td><td>'.format(inst['blockNumber']))
-            for phi in inst['phis']:
-                outFile.write('{}<br/>'.format(hirToString(phi)))
-            outFile.write('</td>')
-        else:
-            outFile.write('<td></td><td>{}</td>'.format(hirToString(inst)))
-        # want to visualize "ranges" and "usages" for each of the lifetime intervals. In value lifetimes also useful
-        # to see what register they are associated with, and in register lifetimes what value, and in spill what value.
-        for j in range(0, len(linearBlock['valueLifetimes'])):
-            lifetime = findContainingLifetime(i, linearBlock['valueLifetimes'][j])
-            if lifetime:
-                tdClass = 'live'
-                if i in lifetime['usages']:
-                    tdClass = 'used'
-                outFile.write('<td class="{}">GPR{}</td>'.format(tdClass, lifetime['registerNumber']))
-            else:
-                outFile.write('<td></td>')
-        outFile.write('</tr>')
-    outFile.write('\n</table>\n')
-
 def slotToString(slot):
     if 'value' in slot:
         return str(slot['value'])
     return slot['type']
 
-def valueToString(value):
-    flags = ' | '.join(value['typeFlags'])
-    return '({}) v<sub>{}</sub>'.format(flags, value['number'])
+def vRegToString(lir):
+    flags = ' | '.join(lir['typeFlags'])
+    return '({}) VR{}'.format(flags, lir['value'])
 
-def hirToString(hir):
-    if hir['opcode'] == 'LoadArgument':
-        return '{} &#8592; LoadArgument({})'.format(valueToString(hir['value']), hir['index'])
-    elif hir['opcode'] == 'LoadArgumentType':
-        return '{} &#8592; LoadArgumentType({})'.format(valueToString(hir['value']), hir['index'])
-    elif hir['opcode'] == 'Constant':
-        return '{} &#8592; {}'.format(valueToString(hir['value']), slotToString(hir['constant']))
-    elif hir['opcode'] == 'StoreReturn':
-        return 'StoreReturn({}, {})'.format(valueToString(hir['returnValue'][0]), valueToString(hir['returnValue'][1]))
-    elif hir['opcode'] == 'ResolveType':
-        return '{} &#8592; ResolveType({})'.format(valueToString(hir['value']), valueToString(hir['typeOfValue']))
-    elif hir['opcode'] == 'Phi':
-        phi = '{} &#8592; &phi;('.format(valueToString(hir['value']))
-        phi += ','.join(['v<sub>{}</sub>'.format(x['number']) for x in hir['inputs']])
+def lirToString(lir):
+    if lir['opcode'] == 'Branch':
+        return 'Branch to Label {}'.format(lir['labelId'])
+    elif lir['opcode'] == 'BranchIfTrue':
+        return 'BranchIfTrue {} to Label {}'.format(lir['condition'], lir['labelId'])
+    elif lir['opcode'] == 'BranchToRegister':
+        return 'BranchToRegister VR{}'.format(lir['address'])
+    elif lir['opcode'] == 'Label':
+        # Labels get their own column for readability.
+        return ''
+    elif lir['opcode'] == 'LoadConstant':
+        return '{} &#8592; {}'.format(vRegToString(lir), slotToString(lir['constant']))
+    elif lir['opcode'] == 'LoadFromPointer':
+        return '{} &#8592; *(VR{} + {})'.format(vRegToString(lir), lir['pointer'],
+                lir['offset'])
+    elif lir['opcode'] == 'LoadFromStack':
+        if lir['useFramePointer']:
+            return '{} &#8592; *(FP + {})'.format(vRegToString(lir), lir['offset'])
+        else:
+            return '{} &#8592; *(SP + {})'.format(vRegToString(lir), lir['offset'])
+    elif lir['opcode'] == 'Phi':
+        phi = '{} &#8592; &phi;('.format(vRegToString(lir))
+        phi += ','.join(['VR{}'.format(x) for x in lir['inputs']])
         phi += ')'
         return phi
-    elif hir['opcode'] == 'Branch':
-        return 'Branch to {}'.format(hir['blockNumber'])
-    elif hir['opcode'] == 'BranchIfZero':
-        return 'BranchIfZero {},{} to {}'.format(valueToString(hir['condition'][0]),
-                valueToString(hir['condition'][1]), hir['blockNumber'])
-    elif hir['opcode'] == 'Label':
-        return 'Label {}:'.format(hir['blockNumber'])
-    elif hir['opcode'] == 'DispatchCall':
-        dispatch = '{} &#8592; DispatchCall({}'.format(valueToString(hir['value'], valueToString(hir['arguments'][0])))
-        for i in range(1, len(hir['arguments'])):
-            dispatch += ', {}'.format(valueToString(hir['arguments'][i]))
-        for i in range(0, len(hir['keywordArguments']), step=2):
-            dispatch += ', {}: {}'.format(valueToString(hir['keywordArguments'][i]),
-                    valueToString(hir['keywordArguments'][i + 1]))
-        return dispatch + ')'
-    elif hir['opcode'] == 'DispatchLoadReturn':
-        return '{} &#8592; LoadReturn()'.format(valueToString(hir['value']))
-    elif hir['opcode'] == 'DispatchLoadReturnType':
-        return '{} &#8592; LoadReturnType()'.format(valueToString(hir['value']))
-    elif hir['opcode'] == 'DispatchCleanup':
-        return 'DispatchCleanup()'
-    return '<unsupported hir opcode "{}">'.format(hir['opcode'])
+    elif lir['opcode'] == 'StoreToPointer':
+        return '*(VR{} + {}) &#8592; {}'.format(lir['pointer'], lir['offset'], lir['toStore'])
+    elif lir['opcode'] == 'StoreToStack':
+        if lir['useFramePointer']:
+            return '*(FP + {}) &#8592; {}'.format(lir['offset'], lir['toStore'])
+        else:
+            return '*(SP + {}) &#8592; {}'.format(lir['offset'], lir['toStore'])
+    else:
+        return 'unsupported lir opcode "{}"'.format(lir['opcode'])
+
+def buildLinearFrame(outFile, linearFrame):
+    outFile.write('\n<h3>linear frame</h3>\n\n<table>\n<tr><th>line</th><th>label</th><th>lir</th>')
+    for i in range(0, len(linearFrame['valueLifetimes'])):
+        outFile.write('<th>VR{}</th>'.format(i))
+    outFile.write('</tr>\n')
+    for i in range(0, len(linearFrame['instructions'])):
+        outFile.write('<tr><td align="right">{}</td>'.format(i))
+        inst = linearFrame['instructions'][i]
+        if inst['opcode'] == 'Label':
+            outFile.write('<td>label_{}:</td><td>'.format(inst['id']))
+            for phi in inst['phis']:
+                outFile.write('{}<br/>'.format(lirToString(phi)))
+            outFile.write('</td>')
+        else:
+            outFile.write('<td></td><td>{}</td>'.format(lirToString(inst)))
+        # want to visualize "ranges" and "usages" for each of the lifetime intervals. In value lifetimes also useful
+        # to see what register they are associated with, and in register lifetimes what value, and in spill what value.
+        for j in range(0, len(linearFrame['valueLifetimes'])):
+            lifetime = findContainingLifetime(i, linearFrame['valueLifetimes'][j])
+            if lifetime:
+                tdClass = 'live'
+                if i in lifetime['usages']:
+                    tdClass = 'used'
+                outFile.write('<td class="{}">R{}</td>'.format(tdClass, lifetime['registerNumber']))
+            else:
+                outFile.write('<td></td>')
+        outFile.write('</tr>')
+    outFile.write('\n</table>\n')
+
+def valueToString(value):
+    flags = ' | '.join(value['typeFlags'])
+    if 'name' in value:
+        return '({}) {}<sub>{}</sub>'.format(flags, value['name'], value['id'])
+    return '({}) v<sub>{}</sub>'.format(flags, value['id'])
+
+def hirToString(hir):
+    if hir['opcode'] == 'Branch':
+        return 'Branch to Block {}'.format(hir['blockId'])
+    elif hir['opcode'] == 'BranchIfTrue':
+        return 'BranchIfTrue {} to Block {}'.format(valueToString(hir['condition']), hir['blockId'])
+    elif hir['opcode'] == 'Constant':
+        return '{} &#8592; {}'.format(valueToString(hir['value']), slotToString(hir['constant']))
+    elif hir['opcode'] == 'LoadArgument':
+        return '{} &#8592; LoadArgument({})'.format(valueToString(hir['value']), hir['index'])
+    elif hir['opcode'] == 'Message':
+        message = 'message: {}'.format(hir['selector']['string'])
+        message += ' args: ' + ','.join(valueToString(x) for x in hir['arguments'])
+        message += ' keywordArgs: ' + ','.join(valueToString(x) for x in hir['keywordArguments'])
+        return message
+    elif hir['opcode'] == 'MethodReturn':
+        return 'return'
+    elif hir['opcode'] == 'Phi':
+        phi = '{} &#8592; &phi;('.format(valueToString(hir['value']))
+        phi += ','.join(['v<sub>{}</sub>'.format(x['id']) for x in hir['inputs']])
+        phi += ')'
+        return phi
+    elif hir['opcode'] == 'StoreReturn':
+        return 'StoreReturn({})'.format(valueToString(hir['returnValue']))
+    return 'unsupported hir opcode "{}"'.format(hir['opcode'])
 
 def saveScope(scope, dotFile):
     dotFile.write('  subgraph cluster_{} {{\n'.format(scope['scopeSerial']))
     for block in scope['blocks']:
-        dotFile.write(
-"""   block_{} [shape=plain label=<<table border="0" cellpadding="6" cellborder="1" cellspacing="0">
+        dotFile.write("""
+    block_{} [shape=plain label=<<table border="0" cellpadding="6" cellborder="1" cellspacing="0">
       <tr><td bgcolor="lightGray"><b>Block {}</b></td></tr>
-""".format(block['number'], block['number']))
+""".format(block['id'], block['id']))
         for phi in block['phis']:
             dotFile.write('      <tr><td>{}</td></tr>\n'.format(hirToString(phi)))
         for hir in block['statements']:
@@ -176,7 +207,7 @@ def saveScope(scope, dotFile):
 def saveBlockGraph(scope, dotFile):
     for block in scope['blocks']:
         for succ in block['successors']:
-            dotFile.write('    block_{} -> block_{}\n'.format(block['number'], succ))
+            dotFile.write('    block_{} -> block_{}\n'.format(block['id'], succ))
     for subFrame in scope['subScopes']:
         saveBlockGraph(subFrame, dotFile)
 
@@ -389,10 +420,96 @@ def buildParseTree(outFile, parseTree, tokens, outputDir):
     svgPath = os.path.join(outputDir, 'parseTree.svg')
     svgFile = open(svgPath, 'w')
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
-    outFile.write(
-"""
+    outFile.write("""
 <h3>parse tree</h3>
 <img src="parseTree.svg">
+""")
+
+def saveAST(ast, dotFile):
+    dotFile.write("""  ast_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
+    <tr><td bgcolor="lightGray"><b>{}</b></td></tr>
+""".format(ast['serial'], ast['astType']))
+    if ast['astType'] == 'Assign':
+        dotFile.write("""    <tr><td port="name">name</td></tr>
+    <tr><td port="value">value</td></tr></table>>]
+  ast_{}:name -> ast_{}
+  ast_{}:value -> ast_{}
+""".format(ast['serial'], ast['name']['serial'], ast['serial'], ast['value']['serial']))
+        saveAST(ast['name'], dotFile)
+        saveAST(ast['value'], dotFile)
+
+    elif ast['astType'] == 'Block':
+        dotFile.write("""    <tr><td port="statements">statements</td></tr></table>>]
+  ast_{}:statements -> ast_{}
+""".format(ast['serial'], ast['statements']['serial']))
+        saveAST(ast['statements'], dotFile)
+
+    elif ast['astType'] == 'Constant':
+        dotFile.write('    <tr><td>value: {}</td></tr></table>>]\n'.format(slotToString(ast['constant'])))
+
+    elif ast['astType'] == 'If':
+        dotFile.write("""    <tr><td port="condition">condition</td></tr>
+    <tr><td port="trueBlock">trueBlock</td></tr>
+    <tr><td port="falseBlock">falseBlock</td></tr></table>>]
+  ast_{}:condition -> ast_{}
+  ast_{}:trueBlock -> ast_{}
+  ast_{}:falseBlock -> ast_{}
+""".format(ast['serial'], ast['condition']['serial'], ast['serial'], ast['trueBlock']['serial'], ast['serial'],
+            ast['falseBlock']['serial']))
+        saveAST(ast['condition'], dotFile)
+        saveAST(ast['trueBlock'], dotFile)
+        saveAST(ast['falseBlock'], dotFile)
+
+    elif ast['astType'] == 'Message':
+        dotFile.write("""    <tr><td port="target">target</td></tr>
+    <tr><td>selector: {}</td></tr>
+    <tr><td port="arguments">arguments</td></tr>
+    <tr><td port="keywordArguments">keywordArguments</td></tr></table>>]
+  ast_{}:target -> ast_{}
+  ast_{}:arguments -> ast_{}
+  ast_{}:keywordArguments -> ast_{}
+""".format(slotToString(ast['selector'], ast['serial'], ast['target']['serial'], ast['serial'],
+            ast['arguments']['serial'], ast['serial'], ast['keywordArguments']['serial'])))
+        saveAST(ast['target'], dotFile)
+        saveAST(ast['arguments'], dotFile)
+        saveAST(ast['keywordArguments'], dotFile)
+
+    elif ast['astType'] == 'MethodReturn':
+        dotFile.write("""    <tr><td port="value">value</td></tr></table>>]
+  ast_{}:value -> ast_{}
+""".format(ast['serial'], ast['value']['serial']))
+        saveAST(ast['value'], dotFile)
+
+    elif ast['astType'] == 'Name':
+        dotFile.write('    <tr><td>name: {}</td></tr></table>>]\n'.format(slotToString(ast['name'])))
+
+    elif ast['astType'] == 'Sequence':
+        for i in range(0, len(ast['sequence'])):
+            dotFile.write('    <tr><td port="seq_{}"></td>&nbsp;</tr>\n'.format(i))
+        dotFile.write('    </table>>]\n')
+        i = 0
+        for seq in ast['sequence']:
+            dotFile.write('  ast_{}:seq_{} -> ast_{}\n'.format(ast['serial'], i, seq['serial']))
+            i += 1
+            saveAST(seq, dotFile)
+
+    else:
+        dotFile.write('    </table>>]\n')
+
+def buildAST(outFile, ast, outputDir):
+    dotPath = os.path.join(outputDir, 'ast.dot')
+    dotFile = open(dotPath, 'w')
+    dotFile.write('digraph HadronAST {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
+    saveAST(ast, dotFile)
+    dotFile.write('}\n')
+    dotFile.close()
+    svgPath = os.path.join(outputDir, 'ast.svg')
+    svgFile = open(svgPath, 'w')
+    subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
+    outFile.write(
+"""
+<h3>abstract syntax tree</h3>
+<img src="ast.svg">
 """)
 
 def styleForTokenType(typeIndex):
@@ -548,8 +665,9 @@ def main(args):
     for unit in diagnostics['compilationUnits']:
         name = unit['name']
         buildParseTree(outFile, unit['parseTree'], tokens, args.outputDir)
+        buildAST(outFile, unit['ast'], args.outputDir)
         buildControlFlow(outFile, unit['rootFrame'], args.outputDir)
-        buildLinearBlock(outFile, unit['linearBlock'])
+        buildLinearFrame(outFile, unit['linearFrame'])
         buildMachineCode(outFile, unit['machineCode'])
     outFile.write("""
 </body>
