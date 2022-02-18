@@ -31,18 +31,18 @@ struct NamedValue {
 };
 
 enum Opcode {
-    kBranch,
-    kBranchIfTrue,
-    kConstant,
-    kLoadArgument,
-    kLoadClassVariable,
-    kLoadInstanceVariable,
-    kMessage,
-    kMethodReturn,
-    kPhi,
-    kStoreClassVariable,
-    kStoreInstanceVariable,
-    kStoreReturn
+    kBranch = 0,
+    kBranchIfTrue = 1,
+    kConstant = 2,
+    kLoadArgument = 3,
+    kLoadClassVariable = 4,
+    kLoadInstanceVariable = 5,
+    kMessage = 6,
+    kMethodReturn = 7,
+    kPhi = 8,
+    kStoreClassVariable = 9,
+    kStoreInstanceVariable = 10,
+    kStoreReturn = 11
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in
@@ -78,4 +78,4 @@ protected:
 } // namespace hir
 } // namespace hadron
 
-#endif  // SRC_HADRON_HIR_HPP_
+#endif // SRC_HADRON_HIR_HPP_

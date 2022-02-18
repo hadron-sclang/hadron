@@ -119,7 +119,7 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
         const auto message = reinterpret_cast<const ast::MessageAST*>(ast);
 
         auto messageHIR = std::make_unique<hir::MessageHIR>();
-        messageHIR->selector = insert(std::make_unique<hir::ConstantHIR>(message->selector.slot()), currentBlock);
+        messageHIR->selector = message->selector;
 
         // Build arguments starting with target argument.
         messageHIR->arguments.reserve(message->arguments->sequence.size() + 1);

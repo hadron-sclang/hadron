@@ -12,8 +12,7 @@ struct MessageHIR : public HIR {
     MessageHIR();
     virtual ~MessageHIR() = default;
 
-    NVID selector;
-    library::Symbol selectorName;
+    library::Symbol selector;
     std::vector<NVID> arguments;
     std::vector<NVID> keywordArguments;
 
