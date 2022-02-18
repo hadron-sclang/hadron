@@ -16,6 +16,7 @@
 #include "hadron/library/Symbol.hpp"
 #include "hadron/LifetimeInterval.hpp"
 #include "hadron/LinearFrame.hpp"
+#include "hadron/lir/LIR.hpp"
 #include "hadron/OpcodeIterator.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Scope.hpp"
@@ -84,6 +85,8 @@ private:
             rapidjson::Value& jsonValue, rapidjson::Document& document);
     void serializeLifetimeIntervals(const std::vector<std::vector<hadron::LtIRef>>& lifetimeIntervals,
             rapidjson::Value& jsonIntervals, rapidjson::Document& document);
+    void serializeLIR(hadron::ThreadContext* context, const hadron::lir::LIR* lir, rapidjson::Value& jsonLIR,
+            rapidjson::Document& document);
 
     static inline rapidjson::Pointer::Token makeToken(std::string_view v) {
         return rapidjson::Pointer::Token{v.data(), static_cast<rapidjson::SizeType>(v.size()),
@@ -1371,28 +1374,6 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
     }
     jsonHIR.AddMember("reads", reads, document.GetAllocator());
 
-/* TODO: move to LIR serialization
-    rapidjson::Value moves;
-    moves.SetArray();
-    for (auto move : hir->moves) {
-        rapidjson::Value jsonMove;
-        jsonMove.SetArray();
-        jsonMove.PushBack(rapidjson::Value(move.first), document.GetAllocator());
-        jsonMove.PushBack(rapidjson::Value(move.second), document.GetAllocator());
-        moves.PushBack(jsonMove, document.GetAllocator());
-    }
-    jsonHIR.AddMember("moves", moves, document.GetAllocator());
-    rapidjson::Value valueLocations;
-    valueLocations.SetArray();
-    for (auto loc : hir->valueLocations) {
-        rapidjson::Value jsonLoc;
-        jsonLoc.SetArray();
-        jsonLoc.PushBack(rapidjson::Value(static_cast<uint64_t>(loc.first)), document.GetAllocator());
-        jsonLoc.PushBack(rapidjson::Value(loc.second), document.GetAllocator());
-        valueLocations.PushBack(jsonLoc, document.GetAllocator());
-    }
-    jsonHIR.AddMember("valueLocations", valueLocations, document.GetAllocator());
-*/
     switch(hir->opcode) {
     case hadron::hir::Opcode::kBranch: {
         const auto branch = reinterpret_cast<const hadron::hir::BranchHIR*>(hir);
@@ -1620,6 +1601,32 @@ void JSONTransport::JSONTransportImpl::serializeLifetimeIntervals(
         }
         jsonIntervals.PushBack(valueIntervals, document.GetAllocator());
     }
+}
+
+void JSONTransport::JSONTransportImpl::serializeLIR(hadron::ThreadContext* context, const hadron::lir::LIR* lir,
+        rapidjson::Value& jsonLIR, rapidjson::Document& document) {
+    rapidjson::Value moves;
+    moves.SetArray();
+    for (auto move : lir->moves) {
+        rapidjson::Value jsonMove;
+        jsonMove.SetArray();
+        jsonMove.PushBack(rapidjson::Value(move.first), document.GetAllocator());
+        jsonMove.PushBack(rapidjson::Value(move.second), document.GetAllocator());
+        moves.PushBack(jsonMove, document.GetAllocator());
+    }
+    jsonLIR.AddMember("moves", moves, document.GetAllocator());
+ 
+    rapidjson::Value valueLocations;
+    valueLocations.SetArray();
+    for (auto loc : lir->locations) {
+        rapidjson::Value jsonLoc;
+        jsonLoc.SetArray();
+        jsonLoc.PushBack(rapidjson::Value(static_cast<uint64_t>(loc.first)), document.GetAllocator());
+        jsonLoc.PushBack(rapidjson::Value(loc.second), document.GetAllocator());
+        valueLocations.PushBack(jsonLoc, document.GetAllocator());
+    }
+    jsonLIR.AddMember("locations", valueLocations, document.GetAllocator());
+
 }
 
 //////////////////

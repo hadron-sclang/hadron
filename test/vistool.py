@@ -83,7 +83,7 @@ def findContainingLifetime(i, lifetimeList):
     return None
 
 def buildLinearFrame(outFile, linearFrame):
-    outFile.write('\n<h3>linear block</h3>\n\n<table>\n<tr><th>line</th><th>label</th><th>hir</th>')
+    outFile.write('\n<h3>linear frame</h3>\n\n<table>\n<tr><th>line</th><th>label</th><th>hir</th>')
     for i in range(0, len(linearFrame['valueLifetimes'])):
         outFile.write('<th>v<sub>{}</sub></th>'.format(i))
     outFile.write('</tr>\n')
@@ -148,8 +148,8 @@ def hirToString(hir):
 def saveScope(scope, dotFile):
     dotFile.write('  subgraph cluster_{} {{\n'.format(scope['scopeSerial']))
     for block in scope['blocks']:
-        dotFile.write(
-"""   block_{} [shape=plain label=<<table border="0" cellpadding="6" cellborder="1" cellspacing="0">
+        dotFile.write("""
+    block_{} [shape=plain label=<<table border="0" cellpadding="6" cellborder="1" cellspacing="0">
       <tr><td bgcolor="lightGray"><b>Block {}</b></td></tr>
 """.format(block['id'], block['id']))
         for phi in block['phis']:
@@ -377,8 +377,7 @@ def buildParseTree(outFile, parseTree, tokens, outputDir):
     svgPath = os.path.join(outputDir, 'parseTree.svg')
     svgFile = open(svgPath, 'w')
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
-    outFile.write(
-"""
+    outFile.write("""
 <h3>parse tree</h3>
 <img src="parseTree.svg">
 """)
