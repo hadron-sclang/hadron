@@ -16,7 +16,17 @@
 #include "hadron/library/Symbol.hpp"
 #include "hadron/LifetimeInterval.hpp"
 #include "hadron/LinearFrame.hpp"
+#include "hadron/lir/BranchIfTrueLIR.hpp"
+#include "hadron/lir/BranchLIR.hpp"
+#include "hadron/lir/BranchToRegisterLIR.hpp"
+#include "hadron/lir/LabelLIR.hpp"
 #include "hadron/lir/LIR.hpp"
+#include "hadron/lir/LoadConstantLIR.hpp"
+#include "hadron/lir/LoadFromPointerLIR.hpp"
+#include "hadron/lir/LoadFromStackLIR.hpp"
+#include "hadron/lir/PhiLIR.hpp"
+#include "hadron/lir/StoreToPointerLIR.hpp"
+#include "hadron/lir/StoreToStackLIR.hpp"
 #include "hadron/OpcodeIterator.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Scope.hpp"
@@ -1475,34 +1485,6 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
         serializeValue(context, ret->returnValue, frame, returnValue, document);
         jsonHIR.AddMember("returnValue", returnValue, document.GetAllocator());
     } break;
-
-/*
-    case hadron::hir::Opcode::kLabel: {
-        const auto label = reinterpret_cast<const hadron::hir::LabelHIR*>(hir);
-        jsonHIR.AddMember("opcode", "Label", document.GetAllocator());
-        jsonHIR.AddMember("blockNumber", rapidjson::Value(label->blockNumber), document.GetAllocator());
-        rapidjson::Value predecessors;
-        predecessors.SetArray();
-        for (auto pred : label->predecessors) {
-            predecessors.PushBack(rapidjson::Value(pred), document.GetAllocator());
-        }
-        jsonHIR.AddMember("predecessors", predecessors, document.GetAllocator());
-        rapidjson::Value successors;
-        successors.SetArray();
-        for (auto succ : label->successors) {
-            successors.PushBack(rapidjson::Value(succ), document.GetAllocator());
-        }
-        jsonHIR.AddMember("successors", successors, document.GetAllocator());
-        rapidjson::Value phis;
-        phis.SetArray();
-        for (const auto& phi : label->phis) {
-            rapidjson::Value jsonPhi;
-            serializeHIR(phi.get(), jsonPhi, document);
-            phis.PushBack(jsonPhi, document.GetAllocator());
-        }
-        jsonHIR.AddMember("phis", phis, document.GetAllocator());
-    } break;
-*/
     }
 }
 
@@ -1626,6 +1608,45 @@ void JSONTransport::JSONTransportImpl::serializeLIR(hadron::ThreadContext* conte
         valueLocations.PushBack(jsonLoc, document.GetAllocator());
     }
     jsonLIR.AddMember("locations", valueLocations, document.GetAllocator());
+
+    switch(lir->opcode) {
+    case hadron::lir::Opcode::kBranch: {
+        const auto branch = reinterpret_cast<const hadron::lir::BranchLIR*>(lir);
+        jsonLIR.AddMember("opcode", "Branch", document.GetAllocator());
+        jsonLIR.AddMember("labelId", rapidjson::Value(branch->labelId), document.GetAllocator());
+    } break;
+
+    case hadron::lir::Opcode::kBranchIfTrue: {
+        const auto branchIfTrue = reinterpret_cast<const hadron::lir::BranchIfTrueLIR*>(lir);
+        jsonLIR.AddMember("opcode", "BranchIfTrue", document.GetAllocator());
+    } break;
+
+    case hadron::lir::Opcode::kLabel: {
+        const auto label = reinterpret_cast<const hadron::lir::LabelLIR*>(lir);
+        jsonLIR.AddMember("opcode", "Label", document.GetAllocator());
+        jsonLIR.AddMember("id", rapidjson::Value(label->id), document.GetAllocator());
+        rapidjson::Value predecessors;
+        predecessors.SetArray();
+        for (auto pred : label->predecessors) {
+            predecessors.PushBack(rapidjson::Value(pred), document.GetAllocator());
+        }
+        jsonLIR.AddMember("predecessors", predecessors, document.GetAllocator());
+        rapidjson::Value successors;
+        successors.SetArray();
+        for (auto succ : label->successors) {
+            successors.PushBack(rapidjson::Value(succ), document.GetAllocator());
+        }
+        jsonLIR.AddMember("successors", successors, document.GetAllocator());
+        rapidjson::Value phis;
+        phis.SetArray();
+        for (const auto& phi : label->phis) {
+            rapidjson::Value jsonPhi;
+            serializeLIR(context, phi.get(), jsonPhi, document);
+            phis.PushBack(jsonPhi, document.GetAllocator());
+        }
+        jsonLIR.AddMember("phis", phis, document.GetAllocator());
+    } break;
+    }
 
 }
 
