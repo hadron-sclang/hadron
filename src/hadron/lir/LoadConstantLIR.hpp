@@ -18,7 +18,7 @@ struct LoadConstantLIR : public LIR {
 
     void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
         emitBase(jit);
-        jit->movi(locations.at(value), constant.asBits());
+        jit->movi_u(locations.at(value), constant.asBits());
     }
 };
 

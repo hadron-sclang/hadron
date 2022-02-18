@@ -1211,6 +1211,14 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const int8_t* byteCode, size
             opcode.PushBack(target, document.GetAllocator());
             opcode.PushBack(value, document.GetAllocator());
         } break;
+        case hadron::Opcode::kMoviU: {
+            opcode.PushBack("movi_u", document.GetAllocator());
+            hadron::JIT::Reg target;
+            hadron::UWord value;
+            it.movi_u(target, value);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(value, document.GetAllocator());
+        } break;
         case hadron::Opcode::kBgei: {
             opcode.PushBack("bgei", document.GetAllocator());
             hadron::JIT::Reg a;

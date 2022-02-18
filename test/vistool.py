@@ -33,7 +33,9 @@ def buildMachineCode(outFile, machineCode):
         elif inst[1] == 'movr':
             outFile.write('movr {}, {}<br>\n'.format(reg(inst[2]), reg(inst[3])))
         elif inst[1] == 'movi':
-            outFile.write('movi {}, 0x{:016x}<br>\n'.format(reg(inst[2]), inst[3]))
+            outFile.write('movi {}, {}<br>\n'.format(reg(inst[2]), inst[3]))
+        elif inst[1] == 'movi_u':
+            outFile.write('movi_u {}, 0x{:016x}<br>\n'.format(reg(inst[2]), inst[3]))
         elif inst[1] == 'bgei':
             outFile.write('bgei {}, {}, 0x{:08x}<br>\n'.format(reg(inst[2]), inst[3], inst[4]))
         elif inst[1] == 'beqi':
