@@ -14,10 +14,10 @@ def reg(reg):
         return 'FP'
     elif reg == -3:
         return 'CONTEXT'
-    return 'GPR{}'.format(reg)
+    return 'R{}'.format(reg)
 
 def buildMachineCode(outFile, machineCode):
-    outFile.write('\n<h3>machine code</h3>\n<span style="font-family: monospace">')
+    outFile.write('\n<h3>debug machine code</h3>\n<span style="font-family: monospace">')
     for inst in machineCode['instructions']:
         outFile.write('{:08x}: '.format(int(inst[0])))
         if inst[1] == 'addr':
@@ -33,13 +33,13 @@ def buildMachineCode(outFile, machineCode):
         elif inst[1] == 'movr':
             outFile.write('movr {}, {}<br>\n'.format(reg(inst[2]), reg(inst[3])))
         elif inst[1] == 'movi':
-            outFile.write('movi {}, {}<br>\n'.format(reg(inst[2]), inst[3]))
+            outFile.write('movi {}, 0x{:016x}<br>\n'.format(reg(inst[2]), inst[3]))
         elif inst[1] == 'bgei':
-            outFile.write('bgei {}, {}, {:08x}<br>\n'.format(reg(inst[2]), inst[3], inst[4]))
+            outFile.write('bgei {}, {}, 0x{:08x}<br>\n'.format(reg(inst[2]), inst[3], inst[4]))
         elif inst[1] == 'beqi':
-            outFile.write('beqi {}, {}, {:08x}<br>\n'.format(reg(inst[2]), inst[3], inst[4]))
+            outFile.write('beqi {}, {}, 0x{:08x}<br>\n'.format(reg(inst[2]), inst[3], inst[4]))
         elif inst[1] == 'jmp':
-            outFile.write('jmp {:08x}<br>\n'.format(inst[2]))
+            outFile.write('jmp 0x{:08x}<br>\n'.format(inst[2]))
         elif inst[1] == 'jmpr':
             outFile.write('jmpr {}<br>\n'.format(reg(inst[2])))
         elif inst[1] == 'jmpi':
@@ -82,21 +82,65 @@ def findContainingLifetime(i, lifetimeList):
                 return lifetime
     return None
 
+def slotToString(slot):
+    if 'value' in slot:
+        return str(slot['value'])
+    return slot['type']
+
+def vRegToString(lir):
+    flags = ' | '.join(lir['typeFlags'])
+    return '({}) VR{}'.format(flags, lir['value'])
+
+def lirToString(lir):
+    if lir['opcode'] == 'Branch':
+        return 'Branch to Label {}'.format(lir['labelId'])
+    elif lir['opcode'] == 'BranchIfTrue':
+        return 'BranchIfTrue {} to Label {}'.format(lir['condition'], lir['labelId'])
+    elif lir['opcode'] == 'BranchToRegister':
+        return 'BranchToRegister VR{}'.format(lir['address'])
+    elif lir['opcode'] == 'Label':
+        # Labels get their own column for readability.
+        return ''
+    elif lir['opcode'] == 'LoadConstant':
+        return '{} &#8592; {}'.format(vRegToString(lir), slotToString(lir['constant']))
+    elif lir['opcode'] == 'LoadFromPointer':
+        return '{} &#8592; *(VR{} + {})'.format(vRegToString(lir), lir['pointer'],
+                lir['offset'])
+    elif lir['opcode'] == 'LoadFromStack':
+        if lir['useFramePointer']:
+            return '{} &#8592; *(FP + {})'.format(vRegToString(lir), lir['offset'])
+        else:
+            return '{} &#8592; *(SP + {})'.format(vRegToString(lir), lir['offset'])
+    elif lir['opcode'] == 'Phi':
+        phi = '{} &#8592; &phi;('.format(vRegToString(lir))
+        phi += ','.join(['VR{}'.format(x) for x in lir['inputs']])
+        phi += ')'
+        return phi
+    elif lir['opcode'] == 'StoreToPointer':
+        return '*(VR{} + {}) &#8592; {}'.format(lir['pointer'], lir['offset'], lir['toStore'])
+    elif lir['opcode'] == 'StoreToStack':
+        if lir['useFramePointer']:
+            return '*(FP + {}) &#8592; {}'.format(lir['offset'], lir['toStore'])
+        else:
+            return '*(SP + {}) &#8592; {}'.format(lir['offset'], lir['toStore'])
+    else:
+        return 'unsupported lir opcode "{}"'.format(lir['opcode'])
+
 def buildLinearFrame(outFile, linearFrame):
-    outFile.write('\n<h3>linear frame</h3>\n\n<table>\n<tr><th>line</th><th>label</th><th>hir</th>')
+    outFile.write('\n<h3>linear frame</h3>\n\n<table>\n<tr><th>line</th><th>label</th><th>lir</th>')
     for i in range(0, len(linearFrame['valueLifetimes'])):
-        outFile.write('<th>v<sub>{}</sub></th>'.format(i))
+        outFile.write('<th>VR{}</th>'.format(i))
     outFile.write('</tr>\n')
     for i in range(0, len(linearFrame['instructions'])):
         outFile.write('<tr><td align="right">{}</td>'.format(i))
         inst = linearFrame['instructions'][i]
         if inst['opcode'] == 'Label':
-            outFile.write('<td>label_{}:</td><td>'.format(inst['blockNumber']))
+            outFile.write('<td>label_{}:</td><td>'.format(inst['id']))
             for phi in inst['phis']:
-                outFile.write('{}<br/>'.format(hirToString(phi)))
+                outFile.write('{}<br/>'.format(lirToString(phi)))
             outFile.write('</td>')
         else:
-            outFile.write('<td></td><td>{}</td>'.format(hirToString(inst)))
+            outFile.write('<td></td><td>{}</td>'.format(lirToString(inst)))
         # want to visualize "ranges" and "usages" for each of the lifetime intervals. In value lifetimes also useful
         # to see what register they are associated with, and in register lifetimes what value, and in spill what value.
         for j in range(0, len(linearFrame['valueLifetimes'])):
@@ -105,19 +149,16 @@ def buildLinearFrame(outFile, linearFrame):
                 tdClass = 'live'
                 if i in lifetime['usages']:
                     tdClass = 'used'
-                outFile.write('<td class="{}">GPR{}</td>'.format(tdClass, lifetime['registerNumber']))
+                outFile.write('<td class="{}">R{}</td>'.format(tdClass, lifetime['registerNumber']))
             else:
                 outFile.write('<td></td>')
         outFile.write('</tr>')
     outFile.write('\n</table>\n')
 
-def slotToString(slot):
-    if 'value' in slot:
-        return str(slot['value'])
-    return slot['type']
-
 def valueToString(value):
     flags = ' | '.join(value['typeFlags'])
+    if 'name' in value:
+        return '({}) {}<sub>{}</sub>'.format(flags, value['name'], value['id'])
     return '({}) v<sub>{}</sub>'.format(flags, value['id'])
 
 def hirToString(hir):
