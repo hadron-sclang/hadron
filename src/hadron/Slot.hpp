@@ -24,7 +24,7 @@ public:
 
     // TODO: could these be constexpr? And rename to fromFloat(), 'make' is confusing.
     static inline Slot makeFloat(double d) { return Slot(d); }
-    static inline Slot makeNil() { return Slot(kNilTag); }
+    static inline Slot makeNil() { return Slot(kPointerTag); }
     static inline Slot makeInt32(int32_t i) { return Slot(kInt32Tag | (static_cast<uint64_t>(i) & (~kTagMask))); }
     static inline Slot makeBool(bool b) { return Slot(kBooleanTag | (b ? 1ull : 0ull)); }
     static inline Slot makePointer(const void* p) { return Slot(kPointerTag | reinterpret_cast<uint64_t>(p)); }
@@ -41,14 +41,12 @@ public:
         }
 
         switch (m_asBits & kTagMask) {
-        case kNilTag:
-            return Type::kNil;
         case kInt32Tag:
             return Type::kInteger;
         case kBooleanTag:
             return Type::kBoolean;
         case kPointerTag:
-            return Type::kObject;
+            return m_asBits == kPointerTag ? Type::kNil : Type::kObject;
         case kHashTag:
             return Type::kSymbol;
         case kCharTag:
@@ -60,10 +58,10 @@ public:
     }
 
     inline bool isFloat() const { return m_asBits < kMaxDouble; }
-    inline bool isNil() const { return m_asBits == kNilTag; }
+    inline bool isNil() const { return m_asBits == kPointerTag; }
     inline bool isInt32() const { return (m_asBits & kTagMask) == kInt32Tag; }
     inline bool isBool() const { return (m_asBits & kTagMask) == kBooleanTag; }
-    inline bool isPointer() const { return (m_asBits & kTagMask) == kPointerTag; }
+    inline bool isPointer() const { return ((m_asBits & kTagMask) == kPointerTag) && (m_asBits != kPointerTag); }
     inline bool isHash() const { return (m_asBits & kTagMask) == kHashTag; }
     inline bool isChar() const { return (m_asBits & kTagMask) == kCharTag; }
 
@@ -81,13 +79,11 @@ public:
     //                     seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm
     // 0xfff8000000000000: 11111111|11111000|00000000|00000000|00000000|00000000|00000000|00000000
     static constexpr uint64_t kMaxDouble  = 0xfff8000000000000;
-    static constexpr uint64_t kNilTag     = kMaxDouble;
-    static constexpr uint64_t kInt32Tag   = 0xfff9000000000000;
-    static constexpr uint64_t kBooleanTag = 0xfffa000000000000;
-    static constexpr uint64_t kPointerTag = 0xfffb000000000000;
-    static constexpr uint64_t kHashTag    = 0xfffc000000000000;
-    static constexpr uint64_t kCharTag    = 0xfffd000000000000;
-    // TODO: static constexpr uint64_t kArrayletTag    = 0xfffe000000000000;
+    static constexpr uint64_t kInt32Tag   = kMaxDouble;
+    static constexpr uint64_t kBooleanTag = 0xfff9000000000000;
+    static constexpr uint64_t kPointerTag = 0xfffa000000000000;
+    static constexpr uint64_t kHashTag    = 0xfffb000000000000;
+    static constexpr uint64_t kCharTag    = 0xfffc000000000000;
     static constexpr uint64_t kTagMask    = 0xffff000000000000;
 
     // For debugging, normal access should use the get*() methods.

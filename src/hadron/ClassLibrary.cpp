@@ -41,30 +41,6 @@
 // Third Pass: Now that the full pedigree and member variables names of each object is known, we compile the individual
 //   methods.
 
-namespace {
-static const std::array<const char*, 11> kClassFileAllowList{
-    "AbstractFunction.sc"
-    "Array.sc"
-    "ArrayedCollection.sc"
-    "Boolean.sc"
-    "Char.sc"
-    "Collection.sc"
-    "Dictionary.sc"
-    "Float.sc"
-    "Function.sc"
-    "Integer.sc"
-    "Kernel.sc"
-    "Magnitude.sc"
-    "Nil.sc"
-    "Number.sc"
-    "Object.sc"
-    "SequenceableCollection.sc"
-    "Set.sc"
-    "SimpleNumber.sc"
-    "Symbol.sc"
-};
-} // namespace
-
 namespace hadron {
 
 ClassLibrary::ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter):
@@ -101,20 +77,6 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
             const auto& path = fs::absolute(entry.path());
             if (!fs::is_regular_file(path) || path.extension() != ".sc")
                 continue;
-            // For now we have an allowlist in place, to control which SC class files are parsed, and we lazily do an
-            // O(n) search in the array for each one.
-            bool classFileAllowed = false;
-            for (size_t i = 0; i < kClassFileAllowList.size(); ++i) {
-                if (path.filename().compare(kClassFileAllowList[i]) == 0) {
-                    classFileAllowed = true;
-                    break;
-                }
-            }
-            if (!classFileAllowed) {
-                // SPDLOG_WARN("Skipping compilation of {}, not in class file allow list.", path.c_str());
-                continue;
-            }
-
             SPDLOG_INFO("Class Library scanning '{}'", path.c_str());
 
             auto sourceFile = std::make_unique<SourceFile>(path.string());
@@ -185,7 +147,10 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Symbol filename, i
     }
 
     // Find and add the class and metaClass to the appropriate superclass object subclasses list.
-    addToSubclassArray(context, classDef);
+    if (classDef.name(context).hash() != kObjectHash) {
+        // There's no superclass to add to for Object as it has no superclass.
+        addToSubclassArray(context, classDef);
+    }
     addToSubclassArray(context, metaClassDef);
 
     classDef.setSubclasses(getSubclassArray(context, classDef));
@@ -250,8 +215,9 @@ void ClassLibrary::addToSubclassArray(ThreadContext* context, const library::Cla
     auto superclass = subclass.superclass(context);
     auto superclassIter = m_classMap.find(superclass);
     if (superclassIter != m_classMap.end()) {
-        superclassIter->second.setSubclasses(
-                superclassIter->second.subclasses().typedClone().typedAdd(context, subclass));
+        auto subclasses = superclassIter->second.subclasses();
+        subclasses = subclasses.typedAdd(context, subclass);
+        superclassIter->second.setSubclasses(subclasses);
         return;
     }
     auto arrayIter = m_cachedSubclassArrays.find(superclass);
@@ -312,7 +278,7 @@ void ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
 }
 
 bool ClassLibrary::compileMethods(ThreadContext* /* context */) {
-    return false;
+    return true;
 }
 
 bool ClassLibrary::cleanUp() {

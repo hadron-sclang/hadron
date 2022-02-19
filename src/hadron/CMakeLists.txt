@@ -145,18 +145,18 @@ list(APPEND SCLANG_CLASS_FILES
     "${SCLANG_PATH}/Common/Collections/Set.sc"
     "${SCLANG_PATH}/Common/Collections/String.sc"
     "${SCLANG_PATH}/Common/Core/AbstractFunction.sc"
-#   "${SCLANG_PATH}/Common/Core/Boolean.sc"
+    "${SCLANG_PATH}/Common/Core/Boolean.sc"
     "${SCLANG_PATH}/Common/Core/Char.sc"
     "${SCLANG_PATH}/Common/Core/Function.sc"
     "${SCLANG_PATH}/Common/Core/Kernel.sc"
     "${SCLANG_PATH}/Common/Core/Nil.sc"
     "${SCLANG_PATH}/Common/Core/Object.sc"
     "${SCLANG_PATH}/Common/Core/Symbol.sc"
-#    "${SCLANG_PATH}/Common/Math/Float.sc"
-#    "${SCLANG_PATH}/Common/Math/Integer.sc"
+    "${SCLANG_PATH}/Common/Math/Float.sc"
+    "${SCLANG_PATH}/Common/Math/Integer.sc"
     "${SCLANG_PATH}/Common/Math/Magnitude.sc"
-#    "${SCLANG_PATH}/Common/Math/Number.sc"
-#    "${SCLANG_PATH}/Common/Math/SimpleNumber.sc"
+    "${SCLANG_PATH}/Common/Math/Number.sc"
+    "${SCLANG_PATH}/Common/Math/SimpleNumber.sc"
 )
 
 set(SCHEMA_FILES)

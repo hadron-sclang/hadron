@@ -30,17 +30,18 @@ Runtime::Runtime(std::shared_ptr<ErrorReporter> errorReporter):
 
 Runtime::~Runtime() {}
 
+bool Runtime::initInterpreter() {
+    if (!buildTrampolines()) return false;
+    if (!compileClassLibrary()) return false;
+    if (!buildThreadContext()) return false;
+    return true;
+}
+
 bool Runtime::compileClassLibrary() {
     auto classLibPath = findSCClassLibrary();
     SPDLOG_INFO("Starting Class Library compilation for files at {}", classLibPath.c_str());
     m_classLibrary->addClassDirectory(classLibPath);
     return m_classLibrary->compileLibrary(m_threadContext.get());
-}
-
-bool Runtime::initInterpreter() {
-    if (!buildTrampolines()) return false;
-    if (!buildThreadContext()) return false;
-    return true;
 }
 
 bool Runtime::buildTrampolines() {
