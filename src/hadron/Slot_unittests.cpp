@@ -130,11 +130,10 @@ TEST_CASE("Slot pointer serialization") {
         CHECK_EQ(reinterpret_cast<uint8_t*>(p.getPointer())[3], 0xff);
     }
 
-    SUBCASE("null pointers") {
+    SUBCASE("null pointers are nil") {
         Slot p = Slot::makePointer(nullptr);
-        REQUIRE(p.isPointer());
-        CHECK_EQ(p.getPointer(), nullptr);
-        CHECK_NE(p, Slot::makeNil());
+        REQUIRE(p.isNil());
+        CHECK_EQ(p, Slot::makeNil());
     }
 }
 

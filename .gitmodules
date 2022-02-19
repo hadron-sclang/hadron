@@ -22,3 +22,6 @@
 [submodule "third_party/supercollider"]
 	path = third_party/supercollider
 	url = https://github.com/hadron-sclang/supercollider.git
+[submodule "third_party/bootstrap"]
+	path = third_party/bootstrap
+	url = https://github.com/hadron-sclang/bootstrap.git

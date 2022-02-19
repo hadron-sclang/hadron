@@ -16,7 +16,7 @@ namespace library {
 
 // Our Object class can wrap any heap-allocated precompiled Schema struct. It uses the Curious Recurring Template
 // Pattern, or CRTP, to provide static function dispatch without adding any storage overhead for a vtable. It is a
-// veneer over Slot pointers that provides the strong typing we want when using sclang objects in C++ code. Other 
+// veneer over Slot pointers that provides the strong typing we want when using sclang objects in C++ code.
 template<typename T, typename S>
 class Object {
 public:

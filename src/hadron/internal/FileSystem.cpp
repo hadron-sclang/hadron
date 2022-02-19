@@ -27,7 +27,7 @@ fs::path findBinaryPath() {
 fs::path findSCClassLibrary() {
     auto path = findBinaryPath();
     SPDLOG_INFO("Found binary path at {}", path.c_str());
-    path += "/../../third_party/supercollider/SCClassLibrary";
+    path += "/../../third_party/bootstrap/SCClassLibrary";
     path = fs::canonical(path);
     SPDLOG_INFO("Found Class Library path at {}", path.c_str());
     assert(fs::exists(path));
