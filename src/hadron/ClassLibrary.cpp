@@ -91,22 +91,19 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
             auto filename = library::Symbol::fromView(context, path.string());
             const parse::Node* node = parser->root();
             while (node) {
-                // Class extensions can be skipped in first pass, as they don't change the inheritance tree or add
-                // any additional member variables.
-                if (node->nodeType == parse::NodeType::kClassExt) { continue; }
-                // The only other root notes in class files should be ClassNodes.
-                if (node->nodeType != parse::NodeType::kClass) {
-                    SPDLOG_ERROR("Class file didn't contain Class or Class Extension: {}\n", path.string());
-                    return false;
+                if (node->nodeType == parse::NodeType::kClass) {
+                    auto classNode = reinterpret_cast<const parse::ClassNode*>(node);
+                    if (!scanClass(context, filename, lexer->tokens()[classNode->tokenIndex].range.data() -
+                            sourceFile->code(), classNode, lexer.get())) {
+                        return false;
+                    }
+                    
+                } else if (node->nodeType == parse::NodeType::kClassExt) {
+                } else {
+                    SPDLOG_ERROR("Expecting either Class or Class Extensions only at top level in class file {}",
+                            path.c_str());
                 }
-
-                auto classNode = reinterpret_cast<const parse::ClassNode*>(node);
-                if (!scanClass(context, filename, lexer->tokens()[classNode->tokenIndex].range.data() -
-                        sourceFile->code(), classNode, lexer.get())) {
-                    return false;
-                }
-
-                node = classNode->next.get();
+                node = node->next.get();
             }
 
             m_classFiles.emplace(std::make_pair(filename,

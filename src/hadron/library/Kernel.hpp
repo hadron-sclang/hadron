@@ -27,7 +27,7 @@ public:
     void setName(Symbol name) { m_instance->name = name.slot(); }
 
     Class nextclass() const { return Class(m_instance->nextclass); }
-    void setNextclass(Class c) { m_instance->nextclass = c.slot(); }
+    void setNextclass(Class nextClass) { m_instance->nextclass = nextClass.slot(); }
 
     Symbol superclass(ThreadContext* context) const {
         return Symbol::fromHash(context, m_instance->superclass.getHash());
@@ -125,6 +125,25 @@ public:
     explicit Method(schema::MethodSchema* instance):
         FunctionDefBase<Method, schema::MethodSchema>(instance) {}
     ~Method() {}
+
+    Class ownerClass() const { return Class(m_instance->ownerClass); }
+    void setOwnerClass(Class ownerClass) { m_instance->ownerClass = ownerClass.slot(); }
+
+    Symbol name(ThreadContext* context) const { return Symbol::fromHash(context, m_instance->name.getHash()); }
+    void setName(Symbol name) { m_instance->name = name.slot(); }
+
+    Symbol primitiveName(ThreadContext* context) const {
+        return Symbol::fromHash(context, m_instance->primitiveName.getHash());
+    };
+    void setPrimitiveName(Symbol primitiveName) { m_instance->primitiveName = primitiveName.slot(); }
+
+    Symbol filenameSymbol(ThreadContext* context) const {
+        return Symbol::fromHash(context, m_instance->filenameSymbol.getHash());
+    }
+    void setFilenameSymbol(Symbol filename) { m_instance->filenameSymbol = filename.slot(); }
+
+    int32_t charPos() const { return m_instance->charPos.getInt32(); }
+    void setCharPos(int32_t pos) { m_instance->charPos = Slot::makeInt32(pos); }
 };
 
 } // namespace library

@@ -20,11 +20,14 @@ class Parser;
 class SourceFile;
 struct ThreadContext;
 
+namespace ast {
+struct BlockAST;
+};
+
 namespace parse {
 struct ClassNode;
 struct MethodNode;
 } // namespace parse
-
 
 class ClassLibrary {
 public:
@@ -46,7 +49,7 @@ private:
     // Scans the provided class directories, builds class inheritance structure. First pass of library compilation.
     bool scanFiles(ThreadContext* context);
     bool scanClass(ThreadContext* context, library::Symbol filename, int32_t charPos,
-            const hadron::parse::ClassNode* classNode, const Lexer* lexer);
+            const parse::ClassNode* classNode, const Lexer* lexer);
     // Adds subClass to the existing superclass object if it exists, or caches a new list of subclasses if it does not.
     void addToSubclassArray(ThreadContext* context, const library::Class subclass);
     // Returns existing array if cached, or nil if not.
@@ -73,12 +76,11 @@ private:
 
     // We keep the normalized paths in a set to prevent duplicate additions of the same path.
     std::unordered_set<std::string> m_libraryPaths;
-    struct ClassFile {
-        std::unique_ptr<SourceFile> sourceFile;
-        std::unique_ptr<Lexer> lexer;
-        std::unique_ptr<Parser> parser;
-    };
-    std::unordered_map<library::Symbol, ClassFile> m_classFiles;
+
+    // Outer map key is class name to pointer to inner map. Inner map is method name to AST.
+    using MethodAST = std::unique_ptr<std::unordered_map<library::Symbol, std::unique_ptr<ast::BlockAST>>>;
+    std::unordered_map<library::Symbol, MethodAST> m_classMethods;
+
     std::unordered_map<library::Symbol, library::ClassArray> m_cachedSubclassArrays;
 };
 
