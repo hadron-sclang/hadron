@@ -71,7 +71,7 @@ private:
     // The official array of Class objects, maintained as part of the root set.
     library::ClassArray m_classArray;
 
-    // We keep the noramlized paths in a set to prevent duplicate additions of the same path.
+    // We keep the normalized paths in a set to prevent duplicate additions of the same path.
     std::unordered_set<std::string> m_libraryPaths;
     struct ClassFile {
         std::unique_ptr<SourceFile> sourceFile;

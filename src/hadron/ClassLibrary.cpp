@@ -35,7 +35,7 @@
 //   Can populate the Class tree and add instVarNames, classVarNames, iprototype, cprototype, constNames, constValues,
 //   name, nextclass, superclass, and subclasses (by building stubs if the superclass hasn't been prepared yet).
 //
-// Second Pass: Starting from Object, do breadth-first or pre-order traversal through Object heirarchy. Concatenate
+// Second Pass: Starting from Object, do pre-order traversal through Object heirarchy tree. Concatenate
 //   existing intVarNames, iprototype elements into array containing all superclass data.
 //
 // Third Pass: Now that the full pedigree and member variables names of each object is known, we compile the individual
