@@ -1,5 +1,6 @@
 #include "hadron/Runtime.hpp"
 
+#include "hadron/AST.hpp"
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Heap.hpp"

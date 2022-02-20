@@ -71,7 +71,6 @@ struct MessageAST : public AST {
         keywordArguments(std::make_unique<SequenceAST>()) {}
     virtual ~MessageAST() = default;
 
-    std::unique_ptr<AST> target;
     library::Symbol selector;
     std::unique_ptr<SequenceAST> arguments;
     std::unique_ptr<SequenceAST> keywordArguments;

@@ -31,8 +31,8 @@ struct MethodNode;
 
 class ClassLibrary {
 public:
-    ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter);
     ClassLibrary() = delete;
+    explicit ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter);
     ~ClassLibrary() = default;
 
     // Adds a directory to the list of directories to scan for library classes.
@@ -48,12 +48,10 @@ private:
 
     // Scans the provided class directories, builds class inheritance structure. First pass of library compilation.
     bool scanFiles(ThreadContext* context);
-    bool scanClass(ThreadContext* context, library::Symbol filename, int32_t charPos,
+    bool scanClass(ThreadContext* context, library::Class classDef, library::Class metaClassDef,
             const parse::ClassNode* classNode, const Lexer* lexer);
-    // Adds subClass to the existing superclass object if it exists, or caches a new list of subclasses if it does not.
-    void addToSubclassArray(ThreadContext* context, const library::Class subclass);
-    // Returns existing array if cached, or nil if not.
-    library::ClassArray getSubclassArray(ThreadContext* context, const library::Class superclass);
+    // Either create a new Class object with the provided name, or return the existing one.
+    library::Class findOrInitClass(ThreadContext* context, library::Symbol className);
 
     // Traverse the class tree in superclass to subclass order, starting with Object, and finalize all inherited
     // properties.
@@ -77,11 +75,9 @@ private:
     // We keep the normalized paths in a set to prevent duplicate additions of the same path.
     std::unordered_set<std::string> m_libraryPaths;
 
-    // Outer map key is class name to pointer to inner map. Inner map is method name to AST.
-    using MethodAST = std::unique_ptr<std::unordered_map<library::Symbol, std::unique_ptr<ast::BlockAST>>>;
-    std::unordered_map<library::Symbol, MethodAST> m_classMethods;
-
-    std::unordered_map<library::Symbol, library::ClassArray> m_cachedSubclassArrays;
+    // Outer map is class name to pointer to inner map. Inner map is method name to AST.
+    using MethodAST = std::unordered_map<library::Symbol, std::unique_ptr<ast::BlockAST>>;
+    std::unordered_map<library::Symbol, std::unique_ptr<MethodAST>> m_classMethods;
 };
 
 } // namespace hadron
