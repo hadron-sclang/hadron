@@ -20,16 +20,19 @@ class Parser;
 class SourceFile;
 struct ThreadContext;
 
+namespace ast {
+struct BlockAST;
+};
+
 namespace parse {
 struct ClassNode;
 struct MethodNode;
 } // namespace parse
 
-
 class ClassLibrary {
 public:
-    ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter);
     ClassLibrary() = delete;
+    explicit ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter);
     ~ClassLibrary() = default;
 
     // Adds a directory to the list of directories to scan for library classes.
@@ -45,12 +48,10 @@ private:
 
     // Scans the provided class directories, builds class inheritance structure. First pass of library compilation.
     bool scanFiles(ThreadContext* context);
-    bool scanClass(ThreadContext* context, library::Symbol filename, int32_t charPos,
-            const hadron::parse::ClassNode* classNode, const Lexer* lexer);
-    // Adds subClass to the existing superclass object if it exists, or caches a new list of subclasses if it does not.
-    void addToSubclassArray(ThreadContext* context, const library::Class subclass);
-    // Returns existing array if cached, or nil if not.
-    library::ClassArray getSubclassArray(ThreadContext* context, const library::Class superclass);
+    bool scanClass(ThreadContext* context, library::Class classDef, library::Class metaClassDef,
+            const parse::ClassNode* classNode, const Lexer* lexer);
+    // Either create a new Class object with the provided name, or return the existing one.
+    library::Class findOrInitClass(ThreadContext* context, library::Symbol className);
 
     // Traverse the class tree in superclass to subclass order, starting with Object, and finalize all inherited
     // properties.
@@ -71,15 +72,12 @@ private:
     // The official array of Class objects, maintained as part of the root set.
     library::ClassArray m_classArray;
 
-    // We keep the noramlized paths in a set to prevent duplicate additions of the same path.
+    // We keep the normalized paths in a set to prevent duplicate additions of the same path.
     std::unordered_set<std::string> m_libraryPaths;
-    struct ClassFile {
-        std::unique_ptr<SourceFile> sourceFile;
-        std::unique_ptr<Lexer> lexer;
-        std::unique_ptr<Parser> parser;
-    };
-    std::unordered_map<library::Symbol, ClassFile> m_classFiles;
-    std::unordered_map<library::Symbol, library::ClassArray> m_cachedSubclassArrays;
+
+    // Outer map is class name to pointer to inner map. Inner map is method name to AST.
+    using MethodAST = std::unordered_map<library::Symbol, std::unique_ptr<ast::BlockAST>>;
+    std::unordered_map<library::Symbol, std::unique_ptr<MethodAST>> m_classMethods;
 };
 
 } // namespace hadron

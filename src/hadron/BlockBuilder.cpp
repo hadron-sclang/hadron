@@ -122,11 +122,8 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
         auto messageHIR = std::make_unique<hir::MessageHIR>();
         messageHIR->selector = message->selector;
 
-        // Build arguments starting with target argument.
-        messageHIR->arguments.reserve(message->arguments->sequence.size() + 1);
-        messageHIR->arguments.emplace_back(buildValue(context, currentBlock, message->target.get()));
-
-        // Append any additional arguments.
+        // Build arguments.
+        messageHIR->arguments.reserve(message->arguments->sequence.size());
         for (const auto& arg : message->arguments->sequence) {
             messageHIR->arguments.emplace_back(buildValue(context, currentBlock, arg.get()));
         }

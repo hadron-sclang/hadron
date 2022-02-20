@@ -461,16 +461,13 @@ def saveAST(ast, dotFile):
         saveAST(ast['falseBlock'], dotFile)
 
     elif ast['astType'] == 'Message':
-        dotFile.write("""    <tr><td port="target">target</td></tr>
-    <tr><td>selector: {}</td></tr>
+        dotFile.write("""    <tr><td>selector: {}</td></tr>
     <tr><td port="arguments">arguments</td></tr>
     <tr><td port="keywordArguments">keywordArguments</td></tr></table>>]
-  ast_{}:target -> ast_{}
   ast_{}:arguments -> ast_{}
   ast_{}:keywordArguments -> ast_{}
-""".format(slotToString(ast['selector'], ast['serial'], ast['target']['serial'], ast['serial'],
-            ast['arguments']['serial'], ast['serial'], ast['keywordArguments']['serial'])))
-        saveAST(ast['target'], dotFile)
+""".format(slotToString(ast['selector'], ast['serial'], ast['arguments']['serial'], ast['serial'],
+            ast['keywordArguments']['serial'])))
         saveAST(ast['arguments'], dotFile)
         saveAST(ast['keywordArguments'], dotFile)
 

@@ -252,8 +252,6 @@ struct CurryArgumentNode : public Node {
     virtual ~CurryArgumentNode() = default;
 };
 
-// Normally translated to the "at" method, but parsed as a distinct parse node to allow for possible compiler inlining
-// of array access.
 struct ArrayReadNode : public Node {
     ArrayReadNode(size_t index): Node(NodeType::kArrayRead, index) {}
     virtual ~ArrayReadNode() = default;

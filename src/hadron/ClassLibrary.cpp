@@ -1,6 +1,8 @@
 #include "hadron/ClassLibrary.hpp"
 
 #include "hadron/Arch.hpp"
+#include "hadron/AST.hpp"
+#include "hadron/ASTBuilder.hpp"
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
@@ -9,6 +11,7 @@
 #include "hadron/Frame.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
+#include "hadron/internal/FileSystem.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
@@ -21,7 +24,6 @@
 #include "hadron/SourceFile.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
-#include "hadron/internal/FileSystem.hpp"
 
 #include "spdlog/spdlog.h"
 
@@ -35,7 +37,7 @@
 //   Can populate the Class tree and add instVarNames, classVarNames, iprototype, cprototype, constNames, constValues,
 //   name, nextclass, superclass, and subclasses (by building stubs if the superclass hasn't been prepared yet).
 //
-// Second Pass: Starting from Object, do breadth-first or pre-order traversal through Object heirarchy. Concatenate
+// Second Pass: Starting from Object, do pre-order traversal through Object heirarchy tree. Concatenate
 //   existing intVarNames, iprototype elements into array containing all superclass data.
 //
 // Third Pass: Now that the full pedigree and member variables names of each object is known, we compile the individual
@@ -60,14 +62,7 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
 
 bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_classMap.clear();
-    if (!m_classArray.isNil()) {
-        context->heap->removeFromRootSet(m_classArray.slot());
-    }
-    m_classFiles.clear();
-    m_cachedSubclassArrays.clear();
-
     m_classArray = library::ClassArray::typedArrayAlloc(context, 1);
-    context->heap->addToRootSet(m_classArray.slot());
     return true;
 }
 
@@ -91,76 +86,126 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
             auto filename = library::Symbol::fromView(context, path.string());
             const parse::Node* node = parser->root();
             while (node) {
-                // Class extensions can be skipped in first pass, as they don't change the inheritance tree or add
-                // any additional member variables.
-                if (node->nodeType == parse::NodeType::kClassExt) { continue; }
-                // The only other root notes in class files should be ClassNodes.
-                if (node->nodeType != parse::NodeType::kClass) {
-                    SPDLOG_ERROR("Class file didn't contain Class or Class Extension: {}\n", path.string());
+                if (node->nodeType != parse::NodeType::kClass && node->nodeType != parse::NodeType::kClassExt) {
+                    SPDLOG_ERROR("Expecting either Class or Class Extensions only at top level in class file {}",
+                            path.c_str());
                     return false;
                 }
 
-                auto classNode = reinterpret_cast<const parse::ClassNode*>(node);
-                if (!scanClass(context, filename, lexer->tokens()[classNode->tokenIndex].range.data() -
-                        sourceFile->code(), classNode, lexer.get())) {
-                    return false;
+                library::Symbol className = library::Symbol::fromView(context, lexer->tokens()[node->tokenIndex].range);
+                library::Class classDef = findOrInitClass(context, className);
+
+                library::Symbol metaClassName = library::Symbol::fromView(context, fmt::format("Meta_{}",
+                        lexer->tokens()[node->tokenIndex].range));
+                library::Class metaClassDef = findOrInitClass(context, metaClassName);
+
+                const parse::MethodNode* methodNode = nullptr;
+
+                if (node->nodeType == parse::NodeType::kClass) {
+                    const auto classNode = reinterpret_cast<const parse::ClassNode*>(node);
+
+                    int32_t charPos = lexer->tokens()[classNode->tokenIndex].range.data() - sourceFile->code();
+                    classDef.setFilenameSymbol(filename);
+                    classDef.setCharPos(charPos);
+                    metaClassDef.setFilenameSymbol(filename);
+                    metaClassDef.setCharPos(charPos);
+
+                    if (!scanClass(context, classDef, metaClassDef, classNode, lexer.get())) {
+                        return false;
+                    }
+
+                    methodNode = classNode->methods.get();
+                } else {
+                    assert(node->nodeType == parse::NodeType::kClassExt);
+                    const auto classExtNode = reinterpret_cast<const parse::ClassExtNode*>(node);
+                    methodNode = classExtNode->methods.get();
                 }
 
-                node = classNode->next.get();
+                while (methodNode) {
+                    assert(methodNode->nodeType == parse::NodeType::kMethod);
+                    library::Method method = library::Method::alloc(context);
+
+                    library::Class methodClassDef = methodNode->isClassMethod ? metaClassDef : classDef;
+                    method.setOwnerClass(methodClassDef);
+
+                    library::MethodArray methodArray = methodClassDef.methods();
+                    methodArray = methodArray.typedAdd(context, method);
+                    methodClassDef.setMethods(methodArray);
+
+                    library::Symbol methodName = library::Symbol::fromView(context,
+                            lexer->tokens()[methodNode->tokenIndex].range);
+                    method.setName(methodName);
+
+                    if (methodNode->primitiveIndex) {
+                        library::Symbol primitiveName = library::Symbol::fromView(context,
+                            lexer->tokens()[*methodNode->primitiveIndex].range);
+                        method.setPrimitiveName(primitiveName);
+                    } else {
+                        SPDLOG_INFO("Building AST for {}:{}", methodClassDef.name(context).view(context),
+                                methodName.view(context));
+                        // Build the AST from the MethodNode block.
+                        ASTBuilder astBuilder(m_errorReporter);
+                        auto ast = astBuilder.buildBlock(context, lexer.get(), methodNode->body.get());
+                        if (!ast) { return false; }
+                        auto methodIter = m_classMethods.find(methodClassDef.name(context));
+                        assert(methodIter != m_classMethods.end());
+                        methodIter->second->emplace(std::make_pair(methodName, std::move(ast)));
+                    }
+
+                    method.setFilenameSymbol(filename);
+
+                    int32_t charPos = lexer->tokens()[methodNode->tokenIndex].range.data() - sourceFile->code();
+                    method.setCharPos(charPos);
+
+                    methodNode = reinterpret_cast<const parse::MethodNode*>(methodNode->next.get());
+                }
+
+                node = node->next.get();
             }
-
-            m_classFiles.emplace(std::make_pair(filename,
-                    ClassFile{std::move(sourceFile), std::move(lexer), std::move(parser)}));
         }
     }
 
     return true;
 }
 
-bool ClassLibrary::scanClass(ThreadContext* context, library::Symbol filename, int32_t charPos,
+bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, library::Class metaClassDef,
         const parse::ClassNode* classNode, const Lexer* lexer) {
-    // Compiling a class actually involves generating an instance of the Class object, and then generating an
-    // instance of a Meta_ClassName object derived from the Class object, which is where class methods go.
-    library::Class classDef = library::Class::alloc(context);
-    classDef.initToNil();
-    library::Class metaClassDef = library::Class::alloc(context);
-    metaClassDef.initToNil();
 
-    SPDLOG_INFO("Class Library compiling class {}", lexer->tokens()[classNode->tokenIndex].range);
-    classDef.setName(library::Symbol::fromView(context, lexer->tokens()[classNode->tokenIndex].range));
-    metaClassDef.setName(library::Symbol::fromView(context,
-            fmt::format("Meta_{}", lexer->tokens()[classNode->tokenIndex].range)));
+    library::Symbol superclassName;
+    library::Symbol metaSuperclassName;
 
     if (classNode->superClassNameIndex) {
-        classDef.setSuperclass(library::Symbol::fromView(context,
+        superclassName = library::Symbol::fromView(context,
+                lexer->tokens()[classNode->superClassNameIndex.value()].range);
+        metaSuperclassName = library::Symbol::fromView(context, fmt::format("Meta_{}",
                 lexer->tokens()[classNode->superClassNameIndex.value()].range));
-        metaClassDef.setSuperclass(library::Symbol::fromView(context, fmt::format("Meta_{}",
-                lexer->tokens()[classNode->superClassNameIndex.value()].range)));
     } else {
         if (classDef.name(context).hash() == kObjectHash) {
             // The superclass of 'Meta_Object' is 'Class'.
-            metaClassDef.setSuperclass(library::Symbol::fromView(context, "Class"));
+            metaSuperclassName = library::Symbol::fromView(context, "Class");
         } else {
-            classDef.setSuperclass(library::Symbol::fromView(context, "Object"));
-            metaClassDef.setSuperclass(library::Symbol::fromView(context, "Meta_Object"));
+            superclassName = library::Symbol::fromView(context, "Object");
+            metaSuperclassName = library::Symbol::fromView(context, "Meta_Object");
         }
     }
 
-    // Find and add the class and metaClass to the appropriate superclass object subclasses list.
+    // Set up parent object and add this class definition to its subclasses array, if this isn't `Object`.
     if (classDef.name(context).hash() != kObjectHash) {
-        // There's no superclass to add to for Object as it has no superclass.
-        addToSubclassArray(context, classDef);
+        classDef.setSuperclass(superclassName);
+        library::Class superclass = findOrInitClass(context, superclassName);
+        library::ClassArray subclasses = superclass.subclasses();
+        subclasses = subclasses.typedAdd(context, classDef);
+        superclass.setSubclasses(subclasses);
     }
-    addToSubclassArray(context, metaClassDef);
 
-    classDef.setSubclasses(getSubclassArray(context, classDef));
-    metaClassDef.setSubclasses(getSubclassArray(context, metaClassDef));
+    // Set up the parent object for the Meta class, which always has a parent.
+    metaClassDef.setSuperclass(metaSuperclassName);
+    library::Class metaSuperclass = findOrInitClass(context, metaSuperclassName);
+    library::ClassArray metaSubclasses = metaSuperclass.subclasses();
+    metaSubclasses = metaSubclasses.typedAdd(context, metaClassDef);
+    metaSuperclass.setSubclasses(metaSubclasses);
 
-    classDef.setFilenameSymbol(filename);
-    classDef.setCharPos(charPos);
-    metaClassDef.setFilenameSymbol(filename);
-    metaClassDef.setCharPos(charPos);
-
+    // Extract class and instance variables and constants.
     const parse::VarListNode* varList = classNode->variables.get();
     while (varList) {
         auto varHash = lexer->tokens()[varList->tokenIndex].hash;
@@ -169,16 +214,17 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Symbol filename, i
 
         const parse::VarDefNode* varDef = varList->definitions.get();
         while (varDef) {
-            nameArray.add(context, library::Symbol::fromView(context, lexer->tokens()[varDef->tokenIndex].range));
+            nameArray = nameArray.add(context, library::Symbol::fromView(context,
+                    lexer->tokens()[varDef->tokenIndex].range));
             if (varDef->initialValue) {
                 if (varDef->initialValue->nodeType != parse::NodeType::kLiteral) {
                     SPDLOG_ERROR("non-literal initial value in class.");
                     assert(false);
                 }
                 auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
-                valueArray.add(context, literal->value);
+                valueArray = valueArray.add(context, literal->value);
             } else {
-                valueArray.add(context, Slot::makeNil());
+                valueArray = valueArray.add(context, Slot::makeNil());
             }
             varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         }
@@ -200,46 +246,30 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Symbol filename, i
         varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
     }
 
-    m_classMap.emplace(std::make_pair(classDef.name(context), classDef));
-    m_classMap.emplace(std::make_pair(metaClassDef.name(context), metaClassDef));
-    m_classArray.typedAdd(context, classDef);
-    m_classArray.typedAdd(context, metaClassDef);
-
     return true;
 }
 
-// As we encounter the classes in undefined order during the initial scan, we build the subclassses array in each class
-// object by adding to it if the class already exists, or by caching an array in m_cachedSubclassArrays if the class
-// doesn't exist yet.
-void ClassLibrary::addToSubclassArray(ThreadContext* context, const library::Class subclass) {
-    auto superclass = subclass.superclass(context);
-    auto superclassIter = m_classMap.find(superclass);
-    if (superclassIter != m_classMap.end()) {
-        auto subclasses = superclassIter->second.subclasses();
-        subclasses = subclasses.typedAdd(context, subclass);
-        superclassIter->second.setSubclasses(subclasses);
-        return;
-    }
-    auto arrayIter = m_cachedSubclassArrays.find(superclass);
-    if (arrayIter != m_cachedSubclassArrays.end()) {
-        arrayIter->second.typedAdd(context, subclass);
-        return;
-    }
-    auto subclassArray = library::ClassArray::typedArrayAlloc(context, 1);
-    subclassArray.typedAdd(context, subclass);
-    m_cachedSubclassArrays.emplace(std::make_pair(superclass, subclassArray));
-}
-
-library::ClassArray ClassLibrary::getSubclassArray(ThreadContext* context, const library::Class superclass) {
-    // First look in the cached arrays, erase and return if found.
-    auto arrayIter = m_cachedSubclassArrays.find(superclass.name(context));
-    if (arrayIter != m_cachedSubclassArrays.end()) {
-        auto cachedArray = arrayIter->second;
-        m_cachedSubclassArrays.erase(arrayIter);
-        return cachedArray;
+library::Class ClassLibrary::findOrInitClass(ThreadContext* context, library::Symbol className) {
+    auto iter = m_classMap.find(className);
+    if (iter != m_classMap.end()) {
+        return iter->second;
     }
 
-    return library::ClassArray();
+    library::Class classDef = library::Class::alloc(context);
+    classDef.initToNil();
+    classDef.setName(className);
+
+    m_classMap.emplace(std::make_pair(className, classDef));
+
+    if (m_classArray.size()) {
+        classDef.setNextclass(m_classArray.typedAt(m_classArray.size() - 1));
+    }
+    m_classArray = m_classArray.typedAdd(context, classDef);
+
+    // Add an empty entry to the class methods map, to keep membership in that map in sync with the class map.
+    m_classMethods.emplace(std::make_pair(className, std::make_unique<ClassLibrary::MethodAST>()));
+
+    return classDef;
 }
 
 bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
@@ -282,8 +312,6 @@ bool ClassLibrary::compileMethods(ThreadContext* /* context */) {
 }
 
 bool ClassLibrary::cleanUp() {
-    m_classFiles.clear();
-    m_cachedSubclassArrays.clear();
     return true;
 }
 

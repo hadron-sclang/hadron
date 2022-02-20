@@ -925,10 +925,6 @@ void JSONTransport::JSONTransportImpl::serializeAST(hadron::ThreadContext* conte
         const auto messageAST = reinterpret_cast<const hadron::ast::MessageAST*>(ast);
         jsonNode.AddMember("astType", rapidjson::Value("Message"), document.GetAllocator());
 
-        path.emplace_back(makeToken("target"));
-        serializeAST(context, messageAST->target.get(), document, path, serial);
-        path.pop_back();
-
         rapidjson::Value selector;
         serializeSymbol(context, messageAST->selector, selector, document);
         jsonNode.AddMember("selector", selector, document.GetAllocator());
