@@ -10,7 +10,7 @@ struct StoreToPointerLIR : public LIR {
     StoreToPointerLIR() = delete;
     // *(p + off) = store;
     StoreToPointerLIR(VReg p, VReg store, int32_t off):
-        LIR(kStoreToPointer, kInvalidVReg, Type::kNone),
+        LIR(kStoreToPointer, kInvalidVReg, TypeFlags::kNoFlags),
         pointer(p),
         toStore(store),
         offset(off) {

@@ -9,7 +9,7 @@ namespace lir {
 struct LoadFromPointerLIR : public LIR {
     LoadFromPointerLIR() = delete;
     LoadFromPointerLIR(VReg v, VReg p, int32_t off):
-        LIR(kLoadFromPointer, v, Type::kAny),
+        LIR(kLoadFromPointer, v, TypeFlags::kAllFlags),
         pointer(p),
         offset(off) { reads.emplace(pointer); }
     virtual ~LoadFromPointerLIR() = default;

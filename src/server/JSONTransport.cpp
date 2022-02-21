@@ -93,7 +93,8 @@ private:
             rapidjson::Value& jsonHIR, rapidjson::Document& document);
     void serializeValue(hadron::ThreadContext* context, hadron::hir::NVID valueId, const hadron::Frame* frame,
             rapidjson::Value& jsonValue, rapidjson::Document& document);
-    void serializeTypeFlags(hadron::Type typeFlags, rapidjson::Value& jsonTypeFlags, rapidjson::Document& document);
+    void serializeTypeFlags(hadron::TypeFlags typeFlags, rapidjson::Value& jsonTypeFlags,
+            rapidjson::Document& document);
     void serializeLifetimeIntervals(const std::vector<std::vector<hadron::LtIRef>>& lifetimeIntervals,
             rapidjson::Value& jsonIntervals, rapidjson::Document& document);
     void serializeLIR(hadron::ThreadContext* context, const hadron::lir::LIR* lir, rapidjson::Value& jsonLIR,
@@ -983,23 +984,23 @@ void JSONTransport::JSONTransportImpl::serializeSlot(hadron::ThreadContext* cont
         rapidjson::Value& target, rapidjson::Document& document) {
     target.SetObject();
     switch (slot.getType()) {
-    case hadron::Type::kNil:
+    case hadron::TypeFlags::kNilFlag:
         target.AddMember("type", rapidjson::Value("nil"), document.GetAllocator());
         target.AddMember("value", rapidjson::Value("nil"), document.GetAllocator());
         break;
-    case hadron::Type::kInteger:
+    case hadron::TypeFlags::kIntegerFlag:
         target.AddMember("type", rapidjson::Value("integer"), document.GetAllocator());
         target.AddMember("value", rapidjson::Value(slot.getInt32()), document.GetAllocator());
         break;
-    case hadron::Type::kFloat:
+    case hadron::TypeFlags::kFloatFlag:
         target.AddMember("type", rapidjson::Value("float"), document.GetAllocator());
         target.AddMember("value", rapidjson::Value(slot.getFloat()), document.GetAllocator());
         break;
-    case hadron::Type::kBoolean:
+    case hadron::TypeFlags::kBooleanFlag:
         target.AddMember("type", rapidjson::Value("boolean"), document.GetAllocator());
         target.AddMember("value", rapidjson::Value(slot.getBool()), document.GetAllocator());
         break;
-    case hadron::Type::kSymbol: {
+    case hadron::TypeFlags::kSymbolFlag: {
         target.AddMember("type", rapidjson::Value("symbol"), document.GetAllocator());
         rapidjson::Value value;
         serializeSymbol(context, hadron::library::Symbol::fromHash(context, slot.getHash()), value, document);
@@ -1508,35 +1509,29 @@ void JSONTransport::JSONTransportImpl::serializeValue(hadron::ThreadContext* con
     }
 }
 
-void JSONTransport::JSONTransportImpl::serializeTypeFlags(hadron::Type typeFlags, rapidjson::Value& jsonTypeFlags,
+void JSONTransport::JSONTransportImpl::serializeTypeFlags(hadron::TypeFlags typeFlags, rapidjson::Value& jsonTypeFlags,
         rapidjson::Document& document) {
     jsonTypeFlags.SetArray();
-    if (typeFlags == hadron::Type::kAny) {
+    if (typeFlags == hadron::TypeFlags::kAllFlags) {
         jsonTypeFlags.PushBack(rapidjson::Value("any"), document.GetAllocator());
     } else {
-        if (typeFlags & hadron::Type::kNil) {
+        if (typeFlags & hadron::TypeFlags::kNilFlag) {
             jsonTypeFlags.PushBack(rapidjson::Value("nil"), document.GetAllocator());
         }
-        if (typeFlags & hadron::Type::kInteger) {
+        if (typeFlags & hadron::TypeFlags::kIntegerFlag) {
             jsonTypeFlags.PushBack(rapidjson::Value("int"), document.GetAllocator());
         }
-        if (typeFlags & hadron::Type::kFloat) {
+        if (typeFlags & hadron::TypeFlags::kFloatFlag) {
             jsonTypeFlags.PushBack(rapidjson::Value("float"), document.GetAllocator());
         }
-        if (typeFlags & hadron::Type::kBoolean) {
+        if (typeFlags & hadron::TypeFlags::kBooleanFlag) {
             jsonTypeFlags.PushBack(rapidjson::Value("bool"), document.GetAllocator());
         }
-        if (typeFlags & hadron::Type::kString) {
-            jsonTypeFlags.PushBack(rapidjson::Value("string"), document.GetAllocator());
-        }
-        if (typeFlags & hadron::Type::kSymbol) {
+        if (typeFlags & hadron::TypeFlags::kSymbolFlag) {
             jsonTypeFlags.PushBack(rapidjson::Value("symbol"), document.GetAllocator());
         }
-        if (typeFlags & hadron::Type::kObject) {
+        if (typeFlags & hadron::TypeFlags::kObjectFlag) {
             jsonTypeFlags.PushBack(rapidjson::Value("object"), document.GetAllocator());
-        }
-        if (typeFlags & hadron::Type::kArray) {
-            jsonTypeFlags.PushBack(rapidjson::Value("array"), document.GetAllocator());
         }
     }
 }
