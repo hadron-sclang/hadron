@@ -28,6 +28,7 @@ struct NamedValue {
             knownClassName(), name(valueName) {}
     NVID id;
     TypeFlags typeFlags;
+    // TODO: this should probably be a std::unordered_set<>
     library::Symbol knownClassName; // If kObjectFlag is set and this is non-nil that means that if this value is an
                                     // object it can only be an object of the type named here.
     library::Symbol name; // Can be nil for anonymous values
