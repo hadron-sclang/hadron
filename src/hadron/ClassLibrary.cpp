@@ -63,6 +63,7 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
 bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_classMap.clear();
     m_classArray = library::ClassArray::typedArrayAlloc(context, 1);
+    m_classMethods.clear();
     return true;
 }
 
@@ -304,6 +305,7 @@ void ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         subclass.setConstValues(classDef.constValues().copy(
                 context, classDef.constValues().size() + subclass.constValues().size()).addAll(
                 context, subclass.constValues()));
+        composeSubclassesFrom(context, subclass);
     }
 }
 

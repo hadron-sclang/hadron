@@ -11,8 +11,20 @@ void PhiHIR::addInput(const HIR* input) {
     assert(input->value.id != hir::kInvalidNVID);
     inputs.emplace_back(input->value.id);
     reads.emplace(input->value.id);
-    value.typeFlags = static_cast<Type>(static_cast<int32_t>(value.typeFlags) |
-                                        static_cast<int32_t>(input->value.typeFlags));
+    value.typeFlags = static_cast<TypeFlags>(static_cast<int32_t>(value.typeFlags) |
+                                             static_cast<int32_t>(input->value.typeFlags));
+
+    // Our knownClassName should accept the value of the first input added to the phi, and only keep that value if it
+    // matches every other input.
+    if (value.typeFlags & TypeFlags::kObjectFlag) {
+        if (inputs.size() == 1) {
+            value.knownClassName = input->value.knownClassName;
+        } else if (value.knownClassName != input->value.knownClassName) {
+            value.knownClassName = library::Symbol();
+        }
+    } else {
+        value.knownClassName = library::Symbol();
+    }
 }
 
 NVID PhiHIR::getTrivialValue() const {

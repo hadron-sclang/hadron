@@ -2,7 +2,7 @@
 #define SRC_HADRON_LIR_HPP_
 
 #include "hadron/JIT.hpp"
-#include "hadron/Type.hpp"
+#include "hadron/Slot.hpp"
 
 #include <list>
 #include <unordered_map>
@@ -40,7 +40,7 @@ struct LIR {
 
     Opcode opcode;
     VReg value;
-    Type typeFlags;
+    TypeFlags typeFlags;
     std::unordered_set<VReg> reads;
 
     // Built during register allocation, a map of all virtual registers in |arguments| and |vReg| to physical registers.
@@ -63,7 +63,7 @@ struct LIR {
     virtual bool shouldPreserveRegisters() const { return false; }
 
 protected:
-    LIR(Opcode op, VReg v, Type t): opcode(op), value(v), typeFlags(t) {}
+    LIR(Opcode op, VReg v, TypeFlags t): opcode(op), value(v), typeFlags(t) {}
     void emitBase(JIT* jit) const;
 };
 

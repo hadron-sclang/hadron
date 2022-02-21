@@ -1532,17 +1532,11 @@ void JSONTransport::JSONTransportImpl::serializeTypeFlags(hadron::Type typeFlags
         if (typeFlags & hadron::Type::kSymbol) {
             jsonTypeFlags.PushBack(rapidjson::Value("symbol"), document.GetAllocator());
         }
-        if (typeFlags & hadron::Type::kClass) {
-            jsonTypeFlags.PushBack(rapidjson::Value("class"), document.GetAllocator());
-        }
         if (typeFlags & hadron::Type::kObject) {
             jsonTypeFlags.PushBack(rapidjson::Value("object"), document.GetAllocator());
         }
         if (typeFlags & hadron::Type::kArray) {
             jsonTypeFlags.PushBack(rapidjson::Value("array"), document.GetAllocator());
-        }
-        if (typeFlags & hadron::Type::kType) {
-            jsonTypeFlags.PushBack(rapidjson::Value("type"), document.GetAllocator());
         }
     }
 }

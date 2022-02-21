@@ -54,8 +54,17 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const as
     // Load all arguments here.
     for (int32_t argIndex = 0; argIndex < frame->argumentOrder.size(); ++argIndex) {
         auto name = frame->argumentOrder.at(argIndex);
-        block->revisions.emplace(std::make_pair(name,
-                insert(std::make_unique<hir::LoadArgumentHIR>(argIndex, name), block)));
+        auto loadArg = std::make_unique<hir::LoadArgumentHIR>(argIndex, name);
+
+        // TODO: set known class and type to *this* pointer!!
+
+        // Variable arguments always have Array type.
+        if (blockAST->hasVarArg && argIndex == frame->argumentOrder.size() - 1) {
+            loadArg->value.typeFlags = TypeFlags::kObjectFlag;
+            loadArg->value.knownClassName = library::Symbol::fromView(context, "Array");
+        }
+
+        block->revisions.emplace(std::make_pair(name, insert(std::move(loadArg), block)));
     }
 
     Block* currentBlock = block;

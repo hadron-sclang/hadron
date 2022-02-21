@@ -9,7 +9,7 @@ namespace lir {
 struct LoadFromStackLIR : public LIR {
     LoadFromStackLIR() = delete;
     LoadFromStackLIR(VReg v, bool useFP, int32_t off):
-            LIR(kLoadFromStack, v, Type::kAny),
+            LIR(kLoadFromStack, v, TypeFlags::kAllFlags),
             useFramePointer(useFP),
             offset(off) {}
     virtual ~LoadFromStackLIR() = default;

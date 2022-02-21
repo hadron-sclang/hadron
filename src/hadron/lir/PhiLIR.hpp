@@ -10,7 +10,7 @@ namespace lir {
 
 struct PhiLIR : public LIR {
     PhiLIR() = delete;
-    explicit PhiLIR(VReg v): LIR(kPhi, v, Type::kNone) {}
+    explicit PhiLIR(VReg v): LIR(kPhi, v, TypeFlags::kNoFlags) {}
     virtual ~PhiLIR() = default;
 
     std::vector<VReg> inputs;
@@ -19,8 +19,8 @@ struct PhiLIR : public LIR {
         assert(input != kInvalidVReg);
         reads.emplace(input);
         inputs.emplace_back(input);
-        typeFlags = static_cast<Type>(static_cast<int32_t>(typeFlags) |
-                                      static_cast<int32_t>((*vRegs[input])->typeFlags));
+        typeFlags = static_cast<TypeFlags>(static_cast<int32_t>(typeFlags) |
+                                           static_cast<int32_t>((*vRegs[input])->typeFlags));
     }
 
     void emit(JIT* /* jit */, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {

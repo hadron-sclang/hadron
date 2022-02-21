@@ -2,7 +2,6 @@
 #define SRC_COMPILER_INCLUDE_HADRON_SLOT_HPP_
 
 #include "hadron/Hash.hpp"
-#include "hadron/Type.hpp"
 
 #include <functional>
 #include <cassert>
@@ -15,6 +14,21 @@
 namespace hadron {
 
 struct ObjectHeader;
+
+// These are deliberately independent bits to allow for quick aggregate type comparisons, such as
+// type & (kInteger | kFloat) to determine if a type is numeric or
+// type & (kString | kSymbol) for character types, etc.
+enum TypeFlags : std::int32_t {
+    kNoFlags     = 0x00,
+    kNilFlag     = 0x01,
+    kIntegerFlag = 0x02,
+    kFloatFlag   = 0x04,
+    kBooleanFlag = 0x08,
+    kCharFlag    = 0x10,
+    kSymbolFlag  = 0x20,
+    kObjectFlag  = 0x40,
+    kAllFlags    = 0x7f
+};
 
 class Slot {
 public:
@@ -34,26 +48,25 @@ public:
     inline bool operator==(const Slot& s) const { return m_asBits == s.m_asBits; }
     inline bool operator!=(const Slot& s) const { return m_asBits != s.m_asBits; }
 
-    // TODO: this has an unfortunate name if we are going to also store types in Slots.
-    Type getType() const {
+    TypeFlags getType() const {
         if (m_asBits < kMaxDouble) {
-            return Type::kFloat;
+            return TypeFlags::kFloatFlag;
         }
 
         switch (m_asBits & kTagMask) {
         case kInt32Tag:
-            return Type::kInteger;
+            return TypeFlags::kIntegerFlag;
         case kBooleanTag:
-            return Type::kBoolean;
+            return TypeFlags::kBooleanFlag;
         case kPointerTag:
-            return m_asBits == kPointerTag ? Type::kNil : Type::kObject;
+            return m_asBits == kPointerTag ? TypeFlags::kNilFlag : TypeFlags::kObjectFlag;
         case kHashTag:
-            return Type::kSymbol;
+            return TypeFlags::kSymbolFlag;
         case kCharTag:
-            return Type::kChar;
+            return TypeFlags::kCharFlag;
         default:
             assert(false);
-            return Type::kNil;
+            return TypeFlags::kNoFlags;
         }
     }
 

@@ -34,7 +34,8 @@ public:
     Slot slot() const { return m_slot; }
     std::string_view view(ThreadContext* context) const;
 
-    bool operator==(const Symbol& s) const { return m_slot == s.m_slot; }
+    inline bool operator==(const Symbol& s) const { return m_slot == s.m_slot; }
+    inline bool operator!=(const Symbol& s) const { return m_slot != s.m_slot; }
 
 private:
     Symbol(Hash h): m_slot(Slot::makeHash(h)) {}

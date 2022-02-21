@@ -9,7 +9,7 @@ namespace lir {
 
 struct BranchLIR : public LIR {
     BranchLIR() = delete;
-    explicit BranchLIR(LabelID label): LIR(kBranch, kInvalidVReg, Type::kNone), labelId(label) {}
+    explicit BranchLIR(LabelID label): LIR(kBranch, kInvalidVReg, TypeFlags::kNoFlags), labelId(label) {}
     virtual ~BranchLIR() = default;
 
     LabelID labelId;

@@ -2,7 +2,6 @@
 #define SRC_HADRON_HIR_PHI_HIR_HPP_
 
 #include "hadron/hir/HIR.hpp"
-#include "hadron/Type.hpp"
 
 #include <vector>
 

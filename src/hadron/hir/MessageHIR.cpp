@@ -1,11 +1,24 @@
 #include "hadron/hir/MessageHIR.hpp"
 
 #include "hadron/lir/LoadConstantLIR.hpp"
+#include "hadron/Signature.hpp"
 
 namespace hadron {
 namespace hir {
 
-MessageHIR::MessageHIR(): HIR(kMessage, Type::kAny, library::Symbol()) {}
+MessageHIR::MessageHIR(): HIR(kMessage, TypeFlags::kAllFlags, library::Symbol()) {}
+
+std::unique_ptr<Signature> MessageHIR::signature(const std::vector<HIR*>& values) const {
+    auto sig = std::make_unique<Signature>();
+    sig->selector = selector;
+
+    for (auto nvid : arguments) {
+        sig->argumentTypes.emplace_back(values[nvid]->value.typeFlags);
+        sig->argumentClassNames.emplace_back(values[nvid]->value.knownClassName);
+    }
+
+    return sig;
+}
 
 NVID MessageHIR::proposeValue(NVID id) {
     value.id = id;

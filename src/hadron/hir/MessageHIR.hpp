@@ -6,6 +6,9 @@
 #include <vector>
 
 namespace hadron {
+
+struct Signature;
+
 namespace hir {
 
 struct MessageHIR : public HIR {
@@ -15,6 +18,8 @@ struct MessageHIR : public HIR {
     library::Symbol selector;
     std::vector<NVID> arguments;
     std::vector<NVID> keywordArguments;
+
+    std::unique_ptr<Signature> signature(const std::vector<HIR*>& values) const;
 
     NVID proposeValue(NVID id) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
