@@ -276,7 +276,6 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
-#include "hadron/Type.hpp"
 #include "Keywords.hpp"
 
 #include "fmt/core.h"

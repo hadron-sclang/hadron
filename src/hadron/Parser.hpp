@@ -4,7 +4,6 @@
 #include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/Token.hpp"
-#include "hadron/Type.hpp"
 
 #include <memory>
 #include <optional>
@@ -162,10 +161,10 @@ struct DictionaryNode : public Node {
 };
 
 struct LiteralNode : public Node {
-    LiteralNode(size_t index, Type t, const Slot& v): Node(NodeType::kLiteral, index), type(t), value(v) {}
+    LiteralNode(size_t index, LiteralType t, const Slot& v): Node(NodeType::kLiteral, index), type(t), value(v) {}
     virtual ~LiteralNode() = default;
 
-    Type type;
+    LiteralType type;
     // Due to unary negation of literals, this value may differ from the token value at tokenIndex. This value should be
     // considered authoritative.
     Slot value;

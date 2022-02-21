@@ -9,7 +9,7 @@ namespace lir {
 struct StoreToStackLIR : public LIR {
     StoreToStackLIR() = delete;
     StoreToStackLIR(VReg store, bool useFP, int32_t off):
-        LIR(kStoreToStack, kInvalidVReg, Type::kNone),
+        LIR(kStoreToStack, kInvalidVReg, TypeFlags::kNoFlags),
         toStore(store),
         useFramePointer(useFP),
         offset(off) {}

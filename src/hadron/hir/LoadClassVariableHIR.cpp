@@ -4,7 +4,7 @@ namespace hadron {
 namespace hir {
 
 LoadClassVariableHIR::LoadClassVariableHIR(int index, library::Symbol name):
-    HIR(kLoadClassVariable, Type::kAny, name),
+    HIR(kLoadClassVariable, TypeFlags::kAllFlags, name),
     variableIndex(index) {}
 
 NVID LoadClassVariableHIR::proposeValue(NVID id) {

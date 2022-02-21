@@ -102,7 +102,7 @@ std::ostream& operator<<(std::ostream& o, const hadron::Token::Location& loc) {
 std::unique_ptr<hadron::parse::BlockNode> wrapInnerBlock(std::unique_ptr<hadron::parse::ExprSeqNode>&& exprSeq) {
     if (exprSeq->expr && exprSeq->expr->nodeType == hadron::parse::kLiteral) {
         auto literal = reinterpret_cast<hadron::parse::LiteralNode*>(exprSeq->expr.get());
-        if (literal->type == hadron::Type::kBlock) {
+        if (literal->type == hadron::LiteralType::kBlock) {
             return std::move(literal->blockLiteral);
         }
     }
@@ -517,7 +517,7 @@ arrayelems1[target] : exprseq { $target = std::move($exprseq); }
                     | exprseq[build] COLON exprseq[next] { $target = append(std::move($build), std::move($next)); }
                     | KEYWORD exprseq {
                             auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD.first,
-                                hadron::Type::kSymbol, hadron::Slot::makeNil());
+                                hadron::LiteralType::kSymbol, hadron::Slot::makeNil());
                             auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first,
                                 std::move(literal));
                             $target = append(std::move(exprSeq), std::move($exprseq));
@@ -527,7 +527,7 @@ arrayelems1[target] : exprseq { $target = std::move($exprseq); }
                         }
                     | arrayelems1[build] COMMA KEYWORD exprseq {
                             auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD.first,
-                                hadron::Type::kSymbol, hadron::Slot::makeNil());
+                                hadron::LiteralType::kSymbol, hadron::Slot::makeNil());
                             auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first,
                                     std::move(literal));
                             auto affixes = append(std::move(exprSeq), std::move($exprseq));
@@ -830,7 +830,7 @@ vardef  : IDENTIFIER { $vardef = std::make_unique<hadron::parse::VarDefNode>($ID
 dictslotdef  : exprseq[build] COLON exprseq[next] { $dictslotdef = append(std::move($build), std::move($next)); }
              | KEYWORD exprseq {
                     auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD.first,
-                        hadron::Type::kSymbol, hadron::Slot::makeNil());
+                        hadron::LiteralType::kSymbol, hadron::Slot::makeNil());
                     auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first, std::move(literal));
                     $dictslotdef = append(std::move(exprSeq), std::move($exprseq));
                 }
@@ -999,15 +999,15 @@ coreliteral : LITERAL {
                 }
             | integer {
                     $coreliteral = std::make_unique<hadron::parse::LiteralNode>($integer.first,
-                            hadron::Type::kInteger, hadron::Slot::makeInt32($integer.second));
+                            hadron::LiteralType::kInteger, hadron::Slot::makeInt32($integer.second));
                 }
             | float {
                     $coreliteral = std::make_unique<hadron::parse::LiteralNode>($float.first,
-                            hadron::Type::kFloat, hadron::Slot::makeFloat($float.second));
+                            hadron::LiteralType::kFloat, hadron::Slot::makeFloat($float.second));
                 }
             | block {
                     auto literal = std::make_unique<hadron::parse::LiteralNode>($block->tokenIndex,
-                            hadron::Type::kBlock, hadron::Slot::makeNil());
+                            hadron::LiteralType::kBlock, hadron::Slot::makeNil());
                     literal->blockLiteral = std::move($block);
                     $coreliteral = std::move(literal);
                 }
@@ -1060,9 +1060,9 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
 
     case hadron::Token::Name::kLiteral:
         // We special-case integers and floats to support unary negation.
-        if (token.literalType == hadron::Type::kInteger) {
+        if (token.literalType == hadron::LiteralType::kInteger) {
             return yy::parser::make_INTEGER(index, token.location);
-        } else if (token.literalType == hadron::Type::kFloat) {
+        } else if (token.literalType == hadron::LiteralType::kFloat) {
             return  yy::parser::make_FLOAT(index, token.location);
         }
         return yy::parser::make_LITERAL(index, token.location);

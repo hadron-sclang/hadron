@@ -3,7 +3,7 @@
 
 #include "hadron/library/Symbol.hpp"
 #include "hadron/lir/LIR.hpp"
-#include "hadron/Type.hpp"
+#include "hadron/Slot.hpp"
 
 #include <cassert>
 #include <list>
@@ -23,10 +23,14 @@ static constexpr int32_t kInvalidNVID = -1;
 static_assert(kInvalidNVID == lir::kInvalidVReg);
 
 struct NamedValue {
-    NamedValue(): id(kInvalidNVID), typeFlags(Type::kNone), name() {}
-    NamedValue(NVID nvid, Type flags, library::Symbol valueName): id(nvid), typeFlags(flags), name(valueName) {}
+    NamedValue(): id(kInvalidNVID), typeFlags(TypeFlags::kNoFlags), knownClassName(), name() {}
+    NamedValue(NVID nvid, TypeFlags flags, library::Symbol valueName): id(nvid), typeFlags(flags),
+            knownClassName(), name(valueName) {}
     NVID id;
-    Type typeFlags;
+    TypeFlags typeFlags;
+    // TODO: this should probably be a std::unordered_set<>
+    library::Symbol knownClassName; // If kObjectFlag is set and this is non-nil that means that if this value is an
+                                    // object it can only be an object of the type named here.
     library::Symbol name; // Can be nil for anonymous values
 };
 
@@ -55,7 +59,7 @@ struct HIR {
 
     std::unordered_set<NVID> reads;
 
-    // Recommended way to set the id  in |value| member. Allows the HIR object to modify the proposed value type. For
+    // Recommended way to set the id in |value| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
     // that this operation only consumes values but doesn't generate a new one.
     virtual NVID proposeValue(NVID id) = 0;
@@ -72,7 +76,8 @@ struct HIR {
 
 protected:
     explicit HIR(Opcode op): opcode(op) {}
-    HIR(Opcode op, Type typeFlags, library::Symbol valueName): opcode(op), value(kInvalidNVID, typeFlags, valueName) {}
+    HIR(Opcode op, TypeFlags typeFlags, library::Symbol valueName): opcode(op),
+            value(kInvalidNVID, typeFlags, valueName) {}
 };
 
 } // namespace hir

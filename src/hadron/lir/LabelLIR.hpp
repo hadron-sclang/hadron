@@ -11,7 +11,7 @@ namespace lir {
 
 struct LabelLIR : public LIR {
     LabelLIR() = delete;
-    explicit LabelLIR(LabelID labelId): LIR(kLabel, kInvalidVReg, Type::kNone), id(labelId) {}
+    explicit LabelLIR(LabelID labelId): LIR(kLabel, kInvalidVReg, TypeFlags::kNoFlags), id(labelId) {}
     virtual ~LabelLIR() = default;
 
     LabelID id;

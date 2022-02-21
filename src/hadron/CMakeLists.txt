@@ -117,7 +117,6 @@ set(HADRON_FRONTEND_FILES
     Slot.hpp
     SourceFile.cpp
     SourceFile.hpp
-    Type.hpp
 )
 
 #############
