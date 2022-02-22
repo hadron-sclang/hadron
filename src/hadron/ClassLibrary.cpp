@@ -27,6 +27,8 @@
 
 #include "spdlog/spdlog.h"
 
+#include <cassert>
+
 // Class Library Compilation
 // =========================
 //
@@ -56,7 +58,7 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
     if (!resetLibrary(context)) { return false; }
     if (!scanFiles(context)) { return false; }
     if (!finalizeHeirarchy(context)) { return false; }
-    if (!compileMethods(context)) { return false; }
+    if (!buildFrames(context)) { return false; }
     return cleanUp();
 }
 
@@ -309,7 +311,13 @@ void ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
     }
 }
 
-bool ClassLibrary::compileMethods(ThreadContext* /* context */) {
+bool ClassLibrary::buildFrames(ThreadContext* /* context */) {
+    for (const auto& classMethods : m_classMethods) {
+        auto classIter = m_classMap.find(classMethods.first);
+        assert(classIter != m_classMap.end());
+        auto classDef = classIter->second;
+    }
+
     return true;
 }
 

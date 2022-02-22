@@ -58,13 +58,15 @@ private:
     bool finalizeHeirarchy(ThreadContext* context);
     void composeSubclassesFrom(ThreadContext* context, library::Class classDef);
 
-    // Compile all of the provided methods for all classes.
-    bool compileMethods(ThreadContext* context);
+    // Lower all methods to Frames/HIR and extract Signatures to analyze dependencies between methods.
+    bool buildFrames(ThreadContext* context);
 
     // Clean up any temporary data structures
     bool cleanUp();
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
+    // We keep the normalized paths in a set to prevent duplicate additions of the same path.
+    std::unordered_set<std::string> m_libraryPaths;
 
     // A map maintained for quick(er) access to Class objects via Hash.
     std::unordered_map<library::Symbol, library::Class> m_classMap;
@@ -72,12 +74,10 @@ private:
     // The official array of Class objects, maintained as part of the root set.
     library::ClassArray m_classArray;
 
-    // We keep the normalized paths in a set to prevent duplicate additions of the same path.
-    std::unordered_set<std::string> m_libraryPaths;
-
     // Outer map is class name to pointer to inner map. Inner map is method name to AST.
     using MethodAST = std::unordered_map<library::Symbol, std::unique_ptr<ast::BlockAST>>;
     std::unordered_map<library::Symbol, std::unique_ptr<MethodAST>> m_classMethods;
+
 };
 
 } // namespace hadron
