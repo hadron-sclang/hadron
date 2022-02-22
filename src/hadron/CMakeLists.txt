@@ -56,7 +56,6 @@ add_executable(hashkw
     Hash.cpp
     Hash.hpp
     Slot.hpp
-    Type.hpp
 
     hashkw.cpp
 )
