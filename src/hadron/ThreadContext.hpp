@@ -39,6 +39,9 @@ struct ThreadContext {
     // but still keep strongly typed references here, we maintain forward-decleared instance pointers, and then just
     // always wrap them in their corresponding library objects when using them from the C++ side.
     schema::ProcessSchema* thisProcess;
+
+    // If true, Hadron will run internal diagnostics during every compilation step.
+    bool runInternalDiagnostics = true;
 };
 
 } // namespace hadron

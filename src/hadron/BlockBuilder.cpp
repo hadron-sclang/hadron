@@ -36,7 +36,8 @@ BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
 
 BlockBuilder::~BlockBuilder() { }
 
-std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const ast::BlockAST* blockAST) {
+std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, library::Method method,
+        const ast::BlockAST* blockAST) {
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
 
@@ -56,10 +57,12 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const as
         auto name = frame->argumentOrder.at(argIndex);
         auto loadArg = std::make_unique<hir::LoadArgumentHIR>(argIndex, name);
 
-        // TODO: set known class and type to *this* pointer!!
-
-        // Variable arguments always have Array type.
-        if (blockAST->hasVarArg && argIndex == frame->argumentOrder.size() - 1) {
+        // Set known class and type to *this* pointer.
+        if (argIndex == 0) {
+            loadArg->value.typeFlags = TypeFlags::kObjectFlag;
+            loadArg->value.knownClassName = method.ownerClass().name(context);
+        } else if (blockAST->hasVarArg && argIndex == frame->argumentOrder.size() - 1) {
+            // Variable arguments always have Array type.
             loadArg->value.typeFlags = TypeFlags::kObjectFlag;
             loadArg->value.knownClassName = library::Symbol::fromView(context, "Array");
         }

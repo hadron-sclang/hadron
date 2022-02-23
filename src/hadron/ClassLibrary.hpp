@@ -15,6 +15,7 @@
 namespace hadron {
 
 class ErrorReporter;
+struct Frame;
 class Lexer;
 class Parser;
 class SourceFile;
@@ -56,7 +57,7 @@ private:
     // Traverse the class tree in superclass to subclass order, starting with Object, and finalize all inherited
     // properties.
     bool finalizeHeirarchy(ThreadContext* context);
-    void composeSubclassesFrom(ThreadContext* context, library::Class classDef);
+    bool composeSubclassesFrom(ThreadContext* context, library::Class classDef);
 
     // Lower all methods to Frames/HIR and extract Signatures to analyze dependencies between methods.
     bool buildFrames(ThreadContext* context);
@@ -76,8 +77,10 @@ private:
 
     // Outer map is class name to pointer to inner map. Inner map is method name to AST.
     using MethodAST = std::unordered_map<library::Symbol, std::unique_ptr<ast::BlockAST>>;
-    std::unordered_map<library::Symbol, std::unique_ptr<MethodAST>> m_classMethods;
+    std::unordered_map<library::Symbol, std::unique_ptr<MethodAST>> m_methodASTs;
 
+    using MethodFrame = std::unordered_map<library::Symbol, std::unique_ptr<Frame>>;
+    std::unordered_map<library::Symbol, std::unique_ptr<MethodFrame>> m_methodFrames;
 };
 
 } // namespace hadron

@@ -3,6 +3,7 @@
 
 #include "hadron/Block.hpp"
 #include "hadron/hir/HIR.hpp"
+#include "hadron/library/Kernel.hpp"
 #include "hadron/library/Symbol.hpp"
 
 #include <memory>
@@ -34,7 +35,9 @@ public:
     BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter);
     ~BlockBuilder();
 
-    std::unique_ptr<Frame> buildFrame(ThreadContext* context, const ast::BlockAST* blockAST);
+//    std::unique_ptr<Frame> buildFrame(ThreadContext* context, const ast::BlockAST* blockAST);
+    std::unique_ptr<Frame> buildMethod(ThreadContext* context, library::Method method,
+            const ast::BlockAST* blockAST);
 
 private:
     // Re-uses the containing stack frame but produces a new scope. Needs exactly one predecessor.

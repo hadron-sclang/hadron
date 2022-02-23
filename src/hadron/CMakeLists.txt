@@ -261,8 +261,6 @@ add_library(hadron STATIC
     OpcodeIterator.hpp
     Page.cpp
     Page.hpp
-    Pipeline.cpp
-    Pipeline.hpp
     PrimitiveDispatcher.cpp
     PrimitiveDispatcher.hpp
     RegisterAllocator.cpp
@@ -275,6 +273,8 @@ add_library(hadron STATIC
     SymbolTable.cpp
     SymbolTable.hpp
     ThreadContext.hpp
+    Validator.cpp
+    Validator.hpp
     VirtualJIT.cpp
     VirtualJIT.hpp
 )
@@ -286,7 +286,6 @@ set(HADRON_COMPILER_UNITTESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/MoveScheduler_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/OpcodeIterator_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Parser_unittests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Pipeline_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Slot_unittests.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/library/ArrayedCollection_unittests.cpp

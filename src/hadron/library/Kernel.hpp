@@ -82,6 +82,7 @@ public:
     FunctionDefBase(): Object<T, S>() {}
 
     explicit FunctionDefBase(S* instance): Object<T, S>(instance) {}
+    explicit FunctionDefBase(Slot instance): Object<T, S>(instance) {}
 
     const Int8Array code() const {
         T& t = static_cast<T&>(*this);
@@ -116,6 +117,8 @@ public:
     FunctionDef(): FunctionDefBase<FunctionDef, schema::FunctionDefSchema>() {}
     explicit FunctionDef(schema::FunctionDefSchema* instance):
         FunctionDefBase<FunctionDef, schema::FunctionDefSchema>(instance) {}
+    explicit FunctionDef(Slot instance):
+        FunctionDefBase<FunctionDef, schema::FunctionDefSchema>(instance) {}
     ~FunctionDef() {}
 };
 
@@ -123,6 +126,8 @@ class Method : public FunctionDefBase<Method, schema::MethodSchema> {
 public:
     Method(): FunctionDefBase<Method, schema::MethodSchema>() {}
     explicit Method(schema::MethodSchema* instance):
+        FunctionDefBase<Method, schema::MethodSchema>(instance) {}
+    explicit Method(Slot instance):
         FunctionDefBase<Method, schema::MethodSchema>(instance) {}
     ~Method() {}
 
