@@ -155,14 +155,13 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
     case ast::ASTType::kName: {
         const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);
 
-        // If this symbol potentially defines a class name look it up in the class library.
+        // If this symbol potentially defines a class name look it up in the class library and provide it as a constant.
         if (nameAST->name.isClassName(context)) {
             auto classDef = context->classLibrary->findClassNamed(nameAST->name);
             assert(!classDef.isNil());
-            auto load = std::make_unique<hir::LoadFromPointerHIR>(classDef.slot().getPointer());
-            load->value.typeFlags = TypeFlags::kObjectFlag;
-            load->value.knownClassName = nameAST->name;
-            nodeValue = insert(std::move(load), currentBlock);
+            auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot(), nameAST->name);
+            constant->value.knownClassName = nameAST->name;
+            nodeValue = insert(std::move(constant), currentBlock);
             currentBlock->revisions.emplace(std::make_pair(nameAST->name, nodeValue));
         } else {
             std::unordered_map<int32_t, hir::NVID> blockValues;
