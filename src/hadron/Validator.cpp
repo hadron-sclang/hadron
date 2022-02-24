@@ -284,10 +284,6 @@ bool Validator::validateRegisterCoverage(const LinearFrame* linearFrame, size_t 
         SPDLOG_ERROR("Value {} not covered (or over-covered) at {}", vReg, i);
         return false;
     }
-    if (reg >= m_numberOfRegisters) {
-        SPDLOG_ERROR("Bad register number {} for value {} at instruction {}", reg, vReg, i);
-        return false;
-    }
 
     // Check the valueLocations map at the instruction to make sure it's accurate.
     auto iter = linearFrame->lineNumbers[i]->locations.find(vReg);

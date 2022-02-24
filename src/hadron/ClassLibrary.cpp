@@ -18,12 +18,12 @@
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/LinearFrame.hpp"
 #include "hadron/Parser.hpp"
-#include "hadron/Pipeline.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
 #include "hadron/SourceFile.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
+#include "hadron/Validator.hpp"
 
 #include "spdlog/spdlog.h"
 
@@ -60,6 +60,12 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
     if (!finalizeHeirarchy(context)) { return false; }
     if (!buildFrames(context)) { return false; }
     return cleanUp();
+}
+
+library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
+    auto classIter = m_classMap.find(name);
+    if (classIter == m_classMap.end()) { return library::Class(); }
+    return classIter->second;
 }
 
 bool ClassLibrary::resetLibrary(ThreadContext* context) {
@@ -128,6 +134,7 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                 while (methodNode) {
                     assert(methodNode->nodeType == parse::NodeType::kMethod);
                     library::Method method = library::Method::alloc(context);
+                    method.initToNil();
 
                     library::Class methodClassDef = methodNode->isClassMethod ? metaClassDef : classDef;
                     method.setOwnerClass(methodClassDef);
@@ -278,7 +285,7 @@ library::Class ClassLibrary::findOrInitClass(ThreadContext* context, library::Sy
 }
 
 bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
-    auto objectIter = m_classMap.find(library::Symbol::fromHash(context, kObjectHash));
+    auto objectIter = m_classMap.find(library::Symbol::fromView(context, "Object"));
     if (objectIter == m_classMap.end()) { assert(false); return false; }
 
     // We start at the root of the class heirarchy with Object.
@@ -287,6 +294,8 @@ bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
 }
 
 bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class classDef) {
+    SPDLOG_INFO("Composing Class {}", classDef.name(context).view(context));
+
     auto classASTs = m_methodASTs.find(classDef.name(context));
     assert(classASTs != m_methodASTs.end());
 
@@ -301,12 +310,18 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
 
         auto methodName = method.name(context);
 
+        SPDLOG_INFO("Building Frame for {}:{}", classDef.name(context).view(context), methodName.view(context));
+
         auto astIter = classASTs->second->find(methodName);
         assert(astIter != classASTs->second->end());
 
         BlockBuilder blockBuilder(m_errorReporter);
         auto frame = blockBuilder.buildMethod(context, method, astIter->second.get());
         if (!frame) { return false; }
+
+        if (context->runInternalDiagnostics) {
+            if (!Validator::validateFrame(frame.get())) { return false; }
+        }
 
         // TODO: Here's where we could extract some message signatures and compute dependencies, to decide on final
         // ordering of compilation of methods to support inlining.

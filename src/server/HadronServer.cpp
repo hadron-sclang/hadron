@@ -40,13 +40,12 @@ int HadronServer::runLoop() {
 }
 
 void HadronServer::initialize(std::optional<lsp::ID> id) {
-/*
-    if (!m_runtime->initialize()) {
+    if (!m_runtime->initInterpreter()) {
         m_jsonTransport->sendErrorResponse(id, JSONTransport::ErrorCode::kInternalError,
                 "Failed to initialize Hadron runtime.");
         return;
     }
-*/
+
     m_state = kRunning;
     m_jsonTransport->sendInitializeResult(id);
 }
@@ -133,14 +132,14 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
     m_jsonTransport->sendCompilationDiagnostics(m_runtime->context(), id, units);
 }
 
-void HadronServer::addCompilationUnit(std::string name, std::shared_ptr<hadron::Lexer> lexer,
-        std::shared_ptr<hadron::Parser> parser, const hadron::parse::BlockNode* blockNode,
-        std::vector<CompilationUnit>& units) {
+void HadronServer::addCompilationUnit(std::string /* name */, std::shared_ptr<hadron::Lexer> /* lexer */,
+        std::shared_ptr<hadron::Parser> /* parser */, const hadron::parse::BlockNode* /* blockNode */,
+        std::vector<CompilationUnit>& /* units */) {
+/*
     SPDLOG_TRACE("Compile Diagnostics AST Builder {}", name);
     hadron::ASTBuilder astBuilder(m_errorReporter);
     auto blockAST = astBuilder.buildBlock(m_runtime->context(), lexer.get(), blockNode);
 
-    // TODO: can this be refactored to use hadron::Pipeline?
     SPDLOG_TRACE("Compile Diagnostics Block Builder {}", name);
     hadron::BlockBuilder blockBuilder(m_errorReporter);
     auto frame = blockBuilder.buildFrame(m_runtime->context(), blockAST.get());
@@ -177,6 +176,7 @@ void HadronServer::addCompilationUnit(std::string name, std::shared_ptr<hadron::
 
     units.emplace_back(CompilationUnit{name, lexer, parser, blockNode, std::move(blockAST), std::move(frame),
             std::move(linearFrame), std::move(byteCode), finalSize});
+*/
 }
 
 } // namespace server

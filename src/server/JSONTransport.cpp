@@ -1003,7 +1003,7 @@ void JSONTransport::JSONTransportImpl::serializeSlot(hadron::ThreadContext* cont
     case hadron::TypeFlags::kSymbolFlag: {
         target.AddMember("type", rapidjson::Value("symbol"), document.GetAllocator());
         rapidjson::Value value;
-        serializeSymbol(context, hadron::library::Symbol::fromHash(context, slot.getHash()), value, document);
+        serializeSymbol(context, hadron::library::Symbol(context, slot), value, document);
         target.AddMember("value", value, document.GetAllocator());
     } break;
     default:

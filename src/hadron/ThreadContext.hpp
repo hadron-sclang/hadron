@@ -11,6 +11,7 @@ namespace schema {
 struct ProcessSchema;
 }
 
+class ClassLibrary;
 class Heap;
 class SymbolTable;
 
@@ -34,6 +35,7 @@ struct ThreadContext {
 
     std::shared_ptr<Heap> heap;
     std::unique_ptr<SymbolTable> symbolTable;
+    std::unique_ptr<ClassLibrary> classLibrary;
 
     // Objects accessible from the language. To break the cyclical dependency between library objects and ThreadContext,
     // but still keep strongly typed references here, we maintain forward-decleared instance pointers, and then just

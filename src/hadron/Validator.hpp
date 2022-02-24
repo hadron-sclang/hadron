@@ -20,18 +20,18 @@ struct ThreadContext;
 class Validator {
 public:
     // Checks for valid SSA form and that all members of Frame and contained Blocks are valid.
-    bool validateFrame(const Frame* frame);
-    bool validateLinearFrame(const LinearFrame* linearFrame, size_t numberOfBlocks);
-    bool validateLifetimes(const LinearFrame* linearFrame);
-    bool validateAllocation(const LinearFrame* linearFrame);
-    bool validateResolution(const LinearFrame* linearFrame);
-    bool validateEmission(const LinearFrame* linearFrame, library::Int8Array bytecodeArray);
+    static bool validateFrame(const Frame* frame);
+    static bool validateLinearFrame(const LinearFrame* linearFrame, size_t numberOfBlocks);
+    static bool validateLifetimes(const LinearFrame* linearFrame);
+    static bool validateAllocation(const LinearFrame* linearFrame);
+    static bool validateResolution(const LinearFrame* linearFrame);
+    static bool validateEmission(const LinearFrame* linearFrame, library::Int8Array bytecodeArray);
 
 private:
-    bool validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<Block::ID>& blockIds,
+    static bool validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<Block::ID>& blockIds,
             std::unordered_set<hir::NVID>& valueIds);
-    bool validateSsaLir(const lir::LIR* lir, std::unordered_set<lir::VReg>& values);
-    bool validateRegisterCoverage(const LinearFrame* linearFrame, size_t i, uint32_t vReg);
+    static bool validateSsaLir(const lir::LIR* lir, std::unordered_set<lir::VReg>& values);
+    static bool validateRegisterCoverage(const LinearFrame* linearFrame, size_t i, uint32_t vReg);
 };
 
 };

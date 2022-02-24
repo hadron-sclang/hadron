@@ -23,15 +23,13 @@ public:
     explicit Class(Slot instance): Object<Class, schema::ClassSchema>(instance) {}
     ~Class() {}
 
-    Symbol name(ThreadContext* context) const { return Symbol::fromHash(context, m_instance->name.getHash()); }
+    Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
     void setName(Symbol name) { m_instance->name = name.slot(); }
 
     Class nextclass() const { return Class(m_instance->nextclass); }
     void setNextclass(Class nextClass) { m_instance->nextclass = nextClass.slot(); }
 
-    Symbol superclass(ThreadContext* context) const {
-        return Symbol::fromHash(context, m_instance->superclass.getHash());
-    }
+    Symbol superclass(ThreadContext* context) const { return Symbol(context, m_instance->superclass); }
     void setSuperclass(Symbol name) { m_instance->superclass = name.slot(); }
 
     const ClassArray subclasses() const { return ClassArray(m_instance->subclasses); }
@@ -60,9 +58,7 @@ public:
     const Array constValues() const { return Array(m_instance->constValues); }
     void setConstValues(Array a) { m_instance->constValues = a.slot(); }
 
-    Symbol filenameSymbol(ThreadContext* context) const {
-        return Symbol::fromHash(context, m_instance->filenameSymbol.getHash());
-    }
+    Symbol filenameSymbol(ThreadContext* context) const { return Symbol(context, m_instance->filenameSymbol); }
     void setFilenameSymbol(Symbol filename) { m_instance->filenameSymbol = filename.slot(); }
 
     int32_t charPos() const { return m_instance->charPos.getInt32(); }
@@ -134,17 +130,13 @@ public:
     Class ownerClass() const { return Class(m_instance->ownerClass); }
     void setOwnerClass(Class ownerClass) { m_instance->ownerClass = ownerClass.slot(); }
 
-    Symbol name(ThreadContext* context) const { return Symbol::fromHash(context, m_instance->name.getHash()); }
+    Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
     void setName(Symbol name) { m_instance->name = name.slot(); }
 
-    Symbol primitiveName(ThreadContext* context) const {
-        return Symbol::fromHash(context, m_instance->primitiveName.getHash());
-    };
+    Symbol primitiveName(ThreadContext* context) const { return Symbol(context, m_instance->primitiveName); };
     void setPrimitiveName(Symbol primitiveName) { m_instance->primitiveName = primitiveName.slot(); }
 
-    Symbol filenameSymbol(ThreadContext* context) const {
-        return Symbol::fromHash(context, m_instance->filenameSymbol.getHash());
-    }
+    Symbol filenameSymbol(ThreadContext* context) const { return Symbol(context, m_instance->filenameSymbol); }
     void setFilenameSymbol(Symbol filename) { m_instance->filenameSymbol = filename.slot(); }
 
     int32_t charPos() const { return m_instance->charPos.getInt32(); }

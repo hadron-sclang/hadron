@@ -38,15 +38,15 @@ enum Opcode {
     kBranch = 0,
     kBranchIfTrue = 1,
     kConstant = 2,
-    kLoadArgument = 3,
-    kLoadClassVariable = 4,
-    kLoadInstanceVariable = 5,
+    kLoadArgument = 3,           // stack-relative
+    kLoadFromPointer = 4,        // address known at compile time
+    kLoadInstanceVariable = 5,   // this-relative
     kMessage = 6,
     kMethodReturn = 7,
     kPhi = 8,
-    kStoreClassVariable = 9,
-    kStoreInstanceVariable = 10,
-    kStoreReturn = 11
+    kStoreInstanceVariable = 9,  // this-relative
+    kStoreReturn = 10,           // stack-relative
+    kStoreToPointer = 11         // address known at compile time
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in

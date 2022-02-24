@@ -6,10 +6,8 @@
 namespace hadron {
 namespace library {
 
-// static
-Symbol Symbol::fromHash(ThreadContext* context, Hash h) {
-    assert(context->symbolTable->isDefined(h));
-    return Symbol(h);
+Symbol::Symbol(ThreadContext* context, Slot s): m_slot(s) {
+    assert(s.isNil() || context->symbolTable->isDefined(s.getHash()));
 }
 
 // static
@@ -19,6 +17,14 @@ Symbol Symbol::fromView(ThreadContext* context, std::string_view v) {
 
 std::string_view Symbol::view(ThreadContext* context) const {
     return context->symbolTable->getString(*this).view();
+}
+
+bool Symbol::isClassName(ThreadContext* context) const {
+    if (m_slot.isNil()) { return false; }
+    std::string_view v = view(context);
+    if (v.size() == 0) { return false; }
+    const char* c = v.data();
+    return ('A' <= *c) && (*c <= 'Z');
 }
 
 } // namespace library

@@ -192,8 +192,8 @@ add_library(hadron STATIC
     hir/HIR.hpp
     hir/LoadArgumentHIR.cpp
     hir/LoadArgumentHIR.hpp
-    hir/LoadClassVariableHIR.cpp
-    hir/LoadClassVariableHIR.hpp
+    hir/LoadFromPointerHIR.cpp
+    hir/LoadFromPointerHIR.hpp
     hir/LoadInstanceVariableHIR.cpp
     hir/LoadInstanceVariableHIR.hpp
     hir/MessageHIR.cpp
@@ -202,12 +202,12 @@ add_library(hadron STATIC
     hir/MethodReturnHIR.hpp
     hir/PhiHIR.cpp
     hir/PhiHIR.hpp
-    hir/StoreClassVariableHIR.cpp
-    hir/StoreClassVariableHIR.hpp
     hir/StoreInstanceVariableHIR.cpp
     hir/StoreInstanceVariableHIR.hpp
     hir/StoreReturnHIR.cpp
     hir/StoreReturnHIR.hpp
+    hir/StoreToPointerHIR.cpp
+    hir/StoreToPointerHIR.hpp
 
     library/Array.hpp
     library/ArrayedCollection.hpp
@@ -229,6 +229,7 @@ add_library(hadron STATIC
     lir/LoadConstantLIR.hpp
     lir/LoadFromPointerLIR.hpp
     lir/LoadFromStackLIR.hpp
+    lir/LoadImmediateLIR.hpp
     lir/PhiLIR.hpp
     lir/StoreToPointerLIR.hpp
     lir/StoreToStackLIR.hpp
