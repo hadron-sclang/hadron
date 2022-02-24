@@ -12,6 +12,7 @@ struct ConstantHIR : public HIR {
     explicit ConstantHIR(const Slot c); // makes an anonymous constant
     ConstantHIR(const Slot c, library::Symbol name);
     virtual ~ConstantHIR() = default;
+
     Slot constant;
 
     // Forces the type of the |constant| Slot.

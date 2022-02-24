@@ -39,6 +39,9 @@ public:
             const ast::BlockAST* blockAST);
 
 private:
+    // Build a whole new frame. Used for inline functions. Will eventually have to support lexical closure.
+    std::unique_ptr<Frame> buildFunctionDef(ThreadContext* context, const ast::BlockAST* blockAST);
+
     // Re-uses the containing stack frame but produces a new scope. Needs exactly one predecessor.
     std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, Block* predecessor, const ast::BlockAST* blockAST);
 

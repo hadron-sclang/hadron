@@ -5,6 +5,7 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
+#include "hadron/hir/BlockLiteralHIR.hpp"
 #include "hadron/hir/BranchHIR.hpp"
 #include "hadron/hir/BranchIfTrueHIR.hpp"
 #include "hadron/hir/ConstantHIR.hpp"
@@ -85,6 +86,10 @@ std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const l
     return frame;
 }
 
+std::unique_ptr<Frame> BlockBuilder::buildFunctionDef(ThreadContext* context, const ast::BlockAST* blockAST) {
+
+}
+
 std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, Block* predecessor,
         const ast::BlockAST* blockAST) {
     auto scope = std::make_unique<Scope>(predecessor->scope);
@@ -120,10 +125,12 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
         nodeValue = buildFinalValue(context, currentBlock, seq);
     } break;
 
-    // Blocks inline are block literals. We need to compile the AST down to bytecode, then in this context the
-    // finalValue is a pointer back to the Function object which references the compiled FunctionDef.
+    // Blocks encountered here are are block literals, and are candidates for inlining.
     case ast::ASTType::kBlock: {
-        assert(false);
+        const auto blockAST = reinterpret_cast<const ast::BlockAST*>(ast);
+        auto blockHIR = std::make_unique<hir::BlockLiteralHIR>(currentBlock->frame);
+        blockHIR->frame = buildFunctionDef(context, blockAST);
+        nodeValue = insert(std::move(blockHIR), currentBlock);
     } break;
 
     case ast::ASTType::kIf: {

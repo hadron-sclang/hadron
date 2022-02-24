@@ -35,18 +35,19 @@ struct NamedValue {
 };
 
 enum Opcode {
-    kBranch = 0,
-    kBranchIfTrue = 1,
-    kConstant = 2,
-    kLoadArgument = 3,           // stack-relative
-    kLoadFromPointer = 4,        // address known at compile time
-    kLoadInstanceVariable = 5,   // this-relative
-    kMessage = 6,
-    kMethodReturn = 7,
-    kPhi = 8,
-    kStoreInstanceVariable = 9,  // this-relative
-    kStoreReturn = 10,           // stack-relative
-    kStoreToPointer = 11         // address known at compile time
+    kBlockLiteral = 0,
+    kBranch = 1,
+    kBranchIfTrue = 2,
+    kConstant = 3,
+    kLoadArgument = 4,           // stack-relative
+    kLoadFromPointer = 5,        // address known at compile time
+    kLoadInstanceVariable = 6,   // this-relative
+    kMessage = 7,
+    kMethodReturn = 8,
+    kPhi = 9,
+    kStoreInstanceVariable = 10, // this-relative
+    kStoreReturn = 11,           // stack-relative
+    kStoreToPointer = 12         // address known at compile time
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in
