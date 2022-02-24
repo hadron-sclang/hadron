@@ -1,6 +1,7 @@
 #ifndef SRC_SERVER_HADRON_SERVER_HPP_
 #define SRC_SERVER_HADRON_SERVER_HPP_
 
+#include "hadron/library/Kernel.hpp"
 #include "server/CompilationUnit.hpp"
 #include "server/LSPTypes.hpp"
 
@@ -44,7 +45,7 @@ public:
     ServerState state() const { return m_state; }
 
 private:
-    void addCompilationUnit(std::string name, std::shared_ptr<hadron::Lexer> lexer,
+    void addCompilationUnit(hadron::library::Method methodDef, std::shared_ptr<hadron::Lexer> lexer,
             std::shared_ptr<hadron::Parser> parser, const hadron::parse::BlockNode* blockNode,
             std::vector<CompilationUnit>& units);
 

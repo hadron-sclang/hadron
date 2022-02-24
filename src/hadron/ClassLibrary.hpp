@@ -45,6 +45,8 @@ public:
 
     library::Class findClassNamed(library::Symbol name) const;
 
+    library::Method interpreterContext() const { return m_interpreterContext; }
+
 private:
     // Call to delete any existing class libary compilation structures and start fresh.
     bool resetLibrary(ThreadContext* context);
@@ -76,6 +78,10 @@ private:
 
     // The official array of Class objects, maintained as part of the root set.
     library::ClassArray m_classArray;
+
+    // We keep a reference to the Interpreter:functionCompileContext method, as that is the "fake method" that
+    // all Interpreter code compiles as.
+    library::Method m_interpreterContext;
 
     // Outer map is class name to pointer to inner map. Inner map is method name to AST.
     using MethodAST = std::unordered_map<library::Symbol, std::unique_ptr<ast::BlockAST>>;

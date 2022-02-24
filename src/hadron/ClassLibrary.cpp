@@ -48,7 +48,8 @@
 namespace hadron {
 
 ClassLibrary::ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter):
-    m_errorReporter(errorReporter), m_classArray(nullptr) {}
+        m_errorReporter(errorReporter), m_classArray(nullptr) {
+}
 
 void ClassLibrary::addClassDirectory(const std::string& path) {
     m_libraryPaths.emplace(fs::absolute(path));
@@ -73,6 +74,7 @@ bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_classArray = library::ClassArray::typedArrayAlloc(context, 1);
     m_methodASTs.clear();
     m_methodFrames.clear();
+    m_interpreterContext = library::Method();
     return true;
 }
 
@@ -146,6 +148,12 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                     library::Symbol methodName = library::Symbol::fromView(context,
                             lexer->tokens()[methodNode->tokenIndex].range);
                     method.setName(methodName);
+
+                    // We keep a reference to the Interpreter compile context, for quick access later.
+                    if ((className == library::Symbol::fromView(context, "Interpreter")) &&
+                        (methodName == library::Symbol::fromView(context, "functionCompileContext"))) {
+                        m_interpreterContext = method;
+                    }
 
                     if (methodNode->primitiveIndex) {
                         library::Symbol primitiveName = library::Symbol::fromView(context,
