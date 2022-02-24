@@ -40,6 +40,7 @@ public:
     void jmpr(Reg r) override;
     void jmpi(Address location) override;
     void ldr_l(Reg target, Reg address) override;
+    void ldi_l(Reg target, void* address) override;
     void ldxi_w(Reg target, Reg address, int offset) override;
     void ldxi_i(Reg target, Reg address, int offset) override;
     void ldxi_l(Reg target, Reg address, int offset) override;

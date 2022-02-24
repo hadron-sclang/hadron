@@ -126,6 +126,13 @@ bool OpcodeWriteIterator::ldr_l(JIT::Reg target, JIT::Reg address) {
     return !hasOverflow();
 }
 
+bool OpcodeWriteIterator::ldi_l(JIT::Reg target, void* address) {
+    addByte(Opcode::kLdiL);
+    addByte(reg(target));
+    addUWord(reinterpret_cast<uintptr_t>(address));
+    return !hasOverflow();
+}
+
 bool OpcodeWriteIterator::ldxi_w(JIT::Reg target, JIT::Reg address, int offset) {
     addByte(Opcode::kLdxiW);
     addByte(reg(target));
@@ -385,6 +392,14 @@ bool OpcodeReadIterator::ldr_l(JIT::Reg& target, JIT::Reg& address) {
     ++m_currentBytecode; // kLdrL
     target = reg(readByte());
     address = reg(readByte());
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::ldi_l(JIT::Reg& target, void*& address) {
+    assert(peek() == Opcode::kLdiL);
+    ++m_currentBytecode; // kLdiL
+    target = reg(readByte());
+    address = reinterpret_cast<void*>(readUWord());
     return !hasOverflow();
 }
 

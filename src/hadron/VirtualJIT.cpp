@@ -118,6 +118,10 @@ void VirtualJIT::ldr_l(Reg target, Reg address) {
     m_iterator.ldr_l(target, address);
 }
 
+void VirtualJIT::ldi_l(Reg target, void* address) {
+    m_iterator.ldi_l(target, address);
+}
+
 void VirtualJIT::ldxi_w(Reg target, Reg address, int offset) {
     m_iterator.ldxi_w(target, address, offset);
 }

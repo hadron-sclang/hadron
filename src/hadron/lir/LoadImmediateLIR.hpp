@@ -15,7 +15,7 @@ struct LoadImmediateLIR : public LIR {
 
     void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
         emitBase(jit);
-        jit->ldi_w(locations.at(value), pointer);
+        jit->ldi_l(locations.at(value), pointer);
     }
 };
 

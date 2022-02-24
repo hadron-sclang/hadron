@@ -193,6 +193,10 @@ void LighteningJIT::ldr_l(Reg target, Reg address) {
     jit_ldr_l(m_state, reg(target), reg(address));
 }
 
+void LighteningJIT::ldi_l(Reg target, void* address) {
+    jit_ldi_l(m_state, reg(target), address);
+}
+
 void LighteningJIT::ldxi_w(Reg target, Reg address, int offset) {
     if (sizeof(void*) == 8) {
         ldxi_l(target, address, offset);

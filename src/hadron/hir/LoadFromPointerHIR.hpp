@@ -8,13 +8,13 @@ namespace hir {
 
 struct LoadFromPointerHIR : public HIR {
     LoadFromPointerHIR() = delete;
-    explicit LoadFromPointerHIR(const void* p);
+    explicit LoadFromPointerHIR(void* p);
     virtual ~LoadFromPointerHIR() = default;
 
-    const void* pointer;
+    void* pointer;
 
     NVID proposeValue(NVID id) override;
-    void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;=
+    void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };
 
 } // namespace hir
