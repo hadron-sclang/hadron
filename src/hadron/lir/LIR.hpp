@@ -29,6 +29,7 @@ enum Opcode {
     kLoadConstant,
     kLoadFromPointer,
     kLoadFromStack,
+    kLoadImmediate,
     kPhi,
     kStoreToPointer,
     kStoreToStack

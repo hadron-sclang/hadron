@@ -18,14 +18,16 @@
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/LinearFrame.hpp"
 #include "hadron/Parser.hpp"
-#include "hadron/Pipeline.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
 #include "hadron/SourceFile.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
+#include "hadron/Validator.hpp"
 
 #include "spdlog/spdlog.h"
+
+#include <cassert>
 
 // Class Library Compilation
 // =========================
@@ -46,7 +48,8 @@
 namespace hadron {
 
 ClassLibrary::ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter):
-    m_errorReporter(errorReporter), m_classArray(nullptr) {}
+        m_errorReporter(errorReporter), m_classArray(nullptr) {
+}
 
 void ClassLibrary::addClassDirectory(const std::string& path) {
     m_libraryPaths.emplace(fs::absolute(path));
@@ -56,14 +59,22 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
     if (!resetLibrary(context)) { return false; }
     if (!scanFiles(context)) { return false; }
     if (!finalizeHeirarchy(context)) { return false; }
-    if (!compileMethods(context)) { return false; }
+    if (!buildFrames(context)) { return false; }
     return cleanUp();
+}
+
+library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
+    auto classIter = m_classMap.find(name);
+    if (classIter == m_classMap.end()) { return library::Class(); }
+    return classIter->second;
 }
 
 bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_classMap.clear();
     m_classArray = library::ClassArray::typedArrayAlloc(context, 1);
-    m_classMethods.clear();
+    m_methodASTs.clear();
+    m_methodFrames.clear();
+    m_interpreterContext = library::Method();
     return true;
 }
 
@@ -125,6 +136,7 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                 while (methodNode) {
                     assert(methodNode->nodeType == parse::NodeType::kMethod);
                     library::Method method = library::Method::alloc(context);
+                    method.initToNil();
 
                     library::Class methodClassDef = methodNode->isClassMethod ? metaClassDef : classDef;
                     method.setOwnerClass(methodClassDef);
@@ -137,6 +149,12 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                             lexer->tokens()[methodNode->tokenIndex].range);
                     method.setName(methodName);
 
+                    // We keep a reference to the Interpreter compile context, for quick access later.
+                    if ((className == library::Symbol::fromView(context, "Interpreter")) &&
+                        (methodName == library::Symbol::fromView(context, "functionCompileContext"))) {
+                        m_interpreterContext = method;
+                    }
+
                     if (methodNode->primitiveIndex) {
                         library::Symbol primitiveName = library::Symbol::fromView(context,
                             lexer->tokens()[*methodNode->primitiveIndex].range);
@@ -148,8 +166,8 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                         ASTBuilder astBuilder(m_errorReporter);
                         auto ast = astBuilder.buildBlock(context, lexer.get(), methodNode->body.get());
                         if (!ast) { return false; }
-                        auto methodIter = m_classMethods.find(methodClassDef.name(context));
-                        assert(methodIter != m_classMethods.end());
+                        auto methodIter = m_methodASTs.find(methodClassDef.name(context));
+                        assert(methodIter != m_methodASTs.end());
                         methodIter->second->emplace(std::make_pair(methodName, std::move(ast)));
                     }
 
@@ -267,49 +285,92 @@ library::Class ClassLibrary::findOrInitClass(ThreadContext* context, library::Sy
     }
     m_classArray = m_classArray.typedAdd(context, classDef);
 
-    // Add an empty entry to the class methods map, to keep membership in that map in sync with the class map.
-    m_classMethods.emplace(std::make_pair(className, std::make_unique<ClassLibrary::MethodAST>()));
+    // Add an empty entry to the class methods maps, to keep membership in that map in sync with the class map.
+    m_methodASTs.emplace(std::make_pair(className, std::make_unique<ClassLibrary::MethodAST>()));
+    m_methodFrames.emplace(std::make_pair(className, std::make_unique<ClassLibrary::MethodFrame>()));
 
     return classDef;
 }
 
 bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
-    auto objectIter = m_classMap.find(library::Symbol::fromHash(context, kObjectHash));
+    auto objectIter = m_classMap.find(library::Symbol::fromView(context, "Object"));
     if (objectIter == m_classMap.end()) { assert(false); return false; }
 
     // We start at the root of the class heirarchy with Object.
     auto objectClassDef = objectIter->second;
-    composeSubclassesFrom(context, objectClassDef);
+    return composeSubclassesFrom(context, objectClassDef);
+}
+
+bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class classDef) {
+    SPDLOG_INFO("Composing Class {}", classDef.name(context).view(context));
+
+    auto classASTs = m_methodASTs.find(classDef.name(context));
+    assert(classASTs != m_methodASTs.end());
+
+    auto classMethods = m_methodFrames.find(classDef.name(context));
+    assert(classMethods != m_methodFrames.end());
+
+    for (int32_t i = 0; i < classDef.methods().size(); ++i) {
+        auto method = classDef.methods().typedAt(i);
+
+        // We don't compile methods that include primitives.
+        if (!method.primitiveName(context).isNil()) { continue; }
+
+        auto methodName = method.name(context);
+
+        SPDLOG_INFO("Building Frame for {}:{}", classDef.name(context).view(context), methodName.view(context));
+
+        auto astIter = classASTs->second->find(methodName);
+        assert(astIter != classASTs->second->end());
+
+        BlockBuilder blockBuilder(m_errorReporter);
+        auto frame = blockBuilder.buildMethod(context, method, astIter->second.get());
+        if (!frame) { return false; }
+
+        if (context->runInternalDiagnostics) {
+            if (!Validator::validateFrame(frame.get())) { return false; }
+        }
+
+        // TODO: Here's where we could extract some message signatures and compute dependencies, to decide on final
+        // ordering of compilation of methods to support inlining.
+
+        classMethods->second->emplace(std::make_pair(method.name(context), std::move(frame)));
+    }
+
+    for (int32_t i = 0; i < classDef.subclasses().size(); ++i) {
+        auto subclass = classDef.subclasses().typedAt(i);
+
+        subclass.setInstVarNames(classDef.instVarNames().copy(
+                context, classDef.instVarNames().size() + subclass.instVarNames().size()).addAll(
+                context, subclass.instVarNames()));
+
+        subclass.setClassVarNames(classDef.classVarNames().copy(
+                context, classDef.classVarNames().size() + subclass.classVarNames().size()).addAll(
+                context, subclass.classVarNames()));
+
+        subclass.setIprototype(classDef.iprototype().copy(
+                context, classDef.iprototype().size() + subclass.iprototype().size()).addAll(
+                context, subclass.iprototype()));
+
+        subclass.setCprototype(classDef.cprototype().copy(
+                context, classDef.cprototype().size() + subclass.cprototype().size()).addAll(
+                context, subclass.cprototype()));
+
+        subclass.setConstNames(classDef.constNames().copy(
+                context, classDef.constNames().size() + subclass.constNames().size()).addAll(
+                context, subclass.constNames()));
+
+        subclass.setConstValues(classDef.constValues().copy(
+                context, classDef.constValues().size() + subclass.constValues().size()).addAll(
+                context, subclass.constValues()));
+
+        if (!composeSubclassesFrom(context, subclass)) { return false; }
+    }
 
     return true;
 }
 
-void ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class classDef) {
-    for (int32_t i = 0; i < classDef.subclasses().size(); ++i) {
-        auto subclass = classDef.subclasses().typedAt(i);
-        subclass.setInstVarNames(classDef.instVarNames().copy(
-                context, classDef.instVarNames().size() + subclass.instVarNames().size()).addAll(
-                context, subclass.instVarNames()));
-        subclass.setClassVarNames(classDef.classVarNames().copy(
-                context, classDef.classVarNames().size() + subclass.classVarNames().size()).addAll(
-                context, subclass.classVarNames()));
-        subclass.setIprototype(classDef.iprototype().copy(
-                context, classDef.iprototype().size() + subclass.iprototype().size()).addAll(
-                context, subclass.iprototype()));
-        subclass.setCprototype(classDef.cprototype().copy(
-                context, classDef.cprototype().size() + subclass.cprototype().size()).addAll(
-                context, subclass.cprototype()));
-        subclass.setConstNames(classDef.constNames().copy(
-                context, classDef.constNames().size() + subclass.constNames().size()).addAll(
-                context, subclass.constNames()));
-        subclass.setConstValues(classDef.constValues().copy(
-                context, classDef.constValues().size() + subclass.constValues().size()).addAll(
-                context, subclass.constValues()));
-        composeSubclassesFrom(context, subclass);
-    }
-}
-
-bool ClassLibrary::compileMethods(ThreadContext* /* context */) {
+bool ClassLibrary::buildFrames(ThreadContext* /* context */) {
     return true;
 }
 

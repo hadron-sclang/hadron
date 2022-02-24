@@ -1,12 +1,15 @@
 #include "hadron/Runtime.hpp"
 
 #include "hadron/AST.hpp"
+#include "hadron/Block.hpp"
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/ErrorReporter.hpp"
+#include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/Parser.hpp"
+#include "hadron/Scope.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/SourceFile.hpp"
 #include "hadron/SymbolTable.hpp"
@@ -22,11 +25,11 @@ namespace hadron {
 Runtime::Runtime(std::shared_ptr<ErrorReporter> errorReporter):
     m_errorReporter(errorReporter),
     m_heap(std::make_shared<Heap>()),
-    m_threadContext(std::make_unique<ThreadContext>()),
-    m_classLibrary(std::make_unique<ClassLibrary>(errorReporter)) {
+    m_threadContext(std::make_unique<ThreadContext>()) {
     LighteningJIT::initJITGlobals();
     m_threadContext->heap = m_heap;
     m_threadContext->symbolTable = std::make_unique<SymbolTable>();
+    m_threadContext->classLibrary = std::make_unique<ClassLibrary>(m_errorReporter);
 }
 
 Runtime::~Runtime() {}
@@ -41,8 +44,8 @@ bool Runtime::initInterpreter() {
 bool Runtime::compileClassLibrary() {
     auto classLibPath = findSCClassLibrary();
     SPDLOG_INFO("Starting Class Library compilation for files at {}", classLibPath.c_str());
-    m_classLibrary->addClassDirectory(classLibPath);
-    return m_classLibrary->compileLibrary(m_threadContext.get());
+    m_threadContext->classLibrary->addClassDirectory(classLibPath);
+    return m_threadContext->classLibrary->compileLibrary(m_threadContext.get());
 }
 
 bool Runtime::buildTrampolines() {

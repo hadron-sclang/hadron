@@ -1,6 +1,7 @@
 #include "hadron/BlockBuilder.hpp"
 
 #include "hadron/AST.hpp"
+#include "hadron/ClassLibrary.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
@@ -9,12 +10,12 @@
 #include "hadron/hir/ConstantHIR.hpp"
 #include "hadron/hir/HIR.hpp"
 #include "hadron/hir/LoadArgumentHIR.hpp"
-#include "hadron/hir/LoadClassVariableHIR.hpp"
+#include "hadron/hir/LoadFromPointerHIR.hpp"
 #include "hadron/hir/LoadInstanceVariableHIR.hpp"
 #include "hadron/hir/MessageHIR.hpp"
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/hir/PhiHIR.hpp"
-#include "hadron/hir/StoreClassVariableHIR.hpp"
+#include "hadron/hir/StoreToPointerHIR.hpp"
 #include "hadron/hir/StoreInstanceVariableHIR.hpp"
 #include "hadron/hir/StoreReturnHIR.hpp"
 #include "hadron/Keywords.hpp"
@@ -36,7 +37,8 @@ BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
 
 BlockBuilder::~BlockBuilder() { }
 
-std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const ast::BlockAST* blockAST) {
+std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
+        const ast::BlockAST* blockAST) {
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
 
@@ -56,10 +58,14 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const as
         auto name = frame->argumentOrder.at(argIndex);
         auto loadArg = std::make_unique<hir::LoadArgumentHIR>(argIndex, name);
 
-        // TODO: set known class and type to *this* pointer!!
-
-        // Variable arguments always have Array type.
-        if (blockAST->hasVarArg && argIndex == frame->argumentOrder.size() - 1) {
+        // Set known class and type to *this* pointer.
+        if (argIndex == 0) {
+            loadArg->value.typeFlags = TypeFlags::kObjectFlag;
+            // TODO: this is wrong. It could be this class or any descendent of this class until the next
+            // descendent override of this method.
+            loadArg->value.knownClassName = method.ownerClass().name(context);
+        } else if (blockAST->hasVarArg && argIndex == frame->argumentOrder.size() - 1) {
+            // Variable arguments always have Array type.
             loadArg->value.typeFlags = TypeFlags::kObjectFlag;
             loadArg->value.knownClassName = library::Symbol::fromView(context, "Array");
         }
@@ -149,14 +155,24 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
     case ast::ASTType::kName: {
         const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);
 
-        std::unordered_map<int32_t, hir::NVID> blockValues;
-        std::unordered_set<const Scope*> containingScopes;
-        const Scope* scope = currentBlock->scope;
-        while (scope) {
-            containingScopes.emplace(scope);
-            scope = scope->parent;
+        // If this symbol potentially defines a class name look it up in the class library and provide it as a constant.
+        if (nameAST->name.isClassName(context)) {
+            auto classDef = context->classLibrary->findClassNamed(nameAST->name);
+            assert(!classDef.isNil());
+            auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot(), nameAST->name);
+            constant->value.knownClassName = nameAST->name;
+            nodeValue = insert(std::move(constant), currentBlock);
+            currentBlock->revisions.emplace(std::make_pair(nameAST->name, nodeValue));
+        } else {
+            std::unordered_map<int32_t, hir::NVID> blockValues;
+            std::unordered_set<const Scope*> containingScopes;
+            const Scope* scope = currentBlock->scope;
+            while (scope) {
+                containingScopes.emplace(scope);
+                scope = scope->parent;
+            }
+            nodeValue = findName(context, nameAST->name, currentBlock, blockValues, containingScopes);
         }
-        nodeValue = findName(nameAST->name, currentBlock, blockValues, containingScopes);
     } break;
 
     case ast::ASTType::kAssign: {
@@ -282,7 +298,7 @@ hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
     return value;
 }
 
-hir::NVID BlockBuilder::findName(library::Symbol name, Block* block,
+hir::NVID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block,
         std::unordered_map<Block::ID, hir::NVID>& blockValues,
         const std::unordered_set<const Scope*>& containingScopes) {
     auto cacheIter = blockValues.find(block->id);
@@ -310,13 +326,16 @@ hir::NVID BlockBuilder::findName(library::Symbol name, Block* block,
 
     // Search predecessors for the name.
     for (auto pred : block->predecessors) {
-        auto foundValue = findName(name, pred, blockValues, containingScopes);
+        auto foundValue = findName(context, name, pred, blockValues, containingScopes);
         phi->addInput(block->frame->values[foundValue]);
     }
 
     // TODO: It's possible that phis have 0 inputs here, meaning you'll get an assert on phiForValue->getTrivialValue.
     // That means the name is undefined, and we should return an error.
-    assert(phi->inputs.size() > 0);
+    if (phi->inputs.size() == 0) {
+        SPDLOG_CRITICAL("Failed to find name: {}", name.view(context));
+        assert(false);
+    }
 
     auto trivialValue = phi->getTrivialValue();
 

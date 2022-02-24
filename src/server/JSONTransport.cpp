@@ -9,6 +9,7 @@
 #include "hadron/hir/ConstantHIR.hpp"
 #include "hadron/hir/HIR.hpp"
 #include "hadron/hir/LoadArgumentHIR.hpp"
+#include "hadron/hir/LoadFromPointerHIR.hpp"
 #include "hadron/hir/MessageHIR.hpp"
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/hir/StoreReturnHIR.hpp"
@@ -24,6 +25,7 @@
 #include "hadron/lir/LoadConstantLIR.hpp"
 #include "hadron/lir/LoadFromPointerLIR.hpp"
 #include "hadron/lir/LoadFromStackLIR.hpp"
+#include "hadron/lir/LoadImmediateLIR.hpp"
 #include "hadron/lir/PhiLIR.hpp"
 #include "hadron/lir/StoreToPointerLIR.hpp"
 #include "hadron/lir/StoreToStackLIR.hpp"
@@ -1003,7 +1005,7 @@ void JSONTransport::JSONTransportImpl::serializeSlot(hadron::ThreadContext* cont
     case hadron::TypeFlags::kSymbolFlag: {
         target.AddMember("type", rapidjson::Value("symbol"), document.GetAllocator());
         rapidjson::Value value;
-        serializeSymbol(context, hadron::library::Symbol::fromHash(context, slot.getHash()), value, document);
+        serializeSymbol(context, hadron::library::Symbol(context, slot), value, document);
         target.AddMember("value", value, document.GetAllocator());
     } break;
     default:
@@ -1261,6 +1263,15 @@ void JSONTransport::JSONTransportImpl::serializeJIT(const int8_t* byteCode, size
             opcode.PushBack(target, document.GetAllocator());
             opcode.PushBack(address, document.GetAllocator());
         } break;
+        case hadron::Opcode::kLdiL: {
+            opcode.PushBack("ldi_l", document.GetAllocator());
+            hadron::JIT::Reg target;
+            void* address;
+            it.ldi_l(target, address);
+            opcode.PushBack(target, document.GetAllocator());
+            opcode.PushBack(rapidjson::Value(static_cast<uint64_t>(
+                reinterpret_cast<uintptr_t>(address))), document.GetAllocator());
+        } break;
         case hadron::Opcode::kLdxiW: {
             opcode.PushBack("ldxi_w", document.GetAllocator());
             hadron::JIT::Reg target, address;
@@ -1418,8 +1429,11 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
         jsonHIR.AddMember("index", rapidjson::Value(loadArg->index), document.GetAllocator());
     } break;
 
-    case hadron::hir::Opcode::kLoadClassVariable: {
-        SPDLOG_WARN("Not yet implemented: LoadClassVariable");
+    case hadron::hir::Opcode::kLoadFromPointer: {
+        const auto loadPointer = reinterpret_cast<const hadron::hir::LoadFromPointerHIR*>(hir);
+        jsonHIR.AddMember("opcode", "LoadPointer", document.GetAllocator());
+        jsonHIR.AddMember("pointer", rapidjson::Value(static_cast<uint64_t>(
+                reinterpret_cast<uintptr_t>(loadPointer->pointer))), document.GetAllocator());
     } break;
 
     case hadron::hir::Opcode::kLoadInstanceVariable: {
@@ -1471,8 +1485,8 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
         jsonHIR.AddMember("inputs", inputs, document.GetAllocator());
     } break;
 
-    case hadron::hir::Opcode::kStoreClassVariable: {
-        SPDLOG_WARN("Not yet implemented: StoreClassVariable");
+    case hadron::hir::Opcode::kStoreToPointer: {
+        SPDLOG_WARN("Not yet implemented: StoreToPointer");
     } break;
 
     case hadron::hir::Opcode::kStoreInstanceVariable: {
@@ -1667,6 +1681,13 @@ void JSONTransport::JSONTransportImpl::serializeLIR(hadron::ThreadContext* conte
         rapidjson::Value constant;
         serializeSlot(context, loadConstant->constant, constant, document);
         jsonLIR.AddMember("constant", constant, document.GetAllocator());
+    } break;
+
+    case hadron::lir::kLoadImmediate: {
+        const auto loadImmediate = reinterpret_cast<const hadron::lir::LoadImmediateLIR*>(lir);
+        jsonLIR.AddMember("opcode", "LoadImmediate", document.GetAllocator());
+        jsonLIR.AddMember("pointer", rapidjson::Value(static_cast<uint64_t>(
+                reinterpret_cast<uintptr_t>(loadImmediate->pointer))), document.GetAllocator());
     } break;
 
     case hadron::lir::kLoadFromPointer: {

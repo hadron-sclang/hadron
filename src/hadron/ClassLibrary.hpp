@@ -15,6 +15,7 @@
 namespace hadron {
 
 class ErrorReporter;
+struct Frame;
 class Lexer;
 class Parser;
 class SourceFile;
@@ -42,6 +43,10 @@ public:
     // found within.
     bool compileLibrary(ThreadContext* context);
 
+    library::Class findClassNamed(library::Symbol name) const;
+
+    library::Method interpreterContext() const { return m_interpreterContext; }
+
 private:
     // Call to delete any existing class libary compilation structures and start fresh.
     bool resetLibrary(ThreadContext* context);
@@ -56,15 +61,17 @@ private:
     // Traverse the class tree in superclass to subclass order, starting with Object, and finalize all inherited
     // properties.
     bool finalizeHeirarchy(ThreadContext* context);
-    void composeSubclassesFrom(ThreadContext* context, library::Class classDef);
+    bool composeSubclassesFrom(ThreadContext* context, library::Class classDef);
 
-    // Compile all of the provided methods for all classes.
-    bool compileMethods(ThreadContext* context);
+    // Lower all methods to Frames/HIR and extract Signatures to analyze dependencies between methods.
+    bool buildFrames(ThreadContext* context);
 
     // Clean up any temporary data structures
     bool cleanUp();
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
+    // We keep the normalized paths in a set to prevent duplicate additions of the same path.
+    std::unordered_set<std::string> m_libraryPaths;
 
     // A map maintained for quick(er) access to Class objects via Hash.
     std::unordered_map<library::Symbol, library::Class> m_classMap;
@@ -72,12 +79,16 @@ private:
     // The official array of Class objects, maintained as part of the root set.
     library::ClassArray m_classArray;
 
-    // We keep the normalized paths in a set to prevent duplicate additions of the same path.
-    std::unordered_set<std::string> m_libraryPaths;
+    // We keep a reference to the Interpreter:functionCompileContext method, as that is the "fake method" that
+    // all Interpreter code compiles as.
+    library::Method m_interpreterContext;
 
     // Outer map is class name to pointer to inner map. Inner map is method name to AST.
     using MethodAST = std::unordered_map<library::Symbol, std::unique_ptr<ast::BlockAST>>;
-    std::unordered_map<library::Symbol, std::unique_ptr<MethodAST>> m_classMethods;
+    std::unordered_map<library::Symbol, std::unique_ptr<MethodAST>> m_methodASTs;
+
+    using MethodFrame = std::unordered_map<library::Symbol, std::unique_ptr<Frame>>;
+    std::unordered_map<library::Symbol, std::unique_ptr<MethodFrame>> m_methodFrames;
 };
 
 } // namespace hadron

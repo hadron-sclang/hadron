@@ -6,6 +6,7 @@
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
+#include "hadron/ClassLibrary.hpp"
 #include "hadron/Emitter.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
@@ -40,13 +41,12 @@ int HadronServer::runLoop() {
 }
 
 void HadronServer::initialize(std::optional<lsp::ID> id) {
-/*
-    if (!m_runtime->initialize()) {
+    if (!m_runtime->initInterpreter()) {
         m_jsonTransport->sendErrorResponse(id, JSONTransport::ErrorCode::kInternalError,
                 "Failed to initialize Hadron runtime.");
         return;
     }
-*/
+
     m_state = kRunning;
     m_jsonTransport->sendInitializeResult(id);
 }
@@ -102,21 +102,37 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
         }
         const hadron::parse::Node* node = parser->root();
         while (node) {
-            std::string name;
-            const hadron::parse::MethodNode* method = nullptr;
+            auto className = hadron::library::Symbol::fromView(m_runtime->context(),
+                    lexer->tokens()[node->tokenIndex].range);
+
+            auto classDef = m_runtime->context()->classLibrary->findClassNamed(className);
+            assert(!classDef.isNil());
+
+            const hadron::parse::MethodNode* methodNode = nullptr;
             if (node->nodeType == hadron::parse::NodeType::kClass) {
                 auto classNode = reinterpret_cast<const hadron::parse::ClassNode*>(node);
-                name = std::string(lexer->tokens()[classNode->tokenIndex].range);
-                method = classNode->methods.get();
+                methodNode = classNode->methods.get();
             } else if (node->nodeType == hadron::parse::NodeType::kClassExt) {
                 auto classExtNode = reinterpret_cast<const hadron::parse::ClassExtNode*>(node);
-                name = "+" + std::string(lexer->tokens()[classExtNode->tokenIndex].range);
-                method = classExtNode->methods.get();
+                methodNode = classExtNode->methods.get();
             }
-            while (method) {
-                std::string methodName = name + ":" + std::string(lexer->tokens()[method->tokenIndex].range);
-                addCompilationUnit(methodName, lexer, parser, method->body.get(), units);
-                method = reinterpret_cast<const hadron::parse::MethodNode*>(method->next.get());
+
+            while (methodNode) {
+                auto methodName = hadron::library::Symbol::fromView(m_runtime->context(),
+                        lexer->tokens()[methodNode->tokenIndex].range);
+
+                hadron::library::Method methodDef;
+                for (int32_t i = 0; i < classDef.methods().size(); ++i) {
+                    auto method = classDef.methods().typedAt(i);
+                    if (method.name(m_runtime->context()) == methodName) {
+                        methodDef = method;
+                        break;
+                    }
+                }
+                assert(!methodDef.isNil());
+
+                addCompilationUnit(methodDef, lexer, parser, methodNode->body.get(), units);
+                methodNode = reinterpret_cast<const hadron::parse::MethodNode*>(methodNode->next.get());
             }
 
             node = node->next.get();
@@ -127,23 +143,25 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
             return;
         }
         assert(parser->root()->nodeType == hadron::parse::NodeType::kBlock);
-        addCompilationUnit("INTERPRET", lexer, parser,
+
+        addCompilationUnit(m_runtime->context()->classLibrary->interpreterContext(), lexer, parser,
                 reinterpret_cast<const hadron::parse::BlockNode*>(parser->root()), units);
     }
     m_jsonTransport->sendCompilationDiagnostics(m_runtime->context(), id, units);
 }
 
-void HadronServer::addCompilationUnit(std::string name, std::shared_ptr<hadron::Lexer> lexer,
+void HadronServer::addCompilationUnit(hadron::library::Method methodDef, std::shared_ptr<hadron::Lexer> lexer,
         std::shared_ptr<hadron::Parser> parser, const hadron::parse::BlockNode* blockNode,
         std::vector<CompilationUnit>& units) {
+    std::string name(methodDef.name(m_runtime->context()).view(m_runtime->context()));
+
     SPDLOG_TRACE("Compile Diagnostics AST Builder {}", name);
     hadron::ASTBuilder astBuilder(m_errorReporter);
     auto blockAST = astBuilder.buildBlock(m_runtime->context(), lexer.get(), blockNode);
 
-    // TODO: can this be refactored to use hadron::Pipeline?
     SPDLOG_TRACE("Compile Diagnostics Block Builder {}", name);
     hadron::BlockBuilder blockBuilder(m_errorReporter);
-    auto frame = blockBuilder.buildFrame(m_runtime->context(), blockAST.get());
+    auto frame = blockBuilder.buildMethod(m_runtime->context(), methodDef, blockAST.get());
 
     SPDLOG_TRACE("Compile Diagnostics Block Serializer {}", name);
     hadron::BlockSerializer blockSerializer;

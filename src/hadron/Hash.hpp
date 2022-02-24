@@ -5,16 +5,12 @@
 
 namespace hadron {
 
-struct Signature;
-
 // Changing this type or the underlying hashing algorithm will also require changing the hashkw.cpp utility to
 // reflect.
 using Hash = uint64_t;
 
 Hash hash(std::string_view symbol);
 Hash hash(const char* symbol, size_t length);
-
-Hash hashSignature(Signature* sig);
 
 } // namespace hadron
 

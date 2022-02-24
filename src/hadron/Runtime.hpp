@@ -5,7 +5,6 @@
 
 namespace hadron {
 
-class ClassLibrary;
 class ErrorReporter;
 class Heap;
 struct ThreadContext;
@@ -34,7 +33,6 @@ private:
     std::shared_ptr<ErrorReporter> m_errorReporter;
     std::shared_ptr<Heap> m_heap;
     std::unique_ptr<ThreadContext> m_threadContext;
-    std::unique_ptr<ClassLibrary> m_classLibrary;
 
     // Saves registers, initializes thread context and stack pointer registers, and jumps into the machine code pointer.
     void (*m_entryTrampoline)(ThreadContext* context, const uint8_t* machineCode);

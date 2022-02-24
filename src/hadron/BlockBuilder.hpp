@@ -3,6 +3,7 @@
 
 #include "hadron/Block.hpp"
 #include "hadron/hir/HIR.hpp"
+#include "hadron/library/Kernel.hpp"
 #include "hadron/library/Symbol.hpp"
 
 #include <memory>
@@ -34,7 +35,8 @@ public:
     BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter);
     ~BlockBuilder();
 
-    std::unique_ptr<Frame> buildFrame(ThreadContext* context, const ast::BlockAST* blockAST);
+    std::unique_ptr<Frame> buildMethod(ThreadContext* context, const library::Method method,
+            const ast::BlockAST* blockAST);
 
 private:
     // Re-uses the containing stack frame but produces a new scope. Needs exactly one predecessor.
@@ -54,7 +56,7 @@ private:
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
     // tables.
-    hir::NVID findName(library::Symbol name, Block* block,
+    hir::NVID findName(ThreadContext* context, library::Symbol name, Block* block,
                 std::unordered_map<Block::ID, hir::NVID>& blockValues,
                 const std::unordered_set<const Scope*>& containingScopes);
 

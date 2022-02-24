@@ -24,21 +24,22 @@ enum Opcode : int8_t {
     kJmpr       = 0x0c,
     kJmpi       = 0x0d,
     kLdrL       = 0x0e,
-    kLdxiW      = 0x0f,
-    kLdxiI      = 0x10,
-    kLdxiL      = 0x11,
-    kStrI       = 0x12,
-    kStrL       = 0x13,
-    kStxiW      = 0x14,
-    kStxiI      = 0x15,
-    kStxiL      = 0x16,
-    kRet        = 0x17,
-    kRetr       = 0x18,
-    kReti       = 0x19,
-    kLabel      = 0x1a,
-    kAddress    = 0x1b,
-    kPatchHere  = 0x1c,
-    kPatchThere = 0x1d,
+    kLdiL       = 0x0f,
+    kLdxiW      = 0x10,
+    kLdxiI      = 0x11,
+    kLdxiL      = 0x12,
+    kStrI       = 0x13,
+    kStrL       = 0x14,
+    kStxiW      = 0x15,
+    kStxiI      = 0x16,
+    kStxiL      = 0x17,
+    kRet        = 0x18,
+    kRetr       = 0x19,
+    kReti       = 0x1a,
+    kLabel      = 0x1b,
+    kAddress    = 0x1c,
+    kPatchHere  = 0x1d,
+    kPatchThere = 0x1e,
 
     kInvalid    = -1
 };
@@ -68,6 +69,7 @@ public:
     bool jmpr(JIT::Reg r);
     bool jmpi(UWord location);
     bool ldr_l(JIT::Reg target, JIT::Reg address);
+    bool ldi_l(JIT::Reg target, void* address);
     bool ldxi_w(JIT::Reg target, JIT::Reg address, int offset);
     bool ldxi_i(JIT::Reg target, JIT::Reg address, int offset);
     bool ldxi_l(JIT::Reg target, JIT::Reg address, int offset);
@@ -124,6 +126,7 @@ public:
     bool jmpr(JIT::Reg& r);
     bool jmpi(UWord& location);
     bool ldr_l(JIT::Reg& target, JIT::Reg& address);
+    bool ldi_l(JIT::Reg& target, void*& address);
     bool ldxi_w(JIT::Reg& target, JIT::Reg& address, int& offset);
     bool ldxi_i(JIT::Reg& target, JIT::Reg& address, int& offset);
     bool ldxi_l(JIT::Reg& target, JIT::Reg& address, int& offset);
