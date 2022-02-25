@@ -1,4 +1,4 @@
-#include "hadron/hir/BlockLiteralHIR.cpp"
+#include "hadron/hir/BlockLiteralHIR.hpp"
 
 #include "hadron/Block.hpp"
 #include "hadron/Frame.hpp"
@@ -8,7 +8,7 @@ namespace hadron {
 namespace hir {
 
 BlockLiteralHIR::BlockLiteralHIR(const Frame* outer):
-    HIR(kBlockLiteral, TypeFlags::kObject, library::Symbol()),
+    HIR(kBlockLiteral, TypeFlags::kObjectFlag, library::Symbol()),
     outerFrame(outer) {}
 
 NVID BlockLiteralHIR::proposeValue(NVID id) {

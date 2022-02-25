@@ -35,19 +35,24 @@ struct NamedValue {
 };
 
 enum Opcode {
-    kBlockLiteral = 0,
-    kBranch = 1,
-    kBranchIfTrue = 2,
-    kConstant = 3,
-    kLoadArgument = 4,           // stack-relative
-    kLoadFromPointer = 5,        // address known at compile time
-    kLoadInstanceVariable = 6,   // this-relative
-    kMessage = 7,
-    kMethodReturn = 8,
-    kPhi = 9,
-    kStoreInstanceVariable = 10, // this-relative
-    kStoreReturn = 11,           // stack-relative
-    kStoreToPointer = 12         // address known at compile time
+    kBlockLiteral,
+    kBranch,
+    kBranchIfTrue,
+    kConstant,
+
+#error do these replace LoadArg and LoadInstanceVar?
+kImportValue,  // from an argument or frame, instance, or class variable
+kExportValue,  // to a frame, instance, or class variable
+
+    kLoadArgument,           // stack-relative
+    kLoadFromPointer,        // address known at compile time
+    kLoadInstanceVariable,   // this-relative
+    kMessage,
+    kMethodReturn,
+    kPhi,
+    kStoreInstanceVariable, // this-relative
+    kStoreReturn,           // stack-relative
+    kStoreToPointer         // address known at compile time
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in

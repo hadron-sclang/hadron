@@ -38,8 +38,12 @@ BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
 
 BlockBuilder::~BlockBuilder() { }
 
-std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
+std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const library::Method /* method */,
         const ast::BlockAST* blockAST) {
+    return buildFrame(context, blockAST);
+}
+
+std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const ast::BlockAST* blockAST) {
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
 
@@ -62,9 +66,6 @@ std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const l
         // Set known class and type to *this* pointer.
         if (argIndex == 0) {
             loadArg->value.typeFlags = TypeFlags::kObjectFlag;
-            // TODO: this is wrong. It could be this class or any descendent of this class until the next
-            // descendent override of this method.
-            loadArg->value.knownClassName = method.ownerClass().name(context);
         } else if (blockAST->hasVarArg && argIndex == frame->argumentOrder.size() - 1) {
             // Variable arguments always have Array type.
             loadArg->value.typeFlags = TypeFlags::kObjectFlag;
@@ -84,10 +85,6 @@ std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const l
     }
 
     return frame;
-}
-
-std::unique_ptr<Frame> BlockBuilder::buildFunctionDef(ThreadContext* context, const ast::BlockAST* blockAST) {
-
 }
 
 std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, Block* predecessor,
@@ -129,7 +126,7 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
     case ast::ASTType::kBlock: {
         const auto blockAST = reinterpret_cast<const ast::BlockAST*>(ast);
         auto blockHIR = std::make_unique<hir::BlockLiteralHIR>(currentBlock->frame);
-        blockHIR->frame = buildFunctionDef(context, blockAST);
+        blockHIR->frame = buildFrame(context, blockAST);
         nodeValue = insert(std::move(blockHIR), currentBlock);
     } break;
 

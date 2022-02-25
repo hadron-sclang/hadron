@@ -4,6 +4,7 @@
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/Frame.hpp"
+#include "hadron/hir/BlockLiteralHIR.hpp"
 #include "hadron/hir/BranchHIR.hpp"
 #include "hadron/hir/BranchIfTrueHIR.hpp"
 #include "hadron/hir/ConstantHIR.hpp"
@@ -1398,6 +1399,15 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
     jsonHIR.AddMember("reads", reads, document.GetAllocator());
 
     switch(hir->opcode) {
+    case hadron::hir::Opcode::kBlockLiteral: {
+        const auto block = reinterpret_cast<const hadron::hir::BlockLiteralHIR*>(hir);
+        jsonHIR.AddMember("opcode", "BlockLiteral", document.GetAllocator());
+
+        rapidjson::Value jsonFrame;
+        serializeFrame(context, block->frame.get(), jsonFrame, document);
+        jsonHIR.AddMember("frame", jsonFrame, document.GetAllocator());
+    } break;
+
     case hadron::hir::Opcode::kBranch: {
         const auto branch = reinterpret_cast<const hadron::hir::BranchHIR*>(hir);
         jsonHIR.AddMember("opcode", "Branch", document.GetAllocator());
