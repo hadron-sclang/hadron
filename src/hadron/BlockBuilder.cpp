@@ -156,6 +156,23 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
         nodeValue = insert(std::move(messageHIR), currentBlock);
     } break;
 
+/*
+ Names can identify a variety of variables:
+   a) Class names - easy to identify from the upper case, easy to find with the Class Library
+   b) Local variables - all the local stuff is already in revisions
+   c) Instance variables from *this* - we have a list of them so we can find them, how are they loaded? How do we
+        ensure they are updated?
+   d) Class variables derived from *this* - we have a list of them too, need same load/save semantics
+   e) Lexical scope outer variables - by default we try to pack everything into registers, so how do we identify which
+        things need to be "promoted" to an array of values that must persist?
+   f) Arguments - don't need to persist past the lifetime of the function
+
+ Solution: build a list of *reads* and *modifies* for each frame.
+ - LoadExternal can identify the origin of the name
+ - SaveExternal
+
+ */
+
     case ast::ASTType::kName: {
         const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);
 
