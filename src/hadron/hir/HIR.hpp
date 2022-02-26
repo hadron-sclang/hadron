@@ -39,11 +39,6 @@ enum Opcode {
     kBranch,
     kBranchIfTrue,
     kConstant,
-
-#error do these replace LoadArg and LoadInstanceVar?
-kImportValue,  // from an argument or frame, instance, or class variable
-kExportValue,  // to a frame, instance, or class variable
-
     kLoadArgument,           // stack-relative
     kLoadFromPointer,        // address known at compile time
     kLoadInstanceVariable,   // this-relative

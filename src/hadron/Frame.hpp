@@ -27,9 +27,6 @@ struct Frame {
 
     std::unique_ptr<Scope> rootScope;
 
-    #error here - some kind of "import" block for imports
-    #error and some kind of export block for exports?
-
     // Map of value IDs as index to HIR objects. During optimization HIR can change, for example simplifying MessageHIR
     // to a constant, so we identify values by their NVID and maintain a single frame-wide map here of the authoritative
     // map between IDs and HIR.
