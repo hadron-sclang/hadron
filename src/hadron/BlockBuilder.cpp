@@ -5,6 +5,7 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
+#include "hadron/hir/BlockLiteralHIR.hpp"
 #include "hadron/hir/BranchHIR.hpp"
 #include "hadron/hir/BranchIfTrueHIR.hpp"
 #include "hadron/hir/ConstantHIR.hpp"
@@ -37,8 +38,12 @@ BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
 
 BlockBuilder::~BlockBuilder() { }
 
-std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
+std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const library::Method /* method */,
         const ast::BlockAST* blockAST) {
+    return buildFrame(context, blockAST);
+}
+
+std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const ast::BlockAST* blockAST) {
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
 
@@ -61,9 +66,6 @@ std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const l
         // Set known class and type to *this* pointer.
         if (argIndex == 0) {
             loadArg->value.typeFlags = TypeFlags::kObjectFlag;
-            // TODO: this is wrong. It could be this class or any descendent of this class until the next
-            // descendent override of this method.
-            loadArg->value.knownClassName = method.ownerClass().name(context);
         } else if (blockAST->hasVarArg && argIndex == frame->argumentOrder.size() - 1) {
             // Variable arguments always have Array type.
             loadArg->value.typeFlags = TypeFlags::kObjectFlag;
@@ -120,10 +122,12 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
         nodeValue = buildFinalValue(context, currentBlock, seq);
     } break;
 
-    // Blocks inline are block literals. We need to compile the AST down to bytecode, then in this context the
-    // finalValue is a pointer back to the Function object which references the compiled FunctionDef.
+    // Blocks encountered here are are block literals, and are candidates for inlining.
     case ast::ASTType::kBlock: {
-        assert(false);
+        const auto blockAST = reinterpret_cast<const ast::BlockAST*>(ast);
+        auto blockHIR = std::make_unique<hir::BlockLiteralHIR>(currentBlock->frame);
+        blockHIR->frame = buildFrame(context, blockAST);
+        nodeValue = insert(std::move(blockHIR), currentBlock);
     } break;
 
     case ast::ASTType::kIf: {
@@ -151,6 +155,23 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
 
         nodeValue = insert(std::move(messageHIR), currentBlock);
     } break;
+
+/*
+ Names can identify a variety of variables:
+   a) Class names - easy to identify from the upper case, easy to find with the Class Library
+   b) Local variables - all the local stuff is already in revisions
+   c) Instance variables from *this* - we have a list of them so we can find them, how are they loaded? How do we
+        ensure they are updated?
+   d) Class variables derived from *this* - we have a list of them too, need same load/save semantics
+   e) Lexical scope outer variables - by default we try to pack everything into registers, so how do we identify which
+        things need to be "promoted" to an array of values that must persist?
+   f) Arguments - don't need to persist past the lifetime of the function
+
+ Solution: build a list of *reads* and *modifies* for each frame.
+ - LoadExternal can identify the origin of the name
+ - SaveExternal
+
+ */
 
     case ast::ASTType::kName: {
         const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);

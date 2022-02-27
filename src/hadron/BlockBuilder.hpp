@@ -39,6 +39,8 @@ public:
             const ast::BlockAST* blockAST);
 
 private:
+    std::unique_ptr<Frame> buildFrame(ThreadContext* context, const ast::BlockAST* blockAST);
+
     // Re-uses the containing stack frame but produces a new scope. Needs exactly one predecessor.
     std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, Block* predecessor, const ast::BlockAST* blockAST);
 
