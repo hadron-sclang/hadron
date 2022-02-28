@@ -39,15 +39,16 @@ enum Opcode {
     kBranch,
     kBranchIfTrue,
     kConstant,
-    kLoadArgument,           // stack-relative
-    kLoadFromPointer,        // address known at compile time
-    kLoadInstanceVariable,   // this-relative
+    kImportName, // will need to know origin of that name
+//    kLoadArgument,           // stack-relative
+//    kLoadFromPointer,        // address known at compile time
+//    kLoadInstanceVariable,   // this-relative
     kMessage,
     kMethodReturn,
     kPhi,
-    kStoreInstanceVariable, // this-relative
+//    kStoreInstanceVariable, // this-relative
     kStoreReturn,           // stack-relative
-    kStoreToPointer         // address known at compile time
+//    kStoreToPointer         // address known at compile time
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in
