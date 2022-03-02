@@ -39,18 +39,22 @@ public:
             const ast::BlockAST* blockAST);
 
 private:
-    std::unique_ptr<Frame> buildFrame(ThreadContext* context, const ast::BlockAST* blockAST);
+    std::unique_ptr<Frame> buildFrame(ThreadContext* context, const library::Method method,
+            const ast::BlockAST* blockAST);
 
     // Re-uses the containing stack frame but produces a new scope. Needs exactly one predecessor.
-    std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, Block* predecessor, const ast::BlockAST* blockAST);
+    std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, const library::Method method, Block* predecessor,
+            const ast::BlockAST* blockAST);
 
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not
     // iterate to process the |node->next| pointer. Call buildFinalValue() to do that.
-    hir::NVID buildValue(ThreadContext* context, Block*& currentBlock, const ast::AST* ast);
-    hir::NVID buildFinalValue(ThreadContext* context, Block*& currentBlock,
+    hir::NVID buildValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
+            const ast::AST* ast);
+    hir::NVID buildFinalValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
             const ast::SequenceAST* sequence);
-    hir::NVID buildIf(ThreadContext* context, Block*& currentBlock, const ast::IfAST* ifAST);
+    hir::NVID buildIf(ThreadContext* context, const library::Method method, Block*& currentBlock,
+            const ast::IfAST* ifAST);
 
     // Returns the value either inserted or re-used (if a constant). Takes ownership of hir.
     hir::NVID insert(std::unique_ptr<hir::HIR> hir, Block* block);

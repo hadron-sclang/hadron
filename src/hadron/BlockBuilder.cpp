@@ -38,12 +38,13 @@ BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
 
 BlockBuilder::~BlockBuilder() { }
 
-std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const library::Method /* method */,
+std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
         const ast::BlockAST* blockAST) {
-    return buildFrame(context, blockAST);
+    return buildFrame(context, method, blockAST);
 }
 
-std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const ast::BlockAST* blockAST) {
+std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const library::Method method,
+    const ast::BlockAST* blockAST) {
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
 
@@ -55,8 +56,6 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const as
     scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
     ++frame->numberOfBlocks;
     auto block = scope->blocks.front().get();
-
-    // TODO: class and instance variables need loaded.
 
     // Load all arguments here.
     for (int32_t argIndex = 0; argIndex < frame->argumentOrder.size(); ++argIndex) {
@@ -76,7 +75,7 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const as
     }
 
     Block* currentBlock = block;
-    currentBlock->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
+    currentBlock->finalValue = buildFinalValue(context, method, currentBlock, blockAST->statements.get());
 
      // We append a return statement in the final block, if one wasn't already provided.
     if (!currentBlock->hasMethodReturn) {
@@ -87,8 +86,8 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const as
     return frame;
 }
 
-std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, Block* predecessor,
-        const ast::BlockAST* blockAST) {
+std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, const library::Method method,
+        Block* predecessor, const ast::BlockAST* blockAST) {
     auto scope = std::make_unique<Scope>(predecessor->scope);
     scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), scope->frame->numberOfBlocks));
     ++scope->frame->numberOfBlocks;
@@ -105,11 +104,12 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, Bl
     }
 
     Block* currentBlock = block;
-    currentBlock->finalValue = buildFinalValue(context, currentBlock, blockAST->statements.get());
+    currentBlock->finalValue = buildFinalValue(context, method, currentBlock, blockAST->statements.get());
     return scope;
 }
 
-hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock, const ast::AST* ast) {
+hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
+        const ast::AST* ast) {
     hir::NVID nodeValue;
 
     switch(ast->astType) {
@@ -119,20 +119,20 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
 
     case ast::ASTType::kSequence: {
         const auto seq = reinterpret_cast<const ast::SequenceAST*>(ast);
-        nodeValue = buildFinalValue(context, currentBlock, seq);
+        nodeValue = buildFinalValue(context, method, currentBlock, seq);
     } break;
 
     // Blocks encountered here are are block literals, and are candidates for inlining.
     case ast::ASTType::kBlock: {
         const auto blockAST = reinterpret_cast<const ast::BlockAST*>(ast);
         auto blockHIR = std::make_unique<hir::BlockLiteralHIR>(currentBlock->frame);
-        blockHIR->frame = buildFrame(context, blockAST);
+        blockHIR->frame = buildFrame(context, method, blockAST);
         nodeValue = insert(std::move(blockHIR), currentBlock);
     } break;
 
     case ast::ASTType::kIf: {
         const auto ifAST = reinterpret_cast<const ast::IfAST*>(ast);
-        nodeValue = buildIf(context, currentBlock, ifAST);
+        nodeValue = buildIf(context, method, currentBlock, ifAST);
     } break;
 
     case ast::ASTType::kMessage: {
@@ -144,13 +144,13 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
         // Build arguments.
         messageHIR->arguments.reserve(message->arguments->sequence.size());
         for (const auto& arg : message->arguments->sequence) {
-            messageHIR->arguments.emplace_back(buildValue(context, currentBlock, arg.get()));
+            messageHIR->arguments.emplace_back(buildValue(context, method, currentBlock, arg.get()));
         }
 
         // Build keyword argument pairs.
         messageHIR->keywordArguments.reserve(message->keywordArguments->sequence.size());
         for (const auto& arg : message->keywordArguments->sequence) {
-            messageHIR->keywordArguments.emplace_back(buildValue(context, currentBlock, arg.get()));
+            messageHIR->keywordArguments.emplace_back(buildValue(context, method, currentBlock, arg.get()));
         }
 
         nodeValue = insert(std::move(messageHIR), currentBlock);
@@ -163,7 +163,7 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
 
     case ast::ASTType::kAssign: {
         const auto assign = reinterpret_cast<const ast::AssignAST*>(ast);
-        nodeValue = buildValue(context, currentBlock, assign->value.get());
+        nodeValue = buildValue(context, method, currentBlock, assign->value.get());
         // TODO: StoreInstanceVariable? StoreClassVariable?
         currentBlock->revisions[assign->name->name] = nodeValue;
     } break;
@@ -175,7 +175,7 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
 
     case ast::ASTType::kMethodReturn: {
         const auto retAST = reinterpret_cast<const ast::MethodReturnAST*>(ast);
-        nodeValue = buildValue(context, currentBlock, retAST->value.get());
+        nodeValue = buildValue(context, method, currentBlock, retAST->value.get());
         insert(std::make_unique<hir::StoreReturnHIR>(nodeValue), currentBlock);
         insert(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
         currentBlock->hasMethodReturn = true;
@@ -193,20 +193,21 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
     return nodeValue;
 }
 
-hir::NVID BlockBuilder::buildFinalValue(ThreadContext* context, Block*& currentBlock,
+hir::NVID BlockBuilder::buildFinalValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
         const ast::SequenceAST* sequenceAST) {
     for (const auto& ast : sequenceAST->sequence) {
-        currentBlock->finalValue = buildValue(context, currentBlock, ast.get());
+        currentBlock->finalValue = buildValue(context, method, currentBlock, ast.get());
         // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
         if (currentBlock->hasMethodReturn) { break; }
     }
     return currentBlock->finalValue;
 }
 
-hir::NVID BlockBuilder::buildIf(ThreadContext* context, Block*& currentBlock, const ast::IfAST* ifAST) {
+hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, Block*& currentBlock,
+        const ast::IfAST* ifAST) {
     hir::NVID nodeValue;
     // Compute final value of the condition.
-    auto condition = buildFinalValue(context, currentBlock, ifAST->condition.get());
+    auto condition = buildFinalValue(context, method, currentBlock, ifAST->condition.get());
 
     // Add branch to the true block if the condition is true.
     auto trueBranchOwning = std::make_unique<hir::BranchIfTrueHIR>(condition);
@@ -223,14 +224,14 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, Block*& currentBlock, co
     Block* conditionBlock = currentBlock;
 
     // Build the true condition block.
-    auto trueScopeOwning = buildInlineBlock(context, conditionBlock, ifAST->trueBlock.get());
+    auto trueScopeOwning = buildInlineBlock(context, method, conditionBlock, ifAST->trueBlock.get());
     Scope* trueScope = trueScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(trueScopeOwning));
     trueBranch->blockId = trueScope->blocks.front()->id;
     conditionBlock->successors.emplace_back(trueScope->blocks.front().get());
 
     // Build the false condition block.
-    auto falseScopeOwning = buildInlineBlock(context, conditionBlock, ifAST->falseBlock.get());
+    auto falseScopeOwning = buildInlineBlock(context, method, conditionBlock, ifAST->falseBlock.get());
     Scope* falseScope = falseScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(falseScopeOwning));
     falseBranch->blockId = falseScope->blocks.front()->id;
