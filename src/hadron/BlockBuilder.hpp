@@ -55,12 +55,17 @@ private:
     // Returns the value either inserted or re-used (if a constant). Takes ownership of hir.
     hir::NVID insert(std::unique_ptr<hir::HIR> hir, Block* block);
 
+    // Follow order of precedence in names to locate an identifer symbol, including in local variables, arguments,
+    // instance variables, class variables, and pre-defined identifiers. Can return hir::kInvalidNVID, which means a
+    // compilation error that the name is not found.
+    hir::NVID findName(ThreadContext* context, const library::Method method, library::Symbol name, Block* block);
+
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
-    // tables.
-    hir::NVID findName(ThreadContext* context, library::Symbol name, Block* block,
-                std::unordered_map<Block::ID, hir::NVID>& blockValues,
-                const std::unordered_set<const Scope*>& containingScopes);
+    // tables. Can return hir::kInvalidNVID which means the name was not found.
+    hir::NVID findScopedName(ThreadContext* context, library::Symbol name, Block* block,
+                             std::unordered_map<Block::ID, hir::NVID>& blockValues,
+                             const std::unordered_set<const Scope*>& containingScopes);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };

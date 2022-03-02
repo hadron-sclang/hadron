@@ -156,44 +156,9 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, Block*& currentBlock,
         nodeValue = insert(std::move(messageHIR), currentBlock);
     } break;
 
-/*
- Names can identify a variety of variables:
-   a) Class names - easy to identify from the upper case, easy to find with the Class Library
-   b) Local variables - all the local stuff is already in revisions
-   c) Instance variables from *this* - we have a list of them so we can find them, how are they loaded? How do we
-        ensure they are updated?
-   d) Class variables derived from *this* - we have a list of them too, need same load/save semantics
-   e) Lexical scope outer variables - by default we try to pack everything into registers, so how do we identify which
-        things need to be "promoted" to an array of values that must persist?
-   f) Arguments - don't need to persist past the lifetime of the function
-
- Solution: build a list of *reads* and *modifies* for each frame.
- - LoadExternal can identify the origin of the name
- - SaveExternal
-
- */
-
     case ast::ASTType::kName: {
         const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);
-
-        // If this symbol potentially defines a class name look it up in the class library and provide it as a constant.
-        if (nameAST->name.isClassName(context)) {
-            auto classDef = context->classLibrary->findClassNamed(nameAST->name);
-            assert(!classDef.isNil());
-            auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot(), nameAST->name);
-            constant->value.knownClassName = nameAST->name;
-            nodeValue = insert(std::move(constant), currentBlock);
-            currentBlock->revisions.emplace(std::make_pair(nameAST->name, nodeValue));
-        } else {
-            std::unordered_map<int32_t, hir::NVID> blockValues;
-            std::unordered_set<const Scope*> containingScopes;
-            const Scope* scope = currentBlock->scope;
-            while (scope) {
-                containingScopes.emplace(scope);
-                scope = scope->parent;
-            }
-            nodeValue = findName(context, nameAST->name, currentBlock, blockValues, containingScopes);
-        }
+        nodeValue = findName(context, method, nameAST->name, currentBlock);
     } break;
 
     case ast::ASTType::kAssign: {
@@ -305,7 +270,7 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, Block*& currentBlock, co
 }
 
 hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
-    // Phis should only be inserted by findName().
+    // Phis should only be inserted by findScopedName().
     assert(hir->opcode != hir::Opcode::kPhi);
 
     auto valueNumber = static_cast<hir::NVID>(block->frame->values.size());
@@ -319,9 +284,45 @@ hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
     return value;
 }
 
-hir::NVID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block,
+hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method method, library::Symbol name,
+        Block* block) {
+
+    // If this symbol potentially defines a class name look it up in the class library and provide it as a constant.
+    if (name.isClassName(context)) {
+        auto classDef = context->classLibrary->findClassNamed(name);
+        assert(!classDef.isNil());
+        auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot(), name);
+        constant->value.knownClassName = name;
+        hir::NVID nodeValue = insert(std::move(constant), block);
+        block->revisions.emplace(std::make_pair(name, nodeValue));
+        return nodeValue;
+    }
+
+    // Search through local variables for a name.
+    std::unordered_map<int32_t, hir::NVID> blockValues;
+    std::unordered_set<const Scope*> containingScopes;
+    const Scope* scope = block->scope;
+    while (scope) {
+        containingScopes.emplace(scope);
+        scope = scope->parent;
+    }
+    hir::NVID nodeValue = findScopedName(context, name, block, blockValues, containingScopes);
+    if (nodeValue != hir::kInvalidNVID) { return nodeValue; }
+
+    // Local variable search failed, try arguments. How to handle nested frames and argument conflicts?
+
+    // Instance variable search is next.
+
+    // Class variables are last.
+
+    return hir::kInvalidNVID;
+}
+
+hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol name, Block* block,
         std::unordered_map<Block::ID, hir::NVID>& blockValues,
         const std::unordered_set<const Scope*>& containingScopes) {
+
+    // To avoid any infinite cycles in block loops, return any value found on a previous call on this block.
     auto cacheIter = blockValues.find(block->id);
     if (cacheIter != blockValues.end()) {
         return cacheIter->second;
@@ -339,7 +340,7 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
     }
 
     // Either no local revision found or the local revision is ignored, we need to search recursively upward. Create
-    // a pair of phis for possible insertion into the local map (if not shadowed).
+    // a phi for possible insertion into the local map (if not shadowed).
     auto phi = std::make_unique<hir::PhiHIR>();
     auto phiValue = phi->proposeValue(static_cast<hir::NVID>(block->frame->values.size()));
     block->frame->values.emplace_back(phi.get());
@@ -347,17 +348,20 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
 
     // Search predecessors for the name.
     for (auto pred : block->predecessors) {
-        auto foundValue = findName(context, name, pred, blockValues, containingScopes);
+        auto foundValue = findScopedName(context, name, pred, blockValues, containingScopes);
+
+        // It is worth thinking through if there are any valid scenarios where one predecessor could return a valid NVID
+        // and another predecessor would not. If the shadowing logic is working correctly, it seems that there are not,
+        // either all inputs are valid (if possibly trivial) or all inputs are invalid.
+        if (foundValue == hir::kInvalidNVID) { return hir::kInvalidNVID; }
+
         phi->addInput(block->frame->values[foundValue]);
     }
 
-    // TODO: It's possible that phis have 0 inputs here, meaning you'll get an assert on phiForValue->getTrivialValue.
-    // That means the name is undefined, and we should return an error.
-    if (phi->inputs.size() == 0) {
-        SPDLOG_CRITICAL("Failed to find name: {}", name.view(context));
-        assert(false);
-    }
+    // We likely had no predecessors, so now have an empty phi, so return invalid ID.
+    if (phi->inputs.size() == 0) { return hir::kInvalidNVID; }
 
+    // Phi has inputs but it is trivial?
     auto trivialValue = phi->getTrivialValue();
 
     // Shadowed variables should always result in trivial phis, due to the fact that Scopes must always have exactly
