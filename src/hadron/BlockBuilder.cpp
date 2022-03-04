@@ -47,6 +47,9 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
     frame->argumentOrder = blockAST->argumentNames;
     frame->argumentDefaults = blockAST->argumentDefaults;
 
+    // The first block in the root Scope is the "import" block, which we leave empty except for a branch instruction to
+    // the next block. This block can be used for insertion of LoadExternalHIR instructions in a location that is
+    // guaranteed to *dominate* every other block in the graph. 
     frame->rootScope = std::make_unique<Scope>(frame.get());
     auto scope = frame->rootScope.get();
     scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
