@@ -16,11 +16,9 @@ struct ThreadContext;
 namespace hir {
 
 struct BlockLiteralHIR : public HIR {
-    BlockLiteralHIR() = delete;
-    explicit BlockLiteralHIR(const Frame* outer);
+    BlockLiteralHIR();
     virtual ~BlockLiteralHIR() = default;
 
-    const Frame* outerFrame;
     std::unique_ptr<Frame> frame;
 
     NVID proposeValue(NVID id) override;

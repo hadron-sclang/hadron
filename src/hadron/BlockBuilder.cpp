@@ -11,13 +11,9 @@
 #include "hadron/hir/ConstantHIR.hpp"
 #include "hadron/hir/HIR.hpp"
 #include "hadron/hir/LoadArgumentHIR.hpp"
-#include "hadron/hir/LoadFromPointerHIR.hpp"
-#include "hadron/hir/LoadInstanceVariableHIR.hpp"
 #include "hadron/hir/MessageHIR.hpp"
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/hir/PhiHIR.hpp"
-#include "hadron/hir/StoreToPointerHIR.hpp"
-#include "hadron/hir/StoreInstanceVariableHIR.hpp"
 #include "hadron/hir/StoreReturnHIR.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/LinearFrame.hpp"
@@ -40,14 +36,14 @@ BlockBuilder::~BlockBuilder() { }
 
 std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
         const ast::BlockAST* blockAST) {
-    return buildFrame(context, method, blockAST);
+    return buildFrame(context, method, blockAST, nullptr);
 }
 
 std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const library::Method method,
-    const ast::BlockAST* blockAST) {
+    const ast::BlockAST* blockAST, Block* outerBlock) {
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
-
+    frame->outerBlock = outerBlock;
     frame->argumentOrder = blockAST->argumentNames;
     frame->argumentDefaults = blockAST->argumentDefaults;
 
@@ -125,8 +121,8 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
     // Blocks encountered here are are block literals, and are candidates for inlining.
     case ast::ASTType::kBlock: {
         const auto blockAST = reinterpret_cast<const ast::BlockAST*>(ast);
-        auto blockHIR = std::make_unique<hir::BlockLiteralHIR>(currentBlock->frame);
-        blockHIR->frame = buildFrame(context, method, blockAST);
+        auto blockHIR = std::make_unique<hir::BlockLiteralHIR>();
+        blockHIR->frame = buildFrame(context, method, blockAST, currentBlock->frame);
         nodeValue = insert(std::move(blockHIR), currentBlock);
     } break;
 
@@ -164,7 +160,7 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
     case ast::ASTType::kAssign: {
         const auto assign = reinterpret_cast<const ast::AssignAST*>(ast);
         nodeValue = buildValue(context, method, currentBlock, assign->value.get());
-        // TODO: StoreInstanceVariable? StoreClassVariable?
+#error this is the moment where you can storeExternal if needed.
         currentBlock->revisions[assign->name->name] = nodeValue;
     } break;
 
@@ -287,7 +283,6 @@ hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
 
 hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method method, library::Symbol name,
         Block* block) {
-
     // If this symbol potentially defines a class name look it up in the class library and provide it as a constant.
     if (name.isClassName(context)) {
         auto classDef = context->classLibrary->findClassNamed(name);
@@ -299,18 +294,30 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         return nodeValue;
     }
 
-    // Search through local variables for a name.
-    std::unordered_map<int32_t, hir::NVID> blockValues;
-    std::unordered_set<const Scope*> containingScopes;
-    const Scope* scope = block->scope;
-    while (scope) {
-        containingScopes.emplace(scope);
-        scope = scope->parent;
-    }
-    hir::NVID nodeValue = findScopedName(context, name, block, blockValues, containingScopes);
-    if (nodeValue != hir::kInvalidNVID) { return nodeValue; }
+    // Search through local values (arguments, variables) for a name.
+    Block* searchBlock = block;
+    while (searchBlock) {
+        std::unordered_map<int32_t, hir::NVID> blockValues;
+        std::unordered_set<const Scope*> containingScopes;
+        const Scope* scope = searchBlock->scope;
+        while (scope) {
+            containingScopes.emplace(scope);
+            scope = scope->parent;
+        }
 
-    // Local variable search failed, try arguments. How to handle nested frames and argument conflicts?
+        hir::NVID nodeValue = findScopedName(context, name, searchBlock, blockValues, containingScopes);
+        if (nodeValue != hir::kInvalidNVID) {
+            Block* importBlock = block;
+            // If we found this value in a
+            while (importBlock != searchBlock) {
+                importBlock->frame->??
+            }
+            return nodeValue;
+        }
+
+        // Search in the next outside block, if one exists.
+        searchBlock = block->frame->outerBlock;
+    }
 
     // Instance variable search is next.
 

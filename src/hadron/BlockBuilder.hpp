@@ -40,7 +40,7 @@ public:
 
 private:
     std::unique_ptr<Frame> buildFrame(ThreadContext* context, const library::Method method,
-            const ast::BlockAST* blockAST);
+            const ast::BlockAST* blockAST, Block* outerBlock);
 
     // Re-uses the containing stack frame but produces a new scope. Needs exactly one predecessor.
     std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, const library::Method method, Block* predecessor,

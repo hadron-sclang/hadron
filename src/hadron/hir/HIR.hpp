@@ -19,7 +19,7 @@ namespace hir {
 
 using NVID = int32_t;
 static constexpr int32_t kInvalidNVID = -1;
-// This assumption has crept into the code so document it and enfore with the compiler.
+// This assumption has crept into the code so document it and enforce with the compiler.
 static_assert(kInvalidNVID == lir::kInvalidVReg);
 
 struct NamedValue {
@@ -34,21 +34,31 @@ struct NamedValue {
     library::Symbol name; // Can be nil for anonymous values
 };
 
+struct ExternalValue {
+    library::Symbol name;
+    enum Kind {
+        kClassVariable,
+        kInstanceVariable,
+        kCapturedLocal
+    };
+    Kind kind;
+
+    int32_t offset;
+};
+
 enum Opcode {
     kBlockLiteral,
     kBranch,
     kBranchIfTrue,
     kConstant,
-    kImportName, // will need to know origin of that name
-//    kLoadArgument,           // stack-relative
-//    kLoadFromPointer,        // address known at compile time
-//    kLoadInstanceVariable,   // this-relative
+    kImportName,
+    kLoadArgument,
+    kLoadExternal,
     kMessage,
     kMethodReturn,
     kPhi,
-//    kStoreInstanceVariable, // this-relative
-    kStoreReturn,           // stack-relative
-//    kStoreToPointer         // address known at compile time
+    kStoreExternal,
+    kStoreReturn
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in

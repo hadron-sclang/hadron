@@ -194,22 +194,14 @@ add_library(hadron STATIC
     hir/HIR.hpp
     hir/LoadArgumentHIR.cpp
     hir/LoadArgumentHIR.hpp
-    hir/LoadFromPointerHIR.cpp
-    hir/LoadFromPointerHIR.hpp
-    hir/LoadInstanceVariableHIR.cpp
-    hir/LoadInstanceVariableHIR.hpp
     hir/MessageHIR.cpp
     hir/MessageHIR.hpp
     hir/MethodReturnHIR.cpp
     hir/MethodReturnHIR.hpp
     hir/PhiHIR.cpp
     hir/PhiHIR.hpp
-    hir/StoreInstanceVariableHIR.cpp
-    hir/StoreInstanceVariableHIR.hpp
     hir/StoreReturnHIR.cpp
     hir/StoreReturnHIR.hpp
-    hir/StoreToPointerHIR.cpp
-    hir/StoreToPointerHIR.hpp
 
     library/Array.hpp
     library/ArrayedCollection.hpp

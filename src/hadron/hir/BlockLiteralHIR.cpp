@@ -7,9 +7,8 @@
 namespace hadron {
 namespace hir {
 
-BlockLiteralHIR::BlockLiteralHIR(const Frame* outer):
-    HIR(kBlockLiteral, TypeFlags::kObjectFlag, library::Symbol()),
-    outerFrame(outer) {}
+BlockLiteralHIR::BlockLiteralHIR():
+    HIR(kBlockLiteral, TypeFlags::kObjectFlag, library::Symbol()) {}
 
 NVID BlockLiteralHIR::proposeValue(NVID id) {
     value.id = id;
