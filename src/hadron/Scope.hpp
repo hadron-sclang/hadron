@@ -25,6 +25,7 @@ struct Scope {
     ~Scope() = default;
 
     // Set of locally defined variable names.
+    #error you're not doing anything with this.
     std::unordered_set<library::Symbol> variableNames;
 
     Frame* frame;

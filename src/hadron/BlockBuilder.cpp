@@ -48,8 +48,8 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
     frame->argumentDefaults = blockAST->argumentDefaults;
 
     // The first block in the root Scope is the "import" block, which we leave empty except for a branch instruction to
-    // the next block. This block can be used for insertion of LoadExternalHIR instructions in a location that is
-    // guaranteed to *dominate* every other block in the graph. 
+    // the next block. This block can be used for insertion of LoadExternalHIR and LoadArgumentHIR instructions in a
+    // location that is guaranteed to *dominate* every other block in the graph.
     frame->rootScope = std::make_unique<Scope>(frame.get());
     auto scope = frame->rootScope.get();
     scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
@@ -70,15 +70,22 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
             loadArg->value.knownClassName = library::Symbol::fromView(context, "Array");
         }
 
-        block->revisions.emplace(std::make_pair(name, insert(std::move(loadArg), block)));
+        block->revisions.emplace(std::make_pair(name, append(std::move(loadArg), block)));
     }
 
-    Block* currentBlock = block;
+    // Create a new block for the method body and insert a branch to the new block from the current one.
+    scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
+    ++frame->numberOfBlocks;
+    auto branch = std::make_unique<hir::BranchHIR>();
+    branch->blockId = scope->blocks.back()->id;
+    append(std::move(branch), block);
+
+    Block* currentBlock = scope->blocks.back().get();
     currentBlock->finalValue = buildFinalValue(context, method, currentBlock, blockAST->statements.get());
 
      // We append a return statement in the final block, if one wasn't already provided.
     if (!currentBlock->hasMethodReturn) {
-        insert(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
+        append(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
         currentBlock->hasMethodReturn = true;
     }
 
@@ -99,7 +106,7 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, co
         auto name = blockAST->argumentNames.at(argIndex);
         auto value = blockAST->argumentDefaults.at(argIndex);
         block->revisions.emplace(std::make_pair(name,
-                insert(std::make_unique<hir::ConstantHIR>(value, name), block)));
+                append(std::make_unique<hir::ConstantHIR>(value, name), block)));
     }
 
     Block* currentBlock = block;
@@ -113,7 +120,7 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
 
     switch(ast->astType) {
     case ast::ASTType::kEmpty:
-        nodeValue = insert(std::make_unique<hir::ConstantHIR>(Slot::makeNil()), currentBlock);
+        nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()), currentBlock);
         break;
 
     case ast::ASTType::kSequence: {
@@ -125,8 +132,8 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
     case ast::ASTType::kBlock: {
         const auto blockAST = reinterpret_cast<const ast::BlockAST*>(ast);
         auto blockHIR = std::make_unique<hir::BlockLiteralHIR>();
-        blockHIR->frame = buildFrame(context, method, blockAST, currentBlock->frame);
-        nodeValue = insert(std::move(blockHIR), currentBlock);
+        blockHIR->frame = buildFrame(context, method, blockAST, currentBlock);
+        nodeValue = append(std::move(blockHIR), currentBlock);
     } break;
 
     case ast::ASTType::kIf: {
@@ -152,7 +159,7 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
             messageHIR->keywordArguments.emplace_back(buildValue(context, method, currentBlock, arg.get()));
         }
 
-        nodeValue = insert(std::move(messageHIR), currentBlock);
+        nodeValue = append(std::move(messageHIR), currentBlock);
     } break;
 
     case ast::ASTType::kName: {
@@ -169,14 +176,14 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
 
     case ast::ASTType::kConstant: {
         const auto constAST = reinterpret_cast<const ast::ConstantAST*>(ast);
-        nodeValue = insert(std::make_unique<hir::ConstantHIR>(constAST->constant), currentBlock);
+        nodeValue = append(std::make_unique<hir::ConstantHIR>(constAST->constant), currentBlock);
     } break;
 
     case ast::ASTType::kMethodReturn: {
         const auto retAST = reinterpret_cast<const ast::MethodReturnAST*>(ast);
         nodeValue = buildValue(context, method, currentBlock, retAST->value.get());
-        insert(std::make_unique<hir::StoreReturnHIR>(nodeValue), currentBlock);
-        insert(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
+        append(std::make_unique<hir::StoreReturnHIR>(nodeValue), currentBlock);
+        append(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
         currentBlock->hasMethodReturn = true;
     } break;
 
@@ -211,12 +218,12 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, 
     // Add branch to the true block if the condition is true.
     auto trueBranchOwning = std::make_unique<hir::BranchIfTrueHIR>(condition);
     auto trueBranch = trueBranchOwning.get();
-    insert(std::move(trueBranchOwning), currentBlock);
+    append(std::move(trueBranchOwning), currentBlock);
 
     // Insert absolute branch to the false block.
     auto falseBranchOwning = std::make_unique<hir::BranchHIR>();
     hir::BranchHIR* falseBranch = falseBranchOwning.get();
-    insert(std::move(falseBranchOwning), currentBlock);
+    append(std::move(falseBranchOwning), currentBlock);
 
     // Preserve the current block and frame for insertion of the new subframes as children.
     Scope* parentScope = currentBlock->scope;
@@ -245,14 +252,14 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, 
     // Wire trueScope exit block to the continue block here.
     auto exitTrueBranch = std::make_unique<hir::BranchHIR>();
     exitTrueBranch->blockId = currentBlock->id;
-    insert(std::move(exitTrueBranch), trueScope->blocks.back().get());
+    append(std::move(exitTrueBranch), trueScope->blocks.back().get());
     trueScope->blocks.back()->successors.emplace_back(currentBlock);
     currentBlock->predecessors.emplace_back(trueScope->blocks.back().get());
 
     // Wire falseFrame exit block to the continue block here.
     auto exitFalseBranch = std::make_unique<hir::BranchHIR>();
     exitFalseBranch->blockId = currentBlock->id;
-    insert(std::move(exitFalseBranch), falseScope->blocks.back().get());
+    append(std::move(exitFalseBranch), falseScope->blocks.back().get());
     falseScope->blocks.back()->successors.emplace_back(currentBlock);
     currentBlock->predecessors.emplace_back(falseScope->blocks.back().get());
 
@@ -269,7 +276,12 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, 
     return nodeValue;
 }
 
-hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
+hir::NVID BlockBuilder::append(std::unique_ptr<hir::HIR> hir, Block* block) {
+    return insert(std::move(hir), block, block->statements.end());
+}
+
+hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block,
+        std::list<std::unique_ptr<hir::HIR>>::iterator before) {
     // Phis should only be inserted by findScopedName().
     assert(hir->opcode != hir::Opcode::kPhi);
 
@@ -280,24 +292,25 @@ hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block) {
         block->frame->values.emplace_back(hir.get());
         block->localValues.emplace(std::make_pair(value, value));
     }
-    block->statements.emplace_back(std::move(hir));
+    block->statements.emplace(before, std::move(hir));
     return value;
 }
 
 hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method method, library::Symbol name,
         Block* block) {
-    // If this symbol potentially defines a class name look it up in the class library and provide it as a constant.
+
+    // If this symbol defines a class name look it up in the class library and provide it as a constant.
     if (name.isClassName(context)) {
         auto classDef = context->classLibrary->findClassNamed(name);
         assert(!classDef.isNil());
         auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot(), name);
         constant->value.knownClassName = name;
-        hir::NVID nodeValue = insert(std::move(constant), block);
+        hir::NVID nodeValue = append(std::move(constant), block);
         block->revisions.emplace(std::make_pair(name, nodeValue));
         return nodeValue;
     }
 
-    // Search through local values (arguments, variables) for a name.
+    // Search through local values for a name.
     Block* searchBlock = block;
     while (searchBlock) {
         std::unordered_map<int32_t, hir::NVID> blockValues;
@@ -309,11 +322,17 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         }
 
         hir::NVID nodeValue = findScopedName(context, name, searchBlock, blockValues, containingScopes);
+
         if (nodeValue != hir::kInvalidNVID) {
             Block* importBlock = block;
-            // If we found this value in a
+            // If we found this value in a external frame we will need to add import statements to each frame between
+            // this block and the importing block.
             while (importBlock != searchBlock) {
-                importBlock->frame->??
+                auto import = std::make_unique<hir::ImportNameHIR>(name, );
+                auto iter = importBlock->statements.end();
+                --iter;  // Now pointing at the Branch statement
+                insert(std::move(import), importBlock, iter); // do we have any use for this value? shouldn't it be chained into the next import?
+                importBlock = importBlock->frame->outerBlock;
             }
             return nodeValue;
         }

@@ -56,8 +56,10 @@ private:
     hir::NVID buildIf(ThreadContext* context, const library::Method method, Block*& currentBlock,
             const ast::IfAST* ifAST);
 
-    // Returns the value either inserted or re-used (if a constant). Takes ownership of hir.
-    hir::NVID insert(std::unique_ptr<hir::HIR> hir, Block* block);
+    // Returns the value appended to the |block|. Takes ownership of hir.
+    hir::NVID append(std::unique_ptr<hir::HIR> hir, Block* block);
+    hir::NVID insert(std::unique_ptr<hir::HIR> hir, Block* block,
+            std::list<std::unique_ptr<hir::HIR>>::iterator before);
 
     // Follow order of precedence in names to locate an identifer symbol, including in local variables, arguments,
     // instance variables, class variables, and pre-defined identifiers. Can return hir::kInvalidNVID, which means a

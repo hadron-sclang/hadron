@@ -192,6 +192,8 @@ add_library(hadron STATIC
     hir/ConstantHIR.cpp
     hir/ConstantHIR.hpp
     hir/HIR.hpp
+    hir/ImportNameHIR.cpp
+    hir/ImportNameHIR.hpp
     hir/LoadArgumentHIR.cpp
     hir/LoadArgumentHIR.hpp
     hir/MessageHIR.cpp

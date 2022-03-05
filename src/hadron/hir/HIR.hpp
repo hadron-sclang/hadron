@@ -34,18 +34,6 @@ struct NamedValue {
     library::Symbol name; // Can be nil for anonymous values
 };
 
-struct ExternalValue {
-    library::Symbol name;
-    enum Kind {
-        kClassVariable,
-        kInstanceVariable,
-        kCapturedLocal
-    };
-    Kind kind;
-
-    int32_t offset;
-};
-
 enum Opcode {
     kBlockLiteral,
     kBranch,

@@ -33,9 +33,6 @@ struct Frame {
     // map between IDs and HIR.
     std::vector<hir::HIR*> values;
 
-    // List of external values that this frame imports.
-    std::vector<hir::ExternalValue> externalValues;
-
     // Counter used as a serial number to uniquely identify blocks.
     int32_t numberOfBlocks = 0;
 
