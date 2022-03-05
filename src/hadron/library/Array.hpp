@@ -37,7 +37,6 @@ public:
         add(context, Slot::makePointer(element.instance()));
         return *this;
     }
-    TypedArray<T> typedClone() const { return TypedArray<T>(m_instance); }
 };
 
 } // namespace library

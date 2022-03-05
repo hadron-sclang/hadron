@@ -3,6 +3,7 @@
 
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
+#include "hadron/Keywords.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
 
@@ -21,6 +22,7 @@ template<typename T, typename S>
 class Object {
 public:
     Object(): m_instance(nullptr) {}
+    Object(const Object& o): m_instance(o.m_instance) {}
 
     // Wraps an existing schema instance. Will assert if the type of the schema doesn't exactly match S. For wrapping
     // without type checking, use wrapUnsafe().
@@ -37,12 +39,12 @@ public:
         }
     }
 
-    // Destructor must deliberately do nothing as it wraps a garbage-collected pointer.
+    // Destructor must deliberately do nothing as it wraps an automatically garbage-collected pointer.
     ~Object() {}
 
     // Optional initialization, sets all members to nil.
     void initToNil() {
-        if (!m_instance) { return; }
+        if (!m_instance) { assert(false); return; }
         Slot* s = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(m_instance) + sizeof(Schema));
         for (size_t i = 0; i < (m_instance->_sizeInBytes - sizeof(Schema)) / sizeof(Slot); ++i) {
             s[i] = Slot::makeNil();
@@ -67,12 +69,14 @@ public:
         return wrapper;
     }
 
-    /// Useful to remove const from Array accessors.
-    T clone() const { return T(m_instance); }
-
     inline S* instance() { return m_instance; }
-    inline Slot slot() { return Slot::makePointer(m_instance); }
-    inline bool isNil() { return m_instance == nullptr; }
+    inline Slot slot() const { return Slot::makePointer(m_instance); }
+    inline bool isNil() const { return m_instance == nullptr; }
+    inline Hash className() const {
+        if (isNil()) { return kNilHash; }
+        return m_instance->_className;
+    }
+    static inline Hash nameHash() { return S::kNameHash; }
 
 protected:
     S* m_instance;

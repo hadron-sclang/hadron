@@ -29,27 +29,11 @@
 
 #include <cassert>
 
-// Class Library Compilation
-// =========================
-//
-// Because of the ability to compose objects from other objects via inheritance, we have to compile the class library
-// in multiple passes:
-//
-// First Pass: Load input source, lex, and parse. Will need to retain all through next phase of compilation.
-//   Can populate the Class tree and add instVarNames, classVarNames, iprototype, cprototype, constNames, constValues,
-//   name, nextclass, superclass, and subclasses (by building stubs if the superclass hasn't been prepared yet).
-//
-// Second Pass: Starting from Object, do pre-order traversal through Object heirarchy tree. Concatenate
-//   existing intVarNames, iprototype elements into array containing all superclass data.
-//
-// Third Pass: Now that the full pedigree and member variables names of each object is known, we compile the individual
-//   methods.
-
 namespace hadron {
 
 ClassLibrary::ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter):
-        m_errorReporter(errorReporter), m_classArray(nullptr) {
-}
+        m_errorReporter(errorReporter),
+        m_classArray(nullptr) {}
 
 void ClassLibrary::addClassDirectory(const std::string& path) {
     m_libraryPaths.emplace(fs::absolute(path));
@@ -190,6 +174,8 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
 bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, library::Class metaClassDef,
         const parse::ClassNode* classNode, const Lexer* lexer) {
 
+    SPDLOG_INFO("Scanning Class: {}", classDef.name(context).view(context));
+
     library::Symbol superclassName;
     library::Symbol metaSuperclassName;
 
@@ -228,8 +214,8 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
     const parse::VarListNode* varList = classNode->variables.get();
     while (varList) {
         auto varHash = lexer->tokens()[varList->tokenIndex].hash;
-        library::SymbolArray nameArray;
-        library::Array valueArray;
+        auto nameArray = library::SymbolArray();
+        auto valueArray = library::Array();
 
         const parse::VarDefNode* varDef = varList->definitions.get();
         while (varDef) {
@@ -248,15 +234,16 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
             varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         }
 
+        // Each line gets its own varList parse node, so append to any existing arrays to preserve previous values.
         if (varHash == kVarHash) {
-            classDef.setInstVarNames(nameArray);
-            classDef.setIprototype(valueArray);
+            classDef.setInstVarNames(classDef.instVarNames().addAll(context, nameArray));
+            classDef.setIprototype(classDef.iprototype().addAll(context, valueArray));
         } else if (varHash == kClassVarHash) {
-            classDef.setClassVarNames(nameArray);
-            classDef.setCprototype(valueArray);
+            classDef.setClassVarNames(classDef.classVarNames().addAll(context, nameArray));
+            classDef.setCprototype(classDef.cprototype().addAll(context, valueArray));
         } else if (varHash == kConstHash) {
-            classDef.setConstNames(nameArray);
-            classDef.setConstValues(valueArray);
+            classDef.setConstNames(classDef.constNames().addAll(context, nameArray));
+            classDef.setConstValues(classDef.constValues().addAll(context, valueArray));
         } else {
             // Internal error with VarListNode pointing at a token that isn't 'var', 'classvar', or 'const'.
             assert(false);
@@ -276,6 +263,7 @@ library::Class ClassLibrary::findOrInitClass(ThreadContext* context, library::Sy
 
     library::Class classDef = library::Class::alloc(context);
     classDef.initToNil();
+
     classDef.setName(className);
 
     m_classMap.emplace(std::make_pair(className, classDef));
@@ -340,29 +328,35 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
     for (int32_t i = 0; i < classDef.subclasses().size(); ++i) {
         auto subclass = classDef.subclasses().typedAt(i);
 
-        subclass.setInstVarNames(classDef.instVarNames().copy(
-                context, classDef.instVarNames().size() + subclass.instVarNames().size()).addAll(
-                context, subclass.instVarNames()));
+        subclass.setInstVarNames(
+                classDef.instVarNames()
+                    .copy(context, classDef.instVarNames().size() + subclass.instVarNames().size())
+                    .addAll(context, subclass.instVarNames()));
 
-        subclass.setClassVarNames(classDef.classVarNames().copy(
-                context, classDef.classVarNames().size() + subclass.classVarNames().size()).addAll(
-                context, subclass.classVarNames()));
+        subclass.setClassVarNames(
+                classDef.classVarNames()
+                    .copy(context, classDef.classVarNames().size() + subclass.classVarNames().size())
+                    .addAll(context, subclass.classVarNames()));
 
-        subclass.setIprototype(classDef.iprototype().copy(
-                context, classDef.iprototype().size() + subclass.iprototype().size()).addAll(
-                context, subclass.iprototype()));
+        subclass.setIprototype(
+                classDef.iprototype()
+                    .copy(context, classDef.iprototype().size() + subclass.iprototype().size())
+                    .addAll(context, subclass.iprototype()));
 
-        subclass.setCprototype(classDef.cprototype().copy(
-                context, classDef.cprototype().size() + subclass.cprototype().size()).addAll(
-                context, subclass.cprototype()));
+        subclass.setCprototype(
+                classDef.cprototype()
+                    .copy(context, classDef.cprototype().size() + subclass.cprototype().size())
+                    .addAll(context, subclass.cprototype()));
 
-        subclass.setConstNames(classDef.constNames().copy(
-                context, classDef.constNames().size() + subclass.constNames().size()).addAll(
-                context, subclass.constNames()));
+        subclass.setConstNames(
+                classDef.constNames()
+                    .copy(context, classDef.constNames().size() + subclass.constNames().size())
+                    .addAll(context, subclass.constNames()));
 
-        subclass.setConstValues(classDef.constValues().copy(
-                context, classDef.constValues().size() + subclass.constValues().size()).addAll(
-                context, subclass.constValues()));
+        subclass.setConstValues(
+                classDef.constValues()
+                    .copy(context, classDef.constValues().size() + subclass.constValues().size())
+                    .addAll(context, subclass.constValues()));
 
         if (!composeSubclassesFrom(context, subclass)) { return false; }
     }

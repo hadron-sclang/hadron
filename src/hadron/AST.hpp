@@ -11,17 +11,18 @@ namespace hadron {
 namespace ast {
 
 enum ASTType {
-    kAssign = 0,
-    kBlock = 1,
-    kConstant = 2,
-    kDictionary = 3,
-    kEmpty = 4,
-    kIf = 5,
-    kList = 6,
-    kMessage = 7,
-    kMethodReturn = 8,
-    kName = 9,
-    kSequence = 10,
+    kAssign,
+    kBlock,
+    kConstant,
+    kDefine,
+    kDictionary,
+    kEmpty,
+    kIf,
+    kList,
+    kMessage,
+    kMethodReturn,
+    kName,
+    kSequence,
 };
 
 struct AST {
@@ -81,6 +82,14 @@ struct NameAST : public AST {
     virtual ~NameAST() = default;
 
     library::Symbol name;
+};
+
+struct DefineAST : public AST {
+    DefineAST(): AST(kDefine) {}
+    virtual ~DefineAST() = default;
+
+    std::unique_ptr<NameAST> name;
+    std::unique_ptr<AST> value;
 };
 
 struct AssignAST : public AST {

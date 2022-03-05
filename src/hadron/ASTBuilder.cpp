@@ -116,14 +116,14 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     case parse::NodeType::kVarDef: {
         const auto varDef = reinterpret_cast<const parse::VarDefNode*>(node);
         auto name = library::Symbol::fromView(context, lexer->tokens()[varDef->tokenIndex].range);
-        auto assignAST = std::make_unique<ast::AssignAST>();
-        assignAST->name = std::make_unique<ast::NameAST>(name);
+        auto defineAST = std::make_unique<ast::DefineAST>();
+        defineAST->name = std::make_unique<ast::NameAST>(name);
         if (varDef->initialValue) {
-            assignAST->value = transform(context, lexer, varDef->initialValue.get());
+            defineAST->value = transform(context, lexer, varDef->initialValue.get());
         } else {
-            assignAST->value = std::make_unique<ast::ConstantAST>(Slot::makeNil());
+            defineAST->value = std::make_unique<ast::ConstantAST>(Slot::makeNil());
         }
-        return assignAST;
+        return defineAST;
     }
 
     case parse::NodeType::kVarList: {

@@ -41,11 +41,9 @@ enum Opcode {
     kConstant,
     kImportName,
     kLoadArgument,
-    kLoadExternal,
     kMessage,
     kMethodReturn,
     kPhi,
-    kStoreExternal,
     kStoreReturn
 };
 

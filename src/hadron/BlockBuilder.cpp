@@ -10,6 +10,7 @@
 #include "hadron/hir/BranchIfTrueHIR.hpp"
 #include "hadron/hir/ConstantHIR.hpp"
 #include "hadron/hir/HIR.hpp"
+#include "hadron/hir/ImportNameHIR.hpp"
 #include "hadron/hir/LoadArgumentHIR.hpp"
 #include "hadron/hir/MessageHIR.hpp"
 #include "hadron/hir/MethodReturnHIR.hpp"
@@ -81,6 +82,9 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
     append(std::move(branch), block);
 
     Block* currentBlock = scope->blocks.back().get();
+    block->successors.emplace_back(currentBlock);
+    currentBlock->predecessors.emplace_back(block);
+
     currentBlock->finalValue = buildFinalValue(context, method, currentBlock, blockAST->statements.get());
 
      // We append a return statement in the final block, if one wasn't already provided.
@@ -165,13 +169,23 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
     case ast::ASTType::kName: {
         const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);
         nodeValue = findName(context, method, nameAST->name, currentBlock);
+        assert(nodeValue != hir::kInvalidNVID);
     } break;
 
     case ast::ASTType::kAssign: {
         const auto assign = reinterpret_cast<const ast::AssignAST*>(ast);
         nodeValue = buildValue(context, method, currentBlock, assign->value.get());
-#error this is the moment where you can storeExternal if needed.
+        // Update the name of the built value to reflect the assignment.
+        currentBlock->frame->values[nodeValue]->value.name = assign->name->name;
         currentBlock->revisions[assign->name->name] = nodeValue;
+    } break;
+
+    case ast::ASTType::kDefine: {
+        const auto defineAST = reinterpret_cast<const ast::DefineAST*>(ast);
+        currentBlock->scope->variableNames.emplace(defineAST->name->name);
+        nodeValue = buildValue(context, method, currentBlock, defineAST->value.get());
+        currentBlock->frame->values[nodeValue]->value.name = defineAST->name->name;
+        currentBlock->revisions[defineAST->name->name] = nodeValue;
     } break;
 
     case ast::ASTType::kConstant: {
@@ -301,6 +315,7 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
 
     // If this symbol defines a class name look it up in the class library and provide it as a constant.
     if (name.isClassName(context)) {
+        SPDLOG_INFO("looking for class named: {}", name.view(context));
         auto classDef = context->classLibrary->findClassNamed(name);
         assert(!classDef.isNil());
         auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot(), name);
@@ -310,8 +325,10 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         return nodeValue;
     }
 
-    // Search through local values for a name.
+    // Search through local values, including variables, arguments, and already-cached imports, for a name.
     Block* searchBlock = block;
+    std::list<Block*> importBlocks;
+ 
     while (searchBlock) {
         std::unordered_map<int32_t, hir::NVID> blockValues;
         std::unordered_set<const Scope*> containingScopes;
@@ -324,28 +341,96 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         hir::NVID nodeValue = findScopedName(context, name, searchBlock, blockValues, containingScopes);
 
         if (nodeValue != hir::kInvalidNVID) {
-            Block* importBlock = block;
             // If we found this value in a external frame we will need to add import statements to each frame between
-            // this block and the importing block.
-            while (importBlock != searchBlock) {
-                auto import = std::make_unique<hir::ImportNameHIR>(name, );
-                auto iter = importBlock->statements.end();
-                --iter;  // Now pointing at the Branch statement
-                insert(std::move(import), importBlock, iter); // do we have any use for this value? shouldn't it be chained into the next import?
-                importBlock = importBlock->frame->outerBlock;
+            // this block and the importing block, starting with the outermost frame that didn't have the value.
+            for (auto importBlock : importBlocks) {
+                auto import = std::make_unique<hir::ImportNameHIR>(name,
+                        importBlock->frame->outerBlock->frame->values[nodeValue]->value.typeFlags, nodeValue);
+
+                // Insert just after the branch statement at the end of the import block.
+                auto iter = importBlock->frame->rootScope->blocks.front()->statements.end();
+                --iter;
+                nodeValue = insert(std::move(import), importBlock, iter);
+                importBlock->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
             }
             return nodeValue;
         }
 
+        importBlocks.emplace_front(searchBlock);
+
         // Search in the next outside block, if one exists.
-        searchBlock = block->frame->outerBlock;
+        searchBlock = searchBlock->frame->outerBlock;
     }
 
-    // Instance variable search is next.
+    // The remaining valid options will all require an import, so set up the iterator for HIR insertion to point at the
+    // branch instruction in the import block, so that the imported HIR will insert right before it.
+    hir::NVID nodeValue = hir::kInvalidNVID;
+    auto importIter = block->frame->rootScope->blocks.front()->statements.end();
+    --importIter;
 
-    // Class variables are last.
+    // Search instance variables next.
+    library::Class classDef = method.ownerClass();
+    auto className = classDef.name(context).view(context);
+    bool isMetaClass = (className.size() > 5) && (className.substr(0, 5) == "Meta_");
 
-    return hir::kInvalidNVID;
+    // Meta_ classes are descended from Class, so don't have access to these regular instance variables, so skip the
+    // search for instance variable names in that case.
+    if (!isMetaClass) {
+        auto instVarIndex = classDef.instVarNames().indexOf(name);
+        if (instVarIndex.isInt32()) {
+            nodeValue = insert(std::make_unique<hir::ImportNameHIR>(name,
+                    hir::ImportNameHIR::Kind::kInstanceVariable, instVarIndex.getInt32()),
+                    block->frame->rootScope->blocks.front().get(), importIter);
+        }
+    } else {
+        // Meta_ classes to have access to the class variables and constants of their associated class, so adjust the
+        // classDef to point to the associated class instead.
+        className = className.substr(5);
+        classDef = context->classLibrary->findClassNamed(library::Symbol::fromView(context, className));
+        assert(!classDef.isNil());
+    }
+
+    // Search class variables next.
+    if (nodeValue == hir::kInvalidNVID) {
+        auto classVarIndex = classDef.classVarNames().indexOf(name);
+        if (classVarIndex.isInt32()) {
+            nodeValue = insert(std::make_unique<hir::ImportNameHIR>(name,
+                    hir::ImportNameHIR::Kind::kClassVariable, classVarIndex.getInt32()),
+                    block->frame->rootScope->blocks.front().get(), importIter);
+        }
+    }
+
+    // Search constants last.
+    if (nodeValue == hir::kInvalidNVID) {
+        auto constIndex = classDef.constNames().indexOf(name);
+        if (constIndex.isInt32()) {
+            // We still put constants in the import block to avoid them being undefined along any path in the CFG.
+            nodeValue = insert(std::make_unique<hir::ConstantHIR>(
+                    classDef.constValues().at(constIndex.getInt32()), name),
+                    block->frame->rootScope->blocks.front().get(), importIter);
+        }
+    }
+
+    // If we found a match we've inserted it into the import block. Use findScopedValue to set up all the trivial phis
+    // and local value mappings between the import block and the current block.
+    if (nodeValue != hir::kInvalidNVID) {
+        block->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
+
+        std::unordered_map<int32_t, hir::NVID> blockValues;
+        std::unordered_set<const Scope*> containingScopes;
+        const Scope* scope = block->scope;
+        while (scope) {
+            containingScopes.emplace(scope);
+            scope = scope->parent;
+        }
+
+        auto foundValue = findScopedName(context, name, block, blockValues, containingScopes);
+        assert(foundValue == nodeValue);
+    } else {
+        SPDLOG_CRITICAL("Failed to find name: {}", name.view(context));
+    }
+
+    return nodeValue;
 }
 
 hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol name, Block* block,
@@ -361,12 +446,19 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
     // This scope is *shadowing* the variable name if the scope has a variable of the same name and is not within
     // the scope heirarchy of the search, so we should ignore any local revisions.
     bool isShadowed = (block->scope->variableNames.count(name) > 0) && (containingScopes.count(block->scope) == 0);
+    assert(!isShadowed);
 
     auto iter = block->revisions.find(name);
     if (iter != block->revisions.end()) {
         if (!isShadowed) {
             return iter->second;
         }
+    }
+
+    // Don't bother with phi creation if we have no predecessors.
+    if (block->predecessors.size() == 0) {
+        blockValues.emplace(std::make_pair(block->id, hir::kInvalidNVID));
+        return hir::kInvalidNVID;
     }
 
     // Either no local revision found or the local revision is ignored, we need to search recursively upward. Create
@@ -380,16 +472,22 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
     for (auto pred : block->predecessors) {
         auto foundValue = findScopedName(context, name, pred, blockValues, containingScopes);
 
-        // It is worth thinking through if there are any valid scenarios where one predecessor could return a valid NVID
-        // and another predecessor would not. If the shadowing logic is working correctly, it seems that there are not,
-        // either all inputs are valid (if possibly trivial) or all inputs are invalid.
-        if (foundValue == hir::kInvalidNVID) { return hir::kInvalidNVID; }
+        // This is a depth-first search, so the above recursive call will return after searching up until either the
+        // name is found or the import block (with no predecessors) is found empty. So an invalidNVID return here means
+        // we have not found the name in any scope along the path from here to root, and need to clean up the phi and
+        // return kInvalidNVID.
+        if (foundValue == hir::kInvalidNVID) {
+            block->frame->values[phiValue] = nullptr;
+            blockValues[block->id] = hir::kInvalidNVID;
+            return hir::kInvalidNVID;
+        }
 
+        assert(foundValue < static_cast<hir::NVID>(block->frame->values.size()));
+        assert(block->frame->values[foundValue]);
         phi->addInput(block->frame->values[foundValue]);
     }
 
-    // We likely had no predecessors, so now have an empty phi, so return invalid ID.
-    if (phi->inputs.size() == 0) { return hir::kInvalidNVID; }
+    assert(phi->inputs.size());
 
     // Phi has inputs but it is trivial?
     auto trivialValue = phi->getTrivialValue();
@@ -410,15 +508,16 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
         finalValue = trivialValue;
         // Mark value as invalid in frame.
         block->frame->values[phiValue] = nullptr;
+        // Clobber the phi value in the cache.
+        blockValues[block->id] = finalValue;
     } else {
         finalValue = phiValue;
         block->phis.emplace_back(std::move(phi));
     }
 
-    // Update block revisions and the blockValues map with the final values.
+    // Update block revisions and localValues with the final values.
     block->revisions.emplace(std::make_pair(name, finalValue));
     block->localValues.emplace(std::make_pair(finalValue, finalValue));
-    blockValues.emplace(std::make_pair(block->id, finalValue));
 
     return finalValue;
 }
