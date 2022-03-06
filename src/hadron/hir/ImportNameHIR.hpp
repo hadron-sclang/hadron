@@ -6,7 +6,7 @@
 namespace hadron {
 namespace hir {
 
-// TDODO: Could split this to 3 since you aren't really keeping them separately like phis
+// TODO: Consider spliting this to 3 since you aren't really keeping them separately like phis
 struct ImportNameHIR : public HIR {
     enum Kind {
         kClassVariable,
