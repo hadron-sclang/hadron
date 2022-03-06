@@ -2,6 +2,16 @@
 
 namespace hadron {
 
+void SymbolTable::preloadSymbols(ThreadContext* context) {
+    m_super = library::Symbol::fromView(context, "super");
+    m_this = library::Symbol::fromView(context, "this");
+    m_thisFunction = library::Symbol::fromView(context, "thisFunction");
+    m_thisFunctionDef = library::Symbol::fromView(context, "thisFunctionDef");
+    m_thisMethod = library::Symbol::fromView(context, "thisMethod");
+    m_thisProcess = library::Symbol::fromView(context, "thisProcess");
+    m_thisThread = library::Symbol::fromView(context, "thisThread");
+}
+
 Hash SymbolTable::addSymbol(ThreadContext* context, std::string_view v) {
     Hash h = hash(v);
     auto mapIter = m_symbolMap.find(h);

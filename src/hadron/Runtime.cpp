@@ -35,6 +35,7 @@ Runtime::Runtime(std::shared_ptr<ErrorReporter> errorReporter):
 Runtime::~Runtime() {}
 
 bool Runtime::initInterpreter() {
+    m_threadContext->symbolTable->preloadSymbols(m_threadContext.get());
     if (!buildTrampolines()) return false;
     if (!compileClassLibrary()) return false;
     if (!buildThreadContext()) return false;
