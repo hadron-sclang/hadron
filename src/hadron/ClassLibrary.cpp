@@ -48,6 +48,7 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
 }
 
 library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
+    if (name.isNil()) { return library::Class(); }
     auto classIter = m_classMap.find(name);
     if (classIter == m_classMap.end()) { return library::Class(); }
     return classIter->second;
@@ -333,30 +334,10 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
                     .copy(context, classDef.instVarNames().size() + subclass.instVarNames().size())
                     .addAll(context, subclass.instVarNames()));
 
-        subclass.setClassVarNames(
-                classDef.classVarNames()
-                    .copy(context, classDef.classVarNames().size() + subclass.classVarNames().size())
-                    .addAll(context, subclass.classVarNames()));
-
         subclass.setIprototype(
                 classDef.iprototype()
                     .copy(context, classDef.iprototype().size() + subclass.iprototype().size())
                     .addAll(context, subclass.iprototype()));
-
-        subclass.setCprototype(
-                classDef.cprototype()
-                    .copy(context, classDef.cprototype().size() + subclass.cprototype().size())
-                    .addAll(context, subclass.cprototype()));
-
-        subclass.setConstNames(
-                classDef.constNames()
-                    .copy(context, classDef.constNames().size() + subclass.constNames().size())
-                    .addAll(context, subclass.constNames()));
-
-        subclass.setConstValues(
-                classDef.constValues()
-                    .copy(context, classDef.constValues().size() + subclass.constValues().size())
-                    .addAll(context, subclass.constValues()));
 
         if (!composeSubclassesFrom(context, subclass)) { return false; }
     }
