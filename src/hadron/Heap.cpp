@@ -102,6 +102,7 @@ size_t Heap::getSize(SizeClass sizeClass) {
 void* Heap::allocateSized(size_t sizeInBytes, SizedPages& sizedPages, bool isExecutable) {
     auto sizeClass = getSizeClass(sizeInBytes);
     if (sizeClass == kOversize) {
+        assert(false);
         sizedPages[kOversize].emplace_back(std::make_unique<Page>(sizeInBytes, sizeInBytes, isExecutable));
         if (!sizedPages[kOversize].back()->map()) {
             SPDLOG_ERROR("Mapping failed for oversize object of {} bytes", sizeInBytes);
@@ -124,6 +125,7 @@ void* Heap::allocateSized(size_t sizeInBytes, SizedPages& sizedPages, bool isExe
 
     sizedPages[sizeClass].emplace_back(std::make_unique<Page>(getSize(sizeClass), kPageSize, isExecutable));
     if (!sizedPages[sizeClass].back()->map()) {
+        assert(false);
         return nullptr;
     }
 

@@ -49,7 +49,9 @@ public:
     int32_t size() const {
         const T& t = static_cast<const T&>(*this);
         if (t.m_instance == nullptr) { return 0; }
-        return (t.m_instance->_sizeInBytes - sizeof(S)) / sizeof(E);
+        int32_t elementsSize = (t.m_instance->_sizeInBytes - sizeof(S)) / sizeof(E);
+        assert(elementsSize >= 0);
+        return elementsSize;
     }
 
     E at(int32_t index) const {
@@ -64,11 +66,14 @@ public:
         return static_cast<T&>(*this);
     }
 
-    T& addAll(ThreadContext* context, ArrayedCollection<T, S, E> coll) {
-        resize(context, size() + coll.size());
+    T& addAll(ThreadContext* context, const ArrayedCollection<T, S, E>& coll) {
         T& t = static_cast<T&>(*this);
-        std::memcpy(reinterpret_cast<int8_t*>(t.m_instance) + sizeof(S) + (size() * sizeof(E)),
-            coll.start(), coll.size() * sizeof(E));
+        if (coll.size()) {
+            int32_t oldSize = size();
+            resize(context, oldSize + coll.size());
+            std::memcpy(reinterpret_cast<int8_t*>(t.m_instance) + sizeof(S) + (oldSize * sizeof(E)),
+                coll.start(), coll.size() * sizeof(E));
+        }
         return t;
     }
 
@@ -83,6 +88,7 @@ public:
         const T& t = static_cast<const T&>(*this);
         if (t.m_instance == nullptr) { return 0; }
         auto allocSize = context->heap->getAllocationSize(t.m_instance);
+        assert(allocSize > 0);
         return (allocSize - sizeof(S)) / sizeof(E);
     }
 
@@ -91,17 +97,29 @@ public:
         T& t = static_cast<T&>(*this);
         if (newSize > capacity(context)) {
             S* newArray = arrayAllocRaw(context, newSize);
-            if (t.m_instance != nullptr) {
+            if (t.m_instance) {
+                assert(t.m_instance->_className == S::kNameHash);
                 std::memcpy(newArray, t.m_instance, t.m_instance->_sizeInBytes);
             } else {
                 newArray->_className = S::kNameHash;
             }
+
             t.m_instance = newArray;
         }
 
         if (t.m_instance) {
             t.m_instance->_sizeInBytes = sizeof(S) + (newSize * sizeof(E));
         }
+    }
+
+    // Returns an int32_t with the index of item, or nil if item not found.
+    Slot indexOf(E item) const {
+        for (int32_t i = 0; i < size(); ++i) {
+            if (item == at(i)) {
+                return Slot::makeInt32(i);
+            }
+        }
+        return Slot::makeNil();
     }
 
 protected:

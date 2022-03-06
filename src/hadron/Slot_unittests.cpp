@@ -63,6 +63,12 @@ TEST_CASE("Slot nil serialization") {
         CHECK_NE(sNil, Slot::makeBool(false));
         CHECK_NE(sNil, Slot::makeFloat(0.0));
     }
+
+    SUBCASE("from nullptr") {
+        Slot sNil = Slot::makePointer(nullptr);
+        REQUIRE(sNil.isNil());
+        CHECK_EQ(sNil, Slot::makeNil());
+    }
 }
 
 TEST_CASE("Slot int serialization") {

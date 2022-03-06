@@ -10,7 +10,6 @@
 #include "hadron/hir/ConstantHIR.hpp"
 #include "hadron/hir/HIR.hpp"
 #include "hadron/hir/LoadArgumentHIR.hpp"
-#include "hadron/hir/LoadFromPointerHIR.hpp"
 #include "hadron/hir/MessageHIR.hpp"
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/hir/StoreReturnHIR.hpp"
@@ -858,6 +857,17 @@ void JSONTransport::JSONTransportImpl::serializeAST(hadron::ThreadContext* conte
         path.pop_back();
     } break;
 
+    case hadron::ast::ASTType::kDefine: {
+        const auto defineAST = reinterpret_cast<const hadron::ast::DefineAST*>(ast);
+        jsonNode.AddMember("astType", rapidjson::Value("Define"), document.GetAllocator());
+        path.emplace_back(makeToken("name"));
+        serializeAST(context, defineAST->name.get(), document, path, serial);
+        path.pop_back();
+        path.emplace_back(makeToken("value"));
+        serializeAST(context, defineAST->value.get(), document, path, serial);
+        path.pop_back();
+    } break;
+
     case hadron::ast::ASTType::kBlock: {
         const auto blockAST = reinterpret_cast<const hadron::ast::BlockAST*>(ast);
         jsonNode.AddMember("astType", rapidjson::Value("Block"), document.GetAllocator());
@@ -1433,21 +1443,14 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
         jsonHIR.AddMember("constant", value, document.GetAllocator());
     } break;
 
+    case hadron::hir::Opcode::kImportName: {
+        assert(false); // WRITEME
+    } break;
+
     case hadron::hir::Opcode::kLoadArgument: {
         const auto loadArg = reinterpret_cast<const hadron::hir::LoadArgumentHIR*>(hir);
         jsonHIR.AddMember("opcode", "LoadArgument", document.GetAllocator());
         jsonHIR.AddMember("index", rapidjson::Value(loadArg->index), document.GetAllocator());
-    } break;
-
-    case hadron::hir::Opcode::kLoadFromPointer: {
-        const auto loadPointer = reinterpret_cast<const hadron::hir::LoadFromPointerHIR*>(hir);
-        jsonHIR.AddMember("opcode", "LoadPointer", document.GetAllocator());
-        jsonHIR.AddMember("pointer", rapidjson::Value(static_cast<uint64_t>(
-                reinterpret_cast<uintptr_t>(loadPointer->pointer))), document.GetAllocator());
-    } break;
-
-    case hadron::hir::Opcode::kLoadInstanceVariable: {
-        SPDLOG_WARN("Not yet implemented: LoadInstanceVariable");
     } break;
 
     case hadron::hir::Opcode::kMessage: {
@@ -1493,14 +1496,6 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
             inputs.PushBack(value, document.GetAllocator());
         }
         jsonHIR.AddMember("inputs", inputs, document.GetAllocator());
-    } break;
-
-    case hadron::hir::Opcode::kStoreToPointer: {
-        SPDLOG_WARN("Not yet implemented: StoreToPointer");
-    } break;
-
-    case hadron::hir::Opcode::kStoreInstanceVariable: {
-        SPDLOG_WARN("Not yet implemented: StoreInstanceVariable");
     } break;
 
     case hadron::hir::Opcode::kStoreReturn: {

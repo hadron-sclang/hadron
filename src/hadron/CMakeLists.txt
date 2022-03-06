@@ -192,24 +192,18 @@ add_library(hadron STATIC
     hir/ConstantHIR.cpp
     hir/ConstantHIR.hpp
     hir/HIR.hpp
+    hir/ImportNameHIR.cpp
+    hir/ImportNameHIR.hpp
     hir/LoadArgumentHIR.cpp
     hir/LoadArgumentHIR.hpp
-    hir/LoadFromPointerHIR.cpp
-    hir/LoadFromPointerHIR.hpp
-    hir/LoadInstanceVariableHIR.cpp
-    hir/LoadInstanceVariableHIR.hpp
     hir/MessageHIR.cpp
     hir/MessageHIR.hpp
     hir/MethodReturnHIR.cpp
     hir/MethodReturnHIR.hpp
     hir/PhiHIR.cpp
     hir/PhiHIR.hpp
-    hir/StoreInstanceVariableHIR.cpp
-    hir/StoreInstanceVariableHIR.hpp
     hir/StoreReturnHIR.cpp
     hir/StoreReturnHIR.hpp
-    hir/StoreToPointerHIR.cpp
-    hir/StoreToPointerHIR.hpp
 
     library/Array.hpp
     library/ArrayedCollection.hpp
@@ -291,6 +285,7 @@ set(HADRON_COMPILER_UNITTESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/Parser_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Slot_unittests.cpp
 
+    ${CMAKE_CURRENT_SOURCE_DIR}/library/Array_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/ArrayedCollection_unittests.cpp
 
     PARENT_SCOPE

@@ -10,6 +10,7 @@
 
 namespace hadron {
 
+struct Block;
 struct Scope;
 
 // Represents a stack frame, so can have arguments supplied and can be called so has an entry, return value, and exit.
@@ -32,8 +33,12 @@ struct Frame {
     // map between IDs and HIR.
     std::vector<hir::HIR*> values;
 
-    // Counters used as serial numbers to uniquely number values and blocks.
+    // Counter used as a serial number to uniquely identify blocks.
     int32_t numberOfBlocks = 0;
+
+    // Function literals can capture values from outside frames, so we include a pointer to the Block in the containing 
+    // frame to support search of those frames for those values.
+    Block* outerBlock = nullptr;
 };
 
 } // namespace hadron

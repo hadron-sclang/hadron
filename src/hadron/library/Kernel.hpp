@@ -32,30 +32,28 @@ public:
     Symbol superclass(ThreadContext* context) const { return Symbol(context, m_instance->superclass); }
     void setSuperclass(Symbol name) { m_instance->superclass = name.slot(); }
 
-    const ClassArray subclasses() const { return ClassArray(m_instance->subclasses); }
+    ClassArray subclasses() const { return ClassArray(m_instance->subclasses); }
     void setSubclasses(ClassArray a) { m_instance->subclasses = a.slot(); }
 
-    // Access to arrays comes with the complication that a new wrapper is returned so things that modify the underlying
-    // instance variable (e.g. addTyped()) won't reflect those changed here in the Class instance.
-    const MethodArray methods() const { return MethodArray(m_instance->methods); }
+    MethodArray methods() const { return MethodArray(m_instance->methods); }
     void setMethods(MethodArray a) { m_instance->methods = a.slot(); }
 
-    const SymbolArray instVarNames() const { return SymbolArray(m_instance->instVarNames); }
+    SymbolArray instVarNames() const { return SymbolArray(m_instance->instVarNames); }
     void setInstVarNames(SymbolArray a) { m_instance->instVarNames = a.slot(); }
 
-    const SymbolArray classVarNames() const { return SymbolArray(m_instance->classVarNames); }
+    SymbolArray classVarNames() const { return SymbolArray(m_instance->classVarNames); }
     void setClassVarNames(SymbolArray a) { m_instance->classVarNames = a.slot(); }
 
-    const Array iprototype() const { return Array(m_instance->iprototype); }
+    Array iprototype() const { return Array(m_instance->iprototype); }
     void setIprototype(Array a) { m_instance->iprototype = a.slot(); }
 
-    const Array cprototype() const { return Array(m_instance->cprototype); }
+    Array cprototype() const { return Array(m_instance->cprototype); }
     void setCprototype(Array a) { m_instance->cprototype = a.slot(); }
 
-    const SymbolArray constNames() const { return SymbolArray(m_instance->constNames); }
+    SymbolArray constNames() const { return SymbolArray(m_instance->constNames); }
     void setConstNames(SymbolArray a) { m_instance->constNames = a.slot(); }
 
-    const Array constValues() const { return Array(m_instance->constValues); }
+    Array constValues() const { return Array(m_instance->constValues); }
     void setConstValues(Array a) { m_instance->constValues = a.slot(); }
 
     Symbol filenameSymbol(ThreadContext* context) const { return Symbol(context, m_instance->filenameSymbol); }
@@ -80,7 +78,7 @@ public:
     explicit FunctionDefBase(S* instance): Object<T, S>(instance) {}
     explicit FunctionDefBase(Slot instance): Object<T, S>(instance) {}
 
-    const Int8Array code() const {
+    Int8Array code() const {
         T& t = static_cast<T&>(*this);
         return Int8Array(t.m_instance->code);
     }
@@ -89,7 +87,7 @@ public:
         t.m_instance->code = c.slot();
     }
 
-    const Array prototypeFrame() const {
+    Array prototypeFrame() const {
         T& t = static_cast<T&>(*this);
         return Array(t.m_instance->prototypeFrame);
     }
@@ -98,7 +96,7 @@ public:
         t.m_instance->prototypeFrame = a.slot();
     }
 
-    const SymbolArray argNames() const {
+    SymbolArray argNames() const {
         T& t = static_cast<T&>(*this);
         return SymbolArray(t.m_instance->argNames);
     }

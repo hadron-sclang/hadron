@@ -48,6 +48,9 @@ NVID PhiHIR::getTrivialValue() const {
         }
         if (trivial) {
             return nonSelf;
+        } else {
+            // Two unique values that aren't self means this is a nontrivial phi.
+            return kInvalidNVID;
         }
     }
 
