@@ -390,24 +390,38 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         assert(!classDef.isNil());
     }
 
-    // Search class variables next.
+    // Search class variables next, starting from this class and up through all parents.
     if (nodeValue == hir::kInvalidNVID) {
-        auto classVarIndex = classDef.classVarNames().indexOf(name);
-        if (classVarIndex.isInt32()) {
-            nodeValue = insert(std::make_unique<hir::ImportNameHIR>(name,
-                    hir::ImportNameHIR::Kind::kClassVariable, classVarIndex.getInt32()),
-                    block->frame->rootScope->blocks.front().get(), importIter);
+        library::Class classVarDef = classDef;
+
+        while (!classVarDef.isNil()) {
+            auto classVarIndex = classVarDef.classVarNames().indexOf(name);
+            if (classVarIndex.isInt32()) {
+                nodeValue = insert(std::make_unique<hir::ImportNameHIR>(name,
+                        hir::ImportNameHIR::Kind::kClassVariable, classVarIndex.getInt32()),
+                        block->frame->rootScope->blocks.front().get(), importIter);
+                break;
+            }
+
+            classVarDef = context->classLibrary->findClassNamed(classVarDef.superclass(context));
         }
     }
 
     // Search constants last.
     if (nodeValue == hir::kInvalidNVID) {
-        auto constIndex = classDef.constNames().indexOf(name);
-        if (constIndex.isInt32()) {
-            // We still put constants in the import block to avoid them being undefined along any path in the CFG.
-            nodeValue = insert(std::make_unique<hir::ConstantHIR>(
-                    classDef.constValues().at(constIndex.getInt32()), name),
-                    block->frame->rootScope->blocks.front().get(), importIter);
+        library::Class classConstDef = classDef;
+
+        while (!classConstDef.isNil()) {
+            auto constIndex = classConstDef.constNames().indexOf(name);
+            if (constIndex.isInt32()) {
+                // We still put constants in the import block to avoid them being undefined along any path in the CFG.
+                nodeValue = insert(std::make_unique<hir::ConstantHIR>(
+                        classDef.constValues().at(constIndex.getInt32()), name),
+                        block->frame->rootScope->blocks.front().get(), importIter);
+                break;
+            }
+
+            classConstDef = context->classLibrary->findClassNamed(classConstDef.superclass(context));
         }
     }
 
