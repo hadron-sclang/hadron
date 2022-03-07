@@ -202,6 +202,8 @@ add_library(hadron STATIC
     hir/MethodReturnHIR.hpp
     hir/PhiHIR.cpp
     hir/PhiHIR.hpp
+    hir/RouteToSuperclassHIR.cpp
+    hir/RouteToSuperclassHIR.hpp
     hir/StoreReturnHIR.cpp
     hir/StoreReturnHIR.hpp
 

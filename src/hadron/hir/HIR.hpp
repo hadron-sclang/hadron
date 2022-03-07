@@ -44,6 +44,7 @@ enum Opcode {
     kMessage,
     kMethodReturn,
     kPhi,
+    kRouteToSuperclass,
     kStoreReturn
 };
 

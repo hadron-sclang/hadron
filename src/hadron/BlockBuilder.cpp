@@ -15,11 +15,13 @@
 #include "hadron/hir/MessageHIR.hpp"
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/hir/PhiHIR.hpp"
+#include "hadron/hir/RouteToSuperclassHIR.hpp"
 #include "hadron/hir/StoreReturnHIR.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/LinearFrame.hpp"
 #include "hadron/Scope.hpp"
 #include "hadron/Slot.hpp"
+#include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
 
 #include "fmt/format.h"
@@ -407,7 +409,7 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         }
     }
 
-    // Search constants last.
+    // Search constants next.
     if (nodeValue == hir::kInvalidNVID) {
         library::Class classConstDef = classDef;
 
@@ -423,6 +425,14 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
 
             classConstDef = context->classLibrary->findClassNamed(classConstDef.superclass(context));
         }
+    }
+
+    // Check for special names.
+    if (name == context->symbolTable->superSymbol()) {
+        auto thisValue = findName(context, method, context->symbolTable->thisSymbol(), block);
+        assert(thisValue != hir::kInvalidNVID);
+        nodeValue = append(std::make_unique<hir::RouteToSuperclassHIR>(thisValue), block);
+    } else if (name == context->symbolTable->thisProcessSymbol()) {
     }
 
     // If we found a match we've inserted it into the import block. Use findScopedValue to set up all the trivial phis
