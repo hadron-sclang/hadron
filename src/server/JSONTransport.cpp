@@ -1409,10 +1409,6 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
     jsonHIR.AddMember("reads", reads, document.GetAllocator());
 
     switch(hir->opcode) {
-    case hadron::hir::Opcode::kAssign: {
-        assert(false); // TODO
-    } break;
-
     case hadron::hir::Opcode::kBlockLiteral: {
         const auto block = reinterpret_cast<const hadron::hir::BlockLiteralHIR*>(hir);
         jsonHIR.AddMember("opcode", "BlockLiteral", document.GetAllocator());
