@@ -35,6 +35,7 @@ struct NamedValue {
 };
 
 enum Opcode {
+    kAssign,
     kBlockLiteral,
     kBranch,
     kBranchIfTrue,

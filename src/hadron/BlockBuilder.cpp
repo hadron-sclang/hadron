@@ -107,7 +107,7 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, co
     block->predecessors.emplace_back(predecessor);
 
     // Inline blocks can have arguments but they are treated as constants with their default values. We skip the
-    // *this* pointer for inline blocks so it doesn't shadow the frame level this pointer.
+    // *this* pointer for inline blocks so it doesn't shadow the frame-level this pointer.
     for (int32_t argIndex = 1; argIndex < blockAST->argumentNames.size(); ++argIndex) {
         auto name = blockAST->argumentNames.at(argIndex);
         auto value = blockAST->argumentDefaults.at(argIndex);
@@ -176,7 +176,13 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
 
     case ast::ASTType::kAssign: {
         const auto assign = reinterpret_cast<const ast::AssignAST*>(ast);
+        // It's possible that this is an external value, and the code is writing it before reading it. Set up the
+        // imports and flow the value here, or detect an error if the name is not found.
+        auto nameValue = findName(context, method, assign->name->name, currentBlock);
+        assert(nameValue != hir::kInvalidNVID);
+
         nodeValue = buildValue(context, method, currentBlock, assign->value.get());
+
         // Update the name of the built value to reflect the assignment.
         currentBlock->frame->values[nodeValue]->value.name = assign->name->name;
         currentBlock->revisions[assign->name->name] = nodeValue;
@@ -355,6 +361,7 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
                 nodeValue = insert(std::move(import), importBlock, iter);
                 importBlock->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
             }
+            SPDLOG_INFO("Found name {} at {}", name.view(context), nodeValue);
             return nodeValue;
         }
 
@@ -364,7 +371,7 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         searchBlock = searchBlock->frame->outerBlock;
     }
 
-    // The remaining valid options will all require an import, so set up the iterator for HIR insertion to point at the
+    // The next several options will all require an import, so set up the iterator for HIR insertion to point at the
     // branch instruction in the import block, so that the imported HIR will insert right before it.
     hir::NVID nodeValue = hir::kInvalidNVID;
     auto importIter = block->frame->rootScope->blocks.front()->statements.end();
@@ -427,17 +434,11 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         }
     }
 
-    // Check for special names.
-    if (name == context->symbolTable->superSymbol()) {
-        auto thisValue = findName(context, method, context->symbolTable->thisSymbol(), block);
-        assert(thisValue != hir::kInvalidNVID);
-        nodeValue = append(std::make_unique<hir::RouteToSuperclassHIR>(thisValue), block);
-    } else if (name == context->symbolTable->thisProcessSymbol()) {
-    }
-
     // If we found a match we've inserted it into the import block. Use findScopedValue to set up all the trivial phis
     // and local value mappings between the import block and the current block.
     if (nodeValue != hir::kInvalidNVID) {
+        assert(block->frame->rootScope->blocks.front()->revisions.find(name) ==
+               block->frame->rootScope->blocks.front()->revisions.end());
         block->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
 
         std::unordered_map<int32_t, hir::NVID> blockValues;
@@ -449,7 +450,28 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         }
 
         auto foundValue = findScopedName(context, name, block, blockValues, containingScopes);
+        SPDLOG_INFO("Inserting {}, foundValue: {}, nodeValue: {}", name.view(context), foundValue, nodeValue);
         assert(foundValue == nodeValue);
+        return foundValue;
+    }
+
+    // Check for special names.
+    if (name == context->symbolTable->superSymbol()) {
+        auto thisValue = findName(context, method, context->symbolTable->thisSymbol(), block);
+        assert(thisValue != hir::kInvalidNVID);
+        nodeValue = append(std::make_unique<hir::RouteToSuperclassHIR>(thisValue), block);
+    } else if (name == context->symbolTable->thisMethodSymbol()) {
+        nodeValue = append(std::make_unique<hir::ConstantHIR>(method.slot(), name), block);
+    } else if (name == context->symbolTable->thisProcessSymbol()) {
+        nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisProcess), name), block);
+    } else if (name == context->symbolTable->thisThreadSymbol()) {
+        nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisThread), name), block);
+    }
+
+    // Special names can all be appended locally to the block.
+    if (nodeValue != hir::kInvalidNVID) {
+        block->revisions.emplace(std::make_pair(name, nodeValue));
+        block->localValues.emplace(std::make_pair(nodeValue, nodeValue));
     } else {
         SPDLOG_CRITICAL("Failed to find name: {}", name.view(context));
     }
@@ -461,9 +483,12 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
         std::unordered_map<Block::ID, hir::NVID>& blockValues,
         const std::unordered_set<const Scope*>& containingScopes) {
 
+    SPDLOG_DEBUG("  searching block {} for {}", block->id, name.view(context));
+
     // To avoid any infinite cycles in block loops, return any value found on a previous call on this block.
     auto cacheIter = blockValues.find(block->id);
     if (cacheIter != blockValues.end()) {
+        SPDLOG_DEBUG("    block {} cache hit, returning {}", block->id, cacheIter->second);
         return cacheIter->second;
     }
 
@@ -475,6 +500,7 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
     auto iter = block->revisions.find(name);
     if (iter != block->revisions.end()) {
         if (!isShadowed) {
+            SPDLOG_DEBUG("    block {} found in revisions, returning {}", block->id, iter->second);
             return iter->second;
         }
     }
@@ -482,6 +508,7 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
     // Don't bother with phi creation if we have no predecessors.
     if (block->predecessors.size() == 0) {
         blockValues.emplace(std::make_pair(block->id, hir::kInvalidNVID));
+        SPDLOG_DEBUG("    at entry block {}, returning -1 for {}", block->id, name.view(context));
         return hir::kInvalidNVID;
     }
 
@@ -534,9 +561,11 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
         block->frame->values[phiValue] = nullptr;
         // Clobber the phi value in the cache.
         blockValues[block->id] = finalValue;
+        SPDLOG_DEBUG("    block {} has trivial phi, returning {} for {}", block->id, finalValue, name.view(context));
     } else {
         finalValue = phiValue;
         block->phis.emplace_back(std::move(phi));
+        SPDLOG_DEBUG("    block {} has NONtrivial phi, returning {} for {}", block->id, finalValue, name.view(context));
     }
 
     // Update block revisions and localValues with the final values.

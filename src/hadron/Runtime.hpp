@@ -26,8 +26,8 @@ public:
     ThreadContext* context() { return m_threadContext.get(); }
 
 private:
-    bool buildTrampolines();
     bool buildThreadContext();
+    bool buildTrampolines();
     void enterMachineCode(const uint8_t* machineCode);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
