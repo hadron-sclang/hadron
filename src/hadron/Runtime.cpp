@@ -7,6 +7,8 @@
 #include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/Lexer.hpp"
+#include "hadron/library/Kernel.hpp"
+#include "hadron/library/Thread.hpp"
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Scope.hpp"
@@ -35,9 +37,9 @@ Runtime::Runtime(std::shared_ptr<ErrorReporter> errorReporter):
 Runtime::~Runtime() {}
 
 bool Runtime::initInterpreter() {
+    if (!buildThreadContext()) return false;
     if (!buildTrampolines()) return false;
     if (!compileClassLibrary()) return false;
-    if (!buildThreadContext()) return false;
     return true;
 }
 
@@ -46,6 +48,13 @@ bool Runtime::compileClassLibrary() {
     SPDLOG_INFO("Starting Class Library compilation for files at {}", classLibPath.c_str());
     m_threadContext->classLibrary->addClassDirectory(classLibPath);
     return m_threadContext->classLibrary->compileLibrary(m_threadContext.get());
+}
+
+bool Runtime::buildThreadContext() {
+    m_threadContext->symbolTable->preloadSymbols(m_threadContext.get());
+    m_threadContext->thisProcess = library::Process::alloc(m_threadContext.get()).instance();
+    m_threadContext->thisThread = library::Thread::alloc(m_threadContext.get()).instance();
+    return true;
 }
 
 bool Runtime::buildTrampolines() {
@@ -84,11 +93,6 @@ bool Runtime::buildTrampolines() {
     jitArray.resize(m_threadContext.get(), trampolineSize);
     SPDLOG_INFO("Runtime built JIT trampoline at {} bytes out of {} max.", trampolineSize, jitBufferSize);
 
-    return true;
-}
-
-bool Runtime::buildThreadContext() {
-    m_threadContext->thisProcess = library::Process::alloc(m_threadContext.get()).instance();
     return true;
 }
 

@@ -1498,6 +1498,10 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
         jsonHIR.AddMember("inputs", inputs, document.GetAllocator());
     } break;
 
+    case hadron::hir::kRouteToSuperclass: {
+        assert(false);  // TODO
+    } break;
+
     case hadron::hir::Opcode::kStoreReturn: {
        const auto ret = reinterpret_cast<const hadron::hir::StoreReturnHIR*>(hir);
        jsonHIR.AddMember("opcode", "StoreReturn", document.GetAllocator());

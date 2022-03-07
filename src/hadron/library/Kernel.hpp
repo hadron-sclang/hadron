@@ -74,9 +74,9 @@ template<typename T, typename S>
 class FunctionDefBase : public Object<T, S> {
 public:
     FunctionDefBase(): Object<T, S>() {}
-
     explicit FunctionDefBase(S* instance): Object<T, S>(instance) {}
     explicit FunctionDefBase(Slot instance): Object<T, S>(instance) {}
+    ~FunctionDefBase() {}
 
     Int8Array code() const {
         T& t = static_cast<T&>(*this);

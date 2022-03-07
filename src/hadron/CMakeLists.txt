@@ -150,11 +150,13 @@ list(APPEND SCLANG_CLASS_FILES
     "${SCLANG_PATH}/Common/Core/Nil.sc"
     "${SCLANG_PATH}/Common/Core/Object.sc"
     "${SCLANG_PATH}/Common/Core/Symbol.sc"
+    "${SCLANG_PATH}/Common/Core/Thread.sc"
     "${SCLANG_PATH}/Common/Math/Float.sc"
     "${SCLANG_PATH}/Common/Math/Integer.sc"
     "${SCLANG_PATH}/Common/Math/Magnitude.sc"
     "${SCLANG_PATH}/Common/Math/Number.sc"
     "${SCLANG_PATH}/Common/Math/SimpleNumber.sc"
+    "${SCLANG_PATH}/Common/Streams/Stream.sc"
 )
 
 set(SCHEMA_FILES)
@@ -202,9 +204,12 @@ add_library(hadron STATIC
     hir/MethodReturnHIR.hpp
     hir/PhiHIR.cpp
     hir/PhiHIR.hpp
+    hir/RouteToSuperclassHIR.cpp
+    hir/RouteToSuperclassHIR.hpp
     hir/StoreReturnHIR.cpp
     hir/StoreReturnHIR.hpp
 
+    library/AbstractFunction.hpp
     library/Array.hpp
     library/ArrayedCollection.hpp
     library/Collection.hpp
@@ -212,9 +217,11 @@ add_library(hadron STATIC
     library/Object.hpp
     library/Schema.hpp
     library/SequenceableCollection.hpp
+    library/Stream.hpp
     library/String.hpp
     library/Symbol.cpp
     library/Symbol.hpp
+    library/Thread.hpp
 
     lir/BranchIfTrueLIR.hpp
     lir/BranchLIR.hpp
