@@ -473,6 +473,16 @@ def saveAST(ast, dotFile):
     elif ast['astType'] == 'Constant':
         dotFile.write('    <tr><td>value: {}</td></tr></table>>]\n'.format(slotToString(ast['constant'])))
 
+    # Define
+    elif ast['astType'] == 'Define':
+        dotFile.write("""    <tr><td port="name">name</td></tr>
+    <tr><td port="value">value</td></tr></table>>]
+  ast_{}:name -> ast_{}
+  ast_{}:value -> ast_{}
+""".format(ast['serial'], ast['name']['serial'], ast['serial'], ast['value']['serial']))
+        saveAST(ast['name'], dotFile)
+        saveAST(ast['value'], dotFile)
+
     # If
     elif ast['astType'] == 'If':
         dotFile.write("""    <tr><td port="condition">condition</td></tr>
@@ -510,6 +520,7 @@ def saveAST(ast, dotFile):
     elif ast['astType'] == 'Name':
         dotFile.write('    <tr><td>name: {}</td></tr></table>>]\n'.format(ast['name']['string']))
 
+    # Sequence
     elif ast['astType'] == 'Sequence':
         if 'sequence' in ast:
             for i in range(0, len(ast['sequence'])):
