@@ -559,12 +559,12 @@ void JSONTransport::JSONTransportImpl::handleInitialize(std::optional<lsp::ID> i
 void JSONTransport::JSONTransportImpl::serializeParseNode(hadron::ThreadContext* context,
         const hadron::parse::Node* node, rapidjson::Document& document, std::vector<rapidjson::Pointer::Token>& path,
         int& serial) {
-    rapidjson::Value& jsonNode = rapidjson::CreateValueByPointer(document,
-            rapidjson::Pointer(path.data(), path.size()), document.GetAllocator());
-    jsonNode.SetObject();
     if (!node) {
         return;
     }
+    rapidjson::Value& jsonNode = rapidjson::CreateValueByPointer(document,
+            rapidjson::Pointer(path.data(), path.size()), document.GetAllocator());
+    jsonNode.SetObject();
     jsonNode.AddMember("tokenIndex", rapidjson::Value(static_cast<uint64_t>(node->tokenIndex)),
             document.GetAllocator());
 

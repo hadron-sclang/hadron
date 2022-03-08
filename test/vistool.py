@@ -173,7 +173,7 @@ def hirToString(hir):
     elif hir['opcode'] == 'LoadArgument':
         return '{} &#8592; LoadArgument({})'.format(valueToString(hir['value']), hir['index'])
     elif hir['opcode'] == 'Message':
-        message = 'message: {}'.format(hir['selector']['string'])
+        message = 'message: {}'.format(sourceToHTML(hir['selector']['string']))
         message += ' args: ' + ','.join(valueToString(x) for x in hir['arguments'])
         message += ' keywordArgs: ' + ','.join(valueToString(x) for x in hir['keywordArguments'])
         return message
@@ -211,9 +211,9 @@ def saveBlockGraph(scope, dotFile):
     for subFrame in scope['subScopes']:
         saveBlockGraph(subFrame, dotFile)
 
-def buildControlFlow(outFile, rootFrame, outputDir):
+def buildControlFlow(outFile, rootFrame, outputDir, name):
     # Build dotfile from parse tree nodes.
-    dotPath = os.path.join(outputDir, 'controlFlow.dot')
+    dotPath = os.path.join(outputDir, 'controlFlow' + name + '.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronControlFlow {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveScope(rootFrame['rootScope'], dotFile)
@@ -223,46 +223,54 @@ def buildControlFlow(outFile, rootFrame, outputDir):
     dotFile.write('}\n')
     dotFile.close()
     # Execute command to generate svg image.
-    svgPath = os.path.join(outputDir, 'controlFlow.svg')
+    svgPath = os.path.join(outputDir, 'controlFlow' + name + '.svg')
     svgFile = open(svgPath, 'w')
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
     outFile.write(
 """
-<h3>control flow graph</h3>
-<img src="controlFlow.svg">
-""")
+<h3>{} control flow graph</h3>
+<img src="controlFlow{}.svg">
+""".format(name, name))
 
 def saveNode(node, tokens, dotFile):
+    if 'serial' not in node:
+        raise(node)
+
     dotFile.write("""  node_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
     <tr><td bgcolor="lightGray"><b>{}</b></td></tr>
     <tr><td><font face="monospace">{}</font></td></tr>
     <tr><td port="next">next</td></tr>
 """.format(node['serial'], node['nodeType'], tokens[node['tokenIndex']]['source']))
 
+    # Empty
     if node['nodeType'] == 'Empty':
         dotFile.write('    </table>>]\n')
 
+    # VarDef
     elif node['nodeType'] == 'VarDef':
         dotFile.write("""    <tr><td>hasReadAccessor: {}</td></tr>
     <tr><td>hasWriteAccessor: {}</td></tr>
-    <tr><td port="initialValue">initialValue</td</tr></table>>]
+    <tr><td port="initialValue">initialValue</td></tr></table>>]
 """.format(node['hasReadAccessor'], node['hasWriteAccessor']))
-        if node['initialValue']:
+        if 'initialValue' in node:
             dotFile.write('  node_{}:initialValue -> node_{}\n'.format(node['serial'], node['initialValue']['serial']))
             saveNode(node['initialValue'], tokens, dotFile)
 
+    # VarList
     elif node['nodeType'] == 'VarList':
         dotFile.write('    <tr><td port="definitions">definitions</td></tr></table>>]\n')
         if node['definitions']:
             dotFile.write('  node_{}:definitions -> node_{}\n'.format(node['serial'], node['definitions']['serial']))
             saveNode(node['definitions'], tokens, dotFile)
 
+    # ArgList
     elif node['nodeType'] == 'ArgList':
         dotFile.write('    <tr><td port="varList">varList</td></tr></table>>]\n')
         if node['varList']:
             dotFile.write('  node_{}:varList -> node_{}\n'.format(node['serial'], node['varList']['serial']))
             saveNode(node['varList'], tokens, dotFile)
 
+    # Method
     elif node['nodeType'] == 'Method':
         dotFile.write("""    <tr><td>isClassMethod: {}</td></tr>
     <tr><td port="body">body</td></tr></table>>]
@@ -271,12 +279,14 @@ def saveNode(node, tokens, dotFile):
             dotFile.write('  node_{}:body -> node_{}\n'.format(node['serial'], node['body']['serial']))
             saveNode(node['body'], tokens, dotFile)
 
+    # ClassExt
     elif node['nodeType'] == 'ClassExt':
         dotFile.write('    <tr><td port="methods">methods</td></tr></table>>]\n')
         if node['methods']:
             dotFile.write('  node_{}:methods -> node_{}\n'.format(node['serial'], node['methods']['serial']))
             saveNode(node['methods'], tokens, dotFile)
 
+    # Class
     elif node['nodeType'] == 'Class':
         if node['superClassNameIndex']:
             dotFile.write('    <tr><td>superClassName: {}</td></tr>\n'.format(tokens[node['superClassNameIndex']]))
@@ -292,143 +302,157 @@ def saveNode(node, tokens, dotFile):
             dotFile.write('  node_{}:methods -> node_{}\n'.format(node['serial'], node['methods']['serial']))
             saveNode(node['methods'], tokens, dotFile)
 
+    # ReturnNode
     elif node['nodeType'] == 'ReturnNode':
         dotFile.write('    <tr><td port="valueExpr">valueExpr</td></tr></table>>]\n')
         if node['valueExpr']:
             dotFile.write('  node_{}:valueExpr -> node_{}\n'.format(node['serial'], node['valueExpr']['serial']))
             saveNode(node['valueExpr'], tokens, dotFile)
 
-    elif node['nodeType'] == 'DynList':
+    # List
+    elif node['nodeType'] == 'List':
         dotFile.write('    <tr><td port="elements">elements</td></tr></table>>]\n')
-        if node['elements']:
+        if 'elements' in node:
             dotFile.write('  node_{}:elements -> node_{}\n'.format(node['serial'], node['elements']['serial']))
             saveNode(node['elements'], tokens, dotFile)
 
+    # Block
     elif node['nodeType'] == 'Block':
         dotFile.write("""    <tr><td port="arguments">arguments</td></tr>
     <tr><td port="variables">variables</td></tr>
     <tr><td port="body">body</td></tr></table>>]
 """)
-        if node['arguments']:
+        if 'arguments' in node:
             dotFile.write('  node_{}:arguments -> node_{}\n'.format(node['serial'], node['arguments']['serial']))
             saveNode(node['arguments'], tokens, dotFile)
-        if node['variables']:
+        if 'variables' in node:
             dotFile.write('  node_{}:variables -> node_{}\n'.format(node['serial'], node['variables']['serial']))
-            saveNode(node['arguments'], tokens, dotFile)
-        if node['body']:
+            saveNode(node['variables'], tokens, dotFile)
+        if 'body' in node:
             dotFile.write('  node_{}:body -> node_{}\n'.format(node['serial'], node['body']['serial']))
             saveNode(node['body'], tokens, dotFile)
 
+    # Literal
     elif node['nodeType'] == 'Literal':
-        if node['blockLiteral']:
+        if 'blockLiteral' in node:
             dotFile.write('    <tr><td port="blockLiteral">blockLiteral</td></tr></table>>]\n')
             dotFile.write('  node_{}:blockLiteral -> node_{}\n'.format(node['serial'], node['blockLiteral']['serial']))
             saveNode(node['blockLiteral'], tokens, dotFile)
         else:
             dotFile.write('    </table>>]\n')
 
+    # Name
     elif node['nodeType'] == 'Name':
         dotFile.write('    <tr><td>isGlobal: {}</td></tr></table>>]\n'.format(node['isGlobal']))
 
+    # ExprSeq
     elif node['nodeType'] == 'ExprSeq':
         dotFile.write('    <tr><td port="expr">expr</td></tr></table>>]\n')
-        if node['expr']:
+        if 'expr' in node:
             dotFile.write('  node_{}:expr -> node_{}\n'.format(node['serial'], node['expr']['serial']))
             saveNode(node['expr'], tokens, dotFile)
 
+    # Assign
     elif node['nodeType'] == 'Assign':
         dotFile.write("""    <tr><td port="name">name</td></tr>
     <tr><td port="value">value</td></tr></table>>]
 """)
-        if node['name']:
+        if 'name' in node:
             dotFile.write('  node_{}:name -> node_{}\n'.format(node['serial'], node['name']['serial']))
             saveNode(node['name'], tokens, dotFile)
-        if node['value']:
+        if 'value' in node:
             dotFile.write('  node_{}:value -> node_{}\n'.format(node['serial'], node['value']['serial']))
             saveNode(node['value'], tokens, dotFile)
 
+    # Setter
     elif node['nodeType'] == 'Setter':
         dotFile.write("""    <tr><td port="target">target</td></tr>
     <tr><td port="value">value</td></tr></table>>]
 """)
-        if node['target']:
+        if 'target' in node:
             dotFile.write('  node_{}:target -> node_{}\n'.format(node['serial'], node['target']['serial']))
             saveNode(node['target'], tokens, dotFile)
-        if node['value']:
+        if 'value' in node:
             dotFile.write('  node_{}:value -> node_{}\n'.format(node['serial'], node['value']['serial']))
             saveNode(node['value'], tokens, dotFile)
 
+    # Call
     elif node['nodeType'] == 'Call':
         dotFile.write("""    <tr><td port="target">target</td></tr>
     <tr><td port="arguments">arguments</td></tr>
     <tr><td port="keywordArguments">keywordArguments</td></tr></table>>]
 """)
-        if node['target']:
+        if 'target' in node:
             dotFile.write('  node_{}:target -> node_{}\n'.format(node['serial'], node['target']['serial']))
             saveNode(node['target'], tokens, dotFile)
-        if node['arguments']:
+        if 'arguments' in node:
             dotFile.write('  node_{}:arguments -> node_{}\n'.format(node['serial'], node['arguments']['serial']))
             saveNode(node['arguments'], tokens, dotFile)
-        if node['keywordArguments']:
+        if 'keywordArguments' in node:
             dotFile.write('  node_{}:keywordArguments -> node_{}\n'.format(node['serial'],
                 node['keywordArguments']['serial']))
             saveNode(node['keywordArguments'], tokens, dotFile)
 
+    # BinopCall
     elif node['nodeType'] == 'BinopCall':
         dotFile.write("""    <tr><td port="leftHand">leftHand</td></tr>
     <tr><td port="rightHand">rightHand</td></tr>
-    <tr><td port="adverb">adverb</td></tr><table>>]
+    <tr><td port="adverb">adverb</td></tr></table>>]
 """)
-        if node['leftHand']:
+        if 'leftHand' in node:
             dotFile.write('  node_{}:leftHand -> node_{}\n'.format(node['serial'], node['leftHand']['serial']))
             saveNode(node['leftHand'], tokens, dotFile)
-        if node['rightHand']:
+        if 'rightHand' in node:
             dotFile.write('  node_{}:rightHand -> node_{}\n'.format(node['serial'], node['rightHand']['serial']))
             saveNode(node['rightHand'], tokens, dotFile)
-        if node['adverb']:
+        if 'adverb' in node:
             dotFile.write('  node_{}:adverb -> node_{}\n'.format(node['serial'], node['adverb']['serial']))
             saveNode(node['adverb'], tokens, dotFile)
 
+    # If
     elif node['nodeType'] == 'If':
         dotFile.write("""    <tr><td port="condition">condition</td></tr>
     <tr><td port="trueBlock">trueBlock</td></tr>
     <tr><td port="falseBlock">falseBlock</td></tr></table>>]
 """)
-        if node['condition']:
+        if 'condition' in node:
             dotFile.write('  node_{}:condition -> node_{}\n'.format(node['serial'], node['condition']['serial']))
             saveNode(node['condition'], tokens, dotFile)
-        if node['trueBlock']:
+        if 'trueBlock' in node:
             dotFile.write('  node_{}:trueBlock -> node_{}\n'.format(node['serial'], node['trueBlock']['serial']))
             saveNode(node['trueBlock'], tokens, dotFile)
-        if node['falseBlock']:
+        if 'falseBlock' in node:
             dotFile.write('  node_{}:falseBlock -> node_{}\n'.format(node['serial'], node['falseBlock']['serial']))
             saveNode(node['falseBlock'], tokens, dotFile)
 
-    if node['next']:
+    if 'next' in node:
         dotFile.write('  node_{}:next -> node_{}\n'.format(node['serial'], node['next']['serial']))
         saveNode(node['next'], tokens, dotFile)
 
-def buildParseTree(outFile, parseTree, tokens, outputDir):
+def buildParseTree(outFile, parseTree, tokens, outputDir, name):
     # Build dotfile from parse tree nodes.
-    dotPath = os.path.join(outputDir, 'parseTree.dot')
+    dotPath = os.path.join(outputDir, 'parseTree' + name + '.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronParseTree {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveNode(parseTree, tokens, dotFile)
     dotFile.write('}\n')
     dotFile.close()
     # Execute command to generate svg image.
-    svgPath = os.path.join(outputDir, 'parseTree.svg')
+    svgPath = os.path.join(outputDir, 'parseTree' + name + '.svg')
     svgFile = open(svgPath, 'w')
+    # print('processing {} to {}'.format(dotPath, svgPath))
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
     outFile.write("""
-<h3>parse tree</h3>
-<img src="parseTree.svg">
-""")
+<h3>{} parse tree</h3>
+<img src="parseTree{}.svg">
+""".format(name, name))
 
 def saveAST(ast, dotFile):
     dotFile.write("""  ast_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
     <tr><td bgcolor="lightGray"><b>{}</b></td></tr>
 """.format(ast['serial'], ast['astType']))
+
+    # Assign
     if ast['astType'] == 'Assign':
         dotFile.write("""    <tr><td port="name">name</td></tr>
     <tr><td port="value">value</td></tr></table>>]
@@ -438,15 +462,18 @@ def saveAST(ast, dotFile):
         saveAST(ast['name'], dotFile)
         saveAST(ast['value'], dotFile)
 
+    # Block
     elif ast['astType'] == 'Block':
         dotFile.write("""    <tr><td port="statements">statements</td></tr></table>>]
   ast_{}:statements -> ast_{}
 """.format(ast['serial'], ast['statements']['serial']))
         saveAST(ast['statements'], dotFile)
 
+    # Constant
     elif ast['astType'] == 'Constant':
         dotFile.write('    <tr><td>value: {}</td></tr></table>>]\n'.format(slotToString(ast['constant'])))
 
+    # If
     elif ast['astType'] == 'If':
         dotFile.write("""    <tr><td port="condition">condition</td></tr>
     <tr><td port="trueBlock">trueBlock</td></tr>
@@ -460,25 +487,28 @@ def saveAST(ast, dotFile):
         saveAST(ast['trueBlock'], dotFile)
         saveAST(ast['falseBlock'], dotFile)
 
+    # Message
     elif ast['astType'] == 'Message':
         dotFile.write("""    <tr><td>selector: {}</td></tr>
     <tr><td port="arguments">arguments</td></tr>
     <tr><td port="keywordArguments">keywordArguments</td></tr></table>>]
   ast_{}:arguments -> ast_{}
   ast_{}:keywordArguments -> ast_{}
-""".format(ast['selector'], ast['serial'], ast['arguments']['serial'], ast['serial'],
+""".format(sourceToHTML(ast['selector']['string']), ast['serial'], ast['arguments']['serial'], ast['serial'],
             ast['keywordArguments']['serial']))
         saveAST(ast['arguments'], dotFile)
         saveAST(ast['keywordArguments'], dotFile)
 
+    # MethodReturn
     elif ast['astType'] == 'MethodReturn':
         dotFile.write("""    <tr><td port="value">value</td></tr></table>>]
   ast_{}:value -> ast_{}
 """.format(ast['serial'], ast['value']['serial']))
         saveAST(ast['value'], dotFile)
 
+    # Name
     elif ast['astType'] == 'Name':
-        dotFile.write('    <tr><td>name: {}</td></tr></table>>]\n'.format(ast['name']))
+        dotFile.write('    <tr><td>name: {}</td></tr></table>>]\n'.format(ast['name']['string']))
 
     elif ast['astType'] == 'Sequence':
         if 'sequence' in ast:
@@ -496,20 +526,21 @@ def saveAST(ast, dotFile):
         dotFile.write('    </table>>]\n')
 
 def buildAST(outFile, ast, outputDir, name):
-    dotPath = os.path.join(outputDir, name + 'ast.dot')
+    dotPath = os.path.join(outputDir, 'ast' + name + '.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronAST {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveAST(ast, dotFile)
     dotFile.write('}\n')
     dotFile.close()
-    svgPath = os.path.join(outputDir, name + 'ast.svg')
+    svgPath = os.path.join(outputDir, 'ast' + name + '.svg')
     svgFile = open(svgPath, 'w')
+    # print('processing {} to {}'.format(dotPath, svgPath))
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
     outFile.write(
 """
-<h3>abstract syntax tree</h3>
-<img src="ast.svg">
-""")
+<h3>{} abstract syntax tree</h3>
+<img src="ast{}.svg">
+""".format(name, name))
 
 def styleForTokenType(typeIndex):
     tokenTypeStyles = [
@@ -559,7 +590,12 @@ def styleForTokenType(typeIndex):
     return tokenTypeStyles[typeIndex]
 
 def sourceToHTML(source):
-    return html.escape(source).replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp').replace(' ', '&nbsp;')
+    es = html.escape(source)
+    es = es.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
+    es = es.replace(' ', '&nbsp;')
+    es = es.replace('{', '&#123;')
+    es = es.replace('[', '&#91;')
+    return es
 
 def buildListing(outFile, tokens, source):
     lineNumberPadding = str(len(str(len(source) + 1)))
@@ -663,6 +699,7 @@ def main(args):
 
     for unit in diagnostics['compilationUnits']:
         name = unit['name']
+        outFile.write("<h2>{}</h2>\n".format(name))
         buildParseTree(outFile, unit['parseTree'], tokens, args.outputDir, name)
         buildAST(outFile, unit['ast'], args.outputDir, name)
 
