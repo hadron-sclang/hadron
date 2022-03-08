@@ -194,8 +194,12 @@ add_library(hadron STATIC
     hir/ConstantHIR.cpp
     hir/ConstantHIR.hpp
     hir/HIR.hpp
-    hir/ImportNameHIR.cpp
-    hir/ImportNameHIR.hpp
+    hir/ImportClassVariableHIR.cpp
+    hir/ImportClassVariableHIR.hpp
+    hir/ImportInstanceVariableHIR.cpp
+    hir/ImportInstanceVariableHIR.hpp
+    hir/ImportLocalVariableHIR.cpp
+    hir/ImportLocalVariableHIR.hpp
     hir/LoadArgumentHIR.cpp
     hir/LoadArgumentHIR.hpp
     hir/MessageHIR.cpp

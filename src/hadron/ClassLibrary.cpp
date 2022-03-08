@@ -33,7 +33,7 @@ namespace hadron {
 
 ClassLibrary::ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter):
         m_errorReporter(errorReporter),
-        m_classArray(nullptr) {}
+        m_numberOfClassVariables(0) {}
 
 void ClassLibrary::addClassDirectory(const std::string& path) {
     m_libraryPaths.emplace(fs::absolute(path));
@@ -60,6 +60,8 @@ bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_methodASTs.clear();
     m_methodFrames.clear();
     m_interpreterContext = library::Method();
+    m_classVariables = library::Array();
+    m_numberOfClassVariables = 0;
     return true;
 }
 
@@ -135,8 +137,8 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                     method.setName(methodName);
 
                     // We keep a reference to the Interpreter compile context, for quick access later.
-                    if ((className == library::Symbol::fromView(context, "Interpreter")) &&
-                        (methodName == library::Symbol::fromView(context, "functionCompileContext"))) {
+                    if ((className == context->symbolTable->interpreterSymbol()) &&
+                        (methodName == context->symbolTable->functionCompileContextSymbol())) {
                         m_interpreterContext = method;
                     }
 
@@ -235,6 +237,8 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
             varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
         }
 
+        assert(nameArray.size() == valueArray.size());
+
         // Each line gets its own varList parse node, so append to any existing arrays to preserve previous values.
         if (varHash == kVarHash) {
             classDef.setInstVarNames(classDef.instVarNames().addAll(context, nameArray));
@@ -242,6 +246,7 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
         } else if (varHash == kClassVarHash) {
             classDef.setClassVarNames(classDef.classVarNames().addAll(context, nameArray));
             classDef.setCprototype(classDef.cprototype().addAll(context, valueArray));
+            m_numberOfClassVariables += nameArray.size();
         } else if (varHash == kConstHash) {
             classDef.setConstNames(classDef.constNames().addAll(context, nameArray));
             classDef.setConstValues(classDef.constValues().addAll(context, valueArray));
@@ -285,6 +290,9 @@ bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
     auto objectIter = m_classMap.find(library::Symbol::fromView(context, "Object"));
     if (objectIter == m_classMap.end()) { assert(false); return false; }
 
+    // Allocate class variable array at full capacity, to avoid any expensive resize copies while appending.
+    m_classVariables = library::Array::arrayAlloc(context, m_numberOfClassVariables);
+
     // We start at the root of the class heirarchy with Object.
     auto objectClassDef = objectIter->second;
     return composeSubclassesFrom(context, objectClassDef);
@@ -298,6 +306,10 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
 
     auto classMethods = m_methodFrames.find(classDef.name(context));
     assert(classMethods != m_methodFrames.end());
+
+    // Add the class variables initial values to the class variable array.
+    classDef.setClassVarIndex(m_classVariables.size());
+    m_classVariables = m_classVariables.addAll(context, classDef.cprototype());
 
     for (int32_t i = 0; i < classDef.methods().size(); ++i) {
         auto method = classDef.methods().typedAt(i);

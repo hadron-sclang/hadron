@@ -5,6 +5,7 @@
 #include "hadron/library/String.hpp"
 #include "hadron/library/Symbol.hpp"
 #include "hadron/Parser.hpp"
+#include "hadron/SymbolTable.hpp"
 
 #include "fmt/format.h"
 
@@ -19,7 +20,7 @@ ASTBuilder::ASTBuilder(std::shared_ptr<ErrorReporter> errorReporter): m_errorRep
 std::unique_ptr<ast::BlockAST> ASTBuilder::buildBlock(ThreadContext* context, const Lexer* lexer,
         const parse::BlockNode* blockNode) {
     auto blockAST = std::make_unique<ast::BlockAST>();
-    auto name = library::Symbol::fromView(context, "this");
+    auto name = context->symbolTable->thisSymbol();
 
     // The *this* pointer is the first argument to every block.
     blockAST->argumentNames.add(context, name);
@@ -76,7 +77,7 @@ std::unique_ptr<ast::BlockAST> ASTBuilder::buildBlock(ThreadContext* context, co
     for (const auto& init : exprInits) {
         auto isNil = std::make_unique<ast::MessageAST>();
         isNil->arguments->sequence.emplace_back(std::make_unique<ast::NameAST>(init.first));
-        isNil->selector = library::Symbol::fromView(context, "isNil");
+        isNil->selector = context->symbolTable->isNilSymbol();
 
         auto ifAST = std::make_unique<ast::IfAST>();
         ifAST->condition->sequence.emplace_back(std::move(isNil));
@@ -149,18 +150,18 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         return methodReturn;
     }
 
+    // Transform literal lists into Array.with(elements) call.
     case parse::NodeType::kList: {
         const auto listNode = reinterpret_cast<const parse::ListNode*>(node);
-        auto listAST = std::make_unique<ast::ListAST>();
-        listAST->elements = transformSequence(context, lexer, listNode->elements.get());
-        return listAST;
+        auto message = std::make_unique<ast::MessageAST>();
+        message->selector = context->symbolTable->withSymbol();
+        message->arguments->sequence.emplace_back(std::make_unique<ast::NameAST>(context->symbolTable->arraySymbol()));
+        appendToSequence(context, lexer, message->arguments.get(), listNode->elements.get());
+        return message;
     }
 
     case parse::NodeType::kDictionary: {
-        const auto dictNode = reinterpret_cast<const parse::DictionaryNode*>(node);
-        auto dictAST = std::make_unique<ast::DictionaryAST>();
-        dictAST->elements = transformSequence(context, lexer, dictNode->elements.get());
-        return dictAST;
+        assert(false); // TODO
     }
 
     case parse::NodeType::kBlock: {
@@ -264,7 +265,7 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     case parse::NodeType::kArrayRead: {
         const auto readNode = reinterpret_cast<const parse::ArrayReadNode*>(node);
         auto message = std::make_unique<ast::MessageAST>();
-        message->selector = library::Symbol::fromView(context, "at");
+        message->selector = context->symbolTable->atSymbol();
         appendToSequence(context, lexer, message->arguments.get(), readNode->targetArray.get());
         appendToSequence(context, lexer, message->arguments.get(), readNode->indexArgument.get());
         return message;
@@ -273,7 +274,7 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     case parse::NodeType::kArrayWrite: {
         const auto writeNode = reinterpret_cast<const parse::ArrayWriteNode*>(node);
         auto message = std::make_unique<ast::MessageAST>();
-        message->selector = library::Symbol::fromView(context, "put");
+        message->selector = context->symbolTable->putSymbol();
         appendToSequence(context, lexer, message->arguments.get(), writeNode->targetArray.get());
         appendToSequence(context, lexer, message->arguments.get(), writeNode->indexArgument.get());
         appendToSequence(context, lexer, message->arguments.get(), writeNode->value.get());
@@ -287,7 +288,7 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     case parse::NodeType::kNew: {
         const auto newNode = reinterpret_cast<const parse::NewNode*>(node);
         auto message = std::make_unique<ast::MessageAST>();
-        message->selector = library::Symbol::fromView(context, "new");
+        message->selector = context->symbolTable->newSymbol();
         appendToSequence(context, lexer, message->arguments.get(), newNode->target.get());
         appendToSequence(context, lexer, message->arguments.get(), newNode->arguments.get());
         appendToSequence(context, lexer, message->keywordArguments.get(), newNode->keywordArguments.get());

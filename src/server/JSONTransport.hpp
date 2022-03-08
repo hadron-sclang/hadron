@@ -56,8 +56,6 @@ public:
     void sendInitializeResult(std::optional<lsp::ID> id);
     void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
 
-    // Responses from the server for Hadron messages
-
     void sendCompilationDiagnostics(hadron::ThreadContext* context, lsp::ID id,
             const std::vector<CompilationUnit>& compilationUnits);
 

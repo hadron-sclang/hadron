@@ -61,6 +61,9 @@ public:
 
     int32_t charPos() const { return m_instance->charPos.getInt32(); }
     void setCharPos(int32_t pos) { m_instance->charPos = Slot::makeInt32(pos); }
+
+    int32_t classVarIndex() const { return m_instance->classVarIndex.getInt32(); }
+    void setClassVarIndex(int32_t index) { m_instance->classVarIndex = Slot::makeInt32(index); }
 };
 
 class Process : public Object<Process, schema::ProcessSchema> {

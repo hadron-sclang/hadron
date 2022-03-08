@@ -3,6 +3,13 @@
 namespace hadron {
 
 void SymbolTable::preloadSymbols(ThreadContext* context) {
+    m_Array = library::Symbol::fromView(context, "Array");
+    m_at = library::Symbol::fromView(context, "at");
+    m_functionCompileContext = library::Symbol::fromView(context, "functionCompileContext");
+    m_Interpreter = library::Symbol::fromView(context, "Interpreter");
+    m_isNil = library::Symbol::fromView(context, "isNil");
+    m_new = library::Symbol::fromView(context, "new");
+    m_put = library::Symbol::fromView(context, "put");
     m_super = library::Symbol::fromView(context, "super");
     m_this = library::Symbol::fromView(context, "this");
     m_thisFunction = library::Symbol::fromView(context, "thisFunction");
@@ -10,6 +17,7 @@ void SymbolTable::preloadSymbols(ThreadContext* context) {
     m_thisMethod = library::Symbol::fromView(context, "thisMethod");
     m_thisProcess = library::Symbol::fromView(context, "thisProcess");
     m_thisThread = library::Symbol::fromView(context, "thisThread");
+    m_with = library::Symbol::fromView(context, "with");
 }
 
 Hash SymbolTable::addSymbol(ThreadContext* context, std::string_view v) {

@@ -15,10 +15,8 @@ enum ASTType {
     kBlock,
     kConstant,
     kDefine,
-    kDictionary,
     kEmpty,
     kIf,
-    kList,
     kMessage,
     kMethodReturn,
     kName,
@@ -112,20 +110,6 @@ struct MethodReturnAST : public AST {
     virtual ~MethodReturnAST() = default;
 
     std::unique_ptr<AST> value;
-};
-
-struct ListAST : public AST {
-    ListAST(): AST(kList) {}
-    virtual ~ListAST() = default;
-
-    std::unique_ptr<SequenceAST> elements;
-};
-
-struct DictionaryAST : public AST {
-    DictionaryAST(): AST(kDictionary) {}
-    virtual ~DictionaryAST() = default;
-
-    std::unique_ptr<SequenceAST> elements;
 };
 
 } // namespace ast

@@ -69,7 +69,8 @@ void HadronServer::semanticTokensFull(const std::string& filePath) {
     m_jsonTransport->sendSemanticTokens(lexer.tokens());
 }
 
-void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& filePath) {
+void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& filePath,
+        DiagnosticsStoppingPoint stopAfter) {
     hadron::SourceFile sourceFile(filePath);
     if (!sourceFile.read(m_errorReporter)) {
         m_jsonTransport->sendErrorResponse(std::nullopt, JSONTransport::ErrorCode::kFileReadError,
@@ -131,7 +132,7 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
                 }
                 assert(!methodDef.isNil());
 
-                addCompilationUnit(methodDef, lexer, parser, methodNode->body.get(), units);
+                addCompilationUnit(methodDef, lexer, parser, methodNode->body.get(), units, stopAfter);
                 methodNode = reinterpret_cast<const hadron::parse::MethodNode*>(methodNode->next.get());
             }
 
@@ -145,53 +146,66 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
         assert(parser->root()->nodeType == hadron::parse::NodeType::kBlock);
 
         addCompilationUnit(m_runtime->context()->classLibrary->interpreterContext(), lexer, parser,
-                reinterpret_cast<const hadron::parse::BlockNode*>(parser->root()), units);
+                reinterpret_cast<const hadron::parse::BlockNode*>(parser->root()), units, stopAfter);
     }
     m_jsonTransport->sendCompilationDiagnostics(m_runtime->context(), id, units);
 }
 
 void HadronServer::addCompilationUnit(hadron::library::Method methodDef, std::shared_ptr<hadron::Lexer> lexer,
         std::shared_ptr<hadron::Parser> parser, const hadron::parse::BlockNode* blockNode,
-        std::vector<CompilationUnit>& units) {
+        std::vector<CompilationUnit>& units, DiagnosticsStoppingPoint stopAfter) {
     std::string name(methodDef.name(m_runtime->context()).view(m_runtime->context()));
 
     SPDLOG_TRACE("Compile Diagnostics AST Builder {}", name);
     hadron::ASTBuilder astBuilder(m_errorReporter);
     auto blockAST = astBuilder.buildBlock(m_runtime->context(), lexer.get(), blockNode);
 
-    SPDLOG_TRACE("Compile Diagnostics Block Builder {}", name);
-    hadron::BlockBuilder blockBuilder(m_errorReporter);
-    auto frame = blockBuilder.buildMethod(m_runtime->context(), methodDef, blockAST.get());
+    std::unique_ptr<hadron::Frame> frame;
+    if (stopAfter > DiagnosticsStoppingPoint::kAST) {
+        SPDLOG_TRACE("Compile Diagnostics Block Builder {}", name);
+        hadron::BlockBuilder blockBuilder(m_errorReporter);
+        frame = blockBuilder.buildMethod(m_runtime->context(), methodDef, blockAST.get());
+    }
 
-    SPDLOG_TRACE("Compile Diagnostics Block Serializer {}", name);
-    hadron::BlockSerializer blockSerializer;
-    auto linearFrame = blockSerializer.serialize(frame.get());
+    std::unique_ptr<hadron::LinearFrame> linearFrame;
+    if (stopAfter > DiagnosticsStoppingPoint::kFrame) {
+        SPDLOG_TRACE("Compile Diagnostics Block Serializer {}", name);
+        hadron::BlockSerializer blockSerializer;
+        linearFrame = blockSerializer.serialize(frame.get());
+    }
 
-    SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer {}", name);
-    hadron::LifetimeAnalyzer lifetimeAnalyzer;
+    if (stopAfter > DiagnosticsStoppingPoint::kLowering) {
+        SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer {}", name);
+        hadron::LifetimeAnalyzer lifetimeAnalyzer;
+        lifetimeAnalyzer.buildLifetimes(linearFrame.get());
+    }
 
-    lifetimeAnalyzer.buildLifetimes(linearFrame.get());
+    if (stopAfter > DiagnosticsStoppingPoint::kLifetimeAnalysis) {
+        SPDLOG_TRACE("Compile Diagnostics Register Allocator {}", name);
+        hadron::RegisterAllocator registerAllocator(hadron::kNumberOfPhysicalRegisters);
+        registerAllocator.allocateRegisters(linearFrame.get());
+    }
 
-    SPDLOG_TRACE("Compile Diagnostics Register Allocator {}", name);
-    hadron::RegisterAllocator registerAllocator(hadron::kNumberOfPhysicalRegisters);
-    registerAllocator.allocateRegisters(linearFrame.get());
+    if (stopAfter > DiagnosticsStoppingPoint::kRegisterAllocation) {
+        SPDLOG_TRACE("Compile Diagnostics Resolver {}", name);
+        hadron::Resolver resolver;
+        resolver.resolve(linearFrame.get());
+    }
 
-    SPDLOG_TRACE("Compile Diagnostics Resolver {}", name);
-    hadron::Resolver resolver;
-    resolver.resolve(linearFrame.get());
-
-    SPDLOG_TRACE("Compile Diagnostics Emitter {}", name);
-    hadron::Emitter emitter;
-    hadron::VirtualJIT jit;
-    size_t byteCodeSize = linearFrame->instructions.size() * 16;
-    auto byteCode = std::make_unique<int8_t[]>(byteCodeSize);
-    jit.begin(byteCode.get(), byteCodeSize);
-    emitter.emit(linearFrame.get(), &jit);
+    std::unique_ptr<int8_t[]> byteCode;
     size_t finalSize = 0;
-    jit.end(&finalSize);
-    assert(finalSize < byteCodeSize);
 
-    SPDLOG_TRACE("Compile Diagnostics Rebuilding Block {}", name);
+    if (stopAfter > DiagnosticsStoppingPoint::kResolution) {
+        SPDLOG_TRACE("Compile Diagnostics Emitter {}", name);
+        hadron::Emitter emitter;
+        hadron::VirtualJIT jit;
+        size_t byteCodeSize = linearFrame->instructions.size() * 16;
+        byteCode = std::make_unique<int8_t[]>(byteCodeSize);
+        jit.begin(byteCode.get(), byteCodeSize);
+        emitter.emit(linearFrame.get(), &jit);
+        jit.end(&finalSize);
+        assert(finalSize < byteCodeSize);
+    }
 
     units.emplace_back(CompilationUnit{name, lexer, parser, blockNode, std::move(blockAST), std::move(frame),
             std::move(linearFrame), std::move(byteCode), finalSize});

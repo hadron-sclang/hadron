@@ -466,8 +466,8 @@ def saveAST(ast, dotFile):
     <tr><td port="keywordArguments">keywordArguments</td></tr></table>>]
   ast_{}:arguments -> ast_{}
   ast_{}:keywordArguments -> ast_{}
-""".format(slotToString(ast['selector'], ast['serial'], ast['arguments']['serial'], ast['serial'],
-            ast['keywordArguments']['serial'])))
+""".format(ast['selector'], ast['serial'], ast['arguments']['serial'], ast['serial'],
+            ast['keywordArguments']['serial']))
         saveAST(ast['arguments'], dotFile)
         saveAST(ast['keywordArguments'], dotFile)
 
@@ -478,29 +478,31 @@ def saveAST(ast, dotFile):
         saveAST(ast['value'], dotFile)
 
     elif ast['astType'] == 'Name':
-        dotFile.write('    <tr><td>name: {}</td></tr></table>>]\n'.format(slotToString(ast['name'])))
+        dotFile.write('    <tr><td>name: {}</td></tr></table>>]\n'.format(ast['name']))
 
     elif ast['astType'] == 'Sequence':
-        for i in range(0, len(ast['sequence'])):
-            dotFile.write('    <tr><td port="seq_{}"></td>&nbsp;</tr>\n'.format(i))
+        if 'sequence' in ast:
+            for i in range(0, len(ast['sequence'])):
+                dotFile.write('    <tr><td port="seq_{}"></td>&nbsp;</tr>\n'.format(i))
         dotFile.write('    </table>>]\n')
         i = 0
-        for seq in ast['sequence']:
-            dotFile.write('  ast_{}:seq_{} -> ast_{}\n'.format(ast['serial'], i, seq['serial']))
-            i += 1
-            saveAST(seq, dotFile)
+        if 'sequence' in ast:
+            for seq in ast['sequence']:
+                dotFile.write('  ast_{}:seq_{} -> ast_{}\n'.format(ast['serial'], i, seq['serial']))
+                i += 1
+                saveAST(seq, dotFile)
 
     else:
         dotFile.write('    </table>>]\n')
 
-def buildAST(outFile, ast, outputDir):
-    dotPath = os.path.join(outputDir, 'ast.dot')
+def buildAST(outFile, ast, outputDir, name):
+    dotPath = os.path.join(outputDir, name + 'ast.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronAST {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveAST(ast, dotFile)
     dotFile.write('}\n')
     dotFile.close()
-    svgPath = os.path.join(outputDir, 'ast.svg')
+    svgPath = os.path.join(outputDir, name + 'ast.svg')
     svgFile = open(svgPath, 'w')
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
     outFile.write(
@@ -657,15 +659,22 @@ def main(args):
         tokens.append({'lineNumber': lineNumber, 'charNumber': charNumber, 'length': deltaTokens[(i * 5) + 2],
             'tokenType': deltaTokens[(i * 5) + 3]})
     buildListing(outFile, tokens, source)
-    diagnostics = client.getDiagnostics(args.inputFile)
+    diagnostics = client.getDiagnostics(args.inputFile, args.stopAfter)
 
     for unit in diagnostics['compilationUnits']:
         name = unit['name']
-        buildParseTree(outFile, unit['parseTree'], tokens, args.outputDir)
-        buildAST(outFile, unit['ast'], args.outputDir)
-        buildControlFlow(outFile, unit['rootFrame'], args.outputDir)
-        buildLinearFrame(outFile, unit['linearFrame'])
-        buildMachineCode(outFile, unit['machineCode'])
+        buildParseTree(outFile, unit['parseTree'], tokens, args.outputDir, name)
+        buildAST(outFile, unit['ast'], args.outputDir, name)
+
+        if 'rootFrame' in unit:
+            buildControlFlow(outFile, unit['rootFrame'], args.outputDir, name)
+
+        if 'linearFrame' in unit:
+            buildLinearFrame(outFile, unit['linearFrame'])
+
+        if 'machineCode' in unit:
+            buildMachineCode(outFile, unit['machineCode'])
+
     outFile.write("""
 </body>
 </html>
@@ -676,5 +685,6 @@ if __name__ == '__main__':
     parser.add_argument('--inputFile', help='input SuperCollider file to visualize', required=True)
     parser.add_argument('--outputDir', help='output directory for visualization report', required=True)
     parser.add_argument('--hlangdPath', help='path to hlangd binary', default='build/src/hlangd')
+    parser.add_argument('--stopAfter', help='stop compilation after phase, a number from 1-7', default=7)
     args = parser.parse_args()
     main(args)
