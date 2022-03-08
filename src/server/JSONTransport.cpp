@@ -1021,6 +1021,13 @@ void JSONTransport::JSONTransportImpl::serializeSlot(hadron::ThreadContext* cont
         serializeSymbol(context, hadron::library::Symbol(context, slot), value, document);
         target.AddMember("value", value, document.GetAllocator());
     } break;
+    case hadron::TypeFlags::kCharFlag:
+        target.AddMember("type", rapidjson::Value("char"), document.GetAllocator());
+        target.AddMember("value", rapidjson::Value(slot.getChar()), document.GetAllocator());
+        break;
+    case hadron::TypeFlags::kObjectFlag:
+        target.AddMember("type", rapidjson::Value("object"), document.GetAllocator());
+        break;
     default:
         target.AddMember("type", rapidjson::Value("unknown"), document.GetAllocator());
         break;

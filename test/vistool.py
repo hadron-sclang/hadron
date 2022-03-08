@@ -160,8 +160,8 @@ def buildLinearFrame(outFile, linearFrame):
 def valueToString(value):
     flags = ' | '.join(value['typeFlags'])
     if 'name' in value:
-        return '({}) {}<sub>{}</sub>'.format(flags, value['name'], value['id'])
-    return '({}) v<sub>{}</sub>'.format(flags, value['id'])
+        return '({}) {}_{}'.format(flags, value['name'], value['id'])
+    return '({}) _{}'.format(flags, value['id'])
 
 def hirToString(hir):
     if hir['opcode'] == 'Branch':
@@ -173,15 +173,18 @@ def hirToString(hir):
     elif hir['opcode'] == 'LoadArgument':
         return '{} &#8592; LoadArgument({})'.format(valueToString(hir['value']), hir['index'])
     elif hir['opcode'] == 'Message':
-        message = 'message: {}'.format(sourceToHTML(hir['selector']['string']))
-        message += ' args: ' + ','.join(valueToString(x) for x in hir['arguments'])
-        message += ' keywordArgs: ' + ','.join(valueToString(x) for x in hir['keywordArguments'])
+        message = '{} &#8592; {}.{}('.format(valueToString(hir['value']), valueToString(hir['arguments'][0]),
+                sourceToHTML(hir['selector']['string']))
+        message += ','.join(valueToString(hir['arguments'][x]) for x in range(1, len(hir['arguments'])))
+        message += ','.join('{}: {}'.format(valueToString(hir['keywordArguments'][x]),
+                valueToString(hir ['keywordArguments'][x + 1])) for x in range(0, len(hir['keywordArguments']), 2))
+        message += ')'
         return message
     elif hir['opcode'] == 'MethodReturn':
         return 'return'
     elif hir['opcode'] == 'Phi':
         phi = '{} &#8592; &phi;('.format(valueToString(hir['value']))
-        phi += ','.join(['v<sub>{}</sub>'.format(x['id']) for x in hir['inputs']])
+        phi += ','.join(['{}'.format(x['id']) for x in hir['inputs']])
         phi += ')'
         return phi
     elif hir['opcode'] == 'StoreReturn':
@@ -448,6 +451,27 @@ def buildParseTree(outFile, parseTree, tokens, outputDir, name):
 """.format(name, name))
 
 def saveAST(ast, dotFile):
+    # Sequences need special handling for the table, so check for them first.
+    if ast['astType'] == 'Sequence':
+        if 'sequence' in ast:
+            colspan = max(1, len(ast['sequence']))
+            dotFile.write("""  ast_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
+    <tr><td colspan="{}" bgcolor="lightGray"><b>{}</b></td></tr>
+    <tr>""".format(ast['serial'], colspan, ast['astType']))
+            for i in range(0, len(ast['sequence'])):
+                dotFile.write('<td port="seq_{}">&nbsp;</td>'.format(i))
+            dotFile.write('</tr></table>>]\n')
+            i = 0
+            for seq in ast['sequence']:
+                dotFile.write('  ast_{}:seq_{} -> ast_{}\n'.format(ast['serial'], i, seq['serial']))
+                i += 1
+                saveAST(seq, dotFile)
+        else:
+            dotFile.write("""  ast_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
+    <tr><td bgcolor="lightGray"><b>{}</b></td></tr></table>>]
+""".format(ast['serial'], ast['astType']))
+        return
+
     dotFile.write("""  ast_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
     <tr><td bgcolor="lightGray"><b>{}</b></td></tr>
 """.format(ast['serial'], ast['astType']))
@@ -519,19 +543,6 @@ def saveAST(ast, dotFile):
     # Name
     elif ast['astType'] == 'Name':
         dotFile.write('    <tr><td>name: {}</td></tr></table>>]\n'.format(ast['name']['string']))
-
-    # Sequence
-    elif ast['astType'] == 'Sequence':
-        if 'sequence' in ast:
-            for i in range(0, len(ast['sequence'])):
-                dotFile.write('    <tr><td port="seq_{}"></td>&nbsp;</tr>\n'.format(i))
-        dotFile.write('    </table>>]\n')
-        i = 0
-        if 'sequence' in ast:
-            for seq in ast['sequence']:
-                dotFile.write('  ast_{}:seq_{} -> ast_{}\n'.format(ast['serial'], i, seq['serial']))
-                i += 1
-                saveAST(seq, dotFile)
 
     else:
         dotFile.write('    </table>>]\n')
