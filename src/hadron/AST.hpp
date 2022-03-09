@@ -21,6 +21,7 @@ enum ASTType {
     kMethodReturn,
     kName,
     kSequence,
+    kWhile
 };
 
 struct AST {
@@ -62,6 +63,13 @@ struct IfAST : public AST {
     std::unique_ptr<SequenceAST> condition;
     std::unique_ptr<BlockAST> trueBlock;
     std::unique_ptr<BlockAST> falseBlock;
+};
+
+struct WhileAST : public AST {
+    WhileAST(): AST(kWhile) {}
+
+    std::unique_ptr<BlockAST> condition;
+    std::unique_ptr<BlockAST> repeatBlock;
 };
 
 struct MessageAST : public AST {

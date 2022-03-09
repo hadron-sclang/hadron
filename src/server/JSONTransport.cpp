@@ -884,6 +884,17 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(hadron::ThreadContext*
         serializeParseNode(context, ifNode->falseBlock.get(), document, path, serial);
         path.pop_back();
     } break;
+
+    case hadron::parse::NodeType::kWhile: {
+        const auto whileNode = reinterpret_cast<const hadron::parse::WhileNode*>(node);
+        jsonNode.AddMember("nodeType", rapidjson::Value("While"), document.GetAllocator());
+        path.emplace_back(makeToken("condition"));
+        serializeParseNode(context, whileNode->condition.get(), document, path, serial);
+        path.pop_back();
+        path.emplace_back(makeToken("repeatBlock"));
+        serializeParseNode(context, whileNode->repeatBlock.get(), document, path, serial);
+        path.pop_back();
+    } break;
     }
 
     path.emplace_back(makeToken("next"));
@@ -978,6 +989,19 @@ void JSONTransport::JSONTransportImpl::serializeAST(hadron::ThreadContext* conte
 
         path.emplace_back(makeToken("falseBlock"));
         serializeAST(context, ifAST->falseBlock.get(), document, path, serial);
+        path.pop_back();
+    } break;
+
+    case hadron::ast::ASTType::kWhile: {
+        const auto whileAST = reinterpret_cast<const hadron::ast::WhileAST*>(ast);
+        jsonNode.AddMember("astType", rapidjson::Value("While"), document.GetAllocator());
+
+        path.emplace_back(makeToken("condition"));
+        serializeAST(context, whileAST->condition.get(), document, path, serial);
+        path.pop_back();
+
+        path.emplace_back(makeToken("repeatBlock"));
+        serializeAST(context, whileAST->repeatBlock.get(), document, path, serial);
         path.pop_back();
     } break;
 

@@ -332,6 +332,20 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         }
         return ifAST;
     }
+
+    case parse::NodeType::kWhile: {
+        const auto whileNode = reinterpret_cast<const parse::WhileNode*>(node);
+        auto whileAST = std::make_unique<ast::WhileAST>();
+        whileAST->condition = buildBlock(context, lexer, whileNode->condition.get());
+        if (whileNode->repeatBlock) {
+            whileAST->repeatBlock = buildBlock(context, lexer, whileNode->repeatBlock.get());
+        } else {
+            whileAST->repeatBlock = std::make_unique<ast::BlockAST>();
+            whileAST->repeatBlock->statements->sequence.emplace_back(std::make_unique<ast::ConstantAST>(
+                    Slot::makeNil()));
+        }
+        return whileAST;
+    }
     }
 
     // Should not get here, likely a case is missing a return statement.

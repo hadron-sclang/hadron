@@ -149,6 +149,11 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
         nodeValue = buildIf(context, method, currentBlock, ifAST);
     } break;
 
+    case ast::ASTType::kWhile: {
+        const auto whileAST = reinterpret_cast<const ast::WhileAST*>(ast);
+        nodeValue = buildWhile(context, method, currentBlock, whileAST);
+    } break;
+
     case ast::ASTType::kMessage: {
         const auto message = reinterpret_cast<const ast::MessageAST*>(ast);
 
@@ -290,6 +295,11 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, 
     currentBlock->phis.emplace_back(std::move(valuePhi));
 
     return nodeValue;
+}
+
+hir::NVID BlockBuilder::buildWhile(std::unique_ptr<hir::HIR> hir, Block* block) {
+    hir::NVID nodeValue;
+
 }
 
 hir::NVID BlockBuilder::append(std::unique_ptr<hir::HIR> hir, Block* block) {

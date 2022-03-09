@@ -3695,4 +3695,53 @@ TEST_CASE("Parser if") {
     }
 }
 
+TEST_CASE("Parser while") {
+    SUBCASE("while '(' block optcomma optblock ')'") {
+        Parser parser("while ({true});");
+        REQUIRE(parser.parse());
+        REQUIRE(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kWhile);
+        const auto whileNode = reinterpret_cast<const parse::WhileNode*>(block->body->expr.get());
+
+        // {true}
+        REQUIRE(whileNode->condition);
+        REQUIRE(whileNode->condition->body);
+        REQUIRE(whileNode->condition->body->expr);
+        REQUIRE_EQ(whileNode->condition->body->expr->nodeType, parse::NodeType::kLiteral);
+        const auto literal = reinterpret_cast<const parse::LiteralNode*>(whileNode->condition->body->expr.get());
+        CHECK_EQ(literal->value, Slot::makeBool(true));
+        CHECK_EQ(literal->next, nullptr);
+
+        CHECK_EQ(whileNode->repeatBlock, nullptr);
+    }
+
+    SUBCASE("while block optcomma block") {
+        Parser parser("while { counter < 5 } { this.doIt() }");
+        REQUIRE(parser.parse());
+        REQUIRE(parser.root());
+        REQUIRE(parser.root()->nodeType == parse::NodeType::kBlock);
+        const auto block = reinterpret_cast<const parse::BlockNode*>(parser.root());
+        REQUIRE(block->body);
+        REQUIRE(block->body->expr);
+        REQUIRE(block->body->expr->nodeType == parse::NodeType::kWhile);
+        const auto whileNode = reinterpret_cast<const parse::WhileNode*>(block->body->expr.get());
+
+        // { counter < 5 }
+        REQUIRE(whileNode->condition);
+        REQUIRE(whileNode->condition->body);
+        REQUIRE(whileNode->condition->body->expr);
+        REQUIRE_EQ(whileNode->condition->body->expr->nodeType, parse::NodeType::kBinopCall);
+
+        // { this.doIt() }
+        REQUIRE(whileNode->repeatBlock);
+        REQUIRE(whileNode->repeatBlock->body);
+        REQUIRE(whileNode->repeatBlock->body->expr);
+        REQUIRE_EQ(whileNode->repeatBlock->body->expr->nodeType, parse::NodeType::kCall);
+    }
+}
+
 } // namespace hadron

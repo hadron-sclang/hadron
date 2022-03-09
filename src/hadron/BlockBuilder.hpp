@@ -55,6 +55,8 @@ private:
             const ast::SequenceAST* sequence);
     hir::NVID buildIf(ThreadContext* context, const library::Method method, Block*& currentBlock,
             const ast::IfAST* ifAST);
+    hir::NVID buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
+            const ast::WhileAST* whileAST);
 
     // Returns the value appended to the |block|. Takes ownership of hir.
     hir::NVID append(std::unique_ptr<hir::HIR> hir, Block* block);

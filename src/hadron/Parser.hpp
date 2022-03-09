@@ -49,7 +49,8 @@ enum NodeType {
     kLiteralDict = 29,
     kMultiAssignVars = 30,
     kMultiAssign = 31,
-    kIf = 32
+    kIf = 32,
+    kWhile = 33
 };
 
 struct Node {
@@ -347,6 +348,14 @@ struct IfNode : public Node {
     std::unique_ptr<BlockNode> trueBlock;
     // optional else condition.
     std::unique_ptr<BlockNode> falseBlock;
+};
+
+struct WhileNode : public Node {
+    WhileNode(size_t index): Node(NodeType::kWhile, index) {}
+    virtual ~WhileNode() = default;
+
+    std::unique_ptr<BlockNode> condition;
+    std::unique_ptr<BlockNode> repeatBlock;
 };
 
 } // namespace parse
