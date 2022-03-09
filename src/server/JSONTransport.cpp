@@ -1473,12 +1473,12 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
         const auto localVar = reinterpret_cast<const hadron::hir::ImportLocalVariableHIR*>(hir);
         jsonHIR.AddMember("opcode", "ImportLocalVariable", document.GetAllocator());
         jsonHIR.AddMember("externalId", localVar->externalId, document.GetAllocator());
-    }
+    } break;
 
     case hadron::hir::Opcode::kLoadArgument: {
         const auto loadArg = reinterpret_cast<const hadron::hir::LoadArgumentHIR*>(hir);
         jsonHIR.AddMember("opcode", "LoadArgument", document.GetAllocator());
-        jsonHIR.AddMember("index", rapidjson::Value(loadArg->index), document.GetAllocator());
+        jsonHIR.AddMember("argIndex", rapidjson::Value(loadArg->argIndex), document.GetAllocator());
     } break;
 
     case hadron::hir::Opcode::kMessage: {

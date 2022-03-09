@@ -9,9 +9,9 @@ namespace hir {
 // Loads the argument at |index| from the stack.
 struct LoadArgumentHIR : public HIR {
     LoadArgumentHIR() = delete;
-    LoadArgumentHIR(int argIndex, library::Symbol name);
+    LoadArgumentHIR(int index, library::Symbol name);
     virtual ~LoadArgumentHIR() = default;
-    int index;
+    int argIndex;
 
     // Forces the kAny type for all arguments.
     NVID proposeValue(NVID id) override;

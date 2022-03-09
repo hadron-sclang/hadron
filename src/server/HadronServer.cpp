@@ -119,20 +119,23 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
             }
 
             while (methodNode) {
-                auto methodName = hadron::library::Symbol::fromView(m_runtime->context(),
-                        lexer->tokens()[methodNode->tokenIndex].range);
+                if (!methodNode->primitiveIndex) {
+                    auto methodName = hadron::library::Symbol::fromView(m_runtime->context(),
+                            lexer->tokens()[methodNode->tokenIndex].range);
 
-                hadron::library::Method methodDef;
-                for (int32_t i = 0; i < classDef.methods().size(); ++i) {
-                    auto method = classDef.methods().typedAt(i);
-                    if (method.name(m_runtime->context()) == methodName) {
-                        methodDef = method;
-                        break;
+                    hadron::library::Method methodDef;
+                    for (int32_t i = 0; i < classDef.methods().size(); ++i) {
+                        auto method = classDef.methods().typedAt(i);
+                        if (method.name(m_runtime->context()) == methodName) {
+                            methodDef = method;
+                            break;
+                        }
                     }
-                }
-                assert(!methodDef.isNil());
+                    assert(!methodDef.isNil());
 
-                addCompilationUnit(methodDef, lexer, parser, methodNode->body.get(), units, stopAfter);
+                    addCompilationUnit(methodDef, lexer, parser, methodNode->body.get(), units, stopAfter);
+                }
+
                 methodNode = reinterpret_cast<const hadron::parse::MethodNode*>(methodNode->next.get());
             }
 
@@ -154,7 +157,8 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
 void HadronServer::addCompilationUnit(hadron::library::Method methodDef, std::shared_ptr<hadron::Lexer> lexer,
         std::shared_ptr<hadron::Parser> parser, const hadron::parse::BlockNode* blockNode,
         std::vector<CompilationUnit>& units, DiagnosticsStoppingPoint stopAfter) {
-    std::string name(methodDef.name(m_runtime->context()).view(m_runtime->context()));
+    auto name = std::string(methodDef.ownerClass().name(m_runtime->context()).view(m_runtime->context())) + "_" +
+            std::string(methodDef.name(m_runtime->context()).view(m_runtime->context()));
 
     SPDLOG_TRACE("Compile Diagnostics AST Builder {}", name);
     hadron::ASTBuilder astBuilder(m_errorReporter);

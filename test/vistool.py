@@ -86,6 +86,8 @@ def findContainingLifetime(i, lifetimeList):
 
 def slotToString(slot):
     if 'value' in slot:
+        if slot['type'] == 'symbol':
+            return "'{}'".format(slot['value']['string'])
         return str(slot['value'])
     return slot['type']
 
@@ -170,8 +172,17 @@ def hirToString(hir):
         return 'BranchIfTrue {} to Block {}'.format(valueToString(hir['condition']), hir['blockId'])
     elif hir['opcode'] == 'Constant':
         return '{} &#8592; {}'.format(valueToString(hir['value']), slotToString(hir['constant']))
+    elif hir['opcode'] == 'ImportClassVariable':
+        return '{} &#8592; ImportClassVar({})'.format(valueToString(hir['value']), hir['offset'])
+    elif hir['opcode'] == 'ImportInstanceVariable':
+        return '{} &#8592; ImportInstanceVar(this: {}, off: {})'.format(valueToString(hir['value']), hir['thisId'],
+                hir['offset'])
+    elif hir['opcode'] == 'ImportLocalVariable':
+        # Re-using the name of the local value as the name of the imported value.
+        return '{} &#8592; ImportLocalVar({}_{})'.format(valueToString(hir['value']), hir['value']['name'],
+                hir['externalId'])
     elif hir['opcode'] == 'LoadArgument':
-        return '{} &#8592; LoadArgument({})'.format(valueToString(hir['value']), hir['index'])
+        return '{} &#8592; LoadArgument({})'.format(valueToString(hir['value']), hir['argIndex'])
     elif hir['opcode'] == 'Message':
         message = '{} &#8592; {}.{}('.format(valueToString(hir['value']), valueToString(hir['arguments'][0]),
                 sourceToHTML(hir['selector']['string']))
@@ -221,7 +232,8 @@ def saveBlockGraph(scope, dotFile, prefix):
         for hir in block['statements']:
             if hir['opcode'] == 'BlockLiteral':
                 pfx = prefix + str(hir['value']['id'])
-                dotFile.write('    block_{}_{}:port_{} -> block_{}_0'.format(prefix, block['id'], pfx, pfx))
+                dotFile.write('    block_{}_{}:port_{} -> block_{}_0 [style="dashed"]\n'.format(prefix, block['id'],
+                        pfx, pfx))
                 saveBlockGraph(hir['frame']['rootScope'], dotFile, pfx)
         for succ in block['successors']:
             dotFile.write('    block_{}_{} -> block_{}_{}\n'.format(prefix, block['id'], prefix, succ))
@@ -541,11 +553,12 @@ def saveAST(ast, dotFile):
     <tr><td port="arguments">arguments</td></tr>
     <tr><td port="keywordArguments">keywordArguments</td></tr></table>>]
   ast_{}:arguments -> ast_{}
-  ast_{}:keywordArguments -> ast_{}
-""".format(sourceToHTML(ast['selector']['string']), ast['serial'], ast['arguments']['serial'], ast['serial'],
-            ast['keywordArguments']['serial']))
+""".format(sourceToHTML(ast['selector']['string']), ast['serial'], ast['arguments']['serial']))
         saveAST(ast['arguments'], dotFile)
-        saveAST(ast['keywordArguments'], dotFile)
+        if 'sequence' in ast['keywordArguments']:
+            dotFile.write('  ast_{}:keywordArguments -> ast_{}'.format(ast['serial'],
+                    ast['keywordArguments']['serial']))
+            saveAST(ast['keywordArguments'], dotFile)
 
     # MethodReturn
     elif ast['astType'] == 'MethodReturn':
