@@ -37,7 +37,7 @@
         ###################
         # Double-quoted string. Increments counter on escape characters for length computation.
         '"' (('\\' any %counter) | (extend - '"'))* '"' {
-            m_tokens.emplace_back(Token::makeStringLiteral(std::string_view(ts + 1, te - ts - 2), getLocation(ts),
+            m_tokens.emplace_back(Token::makeStringLiteral(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
                     counter > 0));
             counter = 0;
         };
@@ -47,13 +47,13 @@
         ###########
         # Single-quoted symbol. Increments counter on escape characters for length computation.
         '\'' (('\\' any %counter) | (extend - '\''))* '\'' {
-            m_tokens.emplace_back(Token::makeSymbolLiteral(std::string_view(ts + 1, te - ts - 2), getLocation(ts),
+            m_tokens.emplace_back(Token::makeSymbolLiteral(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
                     counter > 0));
             counter = 0;
         };
         # Slash symbols.
         '\\' [a-zA-Z0-9_]* {
-            m_tokens.emplace_back(Token::makeSymbolLiteral(std::string_view(ts + 1, te - ts - 1), getLocation(ts),
+            m_tokens.emplace_back(Token::makeSymbolLiteral(std::string_view(ts + 1, te - ts - 1), getLocation(ts + 1),
                     false));
         };
 
@@ -61,19 +61,19 @@
         # character literals #
         ######################
         '$' (any - '\\') {
-            m_tokens.emplace_back(Token::makeCharLiteral(*(ts + 1), std::string_view(ts + 1, 1), getLocation(ts)));
+            m_tokens.emplace_back(Token::makeCharLiteral(*(ts + 1), std::string_view(ts + 1, 1), getLocation(ts + 1)));
         };
         '$\\t' {
-            m_tokens.emplace_back(Token::makeCharLiteral('\t', std::string_view(ts + 1, 2), getLocation(ts)));
+            m_tokens.emplace_back(Token::makeCharLiteral('\t', std::string_view(ts + 1, 2), getLocation(ts + 1)));
         };
         '$\\n' {
-            m_tokens.emplace_back(Token::makeCharLiteral('\n', std::string_view(ts + 1, 2), getLocation(ts)));
+            m_tokens.emplace_back(Token::makeCharLiteral('\n', std::string_view(ts + 1, 2), getLocation(ts + 1)));
         };
         '$\\r' {
-            m_tokens.emplace_back(Token::makeCharLiteral('\r', std::string_view(ts + 1, 2), getLocation(ts)));
+            m_tokens.emplace_back(Token::makeCharLiteral('\r', std::string_view(ts + 1, 2), getLocation(ts + 1)));
         };
         '$\\' (any - ('t' | 'n' | 'r')) {
-            m_tokens.emplace_back(Token::makeCharLiteral(*(ts + 2), std::string_view(ts + 1, 2), getLocation(ts)));
+            m_tokens.emplace_back(Token::makeCharLiteral(*(ts + 2), std::string_view(ts + 1, 2), getLocation(ts + 1)));
         };
 
         ##############

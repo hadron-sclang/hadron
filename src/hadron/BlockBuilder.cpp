@@ -10,7 +10,9 @@
 #include "hadron/hir/BranchIfTrueHIR.hpp"
 #include "hadron/hir/ConstantHIR.hpp"
 #include "hadron/hir/HIR.hpp"
-#include "hadron/hir/ImportNameHIR.hpp"
+#include "hadron/hir/ImportClassVariableHIR.hpp"
+#include "hadron/hir/ImportInstanceVariableHIR.hpp"
+#include "hadron/hir/ImportLocalVariableHIR.hpp"
 #include "hadron/hir/LoadArgumentHIR.hpp"
 #include "hadron/hir/MessageHIR.hpp"
 #include "hadron/hir/MethodReturnHIR.hpp"
@@ -208,14 +210,6 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
         append(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
         currentBlock->hasMethodReturn = true;
     } break;
-
-    case ast::ASTType::kList: {
-        assert(false);
-    } break;
-
-    case ast::ASTType::kDictionary: {
-        assert(false);
-    } break;
     }
 
     return nodeValue;
@@ -352,7 +346,7 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
             // If we found this value in a external frame we will need to add import statements to each frame between
             // this block and the importing block, starting with the outermost frame that didn't have the value.
             for (auto importBlock : importBlocks) {
-                auto import = std::make_unique<hir::ImportNameHIR>(name,
+                auto import = std::make_unique<hir::ImportLocalVariableHIR>(name,
                         importBlock->frame->outerBlock->frame->values[nodeValue]->value.typeFlags, nodeValue);
 
                 // Insert just after the branch statement at the end of the import block.
@@ -387,9 +381,10 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
     if (!isMetaClass) {
         auto instVarIndex = classDef.instVarNames().indexOf(name);
         if (instVarIndex.isInt32()) {
-            nodeValue = insert(std::make_unique<hir::ImportNameHIR>(name,
-                    hir::ImportNameHIR::Kind::kInstanceVariable, instVarIndex.getInt32()),
-                    block->frame->rootScope->blocks.front().get(), importIter);
+            auto thisValue = findName(context, method, context->symbolTable->thisSymbol(), block);
+            assert(thisValue != hir::kInvalidNVID);
+            nodeValue = insert(std::make_unique<hir::ImportInstanceVariableHIR>(name, thisValue,
+                    instVarIndex.getInt32()), block->frame->rootScope->blocks.front().get(), importIter);
         }
     } else {
         // Meta_ classes to have access to the class variables and constants of their associated class, so adjust the
@@ -404,11 +399,12 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         library::Class classVarDef = classDef;
 
         while (!classVarDef.isNil()) {
-            auto classVarIndex = classVarDef.classVarNames().indexOf(name);
-            if (classVarIndex.isInt32()) {
-                nodeValue = insert(std::make_unique<hir::ImportNameHIR>(name,
-                        hir::ImportNameHIR::Kind::kClassVariable, classVarIndex.getInt32()),
-                        block->frame->rootScope->blocks.front().get(), importIter);
+            auto classVarOffset = classVarDef.classVarNames().indexOf(name);
+            SPDLOG_DEBUG("Searching for class variable {} within {}", name.view(context),
+                    classVarDef.name(context).view(context));
+            if (classVarOffset.isInt32()) {
+                nodeValue = insert(std::make_unique<hir::ImportClassVariableHIR>(name, classVarDef,
+                        classVarOffset.getInt32()), block->frame->rootScope->blocks.front().get(), importIter);
                 break;
             }
 

@@ -47,6 +47,8 @@ public:
 
     library::Method interpreterContext() const { return m_interpreterContext; }
 
+    library::Array classVariables() const { return m_classVariables; }
+
 private:
     // Call to delete any existing class libary compilation structures and start fresh.
     bool resetLibrary(ThreadContext* context);
@@ -82,6 +84,10 @@ private:
     // We keep a reference to the Interpreter:functionCompileContext method, as that is the "fake method" that
     // all Interpreter code compiles as.
     library::Method m_interpreterContext;
+
+    // All class variables are maintained in a single global array, accessible here.
+    library::Array m_classVariables;
+    int32_t m_numberOfClassVariables;
 
     // Outer map is class name to pointer to inner map. Inner map is method name to AST.
     using MethodAST = std::unordered_map<library::Symbol, std::unique_ptr<ast::BlockAST>>;

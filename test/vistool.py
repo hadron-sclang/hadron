@@ -5,6 +5,7 @@ import HLangDClient
 import argparse
 import html
 import os
+import pathlib
 import subprocess
 
 def reg(reg):
@@ -86,6 +87,8 @@ def findContainingLifetime(i, lifetimeList):
 
 def slotToString(slot):
     if 'value' in slot:
+        if slot['type'] == 'symbol':
+            return "'{}'".format(sourceToHTML(slot['value']['string']))
         return str(slot['value'])
     return slot['type']
 
@@ -160,8 +163,8 @@ def buildLinearFrame(outFile, linearFrame):
 def valueToString(value):
     flags = ' | '.join(value['typeFlags'])
     if 'name' in value:
-        return '({}) {}<sub>{}</sub>'.format(flags, value['name'], value['id'])
-    return '({}) v<sub>{}</sub>'.format(flags, value['id'])
+        return '({}) {}_{}'.format(flags, value['name'], value['id'])
+    return '({}) _{}'.format(flags, value['id'])
 
 def hirToString(hir):
     if hir['opcode'] == 'Branch':
@@ -170,99 +173,134 @@ def hirToString(hir):
         return 'BranchIfTrue {} to Block {}'.format(valueToString(hir['condition']), hir['blockId'])
     elif hir['opcode'] == 'Constant':
         return '{} &#8592; {}'.format(valueToString(hir['value']), slotToString(hir['constant']))
+    elif hir['opcode'] == 'ImportClassVariable':
+        return '{} &#8592; ImportClassVar({})'.format(valueToString(hir['value']), hir['offset'])
+    elif hir['opcode'] == 'ImportInstanceVariable':
+        return '{} &#8592; ImportInstanceVar(this: {}, off: {})'.format(valueToString(hir['value']), hir['thisId'],
+                hir['offset'])
+    elif hir['opcode'] == 'ImportLocalVariable':
+        # Re-using the name of the local value as the name of the imported value.
+        return '{} &#8592; ImportLocalVar({}_{})'.format(valueToString(hir['value']), hir['value']['name'],
+                hir['externalId'])
     elif hir['opcode'] == 'LoadArgument':
-        return '{} &#8592; LoadArgument({})'.format(valueToString(hir['value']), hir['index'])
+        return '{} &#8592; LoadArgument({})'.format(valueToString(hir['value']), hir['argIndex'])
     elif hir['opcode'] == 'Message':
-        message = 'message: {}'.format(hir['selector']['string'])
-        message += ' args: ' + ','.join(valueToString(x) for x in hir['arguments'])
-        message += ' keywordArgs: ' + ','.join(valueToString(x) for x in hir['keywordArguments'])
+        message = '{} &#8592; {}.{}('.format(valueToString(hir['value']), valueToString(hir['arguments'][0]),
+                sourceToHTML(hir['selector']['string']))
+        message += ','.join(valueToString(hir['arguments'][x]) for x in range(1, len(hir['arguments'])))
+        message += ','.join('{}: {}'.format(valueToString(hir['keywordArguments'][x]),
+                valueToString(hir ['keywordArguments'][x + 1])) for x in range(0, len(hir['keywordArguments']), 2))
+        message += ')'
         return message
     elif hir['opcode'] == 'MethodReturn':
         return 'return'
     elif hir['opcode'] == 'Phi':
         phi = '{} &#8592; &phi;('.format(valueToString(hir['value']))
-        phi += ','.join(['v<sub>{}</sub>'.format(x['id']) for x in hir['inputs']])
+        phi += ','.join(['{}'.format(x['id']) for x in hir['inputs']])
         phi += ')'
         return phi
     elif hir['opcode'] == 'StoreReturn':
         return 'StoreReturn({})'.format(valueToString(hir['returnValue']))
     return 'unsupported hir opcode "{}"'.format(hir['opcode'])
 
-def saveScope(scope, dotFile):
-    dotFile.write('  subgraph cluster_{} {{\n'.format(scope['scopeSerial']))
+def saveScope(scope, dotFile, prefix):
+    dotFile.write('  subgraph cluster_{}_{} {{\n'.format(prefix, scope['scopeSerial']))
+    subFrames = []
     for block in scope['blocks']:
         dotFile.write("""
-    block_{} [shape=plain label=<<table border="0" cellpadding="6" cellborder="1" cellspacing="0">
+    block_{}_{} [shape=plain label=<<table border="0" cellpadding="6" cellborder="1" cellspacing="0">
       <tr><td bgcolor="lightGray"><b>Block {}</b></td></tr>
-""".format(block['id'], block['id']))
+""".format(prefix, block['id'], block['id']))
         for phi in block['phis']:
             dotFile.write('      <tr><td>{}</td></tr>\n'.format(hirToString(phi)))
         for hir in block['statements']:
-            dotFile.write('      <tr><td>{}</td></tr>\n'.format(hirToString(hir)))
+            if hir['opcode'] == 'BlockLiteral':
+                pfx = prefix + str(hir['value']['id'])
+                subFrames.append((pfx, hir['frame']))
+                dotFile.write('      <tr><td port="port_{}">{} &#8592; BlockLiteral</td></tr>\n'.format(pfx,
+                        valueToString(hir['value'])))
+            else:
+                dotFile.write('      <tr><td>{}</td></tr>\n'.format(hirToString(hir)))
         dotFile.write('      </table>>]\n')
     for subScope in scope['subScopes']:
-        saveScope(subScope, dotFile)
-    dotFile.write('  }} // end of cluster_{}\n'.format(scope['scopeSerial']))
+        saveScope(subScope, dotFile, prefix)
+    for (pfx, sf) in subFrames:
+        saveScope(sf['rootScope'], dotFile, pfx)
+    dotFile.write('  }} // end of cluster_{}_{}\n'.format(prefix, scope['scopeSerial']))
 
-def saveBlockGraph(scope, dotFile):
+def saveBlockGraph(scope, dotFile, prefix):
     for block in scope['blocks']:
+        for hir in block['statements']:
+            if hir['opcode'] == 'BlockLiteral':
+                pfx = prefix + str(hir['value']['id'])
+                dotFile.write('    block_{}_{}:port_{} -> block_{}_0 [style="dashed"]\n'.format(prefix, block['id'],
+                        pfx, pfx))
+                saveBlockGraph(hir['frame']['rootScope'], dotFile, pfx)
         for succ in block['successors']:
-            dotFile.write('    block_{} -> block_{}\n'.format(block['id'], succ))
+            dotFile.write('    block_{}_{} -> block_{}_{}\n'.format(prefix, block['id'], prefix, succ))
     for subFrame in scope['subScopes']:
-        saveBlockGraph(subFrame, dotFile)
+        saveBlockGraph(subFrame, dotFile, prefix)
 
-def buildControlFlow(outFile, rootFrame, outputDir):
+def buildControlFlow(outFile, rootFrame, outputDir, name, num):
     # Build dotfile from parse tree nodes.
-    dotPath = os.path.join(outputDir, 'controlFlow.dot')
+    dotPath = os.path.join(outputDir, 'controlFlow_' + num + '.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronControlFlow {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
-    saveScope(rootFrame['rootScope'], dotFile)
+    saveScope(rootFrame['rootScope'], dotFile, '')
     # For whatever reason the connections between blocks have to all be specified at highest level scope, or some blocks
     # will end up in the wrong subframes. So we do a separate pass just to enumerate the connections.
-    saveBlockGraph(rootFrame['rootScope'], dotFile)
+    saveBlockGraph(rootFrame['rootScope'], dotFile, '')
     dotFile.write('}\n')
     dotFile.close()
     # Execute command to generate svg image.
-    svgPath = os.path.join(outputDir, 'controlFlow.svg')
+    svgPath = os.path.join(outputDir, 'controlFlow_' + num + '.svg')
     svgFile = open(svgPath, 'w')
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
     outFile.write(
 """
-<h3>control flow graph</h3>
-<img src="controlFlow.svg">
-""")
+<h3>{} control flow graph</h3>
+<img src="{}">
+""".format(name, 'controlFlow_' + num + '.svg'))
 
 def saveNode(node, tokens, dotFile):
+    if 'nodeType' not in node:
+        print(node)
+
     dotFile.write("""  node_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
     <tr><td bgcolor="lightGray"><b>{}</b></td></tr>
     <tr><td><font face="monospace">{}</font></td></tr>
     <tr><td port="next">next</td></tr>
 """.format(node['serial'], node['nodeType'], tokens[node['tokenIndex']]['source']))
 
+    # Empty
     if node['nodeType'] == 'Empty':
         dotFile.write('    </table>>]\n')
 
+    # VarDef
     elif node['nodeType'] == 'VarDef':
         dotFile.write("""    <tr><td>hasReadAccessor: {}</td></tr>
     <tr><td>hasWriteAccessor: {}</td></tr>
-    <tr><td port="initialValue">initialValue</td</tr></table>>]
+    <tr><td port="initialValue">initialValue</td></tr></table>>]
 """.format(node['hasReadAccessor'], node['hasWriteAccessor']))
-        if node['initialValue']:
+        if 'initialValue' in node:
             dotFile.write('  node_{}:initialValue -> node_{}\n'.format(node['serial'], node['initialValue']['serial']))
             saveNode(node['initialValue'], tokens, dotFile)
 
+    # VarList
     elif node['nodeType'] == 'VarList':
         dotFile.write('    <tr><td port="definitions">definitions</td></tr></table>>]\n')
         if node['definitions']:
             dotFile.write('  node_{}:definitions -> node_{}\n'.format(node['serial'], node['definitions']['serial']))
             saveNode(node['definitions'], tokens, dotFile)
 
+    # ArgList
     elif node['nodeType'] == 'ArgList':
         dotFile.write('    <tr><td port="varList">varList</td></tr></table>>]\n')
         if node['varList']:
             dotFile.write('  node_{}:varList -> node_{}\n'.format(node['serial'], node['varList']['serial']))
             saveNode(node['varList'], tokens, dotFile)
 
+    # Method
     elif node['nodeType'] == 'Method':
         dotFile.write("""    <tr><td>isClassMethod: {}</td></tr>
     <tr><td port="body">body</td></tr></table>>]
@@ -271,12 +309,14 @@ def saveNode(node, tokens, dotFile):
             dotFile.write('  node_{}:body -> node_{}\n'.format(node['serial'], node['body']['serial']))
             saveNode(node['body'], tokens, dotFile)
 
+    # ClassExt
     elif node['nodeType'] == 'ClassExt':
         dotFile.write('    <tr><td port="methods">methods</td></tr></table>>]\n')
         if node['methods']:
             dotFile.write('  node_{}:methods -> node_{}\n'.format(node['serial'], node['methods']['serial']))
             saveNode(node['methods'], tokens, dotFile)
 
+    # Class
     elif node['nodeType'] == 'Class':
         if node['superClassNameIndex']:
             dotFile.write('    <tr><td>superClassName: {}</td></tr>\n'.format(tokens[node['superClassNameIndex']]))
@@ -292,143 +332,225 @@ def saveNode(node, tokens, dotFile):
             dotFile.write('  node_{}:methods -> node_{}\n'.format(node['serial'], node['methods']['serial']))
             saveNode(node['methods'], tokens, dotFile)
 
+    # ReturnNode
     elif node['nodeType'] == 'ReturnNode':
         dotFile.write('    <tr><td port="valueExpr">valueExpr</td></tr></table>>]\n')
         if node['valueExpr']:
             dotFile.write('  node_{}:valueExpr -> node_{}\n'.format(node['serial'], node['valueExpr']['serial']))
             saveNode(node['valueExpr'], tokens, dotFile)
 
-    elif node['nodeType'] == 'DynList':
+    # List
+    elif node['nodeType'] == 'List':
         dotFile.write('    <tr><td port="elements">elements</td></tr></table>>]\n')
-        if node['elements']:
+        if 'elements' in node:
             dotFile.write('  node_{}:elements -> node_{}\n'.format(node['serial'], node['elements']['serial']))
             saveNode(node['elements'], tokens, dotFile)
 
+    # Block
     elif node['nodeType'] == 'Block':
         dotFile.write("""    <tr><td port="arguments">arguments</td></tr>
     <tr><td port="variables">variables</td></tr>
     <tr><td port="body">body</td></tr></table>>]
 """)
-        if node['arguments']:
+        if 'arguments' in node:
             dotFile.write('  node_{}:arguments -> node_{}\n'.format(node['serial'], node['arguments']['serial']))
             saveNode(node['arguments'], tokens, dotFile)
-        if node['variables']:
+        if 'variables' in node:
             dotFile.write('  node_{}:variables -> node_{}\n'.format(node['serial'], node['variables']['serial']))
-            saveNode(node['arguments'], tokens, dotFile)
-        if node['body']:
+            saveNode(node['variables'], tokens, dotFile)
+        if 'body' in node:
             dotFile.write('  node_{}:body -> node_{}\n'.format(node['serial'], node['body']['serial']))
             saveNode(node['body'], tokens, dotFile)
 
+    # Literal
     elif node['nodeType'] == 'Literal':
-        if node['blockLiteral']:
+        if 'blockLiteral' in node:
             dotFile.write('    <tr><td port="blockLiteral">blockLiteral</td></tr></table>>]\n')
             dotFile.write('  node_{}:blockLiteral -> node_{}\n'.format(node['serial'], node['blockLiteral']['serial']))
             saveNode(node['blockLiteral'], tokens, dotFile)
         else:
             dotFile.write('    </table>>]\n')
 
+    # Name
     elif node['nodeType'] == 'Name':
         dotFile.write('    <tr><td>isGlobal: {}</td></tr></table>>]\n'.format(node['isGlobal']))
 
+    # ExprSeq
     elif node['nodeType'] == 'ExprSeq':
         dotFile.write('    <tr><td port="expr">expr</td></tr></table>>]\n')
-        if node['expr']:
+        if 'expr' in node:
             dotFile.write('  node_{}:expr -> node_{}\n'.format(node['serial'], node['expr']['serial']))
             saveNode(node['expr'], tokens, dotFile)
 
+    # Assign
     elif node['nodeType'] == 'Assign':
         dotFile.write("""    <tr><td port="name">name</td></tr>
     <tr><td port="value">value</td></tr></table>>]
 """)
-        if node['name']:
+        if 'name' in node:
             dotFile.write('  node_{}:name -> node_{}\n'.format(node['serial'], node['name']['serial']))
             saveNode(node['name'], tokens, dotFile)
-        if node['value']:
+        if 'value' in node:
             dotFile.write('  node_{}:value -> node_{}\n'.format(node['serial'], node['value']['serial']))
             saveNode(node['value'], tokens, dotFile)
 
+    # Setter
     elif node['nodeType'] == 'Setter':
         dotFile.write("""    <tr><td port="target">target</td></tr>
     <tr><td port="value">value</td></tr></table>>]
 """)
-        if node['target']:
+        if 'target' in node:
             dotFile.write('  node_{}:target -> node_{}\n'.format(node['serial'], node['target']['serial']))
             saveNode(node['target'], tokens, dotFile)
-        if node['value']:
+        if 'value' in node:
             dotFile.write('  node_{}:value -> node_{}\n'.format(node['serial'], node['value']['serial']))
             saveNode(node['value'], tokens, dotFile)
 
+    # Array Read
+    elif node['nodeType'] == 'ArrayRead':
+        dotFile.write("""    <tr><td port="targetArray">targetArray</td></tr>
+    <tr><td port="indexArgument">indexArgument</td></tr></table>>]
+""")
+        if 'targetArray' in node:
+            dotFile.write('  node_{}:targetArray -> node_{}\n'.format(node['serial'], node['targetArray']['serial']))
+            saveNode(node['targetArray'], tokens, dotFile)
+        if 'indexArgument' in node:
+            dotFile.write('  node_{}:indexArgument -> node_{}\n'.format(node['serial'],
+                    node['indexArgument']['serial']))
+            saveNode(node['indexArgument'], tokens, dotFile)
+
+    # Array Write
+    elif node['nodeType'] == 'ArrayWrite':
+        dotFile.write("""    <tr><td port="targetArray">targetArray</td></tr>
+    <tr><td port="indexArgument">indexArgument</td></tr>
+    <tr><td port="value">value</td></tr></table>>]
+""")
+        if 'targetArray' in node:
+            dotFile.write('  node_{}:targetArray -> node_{}\n'.format(node['serial'], node['targetArray']['serial']))
+            saveNode(node['targetArray'], tokens, dotFile)
+        if 'indexArgument' in node:
+            dotFile.write('  node_{}:indexArgument -> node_{}\n'.format(node['serial'],
+                    node['indexArgument']['serial']))
+            saveNode(node['indexArgument'], tokens, dotFile)
+        if 'value' in node:
+            dotFile.write('  node_{}:value -> node_{}\n'.format(node['serial'], node['value']['serial']))
+            saveNode(node['value'], tokens, dotFile)
+
+    # Call
     elif node['nodeType'] == 'Call':
         dotFile.write("""    <tr><td port="target">target</td></tr>
     <tr><td port="arguments">arguments</td></tr>
     <tr><td port="keywordArguments">keywordArguments</td></tr></table>>]
 """)
-        if node['target']:
+        if 'target' in node:
             dotFile.write('  node_{}:target -> node_{}\n'.format(node['serial'], node['target']['serial']))
             saveNode(node['target'], tokens, dotFile)
-        if node['arguments']:
+        if 'arguments' in node:
             dotFile.write('  node_{}:arguments -> node_{}\n'.format(node['serial'], node['arguments']['serial']))
             saveNode(node['arguments'], tokens, dotFile)
-        if node['keywordArguments']:
+        if 'keywordArguments' in node:
             dotFile.write('  node_{}:keywordArguments -> node_{}\n'.format(node['serial'],
                 node['keywordArguments']['serial']))
             saveNode(node['keywordArguments'], tokens, dotFile)
 
+    # BinopCall
     elif node['nodeType'] == 'BinopCall':
         dotFile.write("""    <tr><td port="leftHand">leftHand</td></tr>
     <tr><td port="rightHand">rightHand</td></tr>
-    <tr><td port="adverb">adverb</td></tr><table>>]
+    <tr><td port="adverb">adverb</td></tr></table>>]
 """)
-        if node['leftHand']:
+        if 'leftHand' in node:
             dotFile.write('  node_{}:leftHand -> node_{}\n'.format(node['serial'], node['leftHand']['serial']))
             saveNode(node['leftHand'], tokens, dotFile)
-        if node['rightHand']:
+        if 'rightHand' in node:
             dotFile.write('  node_{}:rightHand -> node_{}\n'.format(node['serial'], node['rightHand']['serial']))
             saveNode(node['rightHand'], tokens, dotFile)
-        if node['adverb']:
+        if 'adverb' in node:
             dotFile.write('  node_{}:adverb -> node_{}\n'.format(node['serial'], node['adverb']['serial']))
             saveNode(node['adverb'], tokens, dotFile)
 
+    # New
+    elif node['nodeType'] == 'New':
+        dotFile.write("""    <tr><td port="target">target</td></tr>
+    <tr><td port="arguments">arguments</td></tr>
+    <tr><td port="keywordArguments">keywordArguments</td></tr></table>>]
+""")
+        if 'target' in node:
+            dotFile.write('  node_{}:target -> node_{}\n'.format(node['serial'], node['target']['serial']))
+            saveNode(node['target'], tokens, dotFile)
+        if 'arguments' in node:
+            dotFile.write('  node_{}:arguments -> node_{}\n'.format(node['serial'], node['arguments']['serial']))
+            saveNode(node['arguments'], tokens, dotFile)
+        if 'keywordArguments' in node:
+            dotFile.write('  node_{}:keywordArguments -> node_{}\n'.format(node['serial'],
+                node['keywordArguments']['serial']))
+            saveNode(node['keywordArguments'], tokens, dotFile)
+
+    # If
     elif node['nodeType'] == 'If':
         dotFile.write("""    <tr><td port="condition">condition</td></tr>
     <tr><td port="trueBlock">trueBlock</td></tr>
     <tr><td port="falseBlock">falseBlock</td></tr></table>>]
 """)
-        if node['condition']:
+        if 'condition' in node:
             dotFile.write('  node_{}:condition -> node_{}\n'.format(node['serial'], node['condition']['serial']))
             saveNode(node['condition'], tokens, dotFile)
-        if node['trueBlock']:
+        if 'trueBlock' in node:
             dotFile.write('  node_{}:trueBlock -> node_{}\n'.format(node['serial'], node['trueBlock']['serial']))
             saveNode(node['trueBlock'], tokens, dotFile)
-        if node['falseBlock']:
+        if 'falseBlock' in node:
             dotFile.write('  node_{}:falseBlock -> node_{}\n'.format(node['serial'], node['falseBlock']['serial']))
             saveNode(node['falseBlock'], tokens, dotFile)
 
-    if node['next']:
+    if 'next' in node:
         dotFile.write('  node_{}:next -> node_{}\n'.format(node['serial'], node['next']['serial']))
         saveNode(node['next'], tokens, dotFile)
 
-def buildParseTree(outFile, parseTree, tokens, outputDir):
+def buildParseTree(outFile, parseTree, tokens, outputDir, name, num):
     # Build dotfile from parse tree nodes.
-    dotPath = os.path.join(outputDir, 'parseTree.dot')
+    dotPath = os.path.join(outputDir, 'parseTree_' + num + '.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronParseTree {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveNode(parseTree, tokens, dotFile)
     dotFile.write('}\n')
     dotFile.close()
     # Execute command to generate svg image.
-    svgPath = os.path.join(outputDir, 'parseTree.svg')
+    svgPath = os.path.join(outputDir, 'parseTree_' + num + '.svg')
     svgFile = open(svgPath, 'w')
+    # print('processing {} to {}'.format(dotPath, svgPath))
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
     outFile.write("""
-<h3>parse tree</h3>
-<img src="parseTree.svg">
-""")
+<h3>{} parse tree</h3>
+<img src="{}">
+""".format(name, 'parseTree_' + num + '.svg'))
 
 def saveAST(ast, dotFile):
+    # Sequences need special handling for the table, so check for them first.
+    if ast['astType'] == 'Sequence':
+        if 'sequence' in ast:
+            colspan = max(1, len(ast['sequence']))
+            dotFile.write("""  ast_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
+    <tr><td colspan="{}" bgcolor="lightGray"><b>{}</b></td></tr>
+    <tr>""".format(ast['serial'], colspan, ast['astType']))
+            for i in range(0, len(ast['sequence'])):
+                dotFile.write('<td port="seq_{}">&nbsp;</td>'.format(i))
+            dotFile.write('</tr></table>>]\n')
+            i = 0
+            for seq in ast['sequence']:
+                dotFile.write('  ast_{}:seq_{} -> ast_{}\n'.format(ast['serial'], i, seq['serial']))
+                i += 1
+                saveAST(seq, dotFile)
+        else:
+            dotFile.write("""  ast_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
+    <tr><td bgcolor="lightGray"><b>{}</b></td></tr></table>>]
+""".format(ast['serial'], ast['astType']))
+        return
+
     dotFile.write("""  ast_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
     <tr><td bgcolor="lightGray"><b>{}</b></td></tr>
 """.format(ast['serial'], ast['astType']))
+
+    # Assign
     if ast['astType'] == 'Assign':
         dotFile.write("""    <tr><td port="name">name</td></tr>
     <tr><td port="value">value</td></tr></table>>]
@@ -438,15 +560,28 @@ def saveAST(ast, dotFile):
         saveAST(ast['name'], dotFile)
         saveAST(ast['value'], dotFile)
 
+    # Block
     elif ast['astType'] == 'Block':
         dotFile.write("""    <tr><td port="statements">statements</td></tr></table>>]
   ast_{}:statements -> ast_{}
 """.format(ast['serial'], ast['statements']['serial']))
         saveAST(ast['statements'], dotFile)
 
+    # Constant
     elif ast['astType'] == 'Constant':
         dotFile.write('    <tr><td>value: {}</td></tr></table>>]\n'.format(slotToString(ast['constant'])))
 
+    # Define
+    elif ast['astType'] == 'Define':
+        dotFile.write("""    <tr><td port="name">name</td></tr>
+    <tr><td port="value">value</td></tr></table>>]
+  ast_{}:name -> ast_{}
+  ast_{}:value -> ast_{}
+""".format(ast['serial'], ast['name']['serial'], ast['serial'], ast['value']['serial']))
+        saveAST(ast['name'], dotFile)
+        saveAST(ast['value'], dotFile)
+
+    # If
     elif ast['astType'] == 'If':
         dotFile.write("""    <tr><td port="condition">condition</td></tr>
     <tr><td port="trueBlock">trueBlock</td></tr>
@@ -460,54 +595,49 @@ def saveAST(ast, dotFile):
         saveAST(ast['trueBlock'], dotFile)
         saveAST(ast['falseBlock'], dotFile)
 
+    # Message
     elif ast['astType'] == 'Message':
         dotFile.write("""    <tr><td>selector: {}</td></tr>
     <tr><td port="arguments">arguments</td></tr>
     <tr><td port="keywordArguments">keywordArguments</td></tr></table>>]
   ast_{}:arguments -> ast_{}
-  ast_{}:keywordArguments -> ast_{}
-""".format(slotToString(ast['selector'], ast['serial'], ast['arguments']['serial'], ast['serial'],
-            ast['keywordArguments']['serial'])))
+""".format(sourceToHTML(ast['selector']['string']), ast['serial'], ast['arguments']['serial']))
         saveAST(ast['arguments'], dotFile)
-        saveAST(ast['keywordArguments'], dotFile)
+        if 'sequence' in ast['keywordArguments']:
+            dotFile.write('  ast_{}:keywordArguments -> ast_{}'.format(ast['serial'],
+                    ast['keywordArguments']['serial']))
+            saveAST(ast['keywordArguments'], dotFile)
 
+    # MethodReturn
     elif ast['astType'] == 'MethodReturn':
         dotFile.write("""    <tr><td port="value">value</td></tr></table>>]
   ast_{}:value -> ast_{}
 """.format(ast['serial'], ast['value']['serial']))
         saveAST(ast['value'], dotFile)
 
+    # Name
     elif ast['astType'] == 'Name':
-        dotFile.write('    <tr><td>name: {}</td></tr></table>>]\n'.format(slotToString(ast['name'])))
-
-    elif ast['astType'] == 'Sequence':
-        for i in range(0, len(ast['sequence'])):
-            dotFile.write('    <tr><td port="seq_{}"></td>&nbsp;</tr>\n'.format(i))
-        dotFile.write('    </table>>]\n')
-        i = 0
-        for seq in ast['sequence']:
-            dotFile.write('  ast_{}:seq_{} -> ast_{}\n'.format(ast['serial'], i, seq['serial']))
-            i += 1
-            saveAST(seq, dotFile)
+        dotFile.write('    <tr><td>name: {}</td></tr></table>>]\n'.format(ast['name']['string']))
 
     else:
         dotFile.write('    </table>>]\n')
 
-def buildAST(outFile, ast, outputDir):
-    dotPath = os.path.join(outputDir, 'ast.dot')
+def buildAST(outFile, ast, outputDir, name, num):
+    dotPath = os.path.join(outputDir, 'ast_' + num + '.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronAST {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveAST(ast, dotFile)
     dotFile.write('}\n')
     dotFile.close()
-    svgPath = os.path.join(outputDir, 'ast.svg')
+    svgPath = os.path.join(outputDir, 'ast_' + num + '.svg')
     svgFile = open(svgPath, 'w')
+    # print('processing {} to {}'.format(dotPath, svgPath))
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
     outFile.write(
 """
-<h3>abstract syntax tree</h3>
-<img src="ast.svg">
-""")
+<h3>{} abstract syntax tree</h3>
+<img src="{}">
+""".format(name, 'ast_' + num + '.svg'))
 
 def styleForTokenType(typeIndex):
     tokenTypeStyles = [
@@ -557,7 +687,12 @@ def styleForTokenType(typeIndex):
     return tokenTypeStyles[typeIndex]
 
 def sourceToHTML(source):
-    return html.escape(source).replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp').replace(' ', '&nbsp;')
+    es = html.escape(source)
+    es = es.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
+    es = es.replace(' ', '&nbsp;')
+    es = es.replace('{', '&#123;')
+    es = es.replace('[', '&#91;')
+    return es
 
 def buildListing(outFile, tokens, source):
     lineNumberPadding = str(len(str(len(source) + 1)))
@@ -628,6 +763,8 @@ def main(args):
     if not client.connect(args.hlangdPath):
         return -1
     print('connected to {} version {}'.format(client.serverName, client.serverVersion))
+    path = pathlib.Path(args.outputDir)
+    path.mkdir(parents=True, exist_ok=True)
     outFile = open(os.path.join(args.outputDir, 'index.html'), 'w')
     outFile.write(
 """<html>
@@ -657,15 +794,25 @@ def main(args):
         tokens.append({'lineNumber': lineNumber, 'charNumber': charNumber, 'length': deltaTokens[(i * 5) + 2],
             'tokenType': deltaTokens[(i * 5) + 3]})
     buildListing(outFile, tokens, source)
-    diagnostics = client.getDiagnostics(args.inputFile)
-
+    diagnostics = client.getDiagnostics(args.inputFile, args.stopAfter)
+    unitNum = 0
     for unit in diagnostics['compilationUnits']:
         name = unit['name']
-        buildParseTree(outFile, unit['parseTree'], tokens, args.outputDir)
-        buildAST(outFile, unit['ast'], args.outputDir)
-        buildControlFlow(outFile, unit['rootFrame'], args.outputDir)
-        buildLinearFrame(outFile, unit['linearFrame'])
-        buildMachineCode(outFile, unit['machineCode'])
+        num = str(unitNum)
+        unitNum += 1
+        outFile.write("<h2>{}</h2>\n".format(name))
+        buildParseTree(outFile, unit['parseTree'], tokens, args.outputDir, name, num)
+        buildAST(outFile, unit['ast'], args.outputDir, name, num)
+
+        if 'rootFrame' in unit:
+            buildControlFlow(outFile, unit['rootFrame'], args.outputDir, name, num)
+
+        if 'linearFrame' in unit:
+            buildLinearFrame(outFile, unit['linearFrame'])
+
+        if 'machineCode' in unit:
+            buildMachineCode(outFile, unit['machineCode'])
+
     outFile.write("""
 </body>
 </html>
@@ -676,5 +823,6 @@ if __name__ == '__main__':
     parser.add_argument('--inputFile', help='input SuperCollider file to visualize', required=True)
     parser.add_argument('--outputDir', help='output directory for visualization report', required=True)
     parser.add_argument('--hlangdPath', help='path to hlangd binary', default='build/src/hlangd')
+    parser.add_argument('--stopAfter', help='stop compilation after phase, a number from 1-7', default=7)
     args = parser.parse_args()
     main(args)

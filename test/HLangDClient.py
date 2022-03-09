@@ -94,9 +94,9 @@ class HLangDClient:
         data = result['result']['data']
         return data
 
-    def getDiagnostics(self, filePath):
+    def getDiagnostics(self, filePath, stopAfter):
         self._sendMessage(json.dumps({'jsonrpc': '2.0', 'id': self.idSerial, 'method': 'hadron/compilationDiagnostics',
-            'params': {'textDocument': {'uri': filePath}}}))
+            'params': {'textDocument': {'uri': filePath}, 'stopAfter': int(stopAfter)}}))
         self.idSerial += 1
         result = self._receiveMessage()
         if not result or 'result' not in result:
