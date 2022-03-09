@@ -191,38 +191,52 @@ def hirToString(hir):
         return 'StoreReturn({})'.format(valueToString(hir['returnValue']))
     return 'unsupported hir opcode "{}"'.format(hir['opcode'])
 
-def saveScope(scope, dotFile):
-    dotFile.write('  subgraph cluster_{} {{\n'.format(scope['scopeSerial']))
+def saveScope(scope, dotFile, prefix):
+    dotFile.write('  subgraph cluster_{}_{} {{\n'.format(prefix, scope['scopeSerial']))
+    subFrames = []
     for block in scope['blocks']:
         dotFile.write("""
-    block_{} [shape=plain label=<<table border="0" cellpadding="6" cellborder="1" cellspacing="0">
+    block_{}_{} [shape=plain label=<<table border="0" cellpadding="6" cellborder="1" cellspacing="0">
       <tr><td bgcolor="lightGray"><b>Block {}</b></td></tr>
-""".format(block['id'], block['id']))
+""".format(prefix, block['id'], block['id']))
         for phi in block['phis']:
             dotFile.write('      <tr><td>{}</td></tr>\n'.format(hirToString(phi)))
         for hir in block['statements']:
-            dotFile.write('      <tr><td>{}</td></tr>\n'.format(hirToString(hir)))
+            if hir['opcode'] == 'BlockLiteral':
+                pfx = prefix + str(hir['value']['id'])
+                subFrames.append((pfx, hir['frame']))
+                dotFile.write('      <tr><td port="port_{}">{} &#8592; BlockLiteral</td></tr>\n'.format(pfx,
+                        valueToString(hir['value'])))
+            else:
+                dotFile.write('      <tr><td>{}</td></tr>\n'.format(hirToString(hir)))
         dotFile.write('      </table>>]\n')
     for subScope in scope['subScopes']:
-        saveScope(subScope, dotFile)
-    dotFile.write('  }} // end of cluster_{}\n'.format(scope['scopeSerial']))
+        saveScope(subScope, dotFile, prefix)
+    for (pfx, sf) in subFrames:
+        saveScope(sf['rootScope'], dotFile, pfx)
+    dotFile.write('  }} // end of cluster_{}_{}\n'.format(prefix, scope['scopeSerial']))
 
-def saveBlockGraph(scope, dotFile):
+def saveBlockGraph(scope, dotFile, prefix):
     for block in scope['blocks']:
+        for hir in block['statements']:
+            if hir['opcode'] == 'BlockLiteral':
+                pfx = prefix + str(hir['value']['id'])
+                dotFile.write('    block_{}_{}:port_{} -> block_{}_0'.format(prefix, block['id'], pfx, pfx))
+                saveBlockGraph(hir['frame']['rootScope'], dotFile, pfx)
         for succ in block['successors']:
-            dotFile.write('    block_{} -> block_{}\n'.format(block['id'], succ))
+            dotFile.write('    block_{}_{} -> block_{}_{}\n'.format(prefix, block['id'], prefix, succ))
     for subFrame in scope['subScopes']:
-        saveBlockGraph(subFrame, dotFile)
+        saveBlockGraph(subFrame, dotFile, prefix)
 
 def buildControlFlow(outFile, rootFrame, outputDir, name):
     # Build dotfile from parse tree nodes.
     dotPath = os.path.join(outputDir, 'controlFlow' + name + '.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronControlFlow {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
-    saveScope(rootFrame['rootScope'], dotFile)
+    saveScope(rootFrame['rootScope'], dotFile, '')
     # For whatever reason the connections between blocks have to all be specified at highest level scope, or some blocks
     # will end up in the wrong subframes. So we do a separate pass just to enumerate the connections.
-    saveBlockGraph(rootFrame['rootScope'], dotFile)
+    saveBlockGraph(rootFrame['rootScope'], dotFile, '')
     dotFile.write('}\n')
     dotFile.close()
     # Execute command to generate svg image.
