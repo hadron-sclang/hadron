@@ -168,7 +168,7 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
 void HadronServer::addCompilationUnit(hadron::library::Method methodDef, std::shared_ptr<hadron::Lexer> lexer,
         std::shared_ptr<hadron::Parser> parser, const hadron::parse::BlockNode* blockNode,
         std::vector<CompilationUnit>& units, DiagnosticsStoppingPoint stopAfter) {
-    auto name = std::string(methodDef.ownerClass().name(m_runtime->context()).view(m_runtime->context())) + "_" +
+    auto name = std::string(methodDef.ownerClass().name(m_runtime->context()).view(m_runtime->context())) + ":" +
             std::string(methodDef.name(m_runtime->context()).view(m_runtime->context()));
 
     SPDLOG_TRACE("Compile Diagnostics AST Builder {}", name);

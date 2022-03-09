@@ -5,6 +5,7 @@ import HLangDClient
 import argparse
 import html
 import os
+import pathlib
 import subprocess
 
 def reg(reg):
@@ -87,7 +88,7 @@ def findContainingLifetime(i, lifetimeList):
 def slotToString(slot):
     if 'value' in slot:
         if slot['type'] == 'symbol':
-            return "'{}'".format(slot['value']['string'])
+            return "'{}'".format(sourceToHTML(slot['value']['string']))
         return str(slot['value'])
     return slot['type']
 
@@ -240,9 +241,9 @@ def saveBlockGraph(scope, dotFile, prefix):
     for subFrame in scope['subScopes']:
         saveBlockGraph(subFrame, dotFile, prefix)
 
-def buildControlFlow(outFile, rootFrame, outputDir, name):
+def buildControlFlow(outFile, rootFrame, outputDir, name, num):
     # Build dotfile from parse tree nodes.
-    dotPath = os.path.join(outputDir, 'controlFlow' + name + '.dot')
+    dotPath = os.path.join(outputDir, 'controlFlow_' + num + '.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronControlFlow {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveScope(rootFrame['rootScope'], dotFile, '')
@@ -252,14 +253,14 @@ def buildControlFlow(outFile, rootFrame, outputDir, name):
     dotFile.write('}\n')
     dotFile.close()
     # Execute command to generate svg image.
-    svgPath = os.path.join(outputDir, 'controlFlow' + name + '.svg')
+    svgPath = os.path.join(outputDir, 'controlFlow_' + num + '.svg')
     svgFile = open(svgPath, 'w')
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
     outFile.write(
 """
 <h3>{} control flow graph</h3>
-<img src="controlFlow{}.svg">
-""".format(name, name))
+<img src="{}">
+""".format(name, 'controlFlow_' + num + '.svg'))
 
 def saveNode(node, tokens, dotFile):
     if 'nodeType' not in node:
@@ -505,23 +506,23 @@ def saveNode(node, tokens, dotFile):
         dotFile.write('  node_{}:next -> node_{}\n'.format(node['serial'], node['next']['serial']))
         saveNode(node['next'], tokens, dotFile)
 
-def buildParseTree(outFile, parseTree, tokens, outputDir, name):
+def buildParseTree(outFile, parseTree, tokens, outputDir, name, num):
     # Build dotfile from parse tree nodes.
-    dotPath = os.path.join(outputDir, 'parseTree' + name + '.dot')
+    dotPath = os.path.join(outputDir, 'parseTree_' + num + '.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronParseTree {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveNode(parseTree, tokens, dotFile)
     dotFile.write('}\n')
     dotFile.close()
     # Execute command to generate svg image.
-    svgPath = os.path.join(outputDir, 'parseTree' + name + '.svg')
+    svgPath = os.path.join(outputDir, 'parseTree_' + num + '.svg')
     svgFile = open(svgPath, 'w')
     # print('processing {} to {}'.format(dotPath, svgPath))
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
     outFile.write("""
 <h3>{} parse tree</h3>
-<img src="parseTree{}.svg">
-""".format(name, name))
+<img src="{}">
+""".format(name, 'parseTree_' + num + '.svg'))
 
 def saveAST(ast, dotFile):
     # Sequences need special handling for the table, so check for them first.
@@ -621,22 +622,22 @@ def saveAST(ast, dotFile):
     else:
         dotFile.write('    </table>>]\n')
 
-def buildAST(outFile, ast, outputDir, name):
-    dotPath = os.path.join(outputDir, 'ast' + name + '.dot')
+def buildAST(outFile, ast, outputDir, name, num):
+    dotPath = os.path.join(outputDir, 'ast_' + num + '.dot')
     dotFile = open(dotPath, 'w')
     dotFile.write('digraph HadronAST {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveAST(ast, dotFile)
     dotFile.write('}\n')
     dotFile.close()
-    svgPath = os.path.join(outputDir, 'ast' + name + '.svg')
+    svgPath = os.path.join(outputDir, 'ast_' + num + '.svg')
     svgFile = open(svgPath, 'w')
     # print('processing {} to {}'.format(dotPath, svgPath))
     subprocess.run(['dot', '-Tsvg', dotPath], stdout=svgFile)
     outFile.write(
 """
 <h3>{} abstract syntax tree</h3>
-<img src="ast{}.svg">
-""".format(name, name))
+<img src="{}">
+""".format(name, 'ast_' + num + '.svg'))
 
 def styleForTokenType(typeIndex):
     tokenTypeStyles = [
@@ -762,6 +763,8 @@ def main(args):
     if not client.connect(args.hlangdPath):
         return -1
     print('connected to {} version {}'.format(client.serverName, client.serverVersion))
+    path = pathlib.Path(args.outputDir)
+    path.mkdir(parents=True, exist_ok=True)
     outFile = open(os.path.join(args.outputDir, 'index.html'), 'w')
     outFile.write(
 """<html>
@@ -792,15 +795,17 @@ def main(args):
             'tokenType': deltaTokens[(i * 5) + 3]})
     buildListing(outFile, tokens, source)
     diagnostics = client.getDiagnostics(args.inputFile, args.stopAfter)
-
+    unitNum = 0
     for unit in diagnostics['compilationUnits']:
         name = unit['name']
+        num = str(unitNum)
+        unitNum += 1
         outFile.write("<h2>{}</h2>\n".format(name))
-        buildParseTree(outFile, unit['parseTree'], tokens, args.outputDir, name)
-        buildAST(outFile, unit['ast'], args.outputDir, name)
+        buildParseTree(outFile, unit['parseTree'], tokens, args.outputDir, name, num)
+        buildAST(outFile, unit['ast'], args.outputDir, name, num)
 
         if 'rootFrame' in unit:
-            buildControlFlow(outFile, unit['rootFrame'], args.outputDir, name)
+            buildControlFlow(outFile, unit['rootFrame'], args.outputDir, name, num)
 
         if 'linearFrame' in unit:
             buildLinearFrame(outFile, unit['linearFrame'])
