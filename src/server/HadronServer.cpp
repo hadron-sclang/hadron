@@ -105,9 +105,13 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
         while (node) {
             auto className = hadron::library::Symbol::fromView(m_runtime->context(),
                     lexer->tokens()[node->tokenIndex].range);
+            auto metaClassName = hadron::library::Symbol::fromView(m_runtime->context(), fmt::format("Meta_{}",
+                    className.view(m_runtime->context())));
 
             auto classDef = m_runtime->context()->classLibrary->findClassNamed(className);
             assert(!classDef.isNil());
+            auto metaClassDef = m_runtime->context()->classLibrary->findClassNamed(metaClassName);
+            assert(!metaClassDef.isNil());
 
             const hadron::parse::MethodNode* methodNode = nullptr;
             if (node->nodeType == hadron::parse::NodeType::kClass) {
@@ -123,15 +127,22 @@ void HadronServer::hadronCompilationDiagnostics(lsp::ID id, const std::string& f
                     auto methodName = hadron::library::Symbol::fromView(m_runtime->context(),
                             lexer->tokens()[methodNode->tokenIndex].range);
 
+                    auto methodClass = methodNode->isClassMethod ? metaClassDef : classDef;
+
                     hadron::library::Method methodDef;
-                    for (int32_t i = 0; i < classDef.methods().size(); ++i) {
-                        auto method = classDef.methods().typedAt(i);
+                    for (int32_t i = 0; i < methodClass.methods().size(); ++i) {
+                        auto method = methodClass.methods().typedAt(i);
                         if (method.name(m_runtime->context()) == methodName) {
                             methodDef = method;
                             break;
                         }
                     }
-                    assert(!methodDef.isNil());
+
+                    if (methodDef.isNil()) {
+                        SPDLOG_CRITICAL("Failed to find {}:{} methodDef.", className.view(m_runtime->context()),
+                            methodName.view(m_runtime->context()));
+                        assert(false);
+                    }
 
                     addCompilationUnit(methodDef, lexer, parser, methodNode->body.get(), units, stopAfter);
                 }

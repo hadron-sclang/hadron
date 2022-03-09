@@ -262,8 +262,8 @@ def buildControlFlow(outFile, rootFrame, outputDir, name):
 """.format(name, name))
 
 def saveNode(node, tokens, dotFile):
-    if 'serial' not in node:
-        raise(node)
+    if 'nodeType' not in node:
+        print(node)
 
     dotFile.write("""  node_{} [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">
     <tr><td bgcolor="lightGray"><b>{}</b></td></tr>
@@ -405,6 +405,36 @@ def saveNode(node, tokens, dotFile):
             dotFile.write('  node_{}:value -> node_{}\n'.format(node['serial'], node['value']['serial']))
             saveNode(node['value'], tokens, dotFile)
 
+    # Array Read
+    elif node['nodeType'] == 'ArrayRead':
+        dotFile.write("""    <tr><td port="targetArray">targetArray</td></tr>
+    <tr><td port="indexArgument">indexArgument</td></tr></table>>]
+""")
+        if 'targetArray' in node:
+            dotFile.write('  node_{}:targetArray -> node_{}\n'.format(node['serial'], node['targetArray']['serial']))
+            saveNode(node['targetArray'], tokens, dotFile)
+        if 'indexArgument' in node:
+            dotFile.write('  node_{}:indexArgument -> node_{}\n'.format(node['serial'],
+                    node['indexArgument']['serial']))
+            saveNode(node['indexArgument'], tokens, dotFile)
+
+    # Array Write
+    elif node['nodeType'] == 'ArrayWrite':
+        dotFile.write("""    <tr><td port="targetArray">targetArray</td></tr>
+    <tr><td port="indexArgument">indexArgument</td></tr>
+    <tr><td port="value">value</td></tr></table>>]
+""")
+        if 'targetArray' in node:
+            dotFile.write('  node_{}:targetArray -> node_{}\n'.format(node['serial'], node['targetArray']['serial']))
+            saveNode(node['targetArray'], tokens, dotFile)
+        if 'indexArgument' in node:
+            dotFile.write('  node_{}:indexArgument -> node_{}\n'.format(node['serial'],
+                    node['indexArgument']['serial']))
+            saveNode(node['indexArgument'], tokens, dotFile)
+        if 'value' in node:
+            dotFile.write('  node_{}:value -> node_{}\n'.format(node['serial'], node['value']['serial']))
+            saveNode(node['value'], tokens, dotFile)
+
     # Call
     elif node['nodeType'] == 'Call':
         dotFile.write("""    <tr><td port="target">target</td></tr>
@@ -437,6 +467,23 @@ def saveNode(node, tokens, dotFile):
         if 'adverb' in node:
             dotFile.write('  node_{}:adverb -> node_{}\n'.format(node['serial'], node['adverb']['serial']))
             saveNode(node['adverb'], tokens, dotFile)
+
+    # New
+    elif node['nodeType'] == 'New':
+        dotFile.write("""    <tr><td port="target">target</td></tr>
+    <tr><td port="arguments">arguments</td></tr>
+    <tr><td port="keywordArguments">keywordArguments</td></tr></table>>]
+""")
+        if 'target' in node:
+            dotFile.write('  node_{}:target -> node_{}\n'.format(node['serial'], node['target']['serial']))
+            saveNode(node['target'], tokens, dotFile)
+        if 'arguments' in node:
+            dotFile.write('  node_{}:arguments -> node_{}\n'.format(node['serial'], node['arguments']['serial']))
+            saveNode(node['arguments'], tokens, dotFile)
+        if 'keywordArguments' in node:
+            dotFile.write('  node_{}:keywordArguments -> node_{}\n'.format(node['serial'],
+                node['keywordArguments']['serial']))
+            saveNode(node['keywordArguments'], tokens, dotFile)
 
     # If
     elif node['nodeType'] == 'If':
