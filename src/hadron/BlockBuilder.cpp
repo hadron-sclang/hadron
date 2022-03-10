@@ -297,8 +297,28 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, 
     return nodeValue;
 }
 
-hir::NVID BlockBuilder::buildWhile(std::unique_ptr<hir::HIR> hir, Block* block) {
-    hir::NVID nodeValue;
+hir::NVID BlockBuilder::buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
+        const ast::WhileAST* whileAST) {
+    Scope* parentScope = currentBlock->scope;
+    Block* exitBlock = currentBlock;
+
+    // Build condition block.
+    auto conditionScopeOwning = buildInlineBlock(context, method, exitBlock, whileAST->condition.get());
+    Scope* conditionScope = conditionScopeOwning.get();
+    parentScope->subScopes.emplace_back(std::move(conditionScopeOwning));
+
+    // Predecessor block branches to condition block.
+    currentBlock->successors.emplace_back(conditionScope->blocks.front().get());
+    auto predBranch = std::make_unique<hir::BranchHIR>();
+    predBranch->blockId = conditionScope->blocks.front()->id;
+    append(std::move(predBranch), currentBlock);
+
+    // Build repeat block.
+    auto repeatScopeOwning = buildInlineBlock(context, method, exitBlock, whileAST->repeatBlock.get());
+    Scope* repeatScope = repeatScopeOwning.get();
+    parentScope->subScopes.emplace_back(std::move(repeatScopeOwning));
+
+    // Condition block conditionally jumps to loop block if true.
 
 }
 
