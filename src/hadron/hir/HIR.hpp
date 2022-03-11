@@ -35,6 +35,7 @@ struct NamedValue {
 };
 
 enum Opcode {
+    kAssign,
     kBlockLiteral,
     kBranch,
     kBranchIfTrue,
@@ -65,6 +66,10 @@ struct HIR {
     // that this operation only consumes values but doesn't generate a new one.
     virtual NVID proposeValue(NVID id) = 0;
 
+    // Replace all references to |original| with |replacement| for this instruction. Returns true if this resulted in
+    // any change to the HIR.
+    virtual bool replaceInput(NVID original, NVID replacement) = 0;
+
     // Given this HIR, and all other HIR |values| in the frame, output zero or more LIR instructions to |append|.
     virtual void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs,
             LIRList& append) const = 0;
@@ -79,6 +84,15 @@ protected:
     explicit HIR(Opcode op): opcode(op) {}
     HIR(Opcode op, TypeFlags typeFlags, library::Symbol valueName): opcode(op),
             value(kInvalidNVID, typeFlags, valueName) {}
+
+    // Used by derived classes in replaceInput() calls. Updates the |reads| set. Returns true if a swap occured.
+    inline bool replaceReads(NVID original, NVID replacement) {
+        if (reads.erase(original)) {
+            reads.emplace(replacement);
+            return true;
+        }
+        return false;
+    }
 };
 
 } // namespace hir

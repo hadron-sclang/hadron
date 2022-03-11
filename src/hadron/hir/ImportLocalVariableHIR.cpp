@@ -12,6 +12,10 @@ NVID ImportLocalVariableHIR::proposeValue(NVID id) {
     return id;
 }
 
+bool ImportLocalVariableHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+    return false;
+}
+
 void ImportLocalVariableHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
         LIRList& /* append */) const {
     // WRITEME

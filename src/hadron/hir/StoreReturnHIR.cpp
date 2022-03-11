@@ -13,6 +13,16 @@ NVID StoreReturnHIR::proposeValue(NVID /* id */) {
     return kInvalidNVID;
 }
 
+bool StoreReturnHIR::replaceInput(NVID original, NVID replacement) {
+    if (replaceReads(original, replacement)) {
+        assert(returnValue == original);
+        returnValue = replacement;
+        return true;
+    }
+
+    return false;
+}
+
 void StoreReturnHIR::lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& /* vRegs */,
         LIRList& append) const {
     // Overwrite the value at argument 0 with the return value.

@@ -13,6 +13,10 @@ NVID ImportClassVariableHIR::proposeValue(NVID id) {
     return id;
 }
 
+bool ImportClassVariableHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+    return false;
+}
+
 void ImportClassVariableHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
         LIRList& /* append */) const {
     // WRITEME

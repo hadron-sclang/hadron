@@ -5,12 +5,24 @@ namespace hir {
 
 RouteToSuperclassHIR::RouteToSuperclassHIR(NVID tID):
     HIR(kRouteToSuperclass),
-    thisId(tID) {}
+    thisId(tID) {
+    reads.emplace(tID);
+}
 
 
 NVID RouteToSuperclassHIR::proposeValue(NVID id) {
     value.id = id;
     return id;
+}
+
+bool RouteToSuperclassHIR::replaceInput(NVID original, NVID replacement) {
+    if (replaceReads(original, replacement)) {
+        assert(thisId == original);
+        thisId = replacement;
+        return true;
+    }
+
+    return false;
 }
 
 void RouteToSuperclassHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,

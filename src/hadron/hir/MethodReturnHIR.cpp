@@ -13,6 +13,10 @@ NVID MethodReturnHIR::proposeValue(NVID /* id */) {
     return kInvalidNVID;
 }
 
+bool MethodReturnHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+    return false;
+}
+
 void MethodReturnHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& vRegs,
         LIRList& append) const {
     // Load return address into a register value

@@ -14,6 +14,10 @@ NVID LoadArgumentHIR::proposeValue(NVID id) {
     return id;
 }
 
+bool LoadArgumentHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+    return false;
+}
+
 void LoadArgumentHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& vRegs,
         LIRList& append) const {
     // Arguments start at sp - 1 for argument 0, so subtract 1 from index for the stack pointer offset.

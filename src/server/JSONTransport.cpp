@@ -4,6 +4,7 @@
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/Frame.hpp"
+#include "hadron/hir/AssignHIR.hpp"
 #include "hadron/hir/ImportClassVariableHIR.hpp"
 #include "hadron/hir/ImportInstanceVariableHIR.hpp"
 #include "hadron/hir/ImportLocalVariableHIR.hpp"
@@ -1482,6 +1483,15 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
     jsonHIR.AddMember("reads", reads, document.GetAllocator());
 
     switch(hir->opcode) {
+    case hadron::hir::Opcode::kAssign: {
+        const auto assign = reinterpret_cast<const hadron::hir::AssignHIR*>(hir);
+        jsonHIR.AddMember("opcode", "Assign", document.GetAllocator());
+
+        rapidjson::Value assignValue;
+        serializeValue(context, assign->assignValue, frame, assignValue, document);
+        jsonHIR.AddMember("assignValue", assignValue, document.GetAllocator());
+    } break;
+
     case hadron::hir::Opcode::kBlockLiteral: {
         const auto block = reinterpret_cast<const hadron::hir::BlockLiteralHIR*>(hir);
         jsonHIR.AddMember("opcode", "BlockLiteral", document.GetAllocator());

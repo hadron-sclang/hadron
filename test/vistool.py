@@ -167,7 +167,9 @@ def valueToString(value):
     return '({}) _{}'.format(flags, value['id'])
 
 def hirToString(hir):
-    if hir['opcode'] == 'Branch':
+    if hir['opcode'] == 'Assign':
+        return '{} &#8592; {}'.format(valueToString(hir['value']), valueToString(hir['assignValue']))
+    elif hir['opcode'] == 'Branch':
         return 'Branch to Block {}'.format(hir['blockId'])
     elif hir['opcode'] == 'BranchIfTrue':
         return 'BranchIfTrue {} to Block {}'.format(valueToString(hir['condition']), hir['blockId'])
@@ -196,7 +198,7 @@ def hirToString(hir):
         return 'return'
     elif hir['opcode'] == 'Phi':
         phi = '{} &#8592; &phi;('.format(valueToString(hir['value']))
-        phi += ','.join(['{}'.format(x['id']) for x in hir['inputs']])
+        phi += ','.join(['{}'.format(x['id']) for x in hir['inputs']])  
         phi += ')'
         return phi
     elif hir['opcode'] == 'StoreReturn':

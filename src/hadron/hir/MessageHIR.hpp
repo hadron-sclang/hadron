@@ -16,12 +16,16 @@ struct MessageHIR : public HIR {
     virtual ~MessageHIR() = default;
 
     library::Symbol selector;
+    // Add arguments with the add* methods below.
     std::vector<NVID> arguments;
     std::vector<NVID> keywordArguments;
 
     std::unique_ptr<Signature> signature(const std::vector<HIR*>& values) const;
+    void addArgument(NVID arg);
+    void addKeywordArgument(NVID arg);
 
     NVID proposeValue(NVID id) override;
+    bool replaceInput(NVID original, NVID replacement) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };
 

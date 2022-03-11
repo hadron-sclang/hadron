@@ -14,6 +14,7 @@ struct RouteToSuperclassHIR : public HIR {
     NVID thisId;
 
     NVID proposeValue(NVID id) override;
+    bool replaceInput(NVID original, NVID replacement) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };
 
