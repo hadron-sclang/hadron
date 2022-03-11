@@ -232,11 +232,11 @@ optsemi : %empty
         | SEMICOLON
         ;
 
-optcomma	: %empty
+optcomma    : %empty
             | COMMA
             ;
 
-optequal	: %empty
+optequal    : %empty
             | ASSIGN
             ;
 
@@ -486,16 +486,15 @@ if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] o
         }
     ;
 
-while   : WHILE OPENPAREN block[condition] optcomma optblock CLOSEPAREN {
+while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN {
                 auto whileNode = std::make_unique<hadron::parse::WhileNode>($WHILE);
-                whileNode->condition = std::move($condition);
-                whileNode->repeatBlock = std::move($optblock);
+                whileNode->blocks = append<std::unique_ptr<hadron::parse::BlockNode>>(std::move($condition),
+                        std::move($blocks));
                 $while = std::move(whileNode);
             }
-        | WHILE block[condition] optcomma block[repeatBlock] {
+        | WHILE blocklist1[blocks] {
                 auto whileNode = std::make_unique<hadron::parse::WhileNode>($WHILE);
-                whileNode->condition = std::move($condition);
-                whileNode->repeatBlock = std::move($repeatBlock);
+                whileNode->blocks = std::move($blocks);
                 $while = std::move(whileNode);
             }
         ;

@@ -5,7 +5,9 @@
 namespace hadron {
 namespace hir {
 
-BranchIfTrueHIR::BranchIfTrueHIR(NVID cond): HIR(kBranchIfTrue), condition(cond) {}
+BranchIfTrueHIR::BranchIfTrueHIR(NVID cond): HIR(kBranchIfTrue), condition(cond) {
+    assert(condition != kInvalidNVID);
+}
 
 NVID BranchIfTrueHIR::proposeValue(NVID /* id */) {
     return kInvalidNVID;

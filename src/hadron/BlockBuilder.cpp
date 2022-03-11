@@ -101,8 +101,8 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
 }
 
 std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, const library::Method method,
-        Block* predecessor, const ast::BlockAST* blockAST) {
-    auto scope = std::make_unique<Scope>(predecessor->scope);
+        Scope* parentScope, Block* predecessor, const ast::BlockAST* blockAST) {
+    auto scope = std::make_unique<Scope>(parentScope);
     scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), scope->frame->numberOfBlocks));
     ++scope->frame->numberOfBlocks;
     auto block = scope->blocks.front().get();
@@ -251,14 +251,14 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, 
     Block* conditionBlock = currentBlock;
 
     // Build the true condition block.
-    auto trueScopeOwning = buildInlineBlock(context, method, conditionBlock, ifAST->trueBlock.get());
+    auto trueScopeOwning = buildInlineBlock(context, method, parentScope, conditionBlock, ifAST->trueBlock.get());
     Scope* trueScope = trueScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(trueScopeOwning));
     trueBranch->blockId = trueScope->blocks.front()->id;
     conditionBlock->successors.emplace_back(trueScope->blocks.front().get());
 
     // Build the false condition block.
-    auto falseScopeOwning = buildInlineBlock(context, method, conditionBlock, ifAST->falseBlock.get());
+    auto falseScopeOwning = buildInlineBlock(context, method, parentScope, conditionBlock, ifAST->falseBlock.get());
     Scope* falseScope = falseScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(falseScopeOwning));
     falseBranch->blockId = falseScope->blocks.front()->id;
@@ -300,10 +300,9 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, 
 hir::NVID BlockBuilder::buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
         const ast::WhileAST* whileAST) {
     Scope* parentScope = currentBlock->scope;
-    Block* exitBlock = currentBlock;
 
     // Build condition block.
-    auto conditionScopeOwning = buildInlineBlock(context, method, exitBlock, whileAST->condition.get());
+    auto conditionScopeOwning = buildInlineBlock(context, method, parentScope, currentBlock, whileAST->condition.get());
     Scope* conditionScope = conditionScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(conditionScopeOwning));
 
@@ -312,14 +311,43 @@ hir::NVID BlockBuilder::buildWhile(ThreadContext* context, const library::Method
     auto predBranch = std::make_unique<hir::BranchHIR>();
     predBranch->blockId = conditionScope->blocks.front()->id;
     append(std::move(predBranch), currentBlock);
+    Block* conditionExitBlock = conditionScope->blocks.back().get();
 
     // Build repeat block.
-    auto repeatScopeOwning = buildInlineBlock(context, method, exitBlock, whileAST->repeatBlock.get());
+    auto repeatScopeOwning = buildInlineBlock(context, method, parentScope, conditionExitBlock,
+            whileAST->repeatBlock.get());
     Scope* repeatScope = repeatScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(repeatScopeOwning));
+    Block* repeatExitBlock = repeatScope->blocks.back().get();
+
+    // Repeat block branches to condition block.
+    repeatExitBlock->successors.emplace_back(conditionScope->blocks.front().get());
+    conditionScope->blocks.front()->predecessors.emplace_back(repeatExitBlock);
+    auto repeatBranch = std::make_unique<hir::BranchHIR>();
+    repeatBranch->blockId = conditionScope->blocks.front()->id;
+    append(std::move(repeatBranch), repeatExitBlock);
 
     // Condition block conditionally jumps to loop block if true.
+    conditionExitBlock->successors.emplace_back(repeatScope->blocks.front().get());
+    auto trueBranch = std::make_unique<hir::BranchIfTrueHIR>(conditionExitBlock->finalValue);
+    trueBranch->blockId = repeatScope->blocks.front()->id;
+    append(std::move(trueBranch), conditionExitBlock);
 
+    // Build continuation block.
+    auto continueBlock = std::make_unique<Block>(parentScope, parentScope->frame->numberOfBlocks);
+    ++parentScope->frame->numberOfBlocks;
+    currentBlock = continueBlock.get();
+    parentScope->blocks.emplace_back(std::move(continueBlock));
+
+    // Condition block unconditionally jumps to continuation block.
+    conditionExitBlock->successors.emplace_back(currentBlock);
+    currentBlock->predecessors.emplace_back(conditionExitBlock);
+    auto exitBranch = std::make_unique<hir::BranchHIR>();
+    exitBranch->blockId = currentBlock->id;
+    append(std::move(exitBranch), conditionExitBlock);
+
+    // Inlined while loops in LSC always have a value of nil. Since Hadron inlines all while loops, we do the same.
+    return append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()), currentBlock);
 }
 
 hir::NVID BlockBuilder::append(std::unique_ptr<hir::HIR> hir, Block* block) {

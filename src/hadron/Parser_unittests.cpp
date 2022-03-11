@@ -3708,15 +3708,15 @@ TEST_CASE("Parser while") {
         const auto whileNode = reinterpret_cast<const parse::WhileNode*>(block->body->expr.get());
 
         // {true}
-        REQUIRE(whileNode->condition);
-        REQUIRE(whileNode->condition->body);
-        REQUIRE(whileNode->condition->body->expr);
-        REQUIRE_EQ(whileNode->condition->body->expr->nodeType, parse::NodeType::kLiteral);
-        const auto literal = reinterpret_cast<const parse::LiteralNode*>(whileNode->condition->body->expr.get());
+        REQUIRE(whileNode->blocks);
+        REQUIRE(whileNode->blocks->body);
+        REQUIRE(whileNode->blocks->body->expr);
+        REQUIRE_EQ(whileNode->blocks->body->expr->nodeType, parse::NodeType::kLiteral);
+        const auto literal = reinterpret_cast<const parse::LiteralNode*>(whileNode->blocks->body->expr.get());
         CHECK_EQ(literal->value, Slot::makeBool(true));
         CHECK_EQ(literal->next, nullptr);
 
-        CHECK_EQ(whileNode->repeatBlock, nullptr);
+        CHECK_EQ(whileNode->blocks->next, nullptr);
     }
 
     SUBCASE("while block optcomma block") {
@@ -3731,16 +3731,18 @@ TEST_CASE("Parser while") {
         const auto whileNode = reinterpret_cast<const parse::WhileNode*>(block->body->expr.get());
 
         // { counter < 5 }
-        REQUIRE(whileNode->condition);
-        REQUIRE(whileNode->condition->body);
-        REQUIRE(whileNode->condition->body->expr);
-        REQUIRE_EQ(whileNode->condition->body->expr->nodeType, parse::NodeType::kBinopCall);
+        REQUIRE(whileNode->blocks);
+        REQUIRE(whileNode->blocks->body);
+        REQUIRE(whileNode->blocks->body->expr);
+        REQUIRE_EQ(whileNode->blocks->body->expr->nodeType, parse::NodeType::kBinopCall);
 
         // { this.doIt() }
-        REQUIRE(whileNode->repeatBlock);
-        REQUIRE(whileNode->repeatBlock->body);
-        REQUIRE(whileNode->repeatBlock->body->expr);
-        REQUIRE_EQ(whileNode->repeatBlock->body->expr->nodeType, parse::NodeType::kCall);
+        REQUIRE(whileNode->blocks->next);
+        REQUIRE_EQ(whileNode->blocks->next->nodeType, parse::NodeType::kBlock);
+        const auto repeatBlock = reinterpret_cast<const parse::BlockNode*>(whileNode->blocks->next.get());
+        REQUIRE(repeatBlock->body);
+        REQUIRE(repeatBlock->body->expr);
+        REQUIRE_EQ(repeatBlock->body->expr->nodeType, parse::NodeType::kCall);
     }
 }
 

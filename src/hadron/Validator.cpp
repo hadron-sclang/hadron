@@ -45,7 +45,7 @@ bool Validator::validateSubScope(const Scope* scope, const Scope* parent, std::u
         return false;
     }
     for (const auto& block : scope->blocks) {
-        // Block must have a reference back to the correct owning frame.
+        // Block must have a reference back to the correct owning scope.
         if (block->scope != scope) {
             SPDLOG_ERROR("Block frame mismatch");
             return false;

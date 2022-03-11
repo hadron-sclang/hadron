@@ -23,6 +23,7 @@ struct AST;
 struct BlockAST;
 struct IfAST;
 struct SequenceAST;
+struct WhileAST;
 } // namespace parse
 
 // Goes from AST to a Control Flow Graph of Blocks of HIR code in SSA form.
@@ -43,8 +44,8 @@ private:
             const ast::BlockAST* blockAST, Block* outerBlock);
 
     // Re-uses the containing stack frame but produces a new scope. Needs exactly one predecessor.
-    std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, const library::Method method, Block* predecessor,
-            const ast::BlockAST* blockAST);
+    std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, const library::Method method, Scope* parentScope,
+            Block* predecessor, const ast::BlockAST* blockAST);
 
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not

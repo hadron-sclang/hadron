@@ -354,8 +354,8 @@ struct WhileNode : public Node {
     WhileNode(size_t index): Node(NodeType::kWhile, index) {}
     virtual ~WhileNode() = default;
 
-    std::unique_ptr<BlockNode> condition;
-    std::unique_ptr<BlockNode> repeatBlock;
+    // First block is the condition block, subsequent blocks are optional.
+    std::unique_ptr<BlockNode> blocks;
 };
 
 } // namespace parse

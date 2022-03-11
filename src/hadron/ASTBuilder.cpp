@@ -336,9 +336,11 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     case parse::NodeType::kWhile: {
         const auto whileNode = reinterpret_cast<const parse::WhileNode*>(node);
         auto whileAST = std::make_unique<ast::WhileAST>();
-        whileAST->condition = buildBlock(context, lexer, whileNode->condition.get());
-        if (whileNode->repeatBlock) {
-            whileAST->repeatBlock = buildBlock(context, lexer, whileNode->repeatBlock.get());
+        whileAST->condition = buildBlock(context, lexer, whileNode->blocks.get());
+        if (whileNode->blocks->next) {
+            assert(whileNode->blocks->next->nodeType == parse::NodeType::kBlock);
+            const auto repeatBlock = reinterpret_cast<const parse::BlockNode*>(whileNode->blocks->next.get());
+            whileAST->repeatBlock = buildBlock(context, lexer, repeatBlock);
         } else {
             whileAST->repeatBlock = std::make_unique<ast::BlockAST>();
             whileAST->repeatBlock->statements->sequence.emplace_back(std::make_unique<ast::ConstantAST>(
