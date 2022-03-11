@@ -387,7 +387,7 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
 
     // Search through local values, including variables, arguments, and already-cached imports, for a name.
     Block* searchBlock = block;
-    std::list<Block*> importBlocks;
+    std::list<Block*> outerBlocks;
  
     while (searchBlock) {
         hir::NVID nodeValue = findScopedName(context, name, searchBlock);
@@ -395,25 +395,26 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         if (nodeValue != hir::kInvalidNVID) {
             // If we found this value in a external frame we will need to add import statements to each frame between
             // this block and the importing block, starting with the outermost frame that didn't have the value.
-            for (auto importBlock : importBlocks) {
+            for (auto outerBlock : outerBlocks) {
                 auto import = std::make_unique<hir::ImportLocalVariableHIR>(name,
-                        importBlock->frame->outerBlock->frame->values[nodeValue]->value.typeFlags, nodeValue);
+                        outerBlock->frame->outerBlock->frame->values[nodeValue]->value.typeFlags, nodeValue);
 
                 // Insert just after the branch statement at the end of the import block.
-                auto iter = importBlock->frame->rootScope->blocks.front()->statements.end();
+                auto iter = outerBlock->frame->rootScope->blocks.front()->statements.end();
                 --iter;
-                nodeValue = insert(std::move(import), importBlock, iter);
-                importBlock->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
+                nodeValue = insert(std::move(import), outerBlock, iter);
+                outerBlock->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
 
-                #error do you need to plumb these things with findScopedName too?
+                // Now plumb that value through to the block containing the inner frame.
+                nodeValue = findScopedName(context, name, outerBlock);
             }
 
-            SPDLOG_INFO("Found name {} at {}, imports: {}", name.view(context), nodeValue, importBlocks.size());
-            assert(searchBlock->scope->frame->values[nodeValue]);
+            SPDLOG_INFO("Found name {} at {}, imports: {}", name.view(context), nodeValue, outerBlocks.size());
+            assert(block->scope->frame->values[nodeValue]);
             return nodeValue;
         }
 
-        importBlocks.emplace_front(searchBlock);
+        outerBlocks.emplace_front(searchBlock);
 
         // Search in the next outside block, if one exists.
         searchBlock = searchBlock->frame->outerBlock;
