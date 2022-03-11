@@ -291,7 +291,6 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, 
     valuePhi->addInput(currentBlock->frame->values[falseScope->blocks.back()->finalValue]);
     nodeValue = valuePhi->proposeValue(static_cast<hir::NVID>(currentBlock->frame->values.size()));
     currentBlock->frame->values.emplace_back(valuePhi.get());
-    currentBlock->localValues.emplace(std::make_pair(nodeValue, nodeValue));
     currentBlock->phis.emplace_back(std::move(valuePhi));
 
     return nodeValue;
@@ -364,7 +363,6 @@ hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block,
     // We don't bump the value serial for invalid values (meaning read-only operations)
     if (value != hir::kInvalidNVID) {
         block->frame->values.emplace_back(hir.get());
-        block->localValues.emplace(std::make_pair(value, value));
     }
     block->statements.emplace(before, std::move(hir));
     return value;
@@ -514,7 +512,6 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
     // Special names can all be appended locally to the block.
     if (nodeValue != hir::kInvalidNVID) {
         block->revisions.emplace(std::make_pair(name, nodeValue));
-        block->localValues.emplace(std::make_pair(nodeValue, nodeValue));
     } else {
         SPDLOG_CRITICAL("Failed to find name: {}", name.view(context));
     }
@@ -623,9 +620,8 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
         SPDLOG_DEBUG("    block {} has NONtrivial phi, returning {} for {}", block->id, finalValue, name.view(context));
     }
 
-    // Update block revisions and localValues with the final values.
+    // Update block revisions with the final value.
     block->revisions[name] = finalValue;
-    block->localValues[finalValue] = finalValue;
 
     return finalValue;
 }

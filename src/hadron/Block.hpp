@@ -28,9 +28,6 @@ struct Block {
     // Map of names to most recent revision of local values.
     std::unordered_map<library::Symbol, hir::NVID> revisions;
 
-    // Map of values defined outside of the block and their local value. For convenience we also put local values
-    // in here, mapping to themselves.
-    std::unordered_map<hir::NVID, hir::NVID> localValues;
     // Owning scope of this block.
     Scope* scope;
     // The top-level frame that contains this block.
