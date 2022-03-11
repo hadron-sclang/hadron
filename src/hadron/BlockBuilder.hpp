@@ -69,12 +69,15 @@ private:
     // compilation error that the name is not found.
     hir::NVID findName(ThreadContext* context, const library::Method method, library::Symbol name, Block* block);
 
+    
+
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
     // tables. Can return hir::kInvalidNVID which means the name was not found.
-    hir::NVID findScopedName(ThreadContext* context, library::Symbol name, Block* block,
-                             std::unordered_map<Block::ID, hir::NVID>& blockValues,
-                             const std::unordered_set<const Scope*>& containingScopes);
+    hir::NVID findScopedName(ThreadContext* context, library::Symbol name, Block* block);
+    hir::NVID findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
+                                      std::unordered_map<Block::ID, hir::NVID>& blockValues,
+                                      const std::unordered_set<const Scope*>& containingScopes);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };

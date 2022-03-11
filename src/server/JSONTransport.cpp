@@ -1624,6 +1624,7 @@ void JSONTransport::JSONTransportImpl::serializeValue(hadron::ThreadContext* con
         const hadron::Frame* frame, rapidjson::Value& jsonValue, rapidjson::Document& document) {
     assert(valueId != hadron::hir::kInvalidNVID);
     assert(static_cast<size_t>(valueId) < frame->values.size());
+    assert(frame->values[valueId]);
 
     jsonValue.SetObject();
     jsonValue.AddMember("id", rapidjson::Value(valueId), document.GetAllocator());

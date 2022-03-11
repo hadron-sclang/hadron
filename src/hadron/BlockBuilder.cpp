@@ -390,15 +390,7 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
     std::list<Block*> importBlocks;
  
     while (searchBlock) {
-        std::unordered_map<int32_t, hir::NVID> blockValues;
-        std::unordered_set<const Scope*> containingScopes;
-        const Scope* scope = searchBlock->scope;
-        while (scope) {
-            containingScopes.emplace(scope);
-            scope = scope->parent;
-        }
-
-        hir::NVID nodeValue = findScopedName(context, name, searchBlock, blockValues, containingScopes);
+        hir::NVID nodeValue = findScopedName(context, name, searchBlock);
 
         if (nodeValue != hir::kInvalidNVID) {
             // If we found this value in a external frame we will need to add import statements to each frame between
@@ -412,8 +404,12 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
                 --iter;
                 nodeValue = insert(std::move(import), importBlock, iter);
                 importBlock->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
+
+                #error do you need to plumb these things with findScopedName too?
             }
-            SPDLOG_INFO("Found name {} at {}", name.view(context), nodeValue);
+
+            SPDLOG_INFO("Found name {} at {}, imports: {}", name.view(context), nodeValue, importBlocks.size());
+            assert(searchBlock->scope->frame->values[nodeValue]);
             return nodeValue;
         }
 
@@ -495,15 +491,7 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
                block->frame->rootScope->blocks.front()->revisions.end());
         block->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
 
-        std::unordered_map<int32_t, hir::NVID> blockValues;
-        std::unordered_set<const Scope*> containingScopes;
-        const Scope* scope = block->scope;
-        while (scope) {
-            containingScopes.emplace(scope);
-            scope = scope->parent;
-        }
-
-        auto foundValue = findScopedName(context, name, block, blockValues, containingScopes);
+        auto foundValue = findScopedName(context, name, block);
         SPDLOG_INFO("Inserting {}, foundValue: {}, nodeValue: {}", name.view(context), foundValue, nodeValue);
         assert(foundValue == nodeValue);
         return foundValue;
@@ -533,7 +521,19 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
     return nodeValue;
 }
 
-hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol name, Block* block,
+hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol name, Block* block) {
+    std::unordered_map<int32_t, hir::NVID> blockValues;
+    std::unordered_set<const Scope*> containingScopes;
+    const Scope* scope = block->scope;
+    while (scope) {
+        containingScopes.emplace(scope);
+        scope = scope->parent;
+    }
+
+    return findScopedNameRecursive(context, name, block, blockValues, containingScopes);
+}
+
+hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
         std::unordered_map<Block::ID, hir::NVID>& blockValues,
         const std::unordered_set<const Scope*>& containingScopes) {
 
@@ -575,7 +575,7 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
 
     // Search predecessors for the name.
     for (auto pred : block->predecessors) {
-        auto foundValue = findScopedName(context, name, pred, blockValues, containingScopes);
+        auto foundValue = findScopedNameRecursive(context, name, pred, blockValues, containingScopes);
 
         // This is a depth-first search, so the above recursive call will return after searching up until either the
         // name is found or the import block (with no predecessors) is found empty. So an invalidNVID return here means
@@ -604,7 +604,7 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
     if (isShadowed) {
         assert(trivialValue != hir::kInvalidNVID);
         // Overwrite block value with the trivial value.
-        blockValues.emplace(std::make_pair(block->id, trivialValue));
+        blockValues[block->id] = trivialValue;
         return trivialValue;
     }
 
@@ -623,8 +623,8 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
     }
 
     // Update block revisions and localValues with the final values.
-    block->revisions.emplace(std::make_pair(name, finalValue));
-    block->localValues.emplace(std::make_pair(finalValue, finalValue));
+    block->revisions[name] = finalValue;
+    block->localValues[finalValue] = finalValue;
 
     return finalValue;
 }
