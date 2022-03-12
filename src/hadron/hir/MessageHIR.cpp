@@ -20,9 +20,37 @@ std::unique_ptr<Signature> MessageHIR::signature(const std::vector<HIR*>& values
     return sig;
 }
 
+void MessageHIR::addArgument(NVID id) {
+    reads.emplace(id);
+    arguments.emplace_back(id);
+}
+
+void MessageHIR::addKeywordArgument(NVID id) {
+    reads.emplace(id);
+    keywordArguments.emplace_back(id);
+}
+
 NVID MessageHIR::proposeValue(NVID id) {
     value.id = id;
     return id;
+}
+
+bool MessageHIR::replaceInput(NVID original, NVID replacement) {
+    if (!replaceReads(original, replacement)) { return false; }
+
+    for (size_t i = 0; i < arguments.size(); ++i) {
+        if (arguments[i] == original) {
+            arguments[i] = replacement;
+        }
+    }
+
+    for (size_t i = 0; i < keywordArguments.size(); ++i) {
+        if (keywordArguments[i] == original) {
+            keywordArguments[i] = replacement;
+        }
+    }
+
+    return true;
 }
 
 void MessageHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& vRegs,

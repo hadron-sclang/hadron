@@ -15,7 +15,7 @@
 %token <size_t> LITERAL FLOAT INTEGER PRIMITIVE PLUS MINUS ASTERISK ASSIGN LESSTHAN GREATERTHAN PIPE READWRITEVAR
 %token <size_t> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA
 %token <size_t> SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT ELLIPSES
-%token <size_t> CURRYARGUMENT IF
+%token <size_t> CURRYARGUMENT IF WHILE
 // Include Hashes in the token when meaningful.
 %token <std::pair<size_t, hadron::Hash>> BINOP KEYWORD IDENTIFIER CLASSNAME
 
@@ -26,6 +26,7 @@
 %type <std::unique_ptr<hadron::parse::ExprSeqNode>> dictslotlist1 dictslotdef arrayelems1
 %type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
 %type <std::unique_ptr<hadron::parse::IfNode>> if
+%type <std::unique_ptr<hadron::parse::WhileNode>> while
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist litdictslotdef litdictslotlist1
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> litdictslotlist
 %type <std::unique_ptr<hadron::parse::LiteralDictNode>> dictlit2
@@ -231,11 +232,11 @@ optsemi : %empty
         | SEMICOLON
         ;
 
-optcomma	: %empty
+optcomma    : %empty
             | COMMA
             ;
 
-optequal	: %empty
+optequal    : %empty
             | ASSIGN
             ;
 
@@ -485,6 +486,19 @@ if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] o
         }
     ;
 
+while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN {
+                auto whileNode = std::make_unique<hadron::parse::WhileNode>($WHILE);
+                whileNode->blocks = append<std::unique_ptr<hadron::parse::BlockNode>>(std::move($condition),
+                        std::move($blocks));
+                $while = std::move(whileNode);
+            }
+        | WHILE blocklist1[blocks] {
+                auto whileNode = std::make_unique<hadron::parse::WhileNode>($WHILE);
+                whileNode->blocks = std::move($blocks);
+                $while = std::move(whileNode);
+            }
+        ;
+
 // TODO: figure out is this used? What does it mean? Things like: "4 + .foo 5" parse in LSC (evaluates to 9).
 /*
 adverb  : %empty { $adverb = nullptr; }
@@ -574,6 +588,7 @@ expr1[target]   : literal { $target = std::move($literal); }
                     }
                 | valrangex1 { $target = std::move($valrangex1); }
                 | if { $target = std::move($if); }
+                | while { $target = std::move($while); }
                 ;
 
 valrangex1  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE {
@@ -1174,6 +1189,9 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
 
     case hadron::Token::Name::kIf:
         return yy::parser::make_IF(index, token.location);
+
+    case hadron::Token::Name::kWhile:
+        return yy::parser::make_WHILE(index, token.location);
     }
 
     return yy::parser::make_END(token.location);

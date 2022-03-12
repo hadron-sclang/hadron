@@ -35,6 +35,7 @@ struct NamedValue {
 };
 
 enum Opcode {
+    kAssign,
     kBlockLiteral,
     kBranch,
     kBranchIfTrue,
@@ -58,12 +59,21 @@ struct HIR {
     Opcode opcode;
     NamedValue value;
 
+    // The set of NVIDs that this HIR uses as inputs.
     std::unordered_set<NVID> reads;
+
+    // The set of HIR that consume the output of this HIR.
+    std::unordered_set<HIR*> consumers;
+    Block* owningBlock;
 
     // Recommended way to set the id in |value| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
     // that this operation only consumes values but doesn't generate a new one.
     virtual NVID proposeValue(NVID id) = 0;
+
+    // Replace all references to |original| with |replacement| for this instruction. Returns true if this resulted in
+    // any change to the HIR.
+    virtual bool replaceInput(NVID original, NVID replacement) = 0;
 
     // Given this HIR, and all other HIR |values| in the frame, output zero or more LIR instructions to |append|.
     virtual void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs,
@@ -76,9 +86,18 @@ struct HIR {
     }
 
 protected:
-    explicit HIR(Opcode op): opcode(op) {}
+    explicit HIR(Opcode op): opcode(op), owningBlock(nullptr) {}
     HIR(Opcode op, TypeFlags typeFlags, library::Symbol valueName): opcode(op),
-            value(kInvalidNVID, typeFlags, valueName) {}
+            value(kInvalidNVID, typeFlags, valueName), owningBlock(nullptr) {}
+
+    // Used by derived classes in replaceInput() calls. Updates the |reads| set. Returns true if a swap occured.
+    inline bool replaceReads(NVID original, NVID replacement) {
+        if (reads.erase(original)) {
+            reads.emplace(replacement);
+            return true;
+        }
+        return false;
+    }
 };
 
 } // namespace hir

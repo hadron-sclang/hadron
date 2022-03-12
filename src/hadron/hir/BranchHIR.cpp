@@ -11,6 +11,10 @@ NVID BranchHIR::proposeValue(NVID /* id */) {
     return kInvalidNVID;
 }
 
+bool BranchHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+    return false;
+}
+
 void BranchHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
         LIRList& append) const {
     append.emplace_back(std::make_unique<lir::BranchLIR>(blockId));

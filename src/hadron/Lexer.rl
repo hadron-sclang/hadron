@@ -204,6 +204,10 @@
             m_tokens.emplace_back(Token::make(Token::Name::kIf, std::string_view(ts, 2), getLocation(ts), false,
                     kIfHash));
         };
+        'while' {
+            m_tokens.emplace_back(Token::make(Token::Name::kWhile, std::string_view(ts, 5), getLocation(ts), false,
+                    kWhileHash));
+        };
 
         ###############
         # identifiers #

@@ -185,6 +185,8 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
+    hir/AssignHIR.cpp
+    hir/AssignHIR.hpp
     hir/BlockLiteralHIR.cpp
     hir/BlockLiteralHIR.hpp
     hir/BranchHIR.cpp

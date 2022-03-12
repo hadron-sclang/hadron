@@ -23,6 +23,7 @@ struct AST;
 struct BlockAST;
 struct IfAST;
 struct SequenceAST;
+struct WhileAST;
 } // namespace parse
 
 // Goes from AST to a Control Flow Graph of Blocks of HIR code in SSA form.
@@ -42,9 +43,9 @@ private:
     std::unique_ptr<Frame> buildFrame(ThreadContext* context, const library::Method method,
             const ast::BlockAST* blockAST, Block* outerBlock);
 
-    // Re-uses the containing stack frame but produces a new scope. Needs exactly one predecessor.
-    std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, const library::Method method, Block* predecessor,
-            const ast::BlockAST* blockAST);
+    // Re-uses the containing stack frame but produces a new scope.
+    std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, const library::Method method, Scope* parentScope,
+            Block* predecessor, const ast::BlockAST* blockAST, bool isSealed = true);
 
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not
@@ -55,6 +56,10 @@ private:
             const ast::SequenceAST* sequence);
     hir::NVID buildIf(ThreadContext* context, const library::Method method, Block*& currentBlock,
             const ast::IfAST* ifAST);
+    hir::NVID buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
+            const ast::WhileAST* whileAST);
+
+    void sealBlock(ThreadContext* context, const library::Method method, Block* block);
 
     // Returns the value appended to the |block|. Takes ownership of hir.
     hir::NVID append(std::unique_ptr<hir::HIR> hir, Block* block);
@@ -69,9 +74,15 @@ private:
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
     // tables. Can return hir::kInvalidNVID which means the name was not found.
-    hir::NVID findScopedName(ThreadContext* context, library::Symbol name, Block* block,
-                             std::unordered_map<Block::ID, hir::NVID>& blockValues,
-                             const std::unordered_set<const Scope*>& containingScopes);
+    hir::NVID findScopedName(ThreadContext* context, library::Symbol name, Block* block);
+    hir::NVID findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
+                                      std::unordered_map<Block::ID, hir::NVID>& blockValues,
+                                      const std::unordered_set<const Scope*>& containingScopes,
+                                      std::unordered_map<hir::HIR*, hir::HIR*>& trivialPhis);
+
+    // Replaces pairs (key, value). May cause other replacements, which are handled sequentially. Destructively modifies
+    // the |replacements| map.
+    void replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& replacements);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };

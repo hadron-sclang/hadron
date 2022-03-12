@@ -4,6 +4,7 @@
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/Frame.hpp"
+#include "hadron/hir/AssignHIR.hpp"
 #include "hadron/hir/ImportClassVariableHIR.hpp"
 #include "hadron/hir/ImportInstanceVariableHIR.hpp"
 #include "hadron/hir/ImportLocalVariableHIR.hpp"
@@ -292,6 +293,7 @@ void JSONTransport::JSONTransportImpl::sendInitializeResult(std::optional<lsp::I
     tokenTypes.PushBack(rapidjson::Value("ellipses"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("curryArgument"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("if"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("while"), document.GetAllocator());
     semanticTokensLegend.AddMember("tokenTypes", tokenTypes, document.GetAllocator());
     rapidjson::Value tokenModifiers;
     tokenModifiers.SetArray();
@@ -884,6 +886,14 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(hadron::ThreadContext*
         serializeParseNode(context, ifNode->falseBlock.get(), document, path, serial);
         path.pop_back();
     } break;
+
+    case hadron::parse::NodeType::kWhile: {
+        const auto whileNode = reinterpret_cast<const hadron::parse::WhileNode*>(node);
+        jsonNode.AddMember("nodeType", rapidjson::Value("While"), document.GetAllocator());
+        path.emplace_back(makeToken("blocks"));
+        serializeParseNode(context, whileNode->blocks.get(), document, path, serial);
+        path.pop_back();
+    } break;
     }
 
     path.emplace_back(makeToken("next"));
@@ -978,6 +988,19 @@ void JSONTransport::JSONTransportImpl::serializeAST(hadron::ThreadContext* conte
 
         path.emplace_back(makeToken("falseBlock"));
         serializeAST(context, ifAST->falseBlock.get(), document, path, serial);
+        path.pop_back();
+    } break;
+
+    case hadron::ast::ASTType::kWhile: {
+        const auto whileAST = reinterpret_cast<const hadron::ast::WhileAST*>(ast);
+        jsonNode.AddMember("astType", rapidjson::Value("While"), document.GetAllocator());
+
+        path.emplace_back(makeToken("condition"));
+        serializeAST(context, whileAST->condition.get(), document, path, serial);
+        path.pop_back();
+
+        path.emplace_back(makeToken("repeatBlock"));
+        serializeAST(context, whileAST->repeatBlock.get(), document, path, serial);
         path.pop_back();
     } break;
 
@@ -1111,8 +1134,6 @@ void JSONTransport::JSONTransportImpl::serializeScope(hadron::ThreadContext* con
     blocks.SetArray();
 
     for (const auto& block : scope->blocks) {
-        SPDLOG_TRACE("serializing Block {}", block->id);
-
         rapidjson::Value jsonBlock;
         jsonBlock.SetObject();
         jsonBlock.AddMember("id", rapidjson::Value(block->id), document.GetAllocator());
@@ -1462,6 +1483,15 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
     jsonHIR.AddMember("reads", reads, document.GetAllocator());
 
     switch(hir->opcode) {
+    case hadron::hir::Opcode::kAssign: {
+        const auto assign = reinterpret_cast<const hadron::hir::AssignHIR*>(hir);
+        jsonHIR.AddMember("opcode", "Assign", document.GetAllocator());
+
+        rapidjson::Value assignValue;
+        serializeValue(context, assign->assignValue, frame, assignValue, document);
+        jsonHIR.AddMember("assignValue", assignValue, document.GetAllocator());
+    } break;
+
     case hadron::hir::Opcode::kBlockLiteral: {
         const auto block = reinterpret_cast<const hadron::hir::BlockLiteralHIR*>(hir);
         jsonHIR.AddMember("opcode", "BlockLiteral", document.GetAllocator());
@@ -1588,9 +1618,14 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
 void JSONTransport::JSONTransportImpl::serializeValue(hadron::ThreadContext* context, hadron::hir::NVID valueId,
         const hadron::Frame* frame, rapidjson::Value& jsonValue, rapidjson::Document& document) {
     assert(valueId != hadron::hir::kInvalidNVID);
+    assert(static_cast<size_t>(valueId) < frame->values.size());
 
     jsonValue.SetObject();
     jsonValue.AddMember("id", rapidjson::Value(valueId), document.GetAllocator());
+    if (!frame->values[valueId]) {
+        SPDLOG_WARN("serializing invalid value id: {}", valueId);
+        return;
+    }
 
     rapidjson::Value jsonTypeFlags;
     serializeTypeFlags(frame->values[valueId]->value.typeFlags, jsonTypeFlags, document);

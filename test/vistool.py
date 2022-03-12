@@ -167,7 +167,9 @@ def valueToString(value):
     return '({}) _{}'.format(flags, value['id'])
 
 def hirToString(hir):
-    if hir['opcode'] == 'Branch':
+    if hir['opcode'] == 'Assign':
+        return '{} &#8592; {}'.format(valueToString(hir['value']), valueToString(hir['assignValue']))
+    elif hir['opcode'] == 'Branch':
         return 'Branch to Block {}'.format(hir['blockId'])
     elif hir['opcode'] == 'BranchIfTrue':
         return 'BranchIfTrue {} to Block {}'.format(valueToString(hir['condition']), hir['blockId'])
@@ -196,7 +198,7 @@ def hirToString(hir):
         return 'return'
     elif hir['opcode'] == 'Phi':
         phi = '{} &#8592; &phi;('.format(valueToString(hir['value']))
-        phi += ','.join(['{}'.format(x['id']) for x in hir['inputs']])
+        phi += ','.join(['{}'.format(x['id']) for x in hir['inputs']])  
         phi += ')'
         return phi
     elif hir['opcode'] == 'StoreReturn':
@@ -238,8 +240,8 @@ def saveBlockGraph(scope, dotFile, prefix):
                 saveBlockGraph(hir['frame']['rootScope'], dotFile, pfx)
         for succ in block['successors']:
             dotFile.write('    block_{}_{} -> block_{}_{}\n'.format(prefix, block['id'], prefix, succ))
-    for subFrame in scope['subScopes']:
-        saveBlockGraph(subFrame, dotFile, prefix)
+    for subScope in scope['subScopes']:
+        saveBlockGraph(subScope, dotFile, prefix)
 
 def buildControlFlow(outFile, rootFrame, outputDir, name, num):
     # Build dotfile from parse tree nodes.
@@ -502,6 +504,16 @@ def saveNode(node, tokens, dotFile):
             dotFile.write('  node_{}:falseBlock -> node_{}\n'.format(node['serial'], node['falseBlock']['serial']))
             saveNode(node['falseBlock'], tokens, dotFile)
 
+    # While
+    elif node['nodeType'] == 'While':
+        dotFile.write('    <tr><td port="blocks">blocks</td></tr></table>>]\n')
+        if 'blocks' in node:
+            dotFile.write('  node_{}:blocks -> node_{}\n'.format(node['serial'], node['blocks']['serial']))
+            saveNode(node['blocks'], tokens, dotFile)
+
+    else:
+        dotFile.write('    </table>>]\n')
+
     if 'next' in node:
         dotFile.write('  node_{}:next -> node_{}\n'.format(node['serial'], node['next']['serial']))
         saveNode(node['next'], tokens, dotFile)
@@ -595,6 +607,16 @@ def saveAST(ast, dotFile):
         saveAST(ast['trueBlock'], dotFile)
         saveAST(ast['falseBlock'], dotFile)
 
+    # While
+    elif ast['astType'] == 'While':
+        dotFile.write("""    <tr><td port="condition">condition</td></tr>
+    <tr><td port="repeatBlock">repeatBlock</td></tr></table>>]
+  ast_{}:condition -> ast_{}
+  ast_{}:repeatBlock -> ast_{}
+""".format(ast['serial'], ast['condition']['serial'], ast['serial'], ast['repeatBlock']['serial']))
+        saveAST(ast['condition'], dotFile)
+        saveAST(ast['repeatBlock'], dotFile)
+
     # Message
     elif ast['astType'] == 'Message':
         dotFile.write("""    <tr><td>selector: {}</td></tr>
@@ -680,6 +702,7 @@ def styleForTokenType(typeIndex):
         "color: grey;",             # 36: kEllipses
         "color: grey;",             # 37: kCurryArgument
         "color: yellow;",           # 38: kIf
+        "color: yellow;"            # 39: kWhile
     ]
     if typeIndex >= len(tokenTypeStyles):
         print("bad typeIndex of {} for styleForTokenType".format(typeIndex))

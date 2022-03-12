@@ -15,6 +15,10 @@ NVID ConstantHIR::proposeValue(NVID id) {
     return id;
 }
 
+bool ConstantHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+    return false;
+}
+
 void ConstantHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& vRegs,
         LIRList& append) const {
     append.emplace_back(std::make_unique<lir::LoadConstantLIR>(vReg(), constant));

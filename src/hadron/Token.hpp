@@ -78,7 +78,8 @@ struct Token {
         kCurryArgument = 37,
 
         // Control Flow
-        kIf = 38
+        kIf = 38,
+        kWhile = 39
     };
 
     Name name;

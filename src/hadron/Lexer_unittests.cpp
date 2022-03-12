@@ -1336,10 +1336,10 @@ TEST_CASE("Lexer Identifiers and Keywords") {
         CHECK(lexer.tokens()[6].hash == hash("argVarNilFalseTrue"));
     }
     SUBCASE("keywords") {
-        const char* code = "var nil, arg true, false, const, classvar";
+        const char* code = "var nil, arg true, false, const, classvar if while";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
-        REQUIRE(lexer.tokens().size() == 11);
+        REQUIRE(lexer.tokens().size() == 13);
         CHECK(lexer.tokens()[0].name == Token::Name::kVar);
         CHECK(lexer.tokens()[0].range.data() == code);
         CHECK(lexer.tokens()[0].range.size() == 3);
@@ -1378,6 +1378,13 @@ TEST_CASE("Lexer Identifiers and Keywords") {
         CHECK(lexer.tokens()[10].name == Token::Name::kClassVar);
         CHECK(lexer.tokens()[10].range.data() == code + 33);
         CHECK(lexer.tokens()[10].range.size() == 8);
+        CHECK(lexer.tokens()[11].name == Token::Name::kIf);
+        CHECK(lexer.tokens()[11].range.data() == code + 42);
+        CHECK(lexer.tokens()[11].range.size() == 2);
+        CHECK(lexer.tokens()[12].name == Token::Name::kWhile);
+        CHECK(lexer.tokens()[12].range.data() == code + 45);
+        CHECK(lexer.tokens()[12].range.size() == 5);
+
     }
     SUBCASE("variable declarations") {
         const char* code = "var a, b17=23, cA = true,nil_ = \\asis;";

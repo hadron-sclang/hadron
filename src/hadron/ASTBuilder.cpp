@@ -23,8 +23,8 @@ std::unique_ptr<ast::BlockAST> ASTBuilder::buildBlock(ThreadContext* context, co
     auto name = context->symbolTable->thisSymbol();
 
     // The *this* pointer is the first argument to every block.
-    blockAST->argumentNames.add(context, name);
-    blockAST->argumentDefaults.add(context, Slot::makeNil());
+    blockAST->argumentNames = blockAST->argumentNames.add(context, name);
+    blockAST->argumentDefaults = blockAST->argumentDefaults.add(context, Slot::makeNil());
 
     // Arguments with non-literal inits must be processed in the code as if blocks, after other variable definitions and
     // before the block body.
@@ -32,7 +32,6 @@ std::unique_ptr<ast::BlockAST> ASTBuilder::buildBlock(ThreadContext* context, co
 
     // Extract the rest of the arguments.
     const parse::ArgListNode* argList = blockNode->arguments.get();
-    int argIndex = 1;
     if (argList) {
         assert(argList->nodeType == parse::NodeType::kArgList);
         const parse::VarListNode* varList = argList->varList.get();
@@ -42,7 +41,7 @@ std::unique_ptr<ast::BlockAST> ASTBuilder::buildBlock(ThreadContext* context, co
             while (varDef) {
                 assert(varDef->nodeType == parse::NodeType::kVarDef);
                 name = library::Symbol::fromView(context, lexer->tokens()[varDef->tokenIndex].range);
-                blockAST->argumentNames.add(context, name);
+                blockAST->argumentNames = blockAST->argumentNames.add(context, name);
                 Slot initialValue = Slot::makeNil();
                 if (varDef->initialValue) {
                     if (varDef->initialValue->nodeType == parse::NodeType::kLiteral) {
@@ -52,8 +51,7 @@ std::unique_ptr<ast::BlockAST> ASTBuilder::buildBlock(ThreadContext* context, co
                         exprInits.emplace_back(std::make_pair(name, varDef->initialValue.get()));
                     }
                 }
-                blockAST->argumentDefaults.add(context, initialValue);
-                ++argIndex;
+                blockAST->argumentDefaults = blockAST->argumentDefaults.add(context, initialValue);
                 varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
             }
             varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
@@ -64,8 +62,8 @@ std::unique_ptr<ast::BlockAST> ASTBuilder::buildBlock(ThreadContext* context, co
         if (argList->varArgsNameIndex) {
             blockAST->hasVarArg = true;
             name = library::Symbol::fromView(context, lexer->tokens()[argList->varArgsNameIndex.value()].range);
-            blockAST->argumentNames.add(context, name);
-            blockAST->argumentDefaults.add(context, Slot::makeNil());
+            blockAST->argumentNames = blockAST->argumentNames.add(context, name);
+            blockAST->argumentDefaults = blockAST->argumentDefaults.add(context, Slot::makeNil());
         }
     }
 
@@ -331,6 +329,22 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
             ifAST->falseBlock->statements->sequence.emplace_back(std::make_unique<ast::ConstantAST>(Slot::makeNil()));
         }
         return ifAST;
+    }
+
+    case parse::NodeType::kWhile: {
+        const auto whileNode = reinterpret_cast<const parse::WhileNode*>(node);
+        auto whileAST = std::make_unique<ast::WhileAST>();
+        whileAST->condition = buildBlock(context, lexer, whileNode->blocks.get());
+        if (whileNode->blocks->next) {
+            assert(whileNode->blocks->next->nodeType == parse::NodeType::kBlock);
+            const auto repeatBlock = reinterpret_cast<const parse::BlockNode*>(whileNode->blocks->next.get());
+            whileAST->repeatBlock = buildBlock(context, lexer, repeatBlock);
+        } else {
+            whileAST->repeatBlock = std::make_unique<ast::BlockAST>();
+            whileAST->repeatBlock->statements->sequence.emplace_back(std::make_unique<ast::ConstantAST>(
+                    Slot::makeNil()));
+        }
+        return whileAST;
     }
     }
 

@@ -5,6 +5,7 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
+#include "hadron/hir/AssignHIR.hpp"
 #include "hadron/hir/BlockLiteralHIR.hpp"
 #include "hadron/hir/BranchHIR.hpp"
 #include "hadron/hir/BranchIfTrueHIR.hpp"
@@ -101,12 +102,13 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
 }
 
 std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, const library::Method method,
-        Block* predecessor, const ast::BlockAST* blockAST) {
-    auto scope = std::make_unique<Scope>(predecessor->scope);
+        Scope* parentScope, Block* predecessor, const ast::BlockAST* blockAST, bool isSealed) {
+    auto scope = std::make_unique<Scope>(parentScope);
     scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), scope->frame->numberOfBlocks));
     ++scope->frame->numberOfBlocks;
     auto block = scope->blocks.front().get();
     block->predecessors.emplace_back(predecessor);
+    block->isSealed = isSealed;
 
     // Inline blocks can have arguments but they are treated as constants with their default values. We skip the
     // *this* pointer for inline blocks so it doesn't shadow the frame-level this pointer.
@@ -149,6 +151,11 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
         nodeValue = buildIf(context, method, currentBlock, ifAST);
     } break;
 
+    case ast::ASTType::kWhile: {
+        const auto whileAST = reinterpret_cast<const ast::WhileAST*>(ast);
+        nodeValue = buildWhile(context, method, currentBlock, whileAST);
+    } break;
+
     case ast::ASTType::kMessage: {
         const auto message = reinterpret_cast<const ast::MessageAST*>(ast);
 
@@ -158,13 +165,13 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
         // Build arguments.
         messageHIR->arguments.reserve(message->arguments->sequence.size());
         for (const auto& arg : message->arguments->sequence) {
-            messageHIR->arguments.emplace_back(buildValue(context, method, currentBlock, arg.get()));
+            messageHIR->addArgument(buildValue(context, method, currentBlock, arg.get()));
         }
 
         // Build keyword argument pairs.
         messageHIR->keywordArguments.reserve(message->keywordArguments->sequence.size());
         for (const auto& arg : message->keywordArguments->sequence) {
-            messageHIR->keywordArguments.emplace_back(buildValue(context, method, currentBlock, arg.get()));
+            messageHIR->addKeywordArgument(buildValue(context, method, currentBlock, arg.get()));
         }
 
         nodeValue = append(std::move(messageHIR), currentBlock);
@@ -183,18 +190,21 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
         auto nameValue = findName(context, method, assign->name->name, currentBlock);
         assert(nameValue != hir::kInvalidNVID);
 
-        nodeValue = buildValue(context, method, currentBlock, assign->value.get());
+        auto assignValue = buildValue(context, method, currentBlock, assign->value.get());
+        nodeValue = append(std::make_unique<hir::AssignHIR>(assign->name->name,
+                currentBlock->frame->values[assignValue]), currentBlock);
 
         // Update the name of the built value to reflect the assignment.
-        currentBlock->frame->values[nodeValue]->value.name = assign->name->name;
         currentBlock->revisions[assign->name->name] = nodeValue;
     } break;
 
     case ast::ASTType::kDefine: {
         const auto defineAST = reinterpret_cast<const ast::DefineAST*>(ast);
         currentBlock->scope->variableNames.emplace(defineAST->name->name);
-        nodeValue = buildValue(context, method, currentBlock, defineAST->value.get());
-        currentBlock->frame->values[nodeValue]->value.name = defineAST->name->name;
+
+        auto assignValue = buildValue(context, method, currentBlock, defineAST->value.get());
+        nodeValue = append(std::make_unique<hir::AssignHIR>(defineAST->name->name,
+                currentBlock->frame->values[assignValue]), currentBlock);
         currentBlock->revisions[defineAST->name->name] = nodeValue;
     } break;
 
@@ -246,14 +256,14 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, 
     Block* conditionBlock = currentBlock;
 
     // Build the true condition block.
-    auto trueScopeOwning = buildInlineBlock(context, method, conditionBlock, ifAST->trueBlock.get());
+    auto trueScopeOwning = buildInlineBlock(context, method, parentScope, conditionBlock, ifAST->trueBlock.get());
     Scope* trueScope = trueScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(trueScopeOwning));
     trueBranch->blockId = trueScope->blocks.front()->id;
     conditionBlock->successors.emplace_back(trueScope->blocks.front().get());
 
     // Build the false condition block.
-    auto falseScopeOwning = buildInlineBlock(context, method, conditionBlock, ifAST->falseBlock.get());
+    auto falseScopeOwning = buildInlineBlock(context, method, parentScope, conditionBlock, ifAST->falseBlock.get());
     Scope* falseScope = falseScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(falseScopeOwning));
     falseBranch->blockId = falseScope->blocks.front()->id;
@@ -282,14 +292,91 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, 
     // Add a Phi with the final value of both the false and true blocks here, and which serves as the value of the
     // if statement overall.
     auto valuePhi = std::make_unique<hir::PhiHIR>();
+    valuePhi->owningBlock = currentBlock;
     valuePhi->addInput(currentBlock->frame->values[trueScope->blocks.back()->finalValue]);
     valuePhi->addInput(currentBlock->frame->values[falseScope->blocks.back()->finalValue]);
     nodeValue = valuePhi->proposeValue(static_cast<hir::NVID>(currentBlock->frame->values.size()));
     currentBlock->frame->values.emplace_back(valuePhi.get());
-    currentBlock->localValues.emplace(std::make_pair(nodeValue, nodeValue));
     currentBlock->phis.emplace_back(std::move(valuePhi));
 
     return nodeValue;
+}
+
+hir::NVID BlockBuilder::buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
+        const ast::WhileAST* whileAST) {
+    Scope* parentScope = currentBlock->scope;
+
+    // Build condition block. Note this block is unsealed.
+    auto conditionScopeOwning = buildInlineBlock(context, method, parentScope, currentBlock, whileAST->condition.get(),
+            false);
+    Scope* conditionScope = conditionScopeOwning.get();
+    parentScope->subScopes.emplace_back(std::move(conditionScopeOwning));
+
+    // Predecessor block branches to condition block.
+    currentBlock->successors.emplace_back(conditionScope->blocks.front().get());
+    auto predBranch = std::make_unique<hir::BranchHIR>();
+    predBranch->blockId = conditionScope->blocks.front()->id;
+    append(std::move(predBranch), currentBlock);
+    Block* conditionExitBlock = conditionScope->blocks.back().get();
+
+    // Build repeat block.
+    auto repeatScopeOwning = buildInlineBlock(context, method, parentScope, conditionExitBlock,
+            whileAST->repeatBlock.get());
+    Scope* repeatScope = repeatScopeOwning.get();
+    parentScope->subScopes.emplace_back(std::move(repeatScopeOwning));
+    Block* repeatExitBlock = repeatScope->blocks.back().get();
+
+    // Repeat block branches to condition block.
+    repeatExitBlock->successors.emplace_back(conditionScope->blocks.front().get());
+    conditionScope->blocks.front()->predecessors.emplace_back(repeatExitBlock);
+    auto repeatBranch = std::make_unique<hir::BranchHIR>();
+    repeatBranch->blockId = conditionScope->blocks.front()->id;
+    append(std::move(repeatBranch), repeatExitBlock);
+
+    // Condition block conditionally jumps to loop block if true.
+    conditionExitBlock->successors.emplace_back(repeatScope->blocks.front().get());
+    auto trueBranch = std::make_unique<hir::BranchIfTrueHIR>(conditionExitBlock->finalValue);
+    trueBranch->blockId = repeatScope->blocks.front()->id;
+    append(std::move(trueBranch), conditionExitBlock);
+
+    // Seal the condition block now that the condition predecessors are all in place.
+    sealBlock(context, method, conditionScope->blocks.front().get());
+
+    // Build continuation block.
+    auto continueBlock = std::make_unique<Block>(parentScope, parentScope->frame->numberOfBlocks);
+    ++parentScope->frame->numberOfBlocks;
+    currentBlock = continueBlock.get();
+    parentScope->blocks.emplace_back(std::move(continueBlock));
+
+    // Condition block unconditionally jumps to continuation block.
+    conditionExitBlock->successors.emplace_back(currentBlock);
+    currentBlock->predecessors.emplace_back(conditionExitBlock);
+    auto exitBranch = std::make_unique<hir::BranchHIR>();
+    exitBranch->blockId = currentBlock->id;
+    append(std::move(exitBranch), conditionExitBlock);
+
+    // Inlined while loops in LSC always have a value of nil. Since Hadron inlines all while loops, we do the same.
+    return append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()), currentBlock);
+}
+
+void BlockBuilder::sealBlock(ThreadContext* context, const library::Method method, Block* block) {
+    assert(!block->isSealed);
+    block->isSealed = true;
+
+    // Resolve each phi by looking in each predecessor for the name of the phi.
+    for (auto& phi : block->incompletePhis) {
+        SPDLOG_INFO("completing phi for {} in block {}", phi->value.name.view(context), block->id);
+        for (auto pred : block->predecessors) {
+            auto predValue = findName(context, method, phi->value.name, pred);
+
+            assert(predValue != hir::kInvalidNVID);
+            assert(block->frame->values[predValue]);
+
+            phi->addInput(block->frame->values[predValue]);
+        }
+    }
+
+    block->phis.splice(block->phis.end(), block->incompletePhis);
 }
 
 hir::NVID BlockBuilder::append(std::unique_ptr<hir::HIR> hir, Block* block) {
@@ -306,8 +393,16 @@ hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block,
     // We don't bump the value serial for invalid values (meaning read-only operations)
     if (value != hir::kInvalidNVID) {
         block->frame->values.emplace_back(hir.get());
-        block->localValues.emplace(std::make_pair(value, value));
     }
+
+    hir->owningBlock = block;
+
+    // Update the producers of values this hir consumes.
+    for (auto id : hir->reads) {
+        assert(block->frame->values[id]);
+        block->frame->values[id]->consumers.insert(hir.get());
+    }
+
     block->statements.emplace(before, std::move(hir));
     return value;
 }
@@ -329,37 +424,34 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
 
     // Search through local values, including variables, arguments, and already-cached imports, for a name.
     Block* searchBlock = block;
-    std::list<Block*> importBlocks;
+    std::list<Block*> outerBlocks;
  
     while (searchBlock) {
-        std::unordered_map<int32_t, hir::NVID> blockValues;
-        std::unordered_set<const Scope*> containingScopes;
-        const Scope* scope = searchBlock->scope;
-        while (scope) {
-            containingScopes.emplace(scope);
-            scope = scope->parent;
-        }
-
-        hir::NVID nodeValue = findScopedName(context, name, searchBlock, blockValues, containingScopes);
+        hir::NVID nodeValue = findScopedName(context, name, searchBlock);
 
         if (nodeValue != hir::kInvalidNVID) {
             // If we found this value in a external frame we will need to add import statements to each frame between
             // this block and the importing block, starting with the outermost frame that didn't have the value.
-            for (auto importBlock : importBlocks) {
+            for (auto outerBlock : outerBlocks) {
                 auto import = std::make_unique<hir::ImportLocalVariableHIR>(name,
-                        importBlock->frame->outerBlock->frame->values[nodeValue]->value.typeFlags, nodeValue);
+                        outerBlock->frame->outerBlock->frame->values[nodeValue]->value.typeFlags, nodeValue);
 
                 // Insert just after the branch statement at the end of the import block.
-                auto iter = importBlock->frame->rootScope->blocks.front()->statements.end();
+                auto iter = outerBlock->frame->rootScope->blocks.front()->statements.end();
                 --iter;
-                nodeValue = insert(std::move(import), importBlock, iter);
-                importBlock->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
+                nodeValue = insert(std::move(import), outerBlock, iter);
+                outerBlock->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
+
+                // Now plumb that value through to the block containing the inner frame.
+                nodeValue = findScopedName(context, name, outerBlock);
             }
-            SPDLOG_INFO("Found name {} at {}", name.view(context), nodeValue);
+
+            SPDLOG_INFO("Found name {} at {}, imports: {}", name.view(context), nodeValue, outerBlocks.size());
+            assert(block->scope->frame->values[nodeValue]);
             return nodeValue;
         }
 
-        importBlocks.emplace_front(searchBlock);
+        outerBlocks.emplace_front(searchBlock);
 
         // Search in the next outside block, if one exists.
         searchBlock = searchBlock->frame->outerBlock;
@@ -430,24 +522,15 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         }
     }
 
-    // If we found a match we've inserted it into the import block. Use findScopedValue to set up all the trivial phis
+    // If we found a match we've inserted it into the import block. Use findScopedName to set up all the phis
     // and local value mappings between the import block and the current block.
     if (nodeValue != hir::kInvalidNVID) {
         assert(block->frame->rootScope->blocks.front()->revisions.find(name) ==
                block->frame->rootScope->blocks.front()->revisions.end());
         block->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
 
-        std::unordered_map<int32_t, hir::NVID> blockValues;
-        std::unordered_set<const Scope*> containingScopes;
-        const Scope* scope = block->scope;
-        while (scope) {
-            containingScopes.emplace(scope);
-            scope = scope->parent;
-        }
-
-        auto foundValue = findScopedName(context, name, block, blockValues, containingScopes);
+        auto foundValue = findScopedName(context, name, block);
         SPDLOG_INFO("Inserting {}, foundValue: {}, nodeValue: {}", name.view(context), foundValue, nodeValue);
-        assert(foundValue == nodeValue);
         return foundValue;
     }
 
@@ -464,10 +547,9 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisThread), name), block);
     }
 
-    // Special names can all be appended locally to the block.
+    // Special names can all be appended locally to the block, no import required
     if (nodeValue != hir::kInvalidNVID) {
         block->revisions.emplace(std::make_pair(name, nodeValue));
-        block->localValues.emplace(std::make_pair(nodeValue, nodeValue));
     } else {
         SPDLOG_CRITICAL("Failed to find name: {}", name.view(context));
     }
@@ -475,16 +557,42 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
     return nodeValue;
 }
 
-hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol name, Block* block,
-        std::unordered_map<Block::ID, hir::NVID>& blockValues,
-        const std::unordered_set<const Scope*>& containingScopes) {
+hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol name, Block* block) {
+    SPDLOG_INFO("findScopedName invoked for {}", name.view(context));
 
-    SPDLOG_DEBUG("  searching block {} for {}", block->id, name.view(context));
+    std::unordered_map<int32_t, hir::NVID> blockValues;
+
+    std::unordered_set<const Scope*> containingScopes;
+    const Scope* scope = block->scope;
+    while (scope) {
+        containingScopes.emplace(scope);
+        scope = scope->parent;
+    }
+
+    std::unordered_map<hir::HIR*, hir::HIR*> trivialPhis;
+
+    auto value = findScopedNameRecursive(context, name, block, blockValues, containingScopes, trivialPhis);
+    if (value == hir::kInvalidNVID) { return hir::kInvalidNVID; }
+
+    while (trivialPhis.size()) {
+        replaceValues(trivialPhis);
+        trivialPhis.clear();
+        blockValues.clear();
+        value = findScopedNameRecursive(context, name, block, blockValues, containingScopes, trivialPhis);
+        assert(value != hir::kInvalidNVID);
+    }
+
+    return value;
+}
+
+hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
+        std::unordered_map<Block::ID, hir::NVID>& blockValues,
+        const std::unordered_set<const Scope*>& containingScopes,
+        std::unordered_map<hir::HIR*, hir::HIR*>& trivialPhis) {
 
     // To avoid any infinite cycles in block loops, return any value found on a previous call on this block.
     auto cacheIter = blockValues.find(block->id);
     if (cacheIter != blockValues.end()) {
-        SPDLOG_DEBUG("    block {} cache hit, returning {}", block->id, cacheIter->second);
         return cacheIter->second;
     }
 
@@ -496,34 +604,53 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
     auto iter = block->revisions.find(name);
     if (iter != block->revisions.end()) {
         if (!isShadowed) {
-            SPDLOG_DEBUG("    block {} found in revisions, returning {}", block->id, iter->second);
+            SPDLOG_INFO("revisions block {} cache hit for {}, {}", block->id, name.view(context), iter->second);
             return iter->second;
         }
     }
 
-    // Don't bother with phi creation if we have no predecessors.
+    // Unsealed blocks always create phis, because we can't search the complete list of predecessors.
+    if (!block->isSealed) {
+        auto phi = std::make_unique<hir::PhiHIR>(name);
+        auto phiValue = phi->proposeValue(static_cast<hir::NVID>(block->frame->values.size()));
+        phi->owningBlock = block;
+        block->frame->values.emplace_back(phi.get());
+        blockValues.emplace(std::make_pair(block->id, phiValue));
+        block->revisions[name] = phiValue;
+        block->incompletePhis.emplace_back(std::move(phi));
+        return phiValue;
+    }
+
+    // Don't bother with phi creation if we have no or only one predecessor.
     if (block->predecessors.size() == 0) {
         blockValues.emplace(std::make_pair(block->id, hir::kInvalidNVID));
-        SPDLOG_DEBUG("    at entry block {}, returning -1 for {}", block->id, name.view(context));
         return hir::kInvalidNVID;
+    } else if (block->predecessors.size() == 1) {
+        auto foundValue = findScopedNameRecursive(context, name, block->predecessors.front(), blockValues,
+                containingScopes, trivialPhis);
+        blockValues.emplace(std::make_pair(block->id, foundValue));
+        return foundValue;
     }
 
     // Either no local revision found or the local revision is ignored, we need to search recursively upward. Create
     // a phi for possible insertion into the local map (if not shadowed).
-    auto phi = std::make_unique<hir::PhiHIR>();
+    auto phi = std::make_unique<hir::PhiHIR>(name);
     auto phiValue = phi->proposeValue(static_cast<hir::NVID>(block->frame->values.size()));
+    phi->owningBlock = block;
     block->frame->values.emplace_back(phi.get());
     blockValues.emplace(std::make_pair(block->id, phiValue));
 
     // Search predecessors for the name.
     for (auto pred : block->predecessors) {
-        auto foundValue = findScopedName(context, name, pred, blockValues, containingScopes);
+        auto foundValue = findScopedNameRecursive(context, name, pred, blockValues, containingScopes, trivialPhis);
 
         // This is a depth-first search, so the above recursive call will return after searching up until either the
         // name is found or the import block (with no predecessors) is found empty. So an invalidNVID return here means
         // we have not found the name in any scope along the path from here to root, and need to clean up the phi and
         // return kInvalidNVID.
         if (foundValue == hir::kInvalidNVID) {
+            assert(phi->reads.size() == 0);
+            assert(trivialPhis.size() == 0);
             block->frame->values[phiValue] = nullptr;
             blockValues[block->id] = hir::kInvalidNVID;
             return hir::kInvalidNVID;
@@ -533,42 +660,116 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
         assert(block->frame->values[foundValue]);
         phi->addInput(block->frame->values[foundValue]);
     }
-
     assert(phi->inputs.size());
 
-    // Phi has inputs but it is trivial?
-    auto trivialValue = phi->getTrivialValue();
+    auto phiRef = phi.get();
+    block->phis.emplace_back(std::move(phi));
 
-    // Shadowed variables should always result in trivial phis, due to the fact that Scopes must always have exactly
-    // one entry Block with at most one predecessor. The local Scope is shadowing the name we're looking for, and
-    // so won't modify the unshadowed value, meaning the value of the name at entry to the Scope should be the same
-    // throughout every Block in the scope.
-    if (isShadowed) {
-        assert(trivialValue != hir::kInvalidNVID);
-        // Overwrite block value with the trivial value.
-        blockValues.emplace(std::make_pair(block->id, trivialValue));
-        return trivialValue;
+    auto trivialValue = phiRef->getTrivialValue();
+    if (trivialValue == hir::kInvalidNVID) {
+        block->revisions[name] = phiValue;
+        return phiValue;
     }
 
-    hir::NVID finalValue;
-    if (trivialValue != hir::kInvalidNVID) {
-        finalValue = trivialValue;
-        // Mark value as invalid in frame.
-        block->frame->values[phiValue] = nullptr;
-        // Clobber the phi value in the cache.
-        blockValues[block->id] = finalValue;
-        SPDLOG_DEBUG("    block {} has trivial phi, returning {} for {}", block->id, finalValue, name.view(context));
-    } else {
-        finalValue = phiValue;
-        block->phis.emplace_back(std::move(phi));
-        SPDLOG_DEBUG("    block {} has NONtrivial phi, returning {} for {}", block->id, finalValue, name.view(context));
+    SPDLOG_INFO("phi {} trivial, using {}", phiValue, trivialValue);
+
+    // This phi may be trivial, but because the graph has possible cycles with loops it may already be in other phis or
+    // even statements in successors (who are also predecessors). Remove if so, and all other phis made trivial by this
+    // substitution.
+    blockValues[block->id] = trivialValue;
+    block->revisions[name] = trivialValue;
+
+    assert(block->frame->values[trivialValue]);
+    trivialPhis.emplace(std::make_pair(phiRef, block->frame->values[trivialValue]));
+
+    return trivialValue;
+}
+
+void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& replacements) {
+    std::unordered_set<hir::HIR*> toRemove;
+
+    while (replacements.size()) {
+        auto iter = replacements.begin();
+        auto orig = iter->first;
+        assert(orig->value.id != hir::kInvalidNVID);
+
+        auto repl = iter->second;
+        assert(repl->value.id != hir::kInvalidNVID);
+
+        SPDLOG_INFO("replacing {} with {}, {} consumers", orig->value.id, repl->value.id, orig->consumers.size());
+
+        replacements.erase(iter);
+
+        // Update all consumers of this value with the replacement value.
+        for (auto consumer : orig->consumers) {
+            SPDLOG_INFO(" {} a consumer of {}", consumer->value.id, orig->value.id);
+
+            if (consumer == orig) { continue; }
+
+            consumer->replaceInput(orig->value.id, repl->value.id);
+
+            // Alter any block-local name revisions that may be caching this value.
+            if (!orig->value.name.isNil()) {
+                auto revisionIter = consumer->owningBlock->revisions.find(orig->value.name);
+                if (revisionIter != consumer->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
+                    SPDLOG_INFO("  updating consumer revision to {} in block {}", repl->value.id,
+                            consumer->owningBlock->id);
+                    revisionIter->second = repl->value.id;
+                }
+            }
+
+            // Phis may themselves be rendered trivial by this replacement, if they are we append them to the list
+            // of replacements.
+            if (consumer->opcode == hir::Opcode::kPhi && toRemove.count(consumer) == 0) {
+                auto phi = reinterpret_cast<hir::PhiHIR*>(consumer);
+                auto trivialValue = phi->getTrivialValue();
+                if (trivialValue != hir::kInvalidNVID) {
+                    SPDLOG_INFO("  also scheduling replacement for {} with {}", consumer->value.id, trivialValue);
+                    replacements[consumer] = consumer->owningBlock->frame->values[trivialValue];
+                }
+            }
+        }
+
+        if (!orig->value.name.isNil()) {
+            auto revisionIter = orig->owningBlock->revisions.find(orig->value.name);
+            if (revisionIter != orig->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
+                SPDLOG_INFO("updating orig revision in block {} to {}", orig->owningBlock->id, repl->value.id);
+                revisionIter->second = repl->value.id;
+            }
+
+            revisionIter = repl->owningBlock->revisions.find(orig->value.name);
+            if (revisionIter != repl->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
+                SPDLOG_INFO("updating repl revision");
+                revisionIter->second = repl->value.id;
+            }
+        }
+
+        toRemove.emplace(orig);
     }
 
-    // Update block revisions and localValues with the final values.
-    block->revisions.emplace(std::make_pair(name, finalValue));
-    block->localValues.emplace(std::make_pair(finalValue, finalValue));
+    for (auto orig : toRemove) {
+        // Now delete the original from its block.
+        orig->owningBlock->frame->values[orig->value.id] = nullptr;
 
-    return finalValue;
+        if (orig->opcode == hir::Opcode::kPhi) {
+            for (auto iter = orig->owningBlock->phis.begin(); iter != orig->owningBlock->phis.end(); ++iter) {
+                if (orig->value.id == (*iter)->value.id) {
+                    SPDLOG_INFO("deleting phi {}", orig->value.id);
+                    orig->owningBlock->phis.erase(iter);
+                    break;
+                }
+            }
+        } else {
+            for (auto iter = orig->owningBlock->statements.begin(); iter != orig->owningBlock->statements.end();
+                    ++iter) {
+                if (orig->value.id == (*iter)->value.id) {
+                    SPDLOG_INFO("deleting statement {}", orig->value.id);
+                    orig->owningBlock->statements.erase(iter);
+                    break;
+                }
+            }
+        }
+    }
 }
 
 } // namespace hadron
