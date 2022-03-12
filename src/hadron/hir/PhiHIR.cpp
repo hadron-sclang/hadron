@@ -7,9 +7,9 @@ namespace hir {
 
 PhiHIR::PhiHIR(): HIR(kPhi) {}
 
-PhiHIR::PhiHIR(library::Symbol name): HIR(kPhi, TypeFlags::kNoFlags, name) {}
+PhiHIR::PhiHIR(library::Symbol name): HIR(kPhi, TypeFlags::kNoFlags, name), isSelfReferential(false) {}
 
-void PhiHIR::addInput(const HIR* input) {
+void PhiHIR::addInput(HIR* input) {
     assert(input->value.id != hir::kInvalidNVID);
 
     inputs.emplace_back(input->value.id);
@@ -18,6 +18,8 @@ void PhiHIR::addInput(const HIR* input) {
         reads.emplace(input->value.id);
         value.typeFlags = static_cast<TypeFlags>(static_cast<int32_t>(value.typeFlags) |
                                                  static_cast<int32_t>(input->value.typeFlags));
+
+        input->consumers.insert(static_cast<HIR*>(this));
 
         // Our knownClassName should accept the value of the first input added to the phi, and only keep that value if
         // it matches every other input.
@@ -30,6 +32,8 @@ void PhiHIR::addInput(const HIR* input) {
         } else {
             value.knownClassName = library::Symbol();
         }
+    } else {
+        isSelfReferential = true;
     }
 }
 
@@ -51,13 +55,24 @@ NVID PhiHIR::proposeValue(NVID id) {
 }
 
 bool PhiHIR::replaceInput(NVID original, NVID replacement) {
-    assert(replacement != value.id);
+    assert(original != replacement);
 
-    if (original != value.id) {
-        if (replaceReads(original, replacement)) { return false; }
+    bool inputsNeedSwap = false;
+    if (replacement == value.id) {
+        inputsNeedSwap = reads.erase(original);
+        isSelfReferential = true;
+    } else if (original == value.id) {
+        if (isSelfReferential) {
+            reads.emplace(replacement);
+        }
+
+        inputsNeedSwap = isSelfReferential;
+        isSelfReferential = false;
     } else {
-        reads.emplace(replacement);
+        inputsNeedSwap = replaceReads(original, replacement);
     }
+
+    if (!inputsNeedSwap) { return false; }
 
     for (size_t i = 0; i < inputs.size(); ++i) {
         if (inputs[i] == original) {

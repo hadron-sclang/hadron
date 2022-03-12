@@ -77,13 +77,12 @@ private:
     hir::NVID findScopedName(ThreadContext* context, library::Symbol name, Block* block);
     hir::NVID findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
                                       std::unordered_map<Block::ID, hir::NVID>& blockValues,
-                                      const std::unordered_set<const Scope*>& containingScopes);
+                                      const std::unordered_set<const Scope*>& containingScopes,
+                                      std::unordered_map<hir::HIR*, hir::HIR*>& trivialPhis);
 
-    // Replaces all uses of |original| with |replacement|. Starts at |originalBlock|, which must be where |original|
-    // was defined. Can result in other replacements,
-    void replaceValue(hir::NVID original, hir::NVID replacement, Block* originalBlock);
-    void replaceValueRecursive(std::unordered_map<hir::NVID, hir::NVID>& replacements,
-                std::unordered_set<Block::ID>& visitedBlocks, Block* block);
+    // Replaces pairs (key, value). May cause other replacements, which are handled sequentially. Destructively modifies
+    // the |replacements| map.
+    void replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& replacements);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };

@@ -19,7 +19,9 @@ struct PhiHIR : public HIR {
     virtual ~PhiHIR() = default;
 
     std::vector<NVID> inputs;
-    void addInput(const HIR* input);
+    bool isSelfReferential;
+
+    void addInput(HIR* input);
     // A phi is *trivial* if it has only one distinct input value that is not self-referential. If this phi is trivial,
     // return the trivial value. Otherwise return an invalid value.
     NVID getTrivialValue() const;

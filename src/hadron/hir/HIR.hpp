@@ -59,7 +59,12 @@ struct HIR {
     Opcode opcode;
     NamedValue value;
 
+    // The set of NVIDs that this HIR uses as inputs.
     std::unordered_set<NVID> reads;
+
+    // The set of HIR that consume the output of this HIR.
+    std::unordered_set<HIR*> consumers;
+    Block* owningBlock;
 
     // Recommended way to set the id in |value| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
@@ -81,9 +86,9 @@ struct HIR {
     }
 
 protected:
-    explicit HIR(Opcode op): opcode(op) {}
+    explicit HIR(Opcode op): opcode(op), owningBlock(nullptr) {}
     HIR(Opcode op, TypeFlags typeFlags, library::Symbol valueName): opcode(op),
-            value(kInvalidNVID, typeFlags, valueName) {}
+            value(kInvalidNVID, typeFlags, valueName), owningBlock(nullptr) {}
 
     // Used by derived classes in replaceInput() calls. Updates the |reads| set. Returns true if a swap occured.
     inline bool replaceReads(NVID original, NVID replacement) {

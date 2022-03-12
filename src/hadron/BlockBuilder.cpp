@@ -292,6 +292,7 @@ hir::NVID BlockBuilder::buildIf(ThreadContext* context, library::Method method, 
     // Add a Phi with the final value of both the false and true blocks here, and which serves as the value of the
     // if statement overall.
     auto valuePhi = std::make_unique<hir::PhiHIR>();
+    valuePhi->owningBlock = currentBlock;
     valuePhi->addInput(currentBlock->frame->values[trueScope->blocks.back()->finalValue]);
     valuePhi->addInput(currentBlock->frame->values[falseScope->blocks.back()->finalValue]);
     nodeValue = valuePhi->proposeValue(static_cast<hir::NVID>(currentBlock->frame->values.size()));
@@ -393,6 +394,15 @@ hir::NVID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block,
     if (value != hir::kInvalidNVID) {
         block->frame->values.emplace_back(hir.get());
     }
+
+    hir->owningBlock = block;
+
+    // Update the producers of values this hir consumes.
+    for (auto id : hir->reads) {
+        assert(block->frame->values[id]);
+        block->frame->values[id]->consumers.insert(hir.get());
+    }
+
     block->statements.emplace(before, std::move(hir));
     return value;
 }
@@ -548,7 +558,10 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
 }
 
 hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol name, Block* block) {
+    SPDLOG_INFO("findScopedName invoked for {}", name.view(context));
+
     std::unordered_map<int32_t, hir::NVID> blockValues;
+
     std::unordered_set<const Scope*> containingScopes;
     const Scope* scope = block->scope;
     while (scope) {
@@ -556,12 +569,26 @@ hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol n
         scope = scope->parent;
     }
 
-    return findScopedNameRecursive(context, name, block, blockValues, containingScopes);
+    std::unordered_map<hir::HIR*, hir::HIR*> trivialPhis;
+
+    auto value = findScopedNameRecursive(context, name, block, blockValues, containingScopes, trivialPhis);
+    if (value == hir::kInvalidNVID) { return hir::kInvalidNVID; }
+
+    while (trivialPhis.size()) {
+        replaceValues(trivialPhis);
+        trivialPhis.clear();
+        blockValues.clear();
+        value = findScopedNameRecursive(context, name, block, blockValues, containingScopes, trivialPhis);
+        assert(value != hir::kInvalidNVID);
+    }
+
+    return value;
 }
 
 hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
         std::unordered_map<Block::ID, hir::NVID>& blockValues,
-        const std::unordered_set<const Scope*>& containingScopes) {
+        const std::unordered_set<const Scope*>& containingScopes,
+        std::unordered_map<hir::HIR*, hir::HIR*>& trivialPhis) {
 
     // To avoid any infinite cycles in block loops, return any value found on a previous call on this block.
     auto cacheIter = blockValues.find(block->id);
@@ -577,6 +604,7 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
     auto iter = block->revisions.find(name);
     if (iter != block->revisions.end()) {
         if (!isShadowed) {
+            SPDLOG_INFO("revisions block {} cache hit for {}, {}", block->id, name.view(context), iter->second);
             return iter->second;
         }
     }
@@ -585,6 +613,7 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
     if (!block->isSealed) {
         auto phi = std::make_unique<hir::PhiHIR>(name);
         auto phiValue = phi->proposeValue(static_cast<hir::NVID>(block->frame->values.size()));
+        phi->owningBlock = block;
         block->frame->values.emplace_back(phi.get());
         blockValues.emplace(std::make_pair(block->id, phiValue));
         block->revisions[name] = phiValue;
@@ -598,7 +627,7 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
         return hir::kInvalidNVID;
     } else if (block->predecessors.size() == 1) {
         auto foundValue = findScopedNameRecursive(context, name, block->predecessors.front(), blockValues,
-                containingScopes);
+                containingScopes, trivialPhis);
         blockValues.emplace(std::make_pair(block->id, foundValue));
         return foundValue;
     }
@@ -607,19 +636,21 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
     // a phi for possible insertion into the local map (if not shadowed).
     auto phi = std::make_unique<hir::PhiHIR>(name);
     auto phiValue = phi->proposeValue(static_cast<hir::NVID>(block->frame->values.size()));
+    phi->owningBlock = block;
     block->frame->values.emplace_back(phi.get());
     blockValues.emplace(std::make_pair(block->id, phiValue));
-    block->revisions[name] = phiValue;
 
     // Search predecessors for the name.
     for (auto pred : block->predecessors) {
-        auto foundValue = findScopedNameRecursive(context, name, pred, blockValues, containingScopes);
+        auto foundValue = findScopedNameRecursive(context, name, pred, blockValues, containingScopes, trivialPhis);
 
         // This is a depth-first search, so the above recursive call will return after searching up until either the
         // name is found or the import block (with no predecessors) is found empty. So an invalidNVID return here means
         // we have not found the name in any scope along the path from here to root, and need to clean up the phi and
         // return kInvalidNVID.
         if (foundValue == hir::kInvalidNVID) {
+            assert(phi->reads.size() == 0);
+            assert(trivialPhis.size() == 0);
             block->frame->values[phiValue] = nullptr;
             blockValues[block->id] = hir::kInvalidNVID;
             return hir::kInvalidNVID;
@@ -631,78 +662,112 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
     }
     assert(phi->inputs.size());
 
-    auto trivialValue = phi->getTrivialValue();
+    auto phiRef = phi.get();
+    block->phis.emplace_back(std::move(phi));
+
+    auto trivialValue = phiRef->getTrivialValue();
     if (trivialValue == hir::kInvalidNVID) {
-        block->phis.emplace_back(std::move(phi));
+        block->revisions[name] = phiValue;
         return phiValue;
     }
 
+    SPDLOG_INFO("phi {} trivial, using {}", phiValue, trivialValue);
+
     // This phi may be trivial, but because the graph has possible cycles with loops it may already be in other phis or
-    // even statements in successors (who are also predecessors). We can remove trivial phis via recursive search of all
-    // successors.
-    block->frame->values[phiValue] = nullptr;
-    replaceValue(phiValue, trivialValue, block);
+    // even statements in successors (who are also predecessors). Remove if so, and all other phis made trivial by this
+    // substitution.
+    blockValues[block->id] = trivialValue;
+    block->revisions[name] = trivialValue;
+
+    assert(block->frame->values[trivialValue]);
+    trivialPhis.emplace(std::make_pair(phiRef, block->frame->values[trivialValue]));
 
     return trivialValue;
 }
 
-void BlockBuilder::replaceValue(hir::NVID original, hir::NVID replacement, Block* originalBlock) {
-    std::unordered_map<hir::NVID, hir::NVID> replacements;
-    replacements.emplace(std::make_pair(original, replacement));
-    std::unordered_set<Block::ID> visitedBlocks;
-    replaceValueRecursive(replacements, visitedBlocks, originalBlock);
-}
+void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& replacements) {
+    std::unordered_set<hir::HIR*> toRemove;
 
-void BlockBuilder::replaceValueRecursive(std::unordered_map<hir::NVID, hir::NVID>& replacements,
-        std::unordered_set<Block::ID>& visitedBlocks, Block* block) {
-    visitedBlocks.emplace(block->id);
+    while (replacements.size()) {
+        auto iter = replacements.begin();
+        auto orig = iter->first;
+        assert(orig->value.id != hir::kInvalidNVID);
 
-    // Replace input in any phis.
-    auto iter = block->phis.begin();
-    while (iter != block->phis.end()) {
-        for (const auto& pair : replacements) {
-            (*iter)->replaceInput(pair.first, pair.second);
-        }
+        auto repl = iter->second;
+        assert(repl->value.id != hir::kInvalidNVID);
 
-        // TODO: could reflow/update type here but we're not using it for anything right now so do it later.
+        SPDLOG_INFO("replacing {} with {}, {} consumers", orig->value.id, repl->value.id, orig->consumers.size());
 
-        // This phi could also be made trivial by the substitutions.
-        auto trivialValue = (*iter)->getTrivialValue();
-        if (trivialValue != hir::kInvalidNVID) {
-            // Update replacements map after traversing any replacement chains to the root.
-            auto replacementIter = replacements.find(trivialValue);
-            while (replacementIter != replacements.end()) {
-                trivialValue = replacementIter->second;
-                replacementIter = replacements.find(trivialValue);
+        replacements.erase(iter);
+
+        // Update all consumers of this value with the replacement value.
+        for (auto consumer : orig->consumers) {
+            SPDLOG_INFO(" {} a consumer of {}", consumer->value.id, orig->value.id);
+
+            if (consumer == orig) { continue; }
+
+            consumer->replaceInput(orig->value.id, repl->value.id);
+
+            // Alter any block-local name revisions that may be caching this value.
+            if (!orig->value.name.isNil()) {
+                auto revisionIter = consumer->owningBlock->revisions.find(orig->value.name);
+                if (revisionIter != consumer->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
+                    SPDLOG_INFO("  updating consumer revision to {} in block {}", repl->value.id,
+                            consumer->owningBlock->id);
+                    revisionIter->second = repl->value.id;
+                }
             }
-            replacements.emplace(std::make_pair((*iter)->value.id, trivialValue));
-            block->frame->values[(*iter)->value.id] = nullptr;
-            iter = block->phis.erase(iter);
+
+            // Phis may themselves be rendered trivial by this replacement, if they are we append them to the list
+            // of replacements.
+            if (consumer->opcode == hir::Opcode::kPhi && toRemove.count(consumer) == 0) {
+                auto phi = reinterpret_cast<hir::PhiHIR*>(consumer);
+                auto trivialValue = phi->getTrivialValue();
+                if (trivialValue != hir::kInvalidNVID) {
+                    SPDLOG_INFO("  also scheduling replacement for {} with {}", consumer->value.id, trivialValue);
+                    replacements[consumer] = consumer->owningBlock->frame->values[trivialValue];
+                }
+            }
+        }
+
+        if (!orig->value.name.isNil()) {
+            auto revisionIter = orig->owningBlock->revisions.find(orig->value.name);
+            if (revisionIter != orig->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
+                SPDLOG_INFO("updating orig revision in block {} to {}", orig->owningBlock->id, repl->value.id);
+                revisionIter->second = repl->value.id;
+            }
+
+            revisionIter = repl->owningBlock->revisions.find(orig->value.name);
+            if (revisionIter != repl->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
+                SPDLOG_INFO("updating repl revision");
+                revisionIter->second = repl->value.id;
+            }
+        }
+
+        toRemove.emplace(orig);
+    }
+
+    for (auto orig : toRemove) {
+        // Now delete the original from its block.
+        orig->owningBlock->frame->values[orig->value.id] = nullptr;
+
+        if (orig->opcode == hir::Opcode::kPhi) {
+            for (auto iter = orig->owningBlock->phis.begin(); iter != orig->owningBlock->phis.end(); ++iter) {
+                if (orig->value.id == (*iter)->value.id) {
+                    SPDLOG_INFO("deleting phi {}", orig->value.id);
+                    orig->owningBlock->phis.erase(iter);
+                    break;
+                }
+            }
         } else {
-            ++iter;
-        }
-    }
-
-    // Replace inputs in any statements.
-    for (auto& hir : block->statements) {
-        for (const auto& pair : replacements) {
-            hir->replaceInput(pair.first, pair.second);
-        }
-        // TODO: reflow type? pinhole optimizations? generalize phi->getTrivialValue() to hir->pinholeOptimize()?
-    }
-
-    // Replace any revisions.
-    for (auto& rev : block->revisions) {
-        auto replaceIter = replacements.find(rev.second);
-        if (replaceIter != replacements.end()) {
-            rev.second = replaceIter->second;
-        }
-    }
-
-    // Visit any unvisited successor blocks.
-    for (auto succ : block->successors) {
-        if (visitedBlocks.count(succ->id) == 0) {
-            replaceValueRecursive(replacements, visitedBlocks, succ);
+            for (auto iter = orig->owningBlock->statements.begin(); iter != orig->owningBlock->statements.end();
+                    ++iter) {
+                if (orig->value.id == (*iter)->value.id) {
+                    SPDLOG_INFO("deleting statement {}", orig->value.id);
+                    orig->owningBlock->statements.erase(iter);
+                    break;
+                }
+            }
         }
     }
 }
