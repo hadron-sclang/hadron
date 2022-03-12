@@ -365,7 +365,6 @@ void BlockBuilder::sealBlock(ThreadContext* context, const library::Method metho
 
     // Resolve each phi by looking in each predecessor for the name of the phi.
     for (auto& phi : block->incompletePhis) {
-        SPDLOG_INFO("completing phi for {} in block {}", phi->value.name.view(context), block->id);
         for (auto pred : block->predecessors) {
             auto predValue = findName(context, method, phi->value.name, pred);
 
@@ -412,7 +411,6 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
 
     // If this symbol defines a class name look it up in the class library and provide it as a constant.
     if (name.isClassName(context)) {
-        SPDLOG_INFO("looking for class named: {}", name.view(context));
         auto classDef = context->classLibrary->findClassNamed(name);
         assert(!classDef.isNil());
         auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot(), name);
@@ -446,7 +444,6 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
                 nodeValue = findScopedName(context, name, outerBlock);
             }
 
-            SPDLOG_INFO("Found name {} at {}, imports: {}", name.view(context), nodeValue, outerBlocks.size());
             assert(block->scope->frame->values[nodeValue]);
             return nodeValue;
         }
@@ -492,8 +489,6 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
 
         while (!classVarDef.isNil()) {
             auto classVarOffset = classVarDef.classVarNames().indexOf(name);
-            SPDLOG_DEBUG("Searching for class variable {} within {}", name.view(context),
-                    classVarDef.name(context).view(context));
             if (classVarOffset.isInt32()) {
                 nodeValue = insert(std::make_unique<hir::ImportClassVariableHIR>(name, classVarDef,
                         classVarOffset.getInt32()), block->frame->rootScope->blocks.front().get(), importIter);
@@ -530,7 +525,6 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
         block->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
 
         auto foundValue = findScopedName(context, name, block);
-        SPDLOG_INFO("Inserting {}, foundValue: {}, nodeValue: {}", name.view(context), foundValue, nodeValue);
         return foundValue;
     }
 
@@ -558,8 +552,6 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
 }
 
 hir::NVID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol name, Block* block) {
-    SPDLOG_INFO("findScopedName invoked for {}", name.view(context));
-
     std::unordered_map<int32_t, hir::NVID> blockValues;
 
     std::unordered_set<const Scope*> containingScopes;
@@ -604,7 +596,6 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
     auto iter = block->revisions.find(name);
     if (iter != block->revisions.end()) {
         if (!isShadowed) {
-            SPDLOG_INFO("revisions block {} cache hit for {}, {}", block->id, name.view(context), iter->second);
             return iter->second;
         }
     }
@@ -671,8 +662,6 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
         return phiValue;
     }
 
-    SPDLOG_INFO("phi {} trivial, using {}", phiValue, trivialValue);
-
     // This phi may be trivial, but because the graph has possible cycles with loops it may already be in other phis or
     // even statements in successors (who are also predecessors). Remove if so, and all other phis made trivial by this
     // substitution.
@@ -696,14 +685,10 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
         auto repl = iter->second;
         assert(repl->value.id != hir::kInvalidNVID);
 
-        SPDLOG_INFO("replacing {} with {}, {} consumers", orig->value.id, repl->value.id, orig->consumers.size());
-
         replacements.erase(iter);
 
         // Update all consumers of this value with the replacement value.
         for (auto consumer : orig->consumers) {
-            SPDLOG_INFO(" {} a consumer of {}", consumer->value.id, orig->value.id);
-
             if (consumer == orig) { continue; }
 
             consumer->replaceInput(orig->value.id, repl->value.id);
@@ -712,8 +697,6 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
             if (!orig->value.name.isNil()) {
                 auto revisionIter = consumer->owningBlock->revisions.find(orig->value.name);
                 if (revisionIter != consumer->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
-                    SPDLOG_INFO("  updating consumer revision to {} in block {}", repl->value.id,
-                            consumer->owningBlock->id);
                     revisionIter->second = repl->value.id;
                 }
             }
@@ -724,7 +707,6 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
                 auto phi = reinterpret_cast<hir::PhiHIR*>(consumer);
                 auto trivialValue = phi->getTrivialValue();
                 if (trivialValue != hir::kInvalidNVID) {
-                    SPDLOG_INFO("  also scheduling replacement for {} with {}", consumer->value.id, trivialValue);
                     replacements[consumer] = consumer->owningBlock->frame->values[trivialValue];
                 }
             }
@@ -733,13 +715,11 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
         if (!orig->value.name.isNil()) {
             auto revisionIter = orig->owningBlock->revisions.find(orig->value.name);
             if (revisionIter != orig->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
-                SPDLOG_INFO("updating orig revision in block {} to {}", orig->owningBlock->id, repl->value.id);
                 revisionIter->second = repl->value.id;
             }
 
             revisionIter = repl->owningBlock->revisions.find(orig->value.name);
             if (revisionIter != repl->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
-                SPDLOG_INFO("updating repl revision");
                 revisionIter->second = repl->value.id;
             }
         }
@@ -754,7 +734,6 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
         if (orig->opcode == hir::Opcode::kPhi) {
             for (auto iter = orig->owningBlock->phis.begin(); iter != orig->owningBlock->phis.end(); ++iter) {
                 if (orig->value.id == (*iter)->value.id) {
-                    SPDLOG_INFO("deleting phi {}", orig->value.id);
                     orig->owningBlock->phis.erase(iter);
                     break;
                 }
@@ -763,7 +742,6 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
             for (auto iter = orig->owningBlock->statements.begin(); iter != orig->owningBlock->statements.end();
                     ++iter) {
                 if (orig->value.id == (*iter)->value.id) {
-                    SPDLOG_INFO("deleting statement {}", orig->value.id);
                     orig->owningBlock->statements.erase(iter);
                     break;
                 }
