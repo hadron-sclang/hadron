@@ -21,7 +21,7 @@ public:
     BlockSerializer() = default;
     ~BlockSerializer() = default;
 
-    // Destructively modify baseFrame to produce a single LinearFrame with blocks serialized in the required order.
+    // Produce a single LinearFrame with blocks serialized in the required order.
     std::unique_ptr<LinearFrame> serialize(const Frame* frame);
 
 private:
