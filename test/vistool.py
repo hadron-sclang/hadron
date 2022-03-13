@@ -97,7 +97,9 @@ def vRegToString(lir):
     return '({}) VR{}'.format(flags, lir['value'])
 
 def lirToString(lir):
-    if lir['opcode'] == 'Branch':
+    if lir['opcode'] == 'Assign':
+        return 'VR{} &#8592; VR{}'.format(lir['origin'])
+    elif lir['opcode'] == 'Branch':
         return 'Branch to Label {}'.format(lir['labelId'])
     elif lir['opcode'] == 'BranchIfTrue':
         return 'BranchIfTrue {} to Label {}'.format(lir['condition'], lir['labelId'])

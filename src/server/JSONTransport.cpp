@@ -4,6 +4,7 @@
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/Frame.hpp"
+
 #include "hadron/hir/AssignHIR.hpp"
 #include "hadron/hir/ImportClassVariableHIR.hpp"
 #include "hadron/hir/ImportInstanceVariableHIR.hpp"
@@ -17,10 +18,13 @@
 #include "hadron/hir/MessageHIR.hpp"
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/hir/StoreReturnHIR.hpp"
+
 #include "hadron/internal/BuildInfo.hpp"
 #include "hadron/library/Symbol.hpp"
 #include "hadron/LifetimeInterval.hpp"
 #include "hadron/LinearFrame.hpp"
+
+#include "hadron/lir/AssignLIR.hpp"
 #include "hadron/lir/BranchIfTrueLIR.hpp"
 #include "hadron/lir/BranchLIR.hpp"
 #include "hadron/lir/BranchToRegisterLIR.hpp"
@@ -33,6 +37,7 @@
 #include "hadron/lir/PhiLIR.hpp"
 #include "hadron/lir/StoreToPointerLIR.hpp"
 #include "hadron/lir/StoreToStackLIR.hpp"
+
 #include "hadron/OpcodeIterator.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Scope.hpp"
@@ -1742,6 +1747,12 @@ void JSONTransport::JSONTransportImpl::serializeLIR(hadron::ThreadContext* conte
     jsonLIR.AddMember("locations", valueLocations, document.GetAllocator());
 
     switch(lir->opcode) {
+    case hadron::lir::Opcode::kAssign: {
+        const auto assign = reinterpret_cast<const hadron::lir::AssignLIR*>(lir);
+        jsonLIR.AddMember("opcode", "Assign", document.GetAllocator());
+        jsonLIR.AddMember("origin", rapidjson::Value(assign->origin), document.GetAllocator());
+    } break;
+
     case hadron::lir::Opcode::kBranch: {
         const auto branch = reinterpret_cast<const hadron::lir::BranchLIR*>(lir);
         jsonLIR.AddMember("opcode", "Branch", document.GetAllocator());

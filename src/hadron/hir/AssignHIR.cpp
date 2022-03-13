@@ -1,5 +1,7 @@
 #include "hadron/hir/AssignHIR.hpp"
 
+#include "hadron/lir/AssignLIR.hpp"
+
 namespace hadron {
 namespace hir {
 
@@ -21,9 +23,10 @@ bool AssignHIR::replaceInput(NVID original, NVID replacement) {
     return false;
 }
 
-void AssignHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
-        LIRList& /* append */) const {
-    assert(false); // WRITEME
+void AssignHIR::lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const {
+    append.emplace_back(std::make_unique<lir::AssignLIR>(vReg(), values[assignValue]->vReg(),
+            values[assignValue]->value.typeFlags));
+    vRegs[vReg()] = --(append.end());
 }
 
 } // namespace hir
