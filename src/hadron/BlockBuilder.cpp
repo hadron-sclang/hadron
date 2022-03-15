@@ -31,6 +31,7 @@
 #include "spdlog/spdlog.h"
 
 #include <cassert>
+#include <stack>
 #include <string>
 
 namespace hadron {
@@ -46,10 +47,10 @@ std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const l
 }
 
 std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const library::Method method,
-    const ast::BlockAST* blockAST, Block* outerBlock) {
+    const ast::BlockAST* blockAST, hir::BlockLiteralHIR* outerBlockHIR) {
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>();
-    frame->outerBlock = outerBlock;
+    frame->outerBlockHIR = outerBlockHIR;
     frame->argumentOrder = blockAST->argumentNames;
     frame->argumentDefaults = blockAST->argumentDefaults;
 
@@ -141,9 +142,10 @@ hir::NVID BlockBuilder::buildValue(ThreadContext* context, const library::Method
     // Blocks encountered here are are block literals, and are candidates for inlining.
     case ast::ASTType::kBlock: {
         const auto blockAST = reinterpret_cast<const ast::BlockAST*>(ast);
-        auto blockHIR = std::make_unique<hir::BlockLiteralHIR>();
-        blockHIR->frame = buildFrame(context, method, blockAST, currentBlock);
-        nodeValue = append(std::move(blockHIR), currentBlock);
+        auto blockHIROwning = std::make_unique<hir::BlockLiteralHIR>();
+        auto blockHIR = blockHIROwning.get();
+        nodeValue = append(std::move(blockHIROwning), currentBlock);
+        blockHIR->frame = buildFrame(context, method, blockAST, blockHIR);
     } break;
 
     case ast::ASTType::kIf: {
@@ -363,6 +365,8 @@ void BlockBuilder::sealBlock(ThreadContext* context, const library::Method metho
     assert(!block->isSealed);
     block->isSealed = true;
 
+    std::unordered_map<hir::HIR*, hir::HIR*> trivialPhis;
+
     // Resolve each phi by looking in each predecessor for the name of the phi.
     for (auto& phi : block->incompletePhis) {
         for (auto pred : block->predecessors) {
@@ -373,9 +377,21 @@ void BlockBuilder::sealBlock(ThreadContext* context, const library::Method metho
 
             phi->addInput(block->frame->values[predValue]);
         }
+
+        auto trivialValue = phi->getTrivialValue();
+        if (trivialValue != hir::kInvalidNVID) {
+            assert(block->frame->values[trivialValue]);
+            SPDLOG_INFO("sealing rendered {} trivial, replacing with {}", phi->value.id,
+                    block->frame->values[trivialValue]->value.id);
+            trivialPhis.emplace(std::make_pair(phi.get(), block->frame->values[trivialValue]));
+        }
     }
 
+    // Add all phis to the official phi list.
     block->phis.splice(block->phis.end(), block->incompletePhis);
+
+    // Now clean up any of the trivial phis that we may have detected.
+//    replaceValues(trivialPhis);
 }
 
 hir::NVID BlockBuilder::append(std::unique_ptr<hir::HIR> hir, Block* block) {
@@ -421,37 +437,70 @@ hir::NVID BlockBuilder::findName(ThreadContext* context, const library::Method m
     }
 
     // Search through local values, including variables, arguments, and already-cached imports, for a name.
-    Block* searchBlock = block;
-    std::list<Block*> outerBlocks;
- 
-    while (searchBlock) {
-        hir::NVID nodeValue = findScopedName(context, name, searchBlock);
+    Block* innerBlock = block;
+    hir::BlockLiteralHIR* outerBlockHIR = block->frame->outerBlockHIR;
+
+    std::stack<Block*> innerBlocks;
+    std::stack<hir::BlockLiteralHIR*> outerBlockHIRs;
+
+    while (innerBlock) {
+        hir::NVID nodeValue = findScopedName(context, name, innerBlock);
 
         if (nodeValue != hir::kInvalidNVID) {
             // If we found this value in a external frame we will need to add import statements to each frame between
             // this block and the importing block, starting with the outermost frame that didn't have the value.
-            for (auto outerBlock : outerBlocks) {
-                auto import = std::make_unique<hir::ImportLocalVariableHIR>(name,
-                        outerBlock->frame->outerBlock->frame->values[nodeValue]->value.typeFlags, nodeValue);
+            while (outerBlockHIRs.size()) {
+                // At start of loop innerBlock is pointing to the block where the value was found and outerBlockHIR is
+                // pointing to the an outer block that already contains the value, so pop from the stack to point it at
+                // the top BlockLiteralHIR that needs to have import statements prepared.
+                outerBlockHIR = outerBlockHIRs.top();
+                outerBlockHIRs.pop();
+
+                // **Note** that right now innerBlock is actually pointing at the block *containing* outerBlockHIR.
+                assert(outerBlockHIR->owningBlock == innerBlock);
+
+                // At the start of the loop nodeValue is the value of name within outerBlockHIR's owning block. Add
+                // appropriate reads and consumer pointers so that any import statements can also be modified during
+                // outer block value replacements.
+                outerBlockHIR->reads.emplace(nodeValue);
+                hir::HIR* outerValue = innerBlock->frame->values[nodeValue];
+                assert(outerValue);
+                outerValue->consumers.emplace(outerBlockHIR);
+
+                // Now we need to add import statements to the import block inside the frame owned by outerBlockHIR.
+                auto import = std::make_unique<hir::ImportLocalVariableHIR>(name, outerValue->value.typeFlags,
+                        nodeValue);
+
+                // Now innerBlock should point to the block containing either the current search or the next nested
+                // BlockLiteralHIR.
+                innerBlock = innerBlocks.top();
+                innerBlocks.pop();
 
                 // Insert just after the branch statement at the end of the import block.
-                auto iter = outerBlock->frame->rootScope->blocks.front()->statements.end();
+                auto importBlock = innerBlock->frame->rootScope->blocks.front().get();
+                auto iter = importBlock->statements.end();
                 --iter;
-                nodeValue = insert(std::move(import), outerBlock, iter);
-                outerBlock->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
+                nodeValue = insert(std::move(import), importBlock, iter);
+                importBlock->revisions.emplace(std::make_pair(name, nodeValue));
 
                 // Now plumb that value through to the block containing the inner frame.
-                nodeValue = findScopedName(context, name, outerBlock);
+                nodeValue = findScopedName(context, name, innerBlock);
             }
 
+            assert(innerBlock == block);
             assert(block->scope->frame->values[nodeValue]);
             return nodeValue;
         }
 
-        outerBlocks.emplace_front(searchBlock);
+        if (outerBlockHIR) {
+            innerBlocks.emplace(innerBlock);
+            innerBlock = outerBlockHIR->owningBlock;
 
-        // Search in the next outside block, if one exists.
-        searchBlock = searchBlock->frame->outerBlock;
+            outerBlockHIRs.emplace(outerBlockHIR);
+            outerBlockHIR = innerBlock->frame->outerBlockHIR;
+        } else {
+            innerBlock = nullptr;
+        }
     }
 
     // The next several options will all require an import, so set up the iterator for HIR insertion to point at the
@@ -603,8 +652,11 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
     // Unsealed blocks always create phis, because we can't search the complete list of predecessors.
     if (!block->isSealed) {
         auto phi = std::make_unique<hir::PhiHIR>(name);
-        auto phiValue = phi->proposeValue(static_cast<hir::NVID>(block->frame->values.size()));
+        // This is an empty phi until the block is sealed, so we set its type widely for now, can refine type of the phi
+        // once the block is sealed.
+        phi->value.typeFlags = TypeFlags::kAllFlags;
         phi->owningBlock = block;
+        auto phiValue = phi->proposeValue(static_cast<hir::NVID>(block->frame->values.size()));
         block->frame->values.emplace_back(phi.get());
         blockValues.emplace(std::make_pair(block->id, phiValue));
         block->revisions[name] = phiValue;

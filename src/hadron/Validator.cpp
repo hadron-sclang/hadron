@@ -56,6 +56,12 @@ bool Validator::validateSubScope(const Scope* scope, const Scope* parent, std::u
             return false;
         }
 
+        // All blocks must be sealed.
+        if (!block->isSealed) {
+            SPDLOG_ERROR("Block {} is not sealed.", block->id);
+            return false;
+        }
+
         for (const auto& phi : block->phis) {
             if (valueIds.count(phi->value.id)) {
                 SPDLOG_ERROR("Duplicate NVID {} found in phi in block {}", phi->value.id, block->id);

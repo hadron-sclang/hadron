@@ -24,7 +24,11 @@ struct BlockAST;
 struct IfAST;
 struct SequenceAST;
 struct WhileAST;
-} // namespace parse
+}
+
+namespace hir {
+struct BlockLiteralHIR;
+}
 
 // Goes from AST to a Control Flow Graph of Blocks of HIR code in SSA form.
 //
@@ -41,7 +45,7 @@ public:
 
 private:
     std::unique_ptr<Frame> buildFrame(ThreadContext* context, const library::Method method,
-            const ast::BlockAST* blockAST, Block* outerBlock);
+            const ast::BlockAST* blockAST, hir::BlockLiteralHIR* outerBlockHIR);
 
     // Re-uses the containing stack frame but produces a new scope.
     std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, const library::Method method, Scope* parentScope,

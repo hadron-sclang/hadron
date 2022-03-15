@@ -11,11 +11,6 @@
 namespace hadron {
 
 std::unique_ptr<LinearFrame> BlockSerializer::serialize(const Frame* frame) {
-    // First need to analyze any remaining BlockLiterals, we assume if they are still here they cannot be inlined and
-    // so must be 
-
-
-
     // Prepare the LinearFrame for recording of value lifetimes.
     auto linearFrame = std::make_unique<LinearFrame>();
     linearFrame->blockOrder.reserve(frame->numberOfBlocks);
