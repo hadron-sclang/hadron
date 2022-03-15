@@ -9,14 +9,14 @@ namespace hadron {
 namespace hir {
 
 BlockLiteralHIR::BlockLiteralHIR():
-    HIR(kBlockLiteral, TypeFlags::kObjectFlag, library::Symbol()) {}
+    HIR(kBlockLiteral, TypeFlags::kObjectFlag) {}
 
-NVID BlockLiteralHIR::proposeValue(NVID id) {
-    value.id = id;
+ID BlockLiteralHIR::proposeValue(ID proposedId) {
+    id = proposedId;
     return id;
 }
 
-bool BlockLiteralHIR::replaceInput(NVID original, NVID replacement) {
+bool BlockLiteralHIR::replaceInput(ID original, ID replacement) {
     assert(frame);
     bool modified = false;
 

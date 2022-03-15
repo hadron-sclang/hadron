@@ -5,16 +5,16 @@
 namespace hadron {
 namespace hir {
 
-BranchIfTrueHIR::BranchIfTrueHIR(NVID cond): HIR(kBranchIfTrue), condition(cond) {
-    assert(condition != kInvalidNVID);
+BranchIfTrueHIR::BranchIfTrueHIR(ID cond): HIR(kBranchIfTrue), condition(cond) {
+    assert(condition != kInvalidID);
     reads.emplace(condition);
 }
 
-NVID BranchIfTrueHIR::proposeValue(NVID /* id */) {
-    return kInvalidNVID;
+ID BranchIfTrueHIR::proposeValue(ID /* proposedId */) {
+    return kInvalidID;
 }
 
-bool BranchIfTrueHIR::replaceInput(NVID original, NVID replacement) {
+bool BranchIfTrueHIR::replaceInput(ID original, ID replacement) {
     if (replaceReads(original, replacement)) {
         assert(original == condition);
         condition = replacement;

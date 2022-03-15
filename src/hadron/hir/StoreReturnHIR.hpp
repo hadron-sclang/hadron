@@ -8,13 +8,13 @@ namespace hir {
 
 struct StoreReturnHIR : public HIR {
     StoreReturnHIR() = delete;
-    explicit StoreReturnHIR(NVID value);
+    explicit StoreReturnHIR(ID value);
     virtual ~StoreReturnHIR() = default;
 
-    NVID returnValue;
+    ID returnValue;
 
-    NVID proposeValue(NVID id) override;
-    bool replaceInput(NVID original, NVID replacement) override;
+    ID proposeValue(ID proposedId) override;
+    bool replaceInput(ID original, ID replacement) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };
 

@@ -54,33 +54,33 @@ private:
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not
     // iterate to process the |node->next| pointer. Call buildFinalValue() to do that.
-    hir::NVID buildValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
+    hir::ID buildValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
             const ast::AST* ast);
-    hir::NVID buildFinalValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
+    hir::ID buildFinalValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
             const ast::SequenceAST* sequence);
-    hir::NVID buildIf(ThreadContext* context, const library::Method method, Block*& currentBlock,
+    hir::ID buildIf(ThreadContext* context, const library::Method method, Block*& currentBlock,
             const ast::IfAST* ifAST);
-    hir::NVID buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
+    hir::ID buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
             const ast::WhileAST* whileAST);
 
     void sealBlock(ThreadContext* context, const library::Method method, Block* block);
 
     // Returns the value appended to the |block|. Takes ownership of hir.
-    hir::NVID append(std::unique_ptr<hir::HIR> hir, Block* block);
-    hir::NVID insert(std::unique_ptr<hir::HIR> hir, Block* block,
+    hir::ID append(std::unique_ptr<hir::HIR> hir, Block* block);
+    hir::ID insert(std::unique_ptr<hir::HIR> hir, Block* block,
             std::list<std::unique_ptr<hir::HIR>>::iterator before);
 
     // Follow order of precedence in names to locate an identifer symbol, including in local variables, arguments,
-    // instance variables, class variables, and pre-defined identifiers. Can return hir::kInvalidNVID, which means a
+    // instance variables, class variables, and pre-defined identifiers. Can return hir::kInvalidID, which means a
     // compilation error that the name is not found.
-    hir::NVID findName(ThreadContext* context, const library::Method method, library::Symbol name, Block* block);
+    hir::ID findName(ThreadContext* context, const library::Method method, library::Symbol name, Block* block);
 
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
-    // tables. Can return hir::kInvalidNVID which means the name was not found.
-    hir::NVID findScopedName(ThreadContext* context, library::Symbol name, Block* block);
-    hir::NVID findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
-                                      std::unordered_map<Block::ID, hir::NVID>& blockValues,
+    // tables. Can return hir::kInvalidID which means the name was not found.
+    hir::ID findScopedName(ThreadContext* context, library::Symbol name, Block* block);
+    hir::ID findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
+                                      std::unordered_map<Block::ID, hir::ID>& blockValues,
                                       const std::unordered_set<const Scope*>& containingScopes,
                                       std::unordered_map<hir::HIR*, hir::HIR*>& trivialPhis);
 

@@ -59,7 +59,7 @@ struct HIR {
     // Recommended way to set the id in |value| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
     // that this operation only consumes values but doesn't generate a new one.
-    virtual ID proposeValue(ID id) = 0;
+    virtual ID proposeValue(ID proposedId) = 0;
 
     // Replace all references to |original| with |replacement| for this instruction. Returns true if this resulted in
     // any change to the HIR.

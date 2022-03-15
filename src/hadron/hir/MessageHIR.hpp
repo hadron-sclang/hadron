@@ -17,15 +17,14 @@ struct MessageHIR : public HIR {
 
     library::Symbol selector;
     // Add arguments with the add* methods below.
-    std::vector<NVID> arguments;
-    std::vector<NVID> keywordArguments;
+    std::vector<ID> arguments;
+    std::vector<ID> keywordArguments;
 
-    std::unique_ptr<Signature> signature(const std::vector<HIR*>& values) const;
-    void addArgument(NVID arg);
-    void addKeywordArgument(NVID arg);
+    void addArgument(ID arg);
+    void addKeywordArgument(ID arg);
 
-    NVID proposeValue(NVID id) override;
-    bool replaceInput(NVID original, NVID replacement) override;
+    ID proposeValue(ID proposedId) override;
+    bool replaceInput(ID original, ID replacement) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };
 

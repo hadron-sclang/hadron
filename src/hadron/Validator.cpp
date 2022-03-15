@@ -21,7 +21,7 @@ bool Validator::validateFrame(const Frame* frame) {
     }
 
     std::unordered_set<Block::ID> blockIds;
-    std::unordered_set<hir::NVID> valueIds;
+    std::unordered_set<hir::ID> valueIds;
     if (!validateSubScope(frame->rootScope.get(), nullptr, blockIds, valueIds)) { return false; }
 
     if (frame->numberOfBlocks != static_cast<int>(blockIds.size())) {
@@ -39,7 +39,7 @@ bool Validator::validateFrame(const Frame* frame) {
 
 // static
 bool Validator::validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<Block::ID>& blockIds,
-        std::unordered_set<hir::NVID>& valueIds) {
+        std::unordered_set<hir::ID>& valueIds) {
     if (scope->parent != parent) {
         SPDLOG_ERROR("Scope parent mismatch");
         return false;
@@ -63,28 +63,28 @@ bool Validator::validateSubScope(const Scope* scope, const Scope* parent, std::u
         }
 
         for (const auto& phi : block->phis) {
-            if (valueIds.count(phi->value.id)) {
-                SPDLOG_ERROR("Duplicate NVID {} found in phi in block {}", phi->value.id, block->id);
+            if (valueIds.count(phi->id)) {
+                SPDLOG_ERROR("Duplicate ID {} found in phi in block {}", phi->id, block->id);
                 return false;
             }
-            if (scope->frame->values[phi->value.id] != phi.get()) {
-                SPDLOG_ERROR("Mismatch in phi between value id and pointer for NVID {}", phi->value.id);
+            if (scope->frame->values[phi->id] != phi.get()) {
+                SPDLOG_ERROR("Mismatch in phi between value id and pointer for ID {}", phi->id);
                 return false;
             }
-            valueIds.emplace(phi->value.id);
+            valueIds.emplace(phi->id);
         }
 
         for (const auto& hir : block->statements) {
-            if (hir->value.id != hir::kInvalidNVID) {
-                if (valueIds.count(hir->value.id)) {
-                    SPDLOG_ERROR("Duplicate NVID {} found for hir in block {}", hir->value.id, block->id);
+            if (hir->id != hir::kInvalidID) {
+                if (valueIds.count(hir->id)) {
+                    SPDLOG_ERROR("Duplicate ID {} found for hir in block {}", hir->id, block->id);
                     return false;
                 }
-                if (scope->frame->values[hir->value.id] != hir.get()) {
-                    SPDLOG_ERROR("Mismatch between value id and pointer for NVID {}", hir->value.id);
+                if (scope->frame->values[hir->id] != hir.get()) {
+                    SPDLOG_ERROR("Mismatch between value id and pointer for ID {}", hir->id);
                     return false;
                 }
-                valueIds.emplace(hir->value.id);
+                valueIds.emplace(hir->id);
             }
         }
 

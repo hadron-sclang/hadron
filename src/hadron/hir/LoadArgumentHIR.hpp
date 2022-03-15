@@ -9,13 +9,14 @@ namespace hir {
 // Loads the argument at |index| from the stack.
 struct LoadArgumentHIR : public HIR {
     LoadArgumentHIR() = delete;
-    LoadArgumentHIR(int index, library::Symbol name);
+    explicit LoadArgumentHIR(int index);
     virtual ~LoadArgumentHIR() = default;
+
     int argIndex;
 
     // Forces the kAny type for all arguments.
-    NVID proposeValue(NVID id) override;
-    bool replaceInput(NVID original, NVID replacement) override;
+    ID proposeValue(ID proposedId) override;
+    bool replaceInput(ID original, ID replacement) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };
 

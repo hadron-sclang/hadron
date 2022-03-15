@@ -29,7 +29,7 @@ public:
 
 private:
     static bool validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<Block::ID>& blockIds,
-            std::unordered_set<hir::NVID>& valueIds);
+            std::unordered_set<hir::ID>& valueIds);
     static bool validateSsaLir(const lir::LIR* lir, std::unordered_set<lir::VReg>& values);
     static bool validateRegisterCoverage(const LinearFrame* linearFrame, size_t i, uint32_t vReg);
 };

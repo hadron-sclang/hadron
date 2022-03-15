@@ -5,16 +5,16 @@
 namespace hadron {
 namespace hir {
 
-LoadArgumentHIR::LoadArgumentHIR(int index, library::Symbol name):
-        HIR(kLoadArgument, TypeFlags::kAllFlags, name),
+LoadArgumentHIR::LoadArgumentHIR(int index):
+        HIR(kLoadArgument, TypeFlags::kAllFlags),
         argIndex(index) { }
 
-NVID LoadArgumentHIR::proposeValue(NVID id) {
-    value.id = id;
+ID LoadArgumentHIR::proposeValue(ID proposedId) {
+    id = proposedId;
     return id;
 }
 
-bool LoadArgumentHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+bool LoadArgumentHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 

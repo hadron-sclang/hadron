@@ -10,14 +10,14 @@ namespace hir {
 struct ImportClassVariableHIR : public HIR {
     ImportClassVariableHIR() = delete;
     // Offset is the offset within the class variables of the class only.
-    ImportClassVariableHIR(library::Symbol name, library::Class def, int32_t off);
+    ImportClassVariableHIR(library::Class def, int32_t off);
     virtual ~ImportClassVariableHIR() = default;
 
     library::Class classDef;
     int32_t offset;
 
-    NVID proposeValue(NVID id) override;
-    bool replaceInput(NVID original, NVID replacement) override;
+    ID proposeValue(ID proposedId) override;
+    bool replaceInput(ID original, ID replacement) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };
 

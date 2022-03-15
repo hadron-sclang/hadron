@@ -3,16 +3,16 @@
 namespace hadron {
 namespace hir {
 
-ImportLocalVariableHIR::ImportLocalVariableHIR(library::Symbol name, TypeFlags t, NVID extId):
-        HIR(kImportLocalVariable, t, name),
+ImportLocalVariableHIR::ImportLocalVariableHIR(TypeFlags t, ID extId):
+        HIR(kImportLocalVariable, t),
         externalId(extId) {}
 
-NVID ImportLocalVariableHIR::proposeValue(NVID id) {
-    value.id = id;
+ID ImportLocalVariableHIR::proposeValue(ID proposedId) {
+    id = proposedId;
     return id;
 }
 
-bool ImportLocalVariableHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+bool ImportLocalVariableHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 
