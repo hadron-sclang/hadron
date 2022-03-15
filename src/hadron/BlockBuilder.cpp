@@ -391,7 +391,7 @@ void BlockBuilder::sealBlock(ThreadContext* context, const library::Method metho
     block->phis.splice(block->phis.end(), block->incompletePhis);
 
     // Now clean up any of the trivial phis that we may have detected.
-//    replaceValues(trivialPhis);
+    // replaceValues(trivialPhis);
 }
 
 hir::NVID BlockBuilder::append(std::unique_ptr<hir::HIR> hir, Block* block) {
@@ -739,6 +739,8 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
 
         replacements.erase(iter);
 
+        SPDLOG_INFO("replacing {} with {}", orig->value.id, repl->value.id);
+
         // Update all consumers of this value with the replacement value.
         for (auto consumer : orig->consumers) {
             if (consumer == orig) { continue; }
@@ -764,6 +766,15 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
             }
         }
 
+        // Update consumer pointers in any values orig HIR consumes.
+        for (auto read : orig->reads) {
+            hir::HIR* provider = orig->owningBlock->frame->values[read];
+            assert(provider);
+            if (provider != orig) { provider->consumers.erase(orig); }
+            if (provider != repl) { provider->consumers.emplace(repl); }
+        }
+
+        // Update any revision tables with the new name in both the original and replacement blocks.
         if (!orig->value.name.isNil()) {
             auto revisionIter = orig->owningBlock->revisions.find(orig->value.name);
             if (revisionIter != orig->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
