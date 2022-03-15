@@ -17,22 +17,10 @@ struct Frame;
 
 namespace hir {
 
-using NVID = int32_t;
-static constexpr int32_t kInvalidNVID = -1;
+using ID = int32_t;
+static constexpr int32_t kInvalidID = -1;
 // This assumption has crept into the code so document it and enforce with the compiler.
-static_assert(kInvalidNVID == lir::kInvalidVReg);
-
-struct NamedValue {
-    NamedValue(): id(kInvalidNVID), typeFlags(TypeFlags::kNoFlags), knownClassName(), name() {}
-    NamedValue(NVID nvid, TypeFlags flags, library::Symbol valueName): id(nvid), typeFlags(flags),
-            knownClassName(), name(valueName) {}
-    NVID id;
-    TypeFlags typeFlags;
-    // TODO: this should probably be a std::unordered_set<>
-    library::Symbol knownClassName; // If kObjectFlag is set and this is non-nil that means that if this value is an
-                                    // object it can only be an object of the type named here.
-    library::Symbol name; // Can be nil for anonymous values
-};
+static_assert(kInvalidID == lir::kInvalidVReg);
 
 enum Opcode {
     kAssign,
@@ -57,10 +45,12 @@ struct HIR {
     HIR() = delete;
     virtual ~HIR() = default;
     Opcode opcode;
-    NamedValue value;
+
+    ID id;
+    TypeFlags typeFlags;
 
     // The set of NVIDs that this HIR uses as inputs.
-    std::unordered_set<NVID> reads;
+    std::unordered_set<ID> reads;
 
     // The set of HIR that consume the output of this HIR.
     std::unordered_set<HIR*> consumers;
@@ -69,11 +59,11 @@ struct HIR {
     // Recommended way to set the id in |value| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return an invalid value, which indicates
     // that this operation only consumes values but doesn't generate a new one.
-    virtual NVID proposeValue(NVID id) = 0;
+    virtual ID proposeValue(ID id) = 0;
 
     // Replace all references to |original| with |replacement| for this instruction. Returns true if this resulted in
     // any change to the HIR.
-    virtual bool replaceInput(NVID original, NVID replacement) = 0;
+    virtual bool replaceInput(ID original, ID replacement) = 0;
 
     // Given this HIR, and all other HIR |values| in the frame, output zero or more LIR instructions to |append|.
     virtual void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs,
@@ -82,16 +72,15 @@ struct HIR {
     // Most HIR directly translates from NamedValue id to lir::VReg, but we introduce a function as a means of allowing
     // for HIR-specific changes to this.
     virtual lir::VReg vReg() const {
-        return value.id != kInvalidNVID ? static_cast<lir::VReg>(value.id) : lir::kInvalidVReg;
+        return id != kInvalidID ? static_cast<lir::VReg>(id) : lir::kInvalidVReg;
     }
 
 protected:
-    explicit HIR(Opcode op): opcode(op), owningBlock(nullptr) {}
-    HIR(Opcode op, TypeFlags typeFlags, library::Symbol valueName): opcode(op),
-            value(kInvalidNVID, typeFlags, valueName), owningBlock(nullptr) {}
+    explicit HIR(Opcode op): opcode(op), id(kInvalidID), typeFlags(TypeFlags::kNoFlags), owningBlock(nullptr) {}
+    HIR(Opcode op, TypeFlags flags): opcode(op), id(kInvalidID), typeFlags(flags), owningBlock(nullptr) {}
 
     // Used by derived classes in replaceInput() calls. Updates the |reads| set. Returns true if a swap occured.
-    inline bool replaceReads(NVID original, NVID replacement) {
+    inline bool replaceReads(ID original, ID replacement) {
         if (reads.erase(original)) {
             reads.emplace(replacement);
             return true;

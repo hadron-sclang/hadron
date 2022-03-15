@@ -122,7 +122,7 @@ namespace std {
 template<>
 struct hash<hadron::Slot> {
     size_t operator()(const hadron::Slot& s) const {
-        return static_cast<size_t>(s.getHash());
+        return static_cast<size_t>(s.asBits());
     }
 };
 } // namespace std

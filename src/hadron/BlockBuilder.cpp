@@ -391,7 +391,7 @@ void BlockBuilder::sealBlock(ThreadContext* context, const library::Method metho
     block->phis.splice(block->phis.end(), block->incompletePhis);
 
     // Now clean up any of the trivial phis that we may have detected.
-    // replaceValues(trivialPhis);
+    replaceValues(trivialPhis);
 }
 
 hir::NVID BlockBuilder::append(std::unique_ptr<hir::HIR> hir, Block* block) {
@@ -645,6 +645,7 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
     auto iter = block->revisions.find(name);
     if (iter != block->revisions.end()) {
         if (!isShadowed) {
+            SPDLOG_INFO("revisions hit for {} in block {} with value {}", name.view(context), block->id, iter->second);
             return iter->second;
         }
     }
@@ -710,6 +711,7 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
 
     auto trivialValue = phiRef->getTrivialValue();
     if (trivialValue == hir::kInvalidNVID) {
+        SPDLOG_INFO("nontrivial phi, setting {} to {} in block {}", name.view(context), phiValue, block->id);
         block->revisions[name] = phiValue;
         return phiValue;
     }
@@ -719,6 +721,7 @@ hir::NVID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library:
     // substitution.
     blockValues[block->id] = trivialValue;
     block->revisions[name] = trivialValue;
+    SPDLOG_INFO("trivial phi, setting {} to {} in block {}", name.view(context), trivialValue, block->id);
 
     assert(block->frame->values[trivialValue]);
     trivialPhis.emplace(std::make_pair(phiRef, block->frame->values[trivialValue]));
@@ -730,12 +733,16 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
     std::unordered_set<hir::HIR*> toRemove;
 
     while (replacements.size()) {
+        std::unordered_set<Block*> toRename;
+
         auto iter = replacements.begin();
         auto orig = iter->first;
         assert(orig->value.id != hir::kInvalidNVID);
+        toRename.emplace(orig->owningBlock);
 
         auto repl = iter->second;
         assert(repl->value.id != hir::kInvalidNVID);
+        toRename.emplace(repl->owningBlock);
 
         replacements.erase(iter);
 
@@ -746,14 +753,7 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
             if (consumer == orig) { continue; }
 
             consumer->replaceInput(orig->value.id, repl->value.id);
-
-            // Alter any block-local name revisions that may be caching this value.
-            if (!orig->value.name.isNil()) {
-                auto revisionIter = consumer->owningBlock->revisions.find(orig->value.name);
-                if (revisionIter != consumer->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
-                    revisionIter->second = repl->value.id;
-                }
-            }
+            toRename.emplace(consumer->owningBlock);
 
             // Phis may themselves be rendered trivial by this replacement, if they are we append them to the list
             // of replacements.
@@ -774,16 +774,14 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
             if (provider != repl) { provider->consumers.emplace(repl); }
         }
 
-        // Update any revision tables with the new name in both the original and replacement blocks.
+        // Update any revision tables with the new name.
         if (!orig->value.name.isNil()) {
-            auto revisionIter = orig->owningBlock->revisions.find(orig->value.name);
-            if (revisionIter != orig->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
-                revisionIter->second = repl->value.id;
-            }
-
-            revisionIter = repl->owningBlock->revisions.find(orig->value.name);
-            if (revisionIter != repl->owningBlock->revisions.end() && revisionIter->second == orig->value.id) {
-                revisionIter->second = repl->value.id;
+            for (auto renameBlock : toRename) {
+                auto revisionIter = renameBlock->revisions.find(orig->value.name);
+                if (revisionIter != renameBlock->revisions.end() && revisionIter->second == orig->value.id) {
+                    SPDLOG_INFO("renaming in block {} from {} to {}", renameBlock->id, orig->value.id, repl->value.id);
+                    revisionIter->second = repl->value.id;
+                }
             }
         }
 
