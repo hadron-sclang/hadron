@@ -187,9 +187,10 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
         auto nameValue = findName(context, method, assign->name->name, currentBlock);
         assert(nameValue != hir::kInvalidID);
 
-        auto assignValue = buildValue(context, method, currentBlock, assign->value.get());
-        nodeValue = append(std::make_unique<hir::AssignHIR>(assign->name->name,
-                currentBlock->frame->values[assignValue]), currentBlock);
+        nodeValue = buildValue(context, method, currentBlock, assign->value.get());
+        auto assign = std::make_unique<hir::AssignHIR>(assign->name->name, nodeValue, );
+
+        append(std::move(assign), currentBlock);
 
         // Update the name of the built value to reflect the assignment.
         currentBlock->revisions[assign->name->name] = nodeValue;
