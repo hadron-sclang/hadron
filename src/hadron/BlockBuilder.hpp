@@ -27,6 +27,7 @@ struct WhileAST;
 }
 
 namespace hir {
+struct AssignHIR;
 struct BlockLiteralHIR;
 }
 
@@ -73,16 +74,16 @@ private:
     // Follow order of precedence in names to locate an identifer symbol, including in local variables, arguments,
     // instance variables, class variables, and pre-defined identifiers. Can return hir::kInvalidID, which means a
     // compilation error that the name is not found.
-    hir::ID findName(ThreadContext* context, const library::Method method, library::Symbol name, Block* block);
+    hir::AssignHIR* findName(ThreadContext* context, const library::Method method, library::Symbol name, Block* block);
 
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
-    // tables. Can return hir::kInvalidID which means the name was not found.
-    hir::ID findScopedName(ThreadContext* context, library::Symbol name, Block* block);
-    hir::ID findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
-                                      std::unordered_map<Block::ID, hir::ID>& blockValues,
-                                      const std::unordered_set<const Scope*>& containingScopes,
-                                      std::unordered_map<hir::HIR*, hir::HIR*>& trivialPhis);
+    // tables. Can return nullptr which means the name was not found.
+    hir::AssignHIR* findScopedName(ThreadContext* context, library::Symbol name, Block* block);
+    hir::AssignHIR* findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
+                                              std::unordered_map<Block::ID, hir::AssignHIR*>& blockValues,
+                                              const std::unordered_set<const Scope*>& containingScopes,
+                                              std::unordered_map<hir::HIR*, hir::HIR*>& trivialPhis);
 
     // Replaces pairs (key, value). May cause other replacements, which are handled sequentially. Destructively modifies
     // the |replacements| map.

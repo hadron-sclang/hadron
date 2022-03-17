@@ -33,7 +33,7 @@ struct Block {
     // Any assignments of value ids to named values must occur with AssignHIR statements. These allow us to track
     // changes to named values that might need to be synchronized to the heap, as well as allowing the value id to be
     // manipulated like normal HIR value ids, such as during trivial phi deletion or constant folding.
-    std::unordered_map<library::Symbol, hir::AssignHIR*> assignments;
+    std::unordered_map<library::Symbol, hir::AssignHIR*> nameAssignments;
 
     // Owning scope of this block.
     Scope* scope;

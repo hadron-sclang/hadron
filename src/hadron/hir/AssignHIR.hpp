@@ -10,6 +10,7 @@ struct AssignHIR : public HIR {
     enum NameType {
         kArgument,
         kCapturedLocalVariable,
+        kClassName,
         kClassVariable,
         kInstanceVariable,
         kLocalVariable,

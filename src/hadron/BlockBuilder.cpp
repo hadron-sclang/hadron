@@ -77,7 +77,7 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
         }
         auto argValue = append(std::move(loadArg), block);
         auto nameAssign = std::make_unique<hir::AssignHIR>(name, argValue, hir::AssignHIR::NameType::kArgument);
-        block->assignments.emplace(std::make_pair(name, nameAssign.get()));
+        block->nameAssignments.emplace(std::make_pair(name, nameAssign.get()));
         append(std::move(nameAssign), block);
     }
 
@@ -176,34 +176,37 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
 
     case ast::ASTType::kName: {
         const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);
-        nodeValue = findName(context, method, nameAST->name, currentBlock);
-        assert(nodeValue != hir::kInvalidID);
+        auto assignHIR = findName(context, method, nameAST->name, currentBlock);
+        assert(assignHIR);
+        nodeValue = assignHIR->valueId;
     } break;
 
     case ast::ASTType::kAssign: {
-        const auto assign = reinterpret_cast<const ast::AssignAST*>(ast);
+        const auto assignAST = reinterpret_cast<const ast::AssignAST*>(ast);
         // It's possible that this is an external value, and the code is writing it before reading it. Set up the
         // imports and flow the value here, or detect an error if the name is not found.
-        auto nameValue = findName(context, method, assign->name->name, currentBlock);
-        assert(nameValue != hir::kInvalidID);
+        auto assignHIR = findName(context, method, assignAST->name->name, currentBlock);
+        assert(assignHIR);
 
-        nodeValue = buildValue(context, method, currentBlock, assign->value.get());
-        auto assign = std::make_unique<hir::AssignHIR>(assign->name->name, nodeValue, );
-
-        append(std::move(assign), currentBlock);
+        nodeValue = buildValue(context, method, currentBlock, assignAST->value.get());
+        auto assignOwning = std::make_unique<hir::AssignHIR>(assignAST->name->name, nodeValue, assignHIR->nameType);
+        assignHIR = assignOwning.get();
+        append(std::move(assignOwning), currentBlock);
 
         // Update the name of the built value to reflect the assignment.
-        currentBlock->revisions[assign->name->name] = nodeValue;
+        currentBlock->nameAssignments[assignAST->name->name] = assignHIR;
     } break;
 
     case ast::ASTType::kDefine: {
         const auto defineAST = reinterpret_cast<const ast::DefineAST*>(ast);
         currentBlock->scope->variableNames.emplace(defineAST->name->name);
 
-        auto assignValue = buildValue(context, method, currentBlock, defineAST->value.get());
-        nodeValue = append(std::make_unique<hir::AssignHIR>(defineAST->name->name,
-                currentBlock->frame->values[assignValue]), currentBlock);
-        currentBlock->revisions[defineAST->name->name] = nodeValue;
+        nodeValue = buildValue(context, method, currentBlock, defineAST->value.get());
+        auto assignOwning = std::make_unique<hir::AssignHIR>(defineAST->name->name, nodeValue,
+                hir::AssignHIR::NameType::kLocalVariable);
+        auto assignHIR = assignOwning.get();
+        append(std::move(assignOwning), currentBlock);
+        currentBlock->nameAssignments[defineAST->name->name] = assignHIR;
     } break;
 
     case ast::ASTType::kConstant: {
@@ -437,8 +440,14 @@ hir::ID BlockBuilder::insert(std::unique_ptr<hir::HIR> hir, Block* block,
     return value;
 }
 
-hir::ID BlockBuilder::findName(ThreadContext* context, const library::Method method, library::Symbol name,
+hir::AssignHIR* BlockBuilder::findName(ThreadContext* context, const library::Method method, library::Symbol name,
         Block* block) {
+
+    // Check local block cache first in case a value is already cached.
+    auto assignIter = block->nameAssignments.find(name);
+    if (assignIter != block->nameAssignments.end()) {
+        return assignIter->second;
+    }
 
     // If this symbol defines a class name look it up in the class library and provide it as a constant.
     if (name.isClassName(context)) {
@@ -446,8 +455,11 @@ hir::ID BlockBuilder::findName(ThreadContext* context, const library::Method met
         assert(!classDef.isNil());
         auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot(), name);
         hir::ID nodeValue = append(std::move(constant), block);
-        block->revisions.emplace(std::make_pair(name, nodeValue));
-        return nodeValue;
+        auto assignHIROwning = std::make_unique<hir::AssignHIR>(name, nodeValue, hir::AssignHIR::NameType::kClassName);
+        auto assignHIR = assignHIROwning.get();
+        append(std::move(assignHIROwning), block);
+        block->nameAssignments.emplace(std::make_pair(name, assignHIR));
+        return assignHIR;
     }
 
     // Search through local values, including variables, arguments, and already-cached imports, for a name.
@@ -613,8 +625,8 @@ hir::ID BlockBuilder::findName(ThreadContext* context, const library::Method met
     return nodeValue;
 }
 
-hir::ID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol name, Block* block) {
-    std::unordered_map<int32_t, hir::ID> blockValues;
+hir::AssignHIR* BlockBuilder::findScopedName(ThreadContext* context, library::Symbol name, Block* block) {
+    std::unordered_map<int32_t, hir::AssignHIR*> blockValues;
 
     std::unordered_set<const Scope*> containingScopes;
     const Scope* scope = block->scope;
@@ -625,22 +637,22 @@ hir::ID BlockBuilder::findScopedName(ThreadContext* context, library::Symbol nam
 
     std::unordered_map<hir::HIR*, hir::HIR*> trivialPhis;
 
-    auto value = findScopedNameRecursive(context, name, block, blockValues, containingScopes, trivialPhis);
-    if (value == hir::kInvalidID) { return hir::kInvalidID; }
+    auto assignHIR = findScopedNameRecursive(context, name, block, blockValues, containingScopes, trivialPhis);
+    if (!assignHIR) { return nullptr; }
 
     while (trivialPhis.size()) {
         replaceValues(trivialPhis);
         trivialPhis.clear();
         blockValues.clear();
-        value = findScopedNameRecursive(context, name, block, blockValues, containingScopes, trivialPhis);
-        assert(value != hir::kInvalidID);
+        assignHIR = findScopedNameRecursive(context, name, block, blockValues, containingScopes, trivialPhis);
+        assert(assignHIR);
     }
 
-    return value;
+    return assignHIR;
 }
 
-hir::ID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
-        std::unordered_map<Block::ID, hir::ID>& blockValues,
+hir::AssignHIR* BlockBuilder::findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
+        std::unordered_map<Block::ID, hir::AssignHIR*>& blockValues,
         const std::unordered_set<const Scope*>& containingScopes,
         std::unordered_map<hir::HIR*, hir::HIR*>& trivialPhis) {
 
@@ -655,8 +667,8 @@ hir::ID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library::S
     bool isShadowed = (block->scope->variableNames.count(name) > 0) && (containingScopes.count(block->scope) == 0);
     assert(!isShadowed);
 
-    auto iter = block->revisions.find(name);
-    if (iter != block->revisions.end()) {
+    auto iter = block->nameAssignments.find(name);
+    if (iter != block->nameAssignments.end()) {
         if (!isShadowed) {
             SPDLOG_INFO("revisions hit for {} in block {} with value {}", name.view(context), block->id, iter->second);
             return iter->second;
@@ -672,9 +684,12 @@ hir::ID BlockBuilder::findScopedNameRecursive(ThreadContext* context, library::S
         phi->owningBlock = block;
         auto phiValue = phi->proposeValue(static_cast<hir::ID>(block->frame->values.size()));
         block->frame->values.emplace_back(phi.get());
+        block->incompletePhis.emplace_back(std::move(phi));
+
+        auto assignHIR = std::make_unique<hir::AssignHIR>(name, phiValue, ??)
+
         blockValues.emplace(std::make_pair(block->id, phiValue));
         block->revisions[name] = phiValue;
-        block->incompletePhis.emplace_back(std::move(phi));
         return phiValue;
     }
 
