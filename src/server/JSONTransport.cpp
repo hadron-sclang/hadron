@@ -102,7 +102,7 @@ private:
             rapidjson::Document& document);
     void serializeHIR(hadron::ThreadContext* context, const hadron::hir::HIR* hir, const hadron::Frame* frame,
             rapidjson::Value& jsonHIR, rapidjson::Document& document);
-    void serializeValue(hadron::ThreadContext* context, hadron::hir::NVID valueId, const hadron::Frame* frame,
+    void serializeValue(hadron::ThreadContext* context, hadron::hir::ID valueId, const hadron::Frame* frame,
             rapidjson::Value& jsonValue, rapidjson::Document& document);
     void serializeTypeFlags(hadron::TypeFlags typeFlags, rapidjson::Value& jsonTypeFlags,
             rapidjson::Document& document);
@@ -1472,9 +1472,9 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
         const hadron::Frame* frame, rapidjson::Value& jsonHIR, rapidjson::Document& document) {
     jsonHIR.SetObject();
 
-    if (hir->value.id != hadron::hir::kInvalidNVID) {
+    if (hir->id != hadron::hir::kInvalidID) {
         rapidjson::Value value;
-        serializeValue(context, hir->value.id, frame, value, document);
+        serializeValue(context, hir->id, frame, value, document);
         jsonHIR.AddMember("value", value, document.GetAllocator());
     }
 
@@ -1492,9 +1492,13 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
         const auto assign = reinterpret_cast<const hadron::hir::AssignHIR*>(hir);
         jsonHIR.AddMember("opcode", "Assign", document.GetAllocator());
 
-        rapidjson::Value assignValue;
-        serializeValue(context, assign->assignValue, frame, assignValue, document);
-        jsonHIR.AddMember("assignValue", assignValue, document.GetAllocator());
+        rapidjson::Value name;
+        name.SetString(assign->name.view(context).data(), document.GetAllocator());
+        jsonHIR.AddMember("name", name, document.GetAllocator());
+
+        rapidjson::Value valueId;
+        serializeValue(context, assign->valueId, frame, valueId, document);
+        jsonHIR.AddMember("assignId", valueId, document.GetAllocator());
     } break;
 
     case hadron::hir::Opcode::kBlockLiteral: {
@@ -1620,9 +1624,9 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
     }
 }
 
-void JSONTransport::JSONTransportImpl::serializeValue(hadron::ThreadContext* context, hadron::hir::NVID valueId,
+void JSONTransport::JSONTransportImpl::serializeValue(hadron::ThreadContext* /* context */, hadron::hir::ID valueId,
         const hadron::Frame* frame, rapidjson::Value& jsonValue, rapidjson::Document& document) {
-    assert(valueId != hadron::hir::kInvalidNVID);
+    assert(valueId != hadron::hir::kInvalidID);
     assert(static_cast<size_t>(valueId) < frame->values.size());
 
     jsonValue.SetObject();
@@ -1633,15 +1637,8 @@ void JSONTransport::JSONTransportImpl::serializeValue(hadron::ThreadContext* con
     }
 
     rapidjson::Value jsonTypeFlags;
-    serializeTypeFlags(frame->values[valueId]->value.typeFlags, jsonTypeFlags, document);
+    serializeTypeFlags(frame->values[valueId]->typeFlags, jsonTypeFlags, document);
     jsonValue.AddMember("typeFlags", jsonTypeFlags, document.GetAllocator());
-
-    if (!frame->values[valueId]->value.name.isNil()) {
-        rapidjson::Value name;
-        auto view = frame->values[valueId]->value.name.view(context);
-        name.SetString(view.data(), view.size(), document.GetAllocator());
-        jsonValue.AddMember("name", name, document.GetAllocator());
-    }
 }
 
 void JSONTransport::JSONTransportImpl::serializeTypeFlags(hadron::TypeFlags typeFlags, rapidjson::Value& jsonTypeFlags,

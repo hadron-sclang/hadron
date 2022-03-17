@@ -7,23 +7,12 @@ namespace hadron {
 namespace hir {
 
 struct AssignHIR : public HIR {
-    enum NameType {
-        kArgument,
-        kCapturedLocalVariable,
-        kClassName,
-        kClassVariable,
-        kInstanceVariable,
-        kLocalVariable,
-        kSpecialName
-    };
-
     AssignHIR() = delete;
-    AssignHIR(library::Symbol n, ID value, NameType nType);
+    AssignHIR(library::Symbol n, ID value);
     virtual ~AssignHIR() = default;
 
     library::Symbol name;
     ID valueId;
-    NameType nameType;
 
     ID proposeValue(ID proposedId) override;
     bool replaceInput(ID original, ID replacement) override;

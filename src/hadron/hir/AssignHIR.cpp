@@ -2,11 +2,13 @@
 
 #include "hadron/lir/AssignLIR.hpp"
 
+#include <spdlog/spdlog.h>
+
 namespace hadron {
 namespace hir {
 
-AssignHIR::AssignHIR(library::Symbol n, ID value, NameType nType):
-    HIR(kAssign), name(n), valueId(value), nameType(nType) { reads.emplace(valueId); }
+AssignHIR::AssignHIR(library::Symbol n, ID value):
+    HIR(kAssign), name(n), valueId(value) { reads.emplace(valueId); }
 
 ID AssignHIR::proposeValue(ID /* proposedId */) {
     return hir::kInvalidID;
@@ -14,6 +16,7 @@ ID AssignHIR::proposeValue(ID /* proposedId */) {
 
 bool AssignHIR::replaceInput(ID original, ID replacement) {
     if (replaceReads(original, replacement)) {
+        SPDLOG_INFO("AssignHIR replacing {} with {}", original, replacement);
         assert(valueId == original);
         valueId = replacement;
         return true;

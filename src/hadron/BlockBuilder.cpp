@@ -76,7 +76,7 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
             loadArg->typeFlags = TypeFlags::kObjectFlag;
         }
         auto argValue = append(std::move(loadArg), block);
-        auto nameAssign = std::make_unique<hir::AssignHIR>(name, argValue, hir::AssignHIR::NameType::kArgument);
+        auto nameAssign = std::make_unique<hir::AssignHIR>(name, argValue);
         block->nameAssignments.emplace(std::make_pair(name, nameAssign.get()));
         append(std::move(nameAssign), block);
     }
@@ -112,8 +112,8 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, co
     block->predecessors.emplace_back(predecessor);
     block->isSealed = isSealed;
 
-    // For now we can't handle inline blocks with arguments (other than the default this)
-    assert(blockAST->argumentNames.size() == 1);
+    // For now we can't handle inline blocks with arguments
+    assert(blockAST->argumentNames.size() <= 1);
 
     Block* currentBlock = block;
     currentBlock->finalValue = buildFinalValue(context, method, currentBlock, blockAST->statements.get());
@@ -189,7 +189,7 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
         assert(assignHIR);
 
         nodeValue = buildValue(context, method, currentBlock, assignAST->value.get());
-        auto assignOwning = std::make_unique<hir::AssignHIR>(assignAST->name->name, nodeValue, assignHIR->nameType);
+        auto assignOwning = std::make_unique<hir::AssignHIR>(assignAST->name->name, nodeValue);
         assignHIR = assignOwning.get();
         append(std::move(assignOwning), currentBlock);
 
@@ -202,8 +202,7 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
         currentBlock->scope->variableNames.emplace(defineAST->name->name);
 
         nodeValue = buildValue(context, method, currentBlock, defineAST->value.get());
-        auto assignOwning = std::make_unique<hir::AssignHIR>(defineAST->name->name, nodeValue,
-                hir::AssignHIR::NameType::kLocalVariable);
+        auto assignOwning = std::make_unique<hir::AssignHIR>(defineAST->name->name, nodeValue);
         auto assignHIR = assignOwning.get();
         append(std::move(assignOwning), currentBlock);
         currentBlock->nameAssignments[defineAST->name->name] = assignHIR;
@@ -371,10 +370,9 @@ void BlockBuilder::sealBlock(ThreadContext* context, const library::Method metho
         for (auto pred : block->predecessors) {
             auto predValue = findName(context, method, phi->name, pred);
 
-            assert(predValue != hir::kInvalidID);
-            assert(block->frame->values[predValue]);
-
-            phi->addInput(block->frame->values[predValue]);
+            assert(predValue);
+            assert(block->frame->values[predValue->valueId]);
+            phi->addInput(block->frame->values[predValue->valueId]);
         }
 
         auto trivialValue = phi->getTrivialValue();
@@ -453,9 +451,9 @@ hir::AssignHIR* BlockBuilder::findName(ThreadContext* context, const library::Me
     if (name.isClassName(context)) {
         auto classDef = context->classLibrary->findClassNamed(name);
         assert(!classDef.isNil());
-        auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot(), name);
+        auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot());
         hir::ID nodeValue = append(std::move(constant), block);
-        auto assignHIROwning = std::make_unique<hir::AssignHIR>(name, nodeValue, hir::AssignHIR::NameType::kClassName);
+        auto assignHIROwning = std::make_unique<hir::AssignHIR>(name, nodeValue);
         auto assignHIR = assignHIROwning.get();
         append(std::move(assignHIROwning), block);
         block->nameAssignments.emplace(std::make_pair(name, assignHIR));
@@ -470,14 +468,14 @@ hir::AssignHIR* BlockBuilder::findName(ThreadContext* context, const library::Me
     std::stack<hir::BlockLiteralHIR*> outerBlockHIRs;
 
     while (innerBlock) {
-        hir::ID nodeValue = findScopedName(context, name, innerBlock);
+        auto assignHIR = findScopedName(context, name, innerBlock);
 
-        if (nodeValue != hir::kInvalidID) {
+        if (assignHIR) {
             // If we found this value in a external frame we will need to add import statements to each frame between
             // this block and the importing block, starting with the outermost frame that didn't have the value.
             while (outerBlockHIRs.size()) {
                 // At start of loop innerBlock is pointing to the block where the value was found and outerBlockHIR is
-                // pointing to the an outer block that already contains the value, so pop from the stack to point it at
+                // pointing to the outer block that already contains the value, so pop from the stack to point it at
                 // the top BlockLiteralHIR that needs to have import statements prepared.
                 outerBlockHIR = outerBlockHIRs.top();
                 outerBlockHIRs.pop();
@@ -485,16 +483,16 @@ hir::AssignHIR* BlockBuilder::findName(ThreadContext* context, const library::Me
                 // **Note** that right now innerBlock is actually pointing at the block *containing* outerBlockHIR.
                 assert(outerBlockHIR->owningBlock == innerBlock);
 
-                // At the start of the loop nodeValue is the value of name within outerBlockHIR's owning block. Add
+                // At the start of the loop assignHIR has the value of name within outerBlockHIR's owning block. Add
                 // appropriate reads and consumer pointers so that any import statements can also be modified during
                 // outer block value replacements.
-                outerBlockHIR->reads.emplace(nodeValue);
-                hir::HIR* outerValue = innerBlock->frame->values[nodeValue];
-                assert(outerValue);
-                outerValue->consumers.emplace(outerBlockHIR);
+                outerBlockHIR->reads.emplace(assignHIR->valueId);
+                auto producerHIR = innerBlock->frame->values[assignHIR->valueId];
+                assert(producerHIR);
+                producerHIR->consumers.emplace(outerBlockHIR);
 
                 // Now we need to add import statements to the import block inside the frame owned by outerBlockHIR.
-                auto import = std::make_unique<hir::ImportLocalVariableHIR>(name, outerValue->typeFlags, nodeValue);
+                auto import = std::make_unique<hir::ImportLocalVariableHIR>(assignHIR->typeFlags, assignHIR->valueId);
 
                 // Now innerBlock should point to the block containing either the current search or the next nested
                 // BlockLiteralHIR.
@@ -505,16 +503,19 @@ hir::AssignHIR* BlockBuilder::findName(ThreadContext* context, const library::Me
                 auto importBlock = innerBlock->frame->rootScope->blocks.front().get();
                 auto iter = importBlock->statements.end();
                 --iter;
-                nodeValue = insert(std::move(import), importBlock, iter);
-                importBlock->revisions.emplace(std::make_pair(name, nodeValue));
+                auto importValue = insert(std::move(import), importBlock, iter);
 
-                // Now plumb that value through to the block containing the inner frame.
-                nodeValue = findScopedName(context, name, innerBlock);
+                auto assignHIROwning = std::make_unique<hir::AssignHIR>(name, importValue);
+                importBlock->nameAssignments.emplace(std::make_pair(name, assignHIROwning.get()));
+                insert(std::move(assignHIROwning), importBlock, iter);
+
+                // Now plumb that value through to the block containing the inner frame, which might be a different
+                // value if there are incomplete phis between import and inner blocks.
+                assignHIR = findScopedName(context, name, innerBlock);
             }
 
             assert(innerBlock == block);
-            assert(block->scope->frame->values[nodeValue]);
-            return nodeValue;
+            return assignHIR;
         }
 
         if (outerBlockHIR) {
@@ -531,7 +532,8 @@ hir::AssignHIR* BlockBuilder::findName(ThreadContext* context, const library::Me
     // The next several options will all require an import, so set up the iterator for HIR insertion to point at the
     // branch instruction in the import block, so that the imported HIR will insert right before it.
     hir::ID nodeValue = hir::kInvalidID;
-    auto importIter = block->frame->rootScope->blocks.front()->statements.end();
+    Block* importBlock = block->frame->rootScope->blocks.front().get();
+    auto importIter = importBlock->statements.end();
     --importIter;
 
     // Search instance variables next.
@@ -544,10 +546,11 @@ hir::AssignHIR* BlockBuilder::findName(ThreadContext* context, const library::Me
     if (!isMetaClass) {
         auto instVarIndex = classDef.instVarNames().indexOf(name);
         if (instVarIndex.isInt32()) {
-            auto thisValue = findName(context, method, context->symbolTable->thisSymbol(), block);
-            assert(thisValue != hir::kInvalidID);
-            nodeValue = insert(std::make_unique<hir::ImportInstanceVariableHIR>(name, thisValue,
-                    instVarIndex.getInt32()), block->frame->rootScope->blocks.front().get(), importIter);
+            auto thisAssign = findName(context, method, context->symbolTable->thisSymbol(), block);
+            // *this* should always be provided as a frame-level argument, so should always resolve.
+            assert(thisAssign);
+            nodeValue = insert(std::make_unique<hir::ImportInstanceVariableHIR>(thisAssign->valueId,
+                    instVarIndex.getInt32()), importBlock, importIter);
         }
     } else {
         // Meta_ classes to have access to the class variables and constants of their associated class, so adjust the
@@ -564,8 +567,8 @@ hir::AssignHIR* BlockBuilder::findName(ThreadContext* context, const library::Me
         while (!classVarDef.isNil()) {
             auto classVarOffset = classVarDef.classVarNames().indexOf(name);
             if (classVarOffset.isInt32()) {
-                nodeValue = insert(std::make_unique<hir::ImportClassVariableHIR>(name, classVarDef,
-                        classVarOffset.getInt32()), block->frame->rootScope->blocks.front().get(), importIter);
+                nodeValue = insert(std::make_unique<hir::ImportClassVariableHIR>(classVarDef,
+                        classVarOffset.getInt32()), importBlock, importIter);
                 break;
             }
 
@@ -582,8 +585,7 @@ hir::AssignHIR* BlockBuilder::findName(ThreadContext* context, const library::Me
             if (constIndex.isInt32()) {
                 // We still put constants in the import block to avoid them being undefined along any path in the CFG.
                 nodeValue = insert(std::make_unique<hir::ConstantHIR>(
-                        classDef.constValues().at(constIndex.getInt32()), name),
-                        block->frame->rootScope->blocks.front().get(), importIter);
+                        classDef.constValues().at(constIndex.getInt32())), importBlock, importIter);
                 break;
             }
 
@@ -594,35 +596,37 @@ hir::AssignHIR* BlockBuilder::findName(ThreadContext* context, const library::Me
     // If we found a match we've inserted it into the import block. Use findScopedName to set up all the phis
     // and local value mappings between the import block and the current block.
     if (nodeValue != hir::kInvalidID) {
-        assert(block->frame->rootScope->blocks.front()->revisions.find(name) ==
-               block->frame->rootScope->blocks.front()->revisions.end());
-        block->frame->rootScope->blocks.front()->revisions.emplace(std::make_pair(name, nodeValue));
+        auto assignHIR = std::make_unique<hir::AssignHIR>(name, nodeValue);
+        importBlock->nameAssignments[name] = assignHIR.get();
+        insert(std::move(assignHIR), importBlock, importIter);
 
-        auto foundValue = findScopedName(context, name, block);
-        return foundValue;
+        return findScopedName(context, name, block);
     }
 
     // Check for special names.
     if (name == context->symbolTable->superSymbol()) {
-        auto thisValue = findName(context, method, context->symbolTable->thisSymbol(), block);
-        assert(thisValue != hir::kInvalidID);
-        nodeValue = append(std::make_unique<hir::RouteToSuperclassHIR>(thisValue), block);
+        auto thisAssign = findName(context, method, context->symbolTable->thisSymbol(), block);
+        assert(thisAssign);
+        nodeValue = append(std::make_unique<hir::RouteToSuperclassHIR>(thisAssign->valueId), block);
     } else if (name == context->symbolTable->thisMethodSymbol()) {
-        nodeValue = append(std::make_unique<hir::ConstantHIR>(method.slot(), name), block);
+        nodeValue = append(std::make_unique<hir::ConstantHIR>(method.slot()), block);
     } else if (name == context->symbolTable->thisProcessSymbol()) {
-        nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisProcess), name), block);
+        nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisProcess)), block);
     } else if (name == context->symbolTable->thisThreadSymbol()) {
-        nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisThread), name), block);
+        nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisThread)), block);
     }
 
     // Special names can all be appended locally to the block, no import required
     if (nodeValue != hir::kInvalidID) {
-        block->revisions.emplace(std::make_pair(name, nodeValue));
+        auto assignHIROwning = std::make_unique<hir::AssignHIR>(name, nodeValue);
+        auto assignHIR = assignHIROwning.get();
+        block->nameAssignments[name] = assignHIR;
+        return assignHIR;
     } else {
         SPDLOG_CRITICAL("Failed to find name: {}", name.view(context));
     }
 
-    return nodeValue;
+    return nullptr;
 }
 
 hir::AssignHIR* BlockBuilder::findScopedName(ThreadContext* context, library::Symbol name, Block* block) {
@@ -670,7 +674,8 @@ hir::AssignHIR* BlockBuilder::findScopedNameRecursive(ThreadContext* context, li
     auto iter = block->nameAssignments.find(name);
     if (iter != block->nameAssignments.end()) {
         if (!isShadowed) {
-            SPDLOG_INFO("revisions hit for {} in block {} with value {}", name.view(context), block->id, iter->second);
+            SPDLOG_INFO("revisions hit for {} in block {} with value {}", name.view(context), block->id,
+                    iter->second->valueId);
             return iter->second;
         }
     }
@@ -686,21 +691,19 @@ hir::AssignHIR* BlockBuilder::findScopedNameRecursive(ThreadContext* context, li
         block->frame->values.emplace_back(phi.get());
         block->incompletePhis.emplace_back(std::move(phi));
 
-        auto assignHIR = std::make_unique<hir::AssignHIR>(name, phiValue, ??)
-
-        blockValues.emplace(std::make_pair(block->id, phiValue));
-        block->revisions[name] = phiValue;
-        return phiValue;
+        auto assignHIROwning = std::make_unique<hir::AssignHIR>(name, phiValue);
+        auto assignHIR = assignHIROwning.get();
+        append(std::move(assignHIROwning), block);
+        block->nameAssignments[name] = assignHIR;
+        return assignHIR;
     }
 
     // Don't bother with phi creation if we have no or only one predecessor.
     if (block->predecessors.size() == 0) {
-        blockValues.emplace(std::make_pair(block->id, hir::kInvalidID));
-        return hir::kInvalidID;
+        return nullptr;
     } else if (block->predecessors.size() == 1) {
         auto foundValue = findScopedNameRecursive(context, name, block->predecessors.front(), blockValues,
                 containingScopes, trivialPhis);
-        blockValues.emplace(std::make_pair(block->id, foundValue));
         return foundValue;
     }
 
@@ -710,67 +713,57 @@ hir::AssignHIR* BlockBuilder::findScopedNameRecursive(ThreadContext* context, li
     auto phiValue = phi->proposeValue(static_cast<hir::ID>(block->frame->values.size()));
     phi->owningBlock = block;
     block->frame->values.emplace_back(phi.get());
-    blockValues.emplace(std::make_pair(block->id, phiValue));
+    auto assignHIR = std::make_unique<hir::AssignHIR>(name, phiValue);
+    blockValues.emplace(std::make_pair(block->id, assignHIR.get()));
 
     // Search predecessors for the name.
     for (auto pred : block->predecessors) {
-        auto foundValue = findScopedNameRecursive(context, name, pred, blockValues, containingScopes, trivialPhis);
+        auto foundAssign = findScopedNameRecursive(context, name, pred, blockValues, containingScopes, trivialPhis);
 
         // This is a depth-first search, so the above recursive call will return after searching up until either the
         // name is found or the import block (with no predecessors) is found empty. So an invalidID return here means
         // we have not found the name in any scope along the path from here to root, and need to clean up the phi and
-        // return kInvalidID.
-        if (foundValue == hir::kInvalidID) {
+        // return nullptr
+        if (!foundAssign) {
             assert(phi->reads.size() == 0);
             assert(trivialPhis.size() == 0);
             block->frame->values[phiValue] = nullptr;
-            blockValues[block->id] = hir::kInvalidID;
-            return hir::kInvalidID;
+            blockValues[block->id] = nullptr;
+            return nullptr;
         }
 
-        assert(foundValue < static_cast<hir::ID>(block->frame->values.size()));
-        assert(block->frame->values[foundValue]);
-        phi->addInput(block->frame->values[foundValue]);
+        assert(block->frame->values[foundAssign->valueId]);
+        phi->addInput(block->frame->values[foundAssign->valueId]);
     }
     assert(phi->inputs.size());
 
-    auto phiRef = phi.get();
-    block->phis.emplace_back(std::move(phi));
-
-    auto trivialValue = phiRef->getTrivialValue();
-    if (trivialValue == hir::kInvalidID) {
-        SPDLOG_INFO("nontrivial phi, setting {} to {} in block {}", name.view(context), phiValue, block->id);
-        block->revisions[name] = phiValue;
-        return phiValue;
+    // If trivial, add it to the list of values to replace with its trivial value.
+    auto trivialValue = phi->getTrivialValue();
+    if (trivialValue != hir::kInvalidID) {
+        SPDLOG_INFO("{} trivial phi, replace {} with {} in block {}", name.view(context), phiValue, trivialValue,
+                block->id);
+        assert(block->frame->values[trivialValue]);
+        trivialPhis.emplace(std::make_pair(phi.get(), block->frame->values[trivialValue]));
     }
 
-    // This phi may be trivial, but because the graph has possible cycles with loops it may already be in other phis or
-    // even statements in successors (who are also predecessors). Remove if so, and all other phis made trivial by this
-    // substitution.
-    blockValues[block->id] = trivialValue;
-    block->revisions[name] = trivialValue;
-    SPDLOG_INFO("trivial phi, setting {} to {} in block {}", name.view(context), trivialValue, block->id);
+    auto assignRef = assignHIR.get();
+    block->nameAssignments[name] = assignRef;
+    append(std::move(assignHIR), block);
+    block->phis.emplace_back(std::move(phi));
 
-    assert(block->frame->values[trivialValue]);
-    trivialPhis.emplace(std::make_pair(phiRef, block->frame->values[trivialValue]));
-
-    return trivialValue;
+    return assignRef;
 }
 
 void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& replacements) {
     std::unordered_set<hir::HIR*> toRemove;
 
     while (replacements.size()) {
-        std::unordered_set<Block*> toRename;
-
         auto iter = replacements.begin();
         auto orig = iter->first;
         assert(orig->id != hir::kInvalidID);
-        toRename.emplace(orig->owningBlock);
 
         auto repl = iter->second;
         assert(repl->id != hir::kInvalidID);
-        toRename.emplace(repl->owningBlock);
 
         replacements.erase(iter);
 
@@ -781,7 +774,6 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
             if (consumer == orig) { continue; }
 
             consumer->replaceInput(orig->id, repl->id);
-            toRename.emplace(consumer->owningBlock);
 
             // Phis may themselves be rendered trivial by this replacement, if they are we append them to the list
             // of replacements.
@@ -792,6 +784,9 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
                     replacements[consumer] = consumer->owningBlock->frame->values[trivialValue];
                 }
             }
+
+            // Add this new consumer to the replacement object.
+            if (consumer != repl) { repl->consumers.emplace(consumer); }
         }
 
         // Update consumer pointers in any values orig HIR consumes.
@@ -800,17 +795,6 @@ void BlockBuilder::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& repla
             assert(provider);
             if (provider != orig) { provider->consumers.erase(orig); }
             if (provider != repl) { provider->consumers.emplace(repl); }
-        }
-
-        // Update any revision tables with the new name.
-        if (!orig->name.isNil()) {
-            for (auto renameBlock : toRename) {
-                auto revisionIter = renameBlock->revisions.find(orig->name);
-                if (revisionIter != renameBlock->revisions.end() && revisionIter->second == orig->id) {
-                    SPDLOG_INFO("renaming in block {} from {} to {}", renameBlock->id, orig->id, repl->id);
-                    revisionIter->second = repl->id;
-                }
-            }
         }
 
         toRemove.emplace(orig);
