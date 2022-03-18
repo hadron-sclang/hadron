@@ -8,13 +8,13 @@ namespace hir {
 
 struct ImportLocalVariableHIR : public HIR {
     ImportLocalVariableHIR() = delete;
-    ImportLocalVariableHIR(library::Symbol name, TypeFlags t, NVID extId);
+    ImportLocalVariableHIR(TypeFlags t, ID extId);
     virtual ~ImportLocalVariableHIR() = default;
 
-    NVID externalId;
+    ID externalId;
 
-    NVID proposeValue(NVID id) override;
-    bool replaceInput(NVID original, NVID replacement) override;
+    ID proposeValue(ID proposedId) override;
+    bool replaceInput(ID original, ID replacement) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };
 

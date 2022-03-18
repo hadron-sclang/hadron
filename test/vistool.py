@@ -97,7 +97,9 @@ def vRegToString(lir):
     return '({}) VR{}'.format(flags, lir['value'])
 
 def lirToString(lir):
-    if lir['opcode'] == 'Branch':
+    if lir['opcode'] == 'Assign':
+        return 'VR{} &#8592; VR{}'.format(lir['origin'])
+    elif lir['opcode'] == 'Branch':
         return 'Branch to Label {}'.format(lir['labelId'])
     elif lir['opcode'] == 'BranchIfTrue':
         return 'BranchIfTrue {} to Label {}'.format(lir['condition'], lir['labelId'])
@@ -162,13 +164,11 @@ def buildLinearFrame(outFile, linearFrame):
 
 def valueToString(value):
     flags = ' | '.join(value['typeFlags'])
-    if 'name' in value:
-        return '({}) {}_{}'.format(flags, value['name'], value['id'])
-    return '({}) _{}'.format(flags, value['id'])
+    return '({}) v_{}'.format(flags, value['id'])
 
 def hirToString(hir):
     if hir['opcode'] == 'Assign':
-        return '{} &#8592; {}'.format(valueToString(hir['value']), valueToString(hir['assignValue']))
+        return '<i>{}</i> = {}'.format(hir['name'], valueToString(hir['assignId']))
     elif hir['opcode'] == 'Branch':
         return 'Branch to Block {}'.format(hir['blockId'])
     elif hir['opcode'] == 'BranchIfTrue':
@@ -182,8 +182,7 @@ def hirToString(hir):
                 hir['offset'])
     elif hir['opcode'] == 'ImportLocalVariable':
         # Re-using the name of the local value as the name of the imported value.
-        return '{} &#8592; ImportLocalVar({}_{})'.format(valueToString(hir['value']), hir['value']['name'],
-                hir['externalId'])
+        return '{} &#8592; ImportLocalVar(v_{})'.format(valueToString(hir['value']), hir['externalId'])
     elif hir['opcode'] == 'LoadArgument':
         return '{} &#8592; LoadArgument({})'.format(valueToString(hir['value']), hir['argIndex'])
     elif hir['opcode'] == 'Message':
@@ -198,7 +197,7 @@ def hirToString(hir):
         return 'return'
     elif hir['opcode'] == 'Phi':
         phi = '{} &#8592; &phi;('.format(valueToString(hir['value']))
-        phi += ','.join(['{}'.format(x['id']) for x in hir['inputs']])  
+        phi += ','.join(['v_{}'.format(x['id']) for x in hir['inputs']])
         phi += ')'
         return phi
     elif hir['opcode'] == 'StoreReturn':

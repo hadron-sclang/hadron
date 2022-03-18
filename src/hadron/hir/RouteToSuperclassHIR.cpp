@@ -3,19 +3,19 @@
 namespace hadron {
 namespace hir {
 
-RouteToSuperclassHIR::RouteToSuperclassHIR(NVID tID):
+RouteToSuperclassHIR::RouteToSuperclassHIR(ID tID):
     HIR(kRouteToSuperclass),
     thisId(tID) {
     reads.emplace(tID);
 }
 
 
-NVID RouteToSuperclassHIR::proposeValue(NVID id) {
-    value.id = id;
+ID RouteToSuperclassHIR::proposeValue(ID proposedId) {
+    id = proposedId;
     return id;
 }
 
-bool RouteToSuperclassHIR::replaceInput(NVID original, NVID replacement) {
+bool RouteToSuperclassHIR::replaceInput(ID original, ID replacement) {
     if (replaceReads(original, replacement)) {
         assert(thisId == original);
         thisId = replacement;

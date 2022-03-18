@@ -13,8 +13,8 @@ struct BranchHIR : public HIR {
 
     Block::ID blockId;
 
-    NVID proposeValue(NVID id) override;
-    bool replaceInput(NVID original, NVID replacement) override;
+    ID proposeValue(ID proposedId) override;
+    bool replaceInput(ID original, ID replacement) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
 };
 

@@ -11,6 +11,10 @@
 
 namespace hadron {
 
+namespace hir {
+struct AssignHIR;
+}
+
 struct Frame;
 
 struct Block {
@@ -21,13 +25,15 @@ struct Block {
             scope(owningScope),
             frame(owningScope->frame),
             id(blockID),
-            finalValue(hir::kInvalidNVID),
+            finalValue(hir::kInvalidID),
             hasMethodReturn(false),
             isSealed(true) {}
     ~Block() = default;
 
-    // Map of names to most recent revision of local values.
-    std::unordered_map<library::Symbol, hir::NVID> revisions;
+    // Any assignments of value ids to named values must occur with AssignHIR statements. These allow us to track
+    // changes to named values that might need to be synchronized to the heap, as well as allowing the value id to be
+    // manipulated like normal HIR value ids, such as during trivial phi deletion or constant folding.
+    std::unordered_map<library::Symbol, hir::AssignHIR*> nameAssignments;
 
     // Owning scope of this block.
     Scope* scope;
@@ -45,7 +51,7 @@ struct Block {
     std::list<std::unique_ptr<hir::HIR>> statements;
 
     // The value of executing any block is the final value that was created in the block.
-    hir::NVID finalValue;
+    hir::ID finalValue;
     bool hasMethodReturn;
 
     // Sealed blocks have had all their predecessors added, and so can complete phis. Unsealed blocks cannot, and so

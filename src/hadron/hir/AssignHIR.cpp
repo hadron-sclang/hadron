@@ -1,29 +1,34 @@
 #include "hadron/hir/AssignHIR.hpp"
 
+#include "hadron/lir/AssignLIR.hpp"
+
+#include <spdlog/spdlog.h>
+
 namespace hadron {
 namespace hir {
 
-AssignHIR::AssignHIR(library::Symbol n, HIR* v):
-    HIR(kAssign, v->value.typeFlags, n), assignValue(v->value.id) { reads.emplace(assignValue); }
+AssignHIR::AssignHIR(library::Symbol n, ID value):
+    HIR(kAssign), name(n), valueId(value) { reads.emplace(valueId); }
 
-NVID AssignHIR::proposeValue(NVID id) {
-    value.id = id;
-    return id;
+ID AssignHIR::proposeValue(ID /* proposedId */) {
+    return hir::kInvalidID;
 }
 
-bool AssignHIR::replaceInput(NVID original, NVID replacement) {
+bool AssignHIR::replaceInput(ID original, ID replacement) {
     if (replaceReads(original, replacement)) {
-        assert(assignValue == original);
-        assignValue = replacement;
+        SPDLOG_INFO("AssignHIR replacing {} with {}", original, replacement);
+        assert(valueId == original);
+        valueId = replacement;
         return true;
     }
 
     return false;
 }
 
-void AssignHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
+void AssignHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>&  /* vRegs */,
         LIRList& /* append */) const {
-    assert(false); // WRITEME
+    // usually a no-op unless the name is *captured*
+    assert(false);
 }
 
 } // namespace hir

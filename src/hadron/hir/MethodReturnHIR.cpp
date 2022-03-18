@@ -7,13 +7,13 @@ namespace hadron {
 namespace hir {
 
 MethodReturnHIR::MethodReturnHIR():
-        HIR(kMethodReturn) { }
+        HIR(kMethodReturn) {}
 
-NVID MethodReturnHIR::proposeValue(NVID /* id */) {
-    return kInvalidNVID;
+ID MethodReturnHIR::proposeValue(ID /* proposedId */) {
+    return kInvalidID;
 }
 
-bool MethodReturnHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+bool MethodReturnHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 

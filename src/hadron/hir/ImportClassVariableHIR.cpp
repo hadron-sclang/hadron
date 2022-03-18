@@ -3,17 +3,17 @@
 namespace hadron {
 namespace hir {
 
-ImportClassVariableHIR::ImportClassVariableHIR(library::Symbol name, library::Class def, int32_t off):
-        HIR(kImportClassVariable, TypeFlags::kAllFlags, name),
+ImportClassVariableHIR::ImportClassVariableHIR(library::Class def, int32_t off):
+        HIR(kImportClassVariable, TypeFlags::kAllFlags),
         classDef(def),
         offset(off) {}
 
-NVID ImportClassVariableHIR::proposeValue(NVID id) {
-    value.id = id;
+ID ImportClassVariableHIR::proposeValue(ID proposedId) {
+    id = proposedId;
     return id;
 }
 
-bool ImportClassVariableHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+bool ImportClassVariableHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 

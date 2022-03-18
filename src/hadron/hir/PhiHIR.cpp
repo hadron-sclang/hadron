@@ -5,43 +5,30 @@
 namespace hadron {
 namespace hir {
 
-PhiHIR::PhiHIR(): HIR(kPhi) {}
+PhiHIR::PhiHIR(): HIR(kPhi, TypeFlags::kNoFlags), isSelfReferential(false) {}
 
-PhiHIR::PhiHIR(library::Symbol name): HIR(kPhi, TypeFlags::kNoFlags, name), isSelfReferential(false) {}
+PhiHIR::PhiHIR(library::Symbol n): HIR(kPhi, TypeFlags::kNoFlags), name(n), isSelfReferential(false) {}
 
 void PhiHIR::addInput(HIR* input) {
-    assert(input->value.id != hir::kInvalidNVID);
+    assert(input->id != hir::kInvalidID);
 
-    inputs.emplace_back(input->value.id);
+    inputs.emplace_back(input->id);
 
-    if (input->value.id != value.id) {
-        reads.emplace(input->value.id);
-        value.typeFlags = static_cast<TypeFlags>(static_cast<int32_t>(value.typeFlags) |
-                                                 static_cast<int32_t>(input->value.typeFlags));
+    if (input->id != id) {
+        reads.emplace(input->id);
+        typeFlags = static_cast<TypeFlags>(static_cast<int32_t>(typeFlags) | static_cast<int32_t>(input->typeFlags));
 
         input->consumers.insert(static_cast<HIR*>(this));
-
-        // Our knownClassName should accept the value of the first input added to the phi, and only keep that value if
-        // it matches every other input.
-        if (value.typeFlags & TypeFlags::kObjectFlag) {
-            if (inputs.size() == 1) {
-                value.knownClassName = input->value.knownClassName;
-            } else if (value.knownClassName != input->value.knownClassName) {
-                value.knownClassName = library::Symbol();
-            }
-        } else {
-            value.knownClassName = library::Symbol();
-        }
     } else {
         isSelfReferential = true;
     }
 }
 
-NVID PhiHIR::getTrivialValue() const {
+ID PhiHIR::getTrivialValue() const {
     // More than one distinct value in reads (which does not allow self-referential values) means this phi is
     // non-trivial.
     if (reads.size() > 1) {
-        return kInvalidNVID;
+        return kInvalidID;
     }
 
     // Phis with no inputs are invalid.
@@ -49,19 +36,19 @@ NVID PhiHIR::getTrivialValue() const {
     return *(reads.begin());
 }
 
-NVID PhiHIR::proposeValue(NVID id) {
-    value.id = id;
+ID PhiHIR::proposeValue(ID proposedId) {
+    id = proposedId;
     return id;
 }
 
-bool PhiHIR::replaceInput(NVID original, NVID replacement) {
+bool PhiHIR::replaceInput(ID original, ID replacement) {
     assert(original != replacement);
 
     bool inputsNeedSwap = false;
-    if (replacement == value.id) {
+    if (replacement == id) {
         inputsNeedSwap = reads.erase(original);
         isSelfReferential = true;
-    } else if (original == value.id) {
+    } else if (original == id) {
         if (isSelfReferential) {
             reads.emplace(replacement);
         }

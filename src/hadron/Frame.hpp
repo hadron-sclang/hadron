@@ -10,6 +10,10 @@
 
 namespace hadron {
 
+namespace hir {
+struct BlockLiteralHIR;
+}
+
 struct Block;
 struct Scope;
 
@@ -36,9 +40,15 @@ struct Frame {
     // Counter used as a serial number to uniquely identify blocks.
     int32_t numberOfBlocks = 0;
 
-    // Function literals can capture values from outside frames, so we include a pointer to the Block in the containing 
-    // frame to support search of those frames for those values.
-    Block* outerBlock = nullptr;
+    // Function literals can capture values from outside frames, so we include a pointer to the InlineBlockHIR in the
+    // containing frame to support search of those frames for those values.
+    hir::BlockLiteralHIR* outerBlockHIR = nullptr;
+
+    // To avoid creation of duplicate constants we track all constant values in a map.
+    std::unordered_map<Slot, hir::ID> constantValues;
+
+    // For quickly determining if a given ID is a constant.
+    std::unordered_set<hir::ID> constantIds;
 };
 
 } // namespace hadron

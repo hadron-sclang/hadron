@@ -5,17 +5,14 @@
 namespace hadron {
 namespace hir {
 
-ConstantHIR::ConstantHIR(const Slot c): HIR(kConstant, c.getType(), library::Symbol()), constant(c) {}
+ConstantHIR::ConstantHIR(const Slot c): HIR(kConstant, c.getType()), constant(c) {}
 
-ConstantHIR::ConstantHIR(const Slot c, library::Symbol name):
-        HIR(kConstant, c.getType(), name), constant(c) {}
-
-NVID ConstantHIR::proposeValue(NVID id) {
-    value.id = id;
+ID ConstantHIR::proposeValue(ID proposedId) {
+    id = proposedId;
     return id;
 }
 
-bool ConstantHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+bool ConstantHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 

@@ -61,12 +61,12 @@ private:
     library::Class findOrInitClass(ThreadContext* context, library::Symbol className);
 
     // Traverse the class tree in superclass to subclass order, starting with Object, and finalize all inherited
-    // properties.
+    // properties, plus lower from AST to Frame representation.
     bool finalizeHeirarchy(ThreadContext* context);
     bool composeSubclassesFrom(ThreadContext* context, library::Class classDef);
 
-    // Lower all methods to Frames/HIR and extract Signatures to analyze dependencies between methods.
-    bool buildFrames(ThreadContext* context);
+
+    bool serializeFrames(ThreadContext* context);
 
     // Clean up any temporary data structures
     bool cleanUp();

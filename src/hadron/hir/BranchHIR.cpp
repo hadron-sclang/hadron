@@ -7,11 +7,11 @@ namespace hir {
 
 BranchHIR::BranchHIR(): HIR(kBranch) {}
 
-NVID BranchHIR::proposeValue(NVID /* id */) {
-    return kInvalidNVID;
+ID BranchHIR::proposeValue(ID /* proposedId */) {
+    return kInvalidID;
 }
 
-bool BranchHIR::replaceInput(NVID /* original */, NVID /* replacement */) {
+bool BranchHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 

@@ -22,6 +22,7 @@ using LIRList = std::list<std::unique_ptr<lir::LIR>>;
 namespace lir {
 
 enum Opcode {
+    kAssign,
     kBranch,
     kBranchIfTrue,
     kBranchToRegister,

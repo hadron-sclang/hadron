@@ -229,6 +229,7 @@ add_library(hadron STATIC
     library/Symbol.hpp
     library/Thread.hpp
 
+    lir/AssignLIR.hpp
     lir/BranchIfTrueLIR.hpp
     lir/BranchLIR.hpp
     lir/BranchToRegisterLIR.hpp

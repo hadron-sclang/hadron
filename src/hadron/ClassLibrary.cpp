@@ -43,7 +43,7 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
     if (!resetLibrary(context)) { return false; }
     if (!scanFiles(context)) { return false; }
     if (!finalizeHeirarchy(context)) { return false; }
-    if (!buildFrames(context)) { return false; }
+//    if (!serializeFrames(context)) { return false; }
     return cleanUp();
 }
 
@@ -295,7 +295,12 @@ bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
 
     // We start at the root of the class heirarchy with Object.
     auto objectClassDef = objectIter->second;
-    return composeSubclassesFrom(context, objectClassDef);
+    bool success = composeSubclassesFrom(context, objectClassDef);
+
+    // We've converted all the ASTs to Frames, so we can free up the RAM.
+    m_methodASTs.clear();
+
+    return success;
 }
 
 bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class classDef) {
@@ -357,7 +362,21 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
     return true;
 }
 
-bool ClassLibrary::buildFrames(ThreadContext* /* context */) {
+bool ClassLibrary::serializeFrames(ThreadContext* context) {
+    for (auto& methodMap : m_methodFrames) {
+        auto className = methodMap.first;
+
+        for (auto& methodFrame : (*methodMap.second)) {
+            auto methodName = methodFrame.first;
+
+            SPDLOG_INFO("serializing frame for {}:{}", className.view(context), methodName.view(context));
+
+            BlockSerializer serializer;
+            auto linearFrame = serializer.serialize(methodFrame.second.get());
+            if (linearFrame == nullptr) { return false; }
+        }
+    }
+
     return true;
 }
 

@@ -5,15 +5,15 @@
 namespace hadron {
 namespace hir {
 
-StoreReturnHIR::StoreReturnHIR(NVID value):
+StoreReturnHIR::StoreReturnHIR(ID value):
     HIR(kStoreReturn),
     returnValue(value) { reads.emplace(returnValue); }
 
-NVID StoreReturnHIR::proposeValue(NVID /* id */) {
-    return kInvalidNVID;
+ID StoreReturnHIR::proposeValue(ID /* proposedId */) {
+    return kInvalidID;
 }
 
-bool StoreReturnHIR::replaceInput(NVID original, NVID replacement) {
+bool StoreReturnHIR::replaceInput(ID original, ID replacement) {
     if (replaceReads(original, replacement)) {
         assert(returnValue == original);
         returnValue = replacement;

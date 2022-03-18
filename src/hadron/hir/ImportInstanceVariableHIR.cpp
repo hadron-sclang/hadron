@@ -3,19 +3,19 @@
 namespace hadron {
 namespace hir {
 
-ImportInstanceVariableHIR::ImportInstanceVariableHIR(library::Symbol name, NVID instance, int32_t off):
-        HIR(kImportInstanceVariable, TypeFlags::kAllFlags, name),
+ImportInstanceVariableHIR::ImportInstanceVariableHIR(ID instance, int32_t off):
+        HIR(kImportInstanceVariable, TypeFlags::kAllFlags),
         thisId(instance),
         offset(off) {
     reads.emplace(instance);
 }
 
-NVID ImportInstanceVariableHIR::proposeValue(NVID id) {
-    value.id = id;
+ID ImportInstanceVariableHIR::proposeValue(ID proposedId) {
+    id = proposedId;
     return id;
 }
 
-bool ImportInstanceVariableHIR::replaceInput(NVID original, NVID replacement) {
+bool ImportInstanceVariableHIR::replaceInput(ID original, ID replacement) {
     if (replaceReads(original, replacement)) {
         assert(thisId == original);
         thisId = replacement;
