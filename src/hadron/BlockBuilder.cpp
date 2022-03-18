@@ -492,7 +492,7 @@ hir::AssignHIR* BlockBuilder::findName(ThreadContext* context, const library::Me
                 producerHIR->consumers.emplace(outerBlockHIR);
 
                 // Now we need to add import statements to the import block inside the frame owned by outerBlockHIR.
-                auto import = std::make_unique<hir::ImportLocalVariableHIR>(assignHIR->typeFlags, assignHIR->valueId);
+                auto import = std::make_unique<hir::ImportLocalVariableHIR>(producerHIR->typeFlags, assignHIR->valueId);
 
                 // Now innerBlock should point to the block containing either the current search or the next nested
                 // BlockLiteralHIR.
