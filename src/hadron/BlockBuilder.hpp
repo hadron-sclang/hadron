@@ -1,5 +1,5 @@
-#ifndef SRC_COMPILER_INCLUDE_HADRON_BLOCK_BUILDER_HPP_
-#define SRC_COMPILER_INCLUDE_HADRON_BLOCK_BUILDER_HPP_
+#ifndef SRC_HADRON_BLOCK_BUILDER_HPP_
+#define SRC_HADRON_BLOCK_BUILDER_HPP_
 
 #include "hadron/Block.hpp"
 #include "hadron/hir/HIR.hpp"
@@ -39,7 +39,7 @@ class BlockBuilder {
 public:
     BlockBuilder() = delete;
     BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter);
-    ~BlockBuilder();
+    ~BlockBuilder() = default;
 
     std::unique_ptr<Frame> buildMethod(ThreadContext* context, const library::Method method,
             const ast::BlockAST* blockAST);
@@ -94,4 +94,4 @@ private:
 
 } // namespace hadron
 
-#endif // SRC_COMPILER_INCLUDE_HADRON_BLOCK_BUILDER_HPP_
+#endif // SRC_HADRON_BLOCK_BUILDER_HPP_

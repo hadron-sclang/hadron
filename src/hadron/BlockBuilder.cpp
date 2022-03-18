@@ -39,8 +39,6 @@ namespace hadron {
 BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
     m_errorReporter(errorReporter) { }
 
-BlockBuilder::~BlockBuilder() { }
-
 std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
         const ast::BlockAST* blockAST) {
     return buildFrame(context, method, blockAST, nullptr);

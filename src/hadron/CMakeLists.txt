@@ -266,6 +266,8 @@ add_library(hadron STATIC
     LighteningJIT.cpp
     LighteningJIT.hpp
     LinearFrame.hpp
+    NameSaver.cpp
+    NameSaver.hpp
     MoveScheduler.cpp
     MoveScheduler.hpp
     OpcodeIterator.cpp
