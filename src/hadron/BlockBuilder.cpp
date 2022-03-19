@@ -39,8 +39,6 @@ namespace hadron {
 BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
     m_errorReporter(errorReporter) { }
 
-BlockBuilder::~BlockBuilder() { }
-
 std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
         const ast::BlockAST* blockAST) {
     return buildFrame(context, method, blockAST, nullptr);
@@ -94,7 +92,7 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
 
     currentBlock->finalValue = buildFinalValue(context, method, currentBlock, blockAST->statements.get());
 
-     // We append a return statement in the final block, if one wasn't already provided.
+    // We append a return statement in the final block, if one wasn't already provided.
     if (!currentBlock->hasMethodReturn) {
         append(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
         currentBlock->hasMethodReturn = true;
@@ -117,6 +115,7 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, co
 
     Block* currentBlock = block;
     currentBlock->finalValue = buildFinalValue(context, method, currentBlock, blockAST->statements.get());
+
     return scope;
 }
 
@@ -229,6 +228,7 @@ hir::ID BlockBuilder::buildFinalValue(ThreadContext* context, const library::Met
         const ast::SequenceAST* sequenceAST) {
     for (const auto& ast : sequenceAST->sequence) {
         currentBlock->finalValue = buildValue(context, method, currentBlock, ast.get());
+
         // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
         if (currentBlock->hasMethodReturn) { break; }
     }
@@ -269,35 +269,50 @@ hir::ID BlockBuilder::buildIf(ThreadContext* context, library::Method method, Bl
     falseBranch->blockId = falseScope->blocks.front()->id;
     conditionBlock->successors.emplace_back(falseScope->blocks.front().get());
 
+    // If both conditions return there's no need for a continution block, and building values in this scope is done.
+    if (falseScope->blocks.back()->hasMethodReturn && trueScope->blocks.back()->hasMethodReturn) {
+        conditionBlock->hasMethodReturn = true;
+        currentBlock = conditionBlock;
+        return conditionBlock->finalValue;
+    }
+
     // Create a new block in the parent frame for code after the if statement.
     auto continueBlock = std::make_unique<Block>(parentScope, parentScope->frame->numberOfBlocks);
     ++parentScope->frame->numberOfBlocks;
     currentBlock = continueBlock.get();
     parentScope->blocks.emplace_back(std::move(continueBlock));
 
-    // Wire trueScope exit block to the continue block here.
-    auto exitTrueBranch = std::make_unique<hir::BranchHIR>();
-    exitTrueBranch->blockId = currentBlock->id;
-    append(std::move(exitTrueBranch), trueScope->blocks.back().get());
-    trueScope->blocks.back()->successors.emplace_back(currentBlock);
-    currentBlock->predecessors.emplace_back(trueScope->blocks.back().get());
+    // Wire trueScope exit block to the continue block here, if the true block doesn't return.
+    if (!trueScope->blocks.back()->hasMethodReturn) {
+        auto exitTrueBranch = std::make_unique<hir::BranchHIR>();
+        exitTrueBranch->blockId = currentBlock->id;
+        append(std::move(exitTrueBranch), trueScope->blocks.back().get());
+        trueScope->blocks.back()->successors.emplace_back(currentBlock);
+        currentBlock->predecessors.emplace_back(trueScope->blocks.back().get());
+        nodeValue = trueScope->blocks.back()->finalValue;
+    }
 
     // Wire falseFrame exit block to the continue block here.
-    auto exitFalseBranch = std::make_unique<hir::BranchHIR>();
-    exitFalseBranch->blockId = currentBlock->id;
-    append(std::move(exitFalseBranch), falseScope->blocks.back().get());
-    falseScope->blocks.back()->successors.emplace_back(currentBlock);
-    currentBlock->predecessors.emplace_back(falseScope->blocks.back().get());
+    if (!falseScope->blocks.back()->hasMethodReturn) {
+        auto exitFalseBranch = std::make_unique<hir::BranchHIR>();
+        exitFalseBranch->blockId = currentBlock->id;
+        append(std::move(exitFalseBranch), falseScope->blocks.back().get());
+        falseScope->blocks.back()->successors.emplace_back(currentBlock);
+        currentBlock->predecessors.emplace_back(falseScope->blocks.back().get());
+        nodeValue = falseScope->blocks.back()->finalValue;
+    }
 
     // Add a Phi with the final value of both the false and true blocks here, and which serves as the value of the
     // if statement overall.
-    auto valuePhi = std::make_unique<hir::PhiHIR>();
-    valuePhi->owningBlock = currentBlock;
-    valuePhi->addInput(currentBlock->frame->values[trueScope->blocks.back()->finalValue]);
-    valuePhi->addInput(currentBlock->frame->values[falseScope->blocks.back()->finalValue]);
-    nodeValue = valuePhi->proposeValue(static_cast<hir::ID>(currentBlock->frame->values.size()));
-    currentBlock->frame->values.emplace_back(valuePhi.get());
-    currentBlock->phis.emplace_back(std::move(valuePhi));
+    if ((!falseScope->blocks.back()->hasMethodReturn) && (!trueScope->blocks.back()->hasMethodReturn)) {
+        auto valuePhi = std::make_unique<hir::PhiHIR>();
+        valuePhi->owningBlock = currentBlock;
+        valuePhi->addInput(currentBlock->frame->values[trueScope->blocks.back()->finalValue]);
+        valuePhi->addInput(currentBlock->frame->values[falseScope->blocks.back()->finalValue]);
+        nodeValue = valuePhi->proposeValue(static_cast<hir::ID>(currentBlock->frame->values.size()));
+        currentBlock->frame->values.emplace_back(valuePhi.get());
+        currentBlock->phis.emplace_back(std::move(valuePhi));
+    }
 
     return nodeValue;
 }
@@ -693,7 +708,7 @@ hir::AssignHIR* BlockBuilder::findScopedNameRecursive(ThreadContext* context, li
 
         auto assignHIROwning = std::make_unique<hir::AssignHIR>(name, phiValue);
         auto assignHIR = assignHIROwning.get();
-        append(std::move(assignHIROwning), block);
+        insert(std::move(assignHIROwning), block, block->statements.begin());
         block->nameAssignments[name] = assignHIR;
         return assignHIR;
     }
@@ -748,7 +763,7 @@ hir::AssignHIR* BlockBuilder::findScopedNameRecursive(ThreadContext* context, li
 
     auto assignRef = assignHIR.get();
     block->nameAssignments[name] = assignRef;
-    append(std::move(assignHIR), block);
+    insert(std::move(assignHIR), block, block->statements.begin());
     block->phis.emplace_back(std::move(phi));
 
     return assignRef;
