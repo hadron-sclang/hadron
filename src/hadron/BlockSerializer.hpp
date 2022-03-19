@@ -9,7 +9,7 @@
 
 namespace hadron {
 
-struct Block;
+class Block;
 struct Frame;
 struct LinearFrame;
 

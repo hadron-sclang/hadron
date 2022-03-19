@@ -22,7 +22,7 @@ bool BlockLiteralHIR::replaceInput(ID original, ID replacement) {
 
     // The frame could have ImportLocalValueHIR that has |original| as the imported value, so inspect the first block
     // within the frame.
-    for (auto& hir : frame->rootScope->blocks.front()->statements) {
+    for (auto& hir : frame->rootScope->blocks.front()->statements()) {
         if (hir->opcode == hir::Opcode::kImportLocalVariable) {
             auto* importLocal = reinterpret_cast<ImportLocalVariableHIR*>(hir.get());
             if (importLocal->externalId == original) {

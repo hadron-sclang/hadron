@@ -46,25 +46,25 @@ bool Validator::validateSubScope(const Scope* scope, const Scope* parent, std::u
     }
     for (const auto& block : scope->blocks) {
         // Block must have a reference back to the correct owning scope.
-        if (block->scope != scope) {
+        if (block->scope() != scope) {
             SPDLOG_ERROR("Block frame mismatch");
             return false;
         }
         // Block ids must be unique.
-        if (blockIds.find(block->id) != blockIds.end()) {
-            SPDLOG_ERROR("Non-unique block number {}", block->id);
+        if (blockIds.find(block->id()) != blockIds.end()) {
+            SPDLOG_ERROR("Non-unique block number {}", block->id());
             return false;
         }
 
         // All blocks must be sealed.
-        if (!block->isSealed) {
-            SPDLOG_ERROR("Block {} is not sealed.", block->id);
+        if (!block->isSealed()) {
+            SPDLOG_ERROR("Block {} is not sealed.", block->id());
             return false;
         }
 
-        for (const auto& phi : block->phis) {
+        for (const auto& phi : block->phis()) {
             if (valueIds.count(phi->id)) {
-                SPDLOG_ERROR("Duplicate ID {} found in phi in block {}", phi->id, block->id);
+                SPDLOG_ERROR("Duplicate ID {} found in phi in block {}", phi->id, block->id());
                 return false;
             }
             if (scope->frame->values[phi->id] != phi.get()) {
@@ -74,10 +74,10 @@ bool Validator::validateSubScope(const Scope* scope, const Scope* parent, std::u
             valueIds.emplace(phi->id);
         }
 
-        for (const auto& hir : block->statements) {
+        for (const auto& hir : block->statements()) {
             if (hir->id != hir::kInvalidID) {
                 if (valueIds.count(hir->id)) {
-                    SPDLOG_ERROR("Duplicate ID {} found for hir in block {}", hir->id, block->id);
+                    SPDLOG_ERROR("Duplicate ID {} found for hir in block {}", hir->id, block->id());
                     return false;
                 }
                 if (scope->frame->values[hir->id] != hir.get()) {
@@ -88,7 +88,7 @@ bool Validator::validateSubScope(const Scope* scope, const Scope* parent, std::u
             }
         }
 
-        blockIds.emplace(block->id);
+        blockIds.emplace(block->id());
     }
     for (const auto& subScope : scope->subScopes) {
         if (!validateSubScope(subScope.get(), scope, blockIds, valueIds)) { return false; }

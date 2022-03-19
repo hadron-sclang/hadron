@@ -248,6 +248,8 @@ add_library(hadron STATIC
     AST.hpp
     ASTBuilder.cpp
     ASTBuilder.hpp
+    Block.cpp
+    Block.hpp
     BlockBuilder.cpp
     BlockBuilder.hpp
     BlockSerializer.cpp
@@ -256,6 +258,8 @@ add_library(hadron STATIC
     ClassLibrary.hpp
     Emitter.cpp
     Emitter.hpp
+    Frame.cpp
+    Frame.hpp
     Heap.cpp
     Heap.hpp
     JIT.hpp
@@ -266,10 +270,10 @@ add_library(hadron STATIC
     LighteningJIT.cpp
     LighteningJIT.hpp
     LinearFrame.hpp
-    NameSaver.cpp
-    NameSaver.hpp
     MoveScheduler.cpp
     MoveScheduler.hpp
+    NameSaver.cpp
+    NameSaver.hpp
     OpcodeIterator.cpp
     OpcodeIterator.hpp
     Page.cpp

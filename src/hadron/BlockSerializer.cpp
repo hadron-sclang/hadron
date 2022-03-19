@@ -29,22 +29,22 @@ std::unique_ptr<LinearFrame> BlockSerializer::serialize(const Frame* frame) {
     // Fill linear frame with LIR in computed order.
     for (auto blockNumber : linearFrame->blockOrder) {
         auto block = blockPointers[blockNumber];
-        auto label = std::make_unique<lir::LabelLIR>(block->id);
-        for (auto pred : block->predecessors) {
-            label->predecessors.emplace_back(pred->id);
+        auto label = std::make_unique<lir::LabelLIR>(block->id());
+        for (auto pred : block->predecessors()) {
+            label->predecessors.emplace_back(pred->id());
         }
-        for (auto succ : block->successors) {
-            label->successors.emplace_back(succ->id);
+        for (auto succ : block->successors()) {
+            label->successors.emplace_back(succ->id());
         }
-        for (const auto& phi : block->phis) {
-            phi->lower(block->frame->values, linearFrame->vRegs, label->phis);
+        for (const auto& phi : block->phis()) {
+            phi->lower(block->frame()->values, linearFrame->vRegs, label->phis);
         }
         // Start the block with a label and then append all contained instructions.
         linearFrame->instructions.emplace_back(std::move(label));
-        linearFrame->blockLabels[block->id] = --(linearFrame->instructions.end());
+        linearFrame->blockLabels[block->id()] = --(linearFrame->instructions.end());
 
-        for (const auto& hir : block->statements) {
-            hir->lower(block->frame->values, linearFrame->vRegs, linearFrame->instructions);
+        for (const auto& hir : block->statements()) {
+            hir->lower(block->frame()->values, linearFrame->vRegs, linearFrame->instructions);
         }
     }
 
@@ -54,13 +54,13 @@ std::unique_ptr<LinearFrame> BlockSerializer::serialize(const Frame* frame) {
 void BlockSerializer::orderBlocks(Block* block, std::vector<Block*>& blockPointers,
         std::vector<lir::LabelID>& blockOrder) {
     // Mark block as visited by updating number to pointer map.
-    blockPointers[block->id] = block;
-    for (const auto succ : block->successors) {
-        if (blockPointers[succ->id] == nullptr) {
+    blockPointers[block->id()] = block;
+    for (const auto succ : block->successors()) {
+        if (blockPointers[succ->id()] == nullptr) {
             orderBlocks(succ, blockPointers, blockOrder);
         }
     }
-    blockOrder.emplace_back(static_cast<lir::LabelID>(block->id));
+    blockOrder.emplace_back(static_cast<lir::LabelID>(block->id()));
 }
 
 } // namespace hadron

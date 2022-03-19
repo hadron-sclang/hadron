@@ -6,6 +6,8 @@
 #include "hadron/library/ArrayedCollection.hpp"
 
 #include <memory>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace hadron {
@@ -14,13 +16,17 @@ namespace hir {
 struct BlockLiteralHIR;
 }
 
-struct Block;
+class Block;
 struct Scope;
 
 // Represents a stack frame, so can have arguments supplied and can be called so has an entry, return value, and exit.
 struct Frame {
     Frame() = default;
     ~Frame() = default;
+
+    // Replaces pairs (key, value). May cause other replacements, which are handled sequentially. Destructively modifies
+    // the |replacements| map. All pointers to HIR must be owned by blocks within this frame.
+    void replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& replacements);
 
     // A library::Array with in-order hashes of argument names.
     library::SymbolArray argumentOrder;

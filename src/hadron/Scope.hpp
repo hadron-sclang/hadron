@@ -11,7 +11,7 @@
 namespace hadron {
 
 struct Frame;
-struct Block;
+class Block;
 
 // A Scope is a area of the code where variable declarations are valid. All Blocks of code execute within one or more
 // nested Scopes. Scopes must have a singular entry point, meaning the first Block within a Scope must exist and must

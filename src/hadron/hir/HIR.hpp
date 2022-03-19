@@ -12,7 +12,7 @@
 
 namespace hadron {
 
-struct Block;
+class Block;
 struct Frame;
 
 namespace hir {

@@ -12,7 +12,7 @@
 
 namespace hadron {
 
-struct Block;
+class Block;
 class ErrorReporter;
 struct Frame;
 struct Scope;
@@ -63,31 +63,6 @@ private:
             const ast::IfAST* ifAST);
     hir::ID buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
             const ast::WhileAST* whileAST);
-
-    void sealBlock(ThreadContext* context, const library::Method method, Block* block);
-
-    // Returns the value appended to the |block|. Takes ownership of hir.
-    hir::ID append(std::unique_ptr<hir::HIR> hir, Block* block);
-    hir::ID insert(std::unique_ptr<hir::HIR> hir, Block* block,
-            std::list<std::unique_ptr<hir::HIR>>::iterator before);
-
-    // Follow order of precedence in names to locate an identifer symbol, including in local variables, arguments,
-    // instance variables, class variables, and pre-defined identifiers. Can return hir::kInvalidID, which means a
-    // compilation error that the name is not found.
-    hir::AssignHIR* findName(ThreadContext* context, const library::Method method, library::Symbol name, Block* block);
-
-    // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
-    // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
-    // tables. Can return nullptr which means the name was not found.
-    hir::AssignHIR* findScopedName(ThreadContext* context, library::Symbol name, Block* block);
-    hir::AssignHIR* findScopedNameRecursive(ThreadContext* context, library::Symbol name, Block* block,
-                                              std::unordered_map<Block::ID, hir::AssignHIR*>& blockValues,
-                                              const std::unordered_set<const Scope*>& containingScopes,
-                                              std::unordered_map<hir::HIR*, hir::HIR*>& trivialPhis);
-
-    // Replaces pairs (key, value). May cause other replacements, which are handled sequentially. Destructively modifies
-    // the |replacements| map.
-    void replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& replacements);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };
