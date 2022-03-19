@@ -14,6 +14,7 @@
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/LinearFrame.hpp"
+#include "hadron/NameSaver.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
@@ -176,32 +177,42 @@ void HadronServer::addCompilationUnit(hadron::library::Method methodDef, std::sh
     auto blockAST = astBuilder.buildBlock(m_runtime->context(), lexer.get(), blockNode);
 
     std::unique_ptr<hadron::Frame> frame;
-    if (stopAfter > DiagnosticsStoppingPoint::kAST) {
+    if (stopAfter >= DiagnosticsStoppingPoint::kFrame) {
         SPDLOG_TRACE("Compile Diagnostics Block Builder {}", name);
         hadron::BlockBuilder blockBuilder(m_errorReporter);
         frame = blockBuilder.buildMethod(m_runtime->context(), methodDef, blockAST.get());
     }
 
+    if (stopAfter >= DiagnosticsStoppingPoint::kHIROptimization) {
+        // Apply HIR optimization steps
+    }
+
+    if (stopAfter >= DiagnosticsStoppingPoint::kHIRFinalization) {
+        SPDLOG_TRACE("Compile Diagnostics NameSaver {}", name);
+        hadron::NameSaver nameSaver(m_errorReporter);
+        nameSaver.scanFrame(frame.get());
+    }
+
     std::unique_ptr<hadron::LinearFrame> linearFrame;
-    if (stopAfter > DiagnosticsStoppingPoint::kFrame) {
+    if (stopAfter >= DiagnosticsStoppingPoint::kLowering) {
         SPDLOG_TRACE("Compile Diagnostics Block Serializer {}", name);
         hadron::BlockSerializer blockSerializer;
         linearFrame = blockSerializer.serialize(frame.get());
     }
 
-    if (stopAfter > DiagnosticsStoppingPoint::kLowering) {
+    if (stopAfter >= DiagnosticsStoppingPoint::kLifetimeAnalysis) {
         SPDLOG_TRACE("Compile Diagnostics Lifetime Analyzer {}", name);
         hadron::LifetimeAnalyzer lifetimeAnalyzer;
         lifetimeAnalyzer.buildLifetimes(linearFrame.get());
     }
 
-    if (stopAfter > DiagnosticsStoppingPoint::kLifetimeAnalysis) {
+    if (stopAfter >= DiagnosticsStoppingPoint::kRegisterAllocation) {
         SPDLOG_TRACE("Compile Diagnostics Register Allocator {}", name);
         hadron::RegisterAllocator registerAllocator(hadron::kNumberOfPhysicalRegisters);
         registerAllocator.allocateRegisters(linearFrame.get());
     }
 
-    if (stopAfter > DiagnosticsStoppingPoint::kRegisterAllocation) {
+    if (stopAfter >= DiagnosticsStoppingPoint::kResolution) {
         SPDLOG_TRACE("Compile Diagnostics Resolver {}", name);
         hadron::Resolver resolver;
         resolver.resolve(linearFrame.get());

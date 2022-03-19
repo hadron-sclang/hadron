@@ -20,17 +20,20 @@ void NameSaver::scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBl
 
     auto iter = block->statements.begin();
 
-    std::unordered_set<hir::ID> instanceValues;
-    std::unordered_set<hir::ID> classValues;
+    std::unordered_map<hir::ID, NameType> valueTypes;
 
     while (iter != block->statements.end()) {
         switch ((*iter)->opcode) {
         case hir::Opcode::kImportClassVariable:
-            classValues.emplace((*iter)->id);
+            valueTypes.emplace(std::make_pair((*iter)->id, NameType::kClass));
             break;
 
         case hir::Opcode::kImportInstanceVariable:
-            instanceValues.emplace((*iter)->id);
+            valueTypes.emplace(std::make_pair((*iter)->id, NameType::kInstance));
+            break;
+
+        case hir::Opcode::kImportLocalVariable:
+            valueTypes.emplace(std::make_pair((*iter)->id, NameType::kExternal));
             break;
 
         case hir::Opcode::kAssign: {
@@ -53,17 +56,18 @@ void NameSaver::scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBl
                 // Update assignment to new value.
                 stateIter->second.value = assignHIR->valueId;
                 stateIter->second.assign = assignHIR;
+
                 // TODO: actually emit instruction to save value if needed.
+
             } else {
+                // Create new value with this name, no save needed as this is initial load.
                 auto nameType = NameType::kLocal;
-                int32_t index = -1;
-                if (instanceValues.count(assignHIR->valueId)) {
-                    nameType = NameType::kInstance;
-                } else if (classValues.count(assignHIR->valueId)) {
-                    nameType = NameType::kClass;
+                auto valueIter = valueTypes.find(assignHIR->valueId);
+                if (valueIter != valueTypes.end()) {
+                    nameType = valueIter->second;
                 }
 
-                m_nameStates.emplace(std::make_pair(assignHIR->name, NameState{nameType, assignHIR->valueId, index,
+                m_nameStates.emplace(std::make_pair(assignHIR->name, NameState{nameType, assignHIR->valueId, -1,
                         assignHIR}));
             }
         } break;

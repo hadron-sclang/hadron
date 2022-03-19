@@ -8,7 +8,6 @@
 
 #include <memory>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace hadron {
 
@@ -40,8 +39,8 @@ private:
     std::shared_ptr<ErrorReporter> m_errorReporter;
 
     enum NameType {
-        kCaptured, // captured argument or local variable
         kClass,    // class variable
+        kExternal, // external value that may require capture if modified
         kInstance, // instance variable
         kLocal     // argument or local variable
     };
