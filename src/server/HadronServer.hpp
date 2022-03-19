@@ -39,11 +39,13 @@ public:
     enum DiagnosticsStoppingPoint : int {
         kAST = 1,
         kFrame = 2,
-        kLowering = 3,
-        kLifetimeAnalysis = 4,
-        kRegisterAllocation = 5,
-        kResolution = 6,
-        kMachineCodeEmission = 7
+        kHIROptimization = 3,
+        kHIRFinalization = 4,
+        kLowering = 5,
+        kLifetimeAnalysis = 6,
+        kRegisterAllocation = 7,
+        kResolution = 8,
+        kMachineCodeEmission = 9
     };
     void hadronCompilationDiagnostics(lsp::ID id, const std::string& filePath, DiagnosticsStoppingPoint stopAfter);
 
