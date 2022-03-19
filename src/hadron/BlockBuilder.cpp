@@ -90,12 +90,14 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
     block->successors.emplace_back(currentBlock);
     currentBlock->predecessors.emplace_back(block);
 
-    currentBlock->finalValue = buildFinalValue(context, method, currentBlock, blockAST->statements.get());
-
-     // We append a return statement in the final block, if one wasn't already provided.
-    if (!currentBlock->hasMethodReturn) {
-        append(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
-        currentBlock->hasMethodReturn = true;
+    auto finalValue = buildFinalValue(context, method, currentBlock, blockAST->statements.get());
+    if (finalValue != hir::kInvalidID && currentBlock) {
+        currentBlock->finalValue = finalValue;
+         // We append a return statement in the final block, if one wasn't already provided.
+        if (!currentBlock->hasMethodReturn) {
+            append(std::make_unique<hir::MethodReturnHIR>(), currentBlock);
+            currentBlock->hasMethodReturn = true;
+        }
     }
 
     return frame;
@@ -114,7 +116,11 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, co
     assert(blockAST->argumentNames.size() <= 1);
 
     Block* currentBlock = block;
-    currentBlock->finalValue = buildFinalValue(context, method, currentBlock, blockAST->statements.get());
+    auto finalValue = buildFinalValue(context, method, currentBlock, blockAST->statements.get());
+    if (finalValue != hir::kInvalidID && currentBlock) {
+        currentBlock->finalValue = finalValue;
+    }
+
     return scope;
 }
 
@@ -226,7 +232,10 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
 hir::ID BlockBuilder::buildFinalValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
         const ast::SequenceAST* sequenceAST) {
     for (const auto& ast : sequenceAST->sequence) {
-        currentBlock->finalValue = buildValue(context, method, currentBlock, ast.get());
+        auto finalValue = buildValue(context, method, currentBlock, ast.get());
+        if (finalValue == hir::kInvalidID || !currentBlock) { return hir::kInvalidID; }
+
+        currentBlock->finalValue = finalValue;
         // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
         if (currentBlock->hasMethodReturn) { break; }
     }
@@ -267,11 +276,10 @@ hir::ID BlockBuilder::buildIf(ThreadContext* context, library::Method method, Bl
     falseBranch->blockId = falseScope->blocks.front()->id;
     conditionBlock->successors.emplace_back(falseScope->blocks.front().get());
 
-    // If both conditions return there's no need for a continution block, we set the final value of the if to the false
-    // branch, set that as the current block, and that should end the building of the frame normally.
+    // If both conditions return there's no need for a continution block, and building values in this scope is done.
     if (falseScope->blocks.back()->hasMethodReturn && trueScope->blocks.back()->hasMethodReturn) {
-        currentBlock = falseScope->blocks.back().get();
-        return currentBlock->finalValue;
+        currentBlock = nullptr;
+        return hir::kInvalidID;
     }
 
     // Create a new block in the parent frame for code after the if statement.
