@@ -16,13 +16,13 @@ void NameSaver::scanFrame(Frame* frame) {
 }
 
 void NameSaver::scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBlocks) {
-    visitedBlocks.emplace(block->id);
+    visitedBlocks.emplace(block->id());
 
-    auto iter = block->statements.begin();
+    auto iter = block->statements().begin();
 
     std::unordered_map<hir::ID, NameType> valueTypes;
 
-    while (iter != block->statements.end()) {
+    while (iter != block->statements().end()) {
         switch ((*iter)->opcode) {
         case hir::Opcode::kImportClassVariable:
             valueTypes.emplace(std::make_pair((*iter)->id, NameType::kClass));
@@ -43,13 +43,13 @@ void NameSaver::scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBl
             if (stateIter != m_nameStates.end()) {
                 if (stateIter->second.value == assignHIR->valueId) {
                     // Redundant assignment, remove.
-                    block->frame->values[assignHIR->valueId]->consumers.erase(iter->get());
-                    auto assignIter = block->nameAssignments.find(assignHIR->name);
-                    assert(assignIter != block->nameAssignments.end());
+                    block->frame()->values[assignHIR->valueId]->consumers.erase(iter->get());
+                    auto assignIter = block->nameAssignments().find(assignHIR->name);
+                    assert(assignIter != block->nameAssignments().end());
                     if (assignIter->second == iter->get()) {
                         assignIter->second = stateIter->second.assign;
                     }
-                    iter = block->statements.erase(iter);
+                    iter = block->statements().erase(iter);
                     continue;
                 }
 
@@ -79,8 +79,8 @@ void NameSaver::scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBl
         ++iter;
     }
 
-    for (auto succ : block->successors) {
-        if (visitedBlocks.count(succ->id) == 0) {
+    for (auto succ : block->successors()) {
+        if (visitedBlocks.count(succ->id()) == 0) {
             scanBlock(succ, visitedBlocks);
         }
     }

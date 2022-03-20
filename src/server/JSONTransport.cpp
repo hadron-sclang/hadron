@@ -1141,25 +1141,25 @@ void JSONTransport::JSONTransportImpl::serializeScope(hadron::ThreadContext* con
     for (const auto& block : scope->blocks) {
         rapidjson::Value jsonBlock;
         jsonBlock.SetObject();
-        jsonBlock.AddMember("id", rapidjson::Value(block->id), document.GetAllocator());
+        jsonBlock.AddMember("id", rapidjson::Value(block->id()), document.GetAllocator());
 
         rapidjson::Value predecessors;
         predecessors.SetArray();
-        for (const auto pred : block->predecessors) {
-            predecessors.PushBack(rapidjson::Value(pred->id), document.GetAllocator());
+        for (const auto pred : block->predecessors()) {
+            predecessors.PushBack(rapidjson::Value(pred->id()), document.GetAllocator());
         }
         jsonBlock.AddMember("predecessors", predecessors, document.GetAllocator());
 
         rapidjson::Value successors;
         successors.SetArray();
-        for (const auto succ : block->successors) {
-            successors.PushBack(rapidjson::Value(succ->id), document.GetAllocator());
+        for (const auto succ : block->successors()) {
+            successors.PushBack(rapidjson::Value(succ->id()), document.GetAllocator());
         }
         jsonBlock.AddMember("successors", successors, document.GetAllocator());
 
         rapidjson::Value phis;
         phis.SetArray();
-        for (const auto& phi : block->phis) {
+        for (const auto& phi : block->phis()) {
             rapidjson::Value jsonPhi;
             serializeHIR(context, phi.get(), scope->frame, jsonPhi, document);
             phis.PushBack(jsonPhi, document.GetAllocator());
@@ -1168,7 +1168,7 @@ void JSONTransport::JSONTransportImpl::serializeScope(hadron::ThreadContext* con
 
         rapidjson::Value statements;
         statements.SetArray();
-        for (const auto& hir : block->statements) {
+        for (const auto& hir : block->statements()) {
             rapidjson::Value jsonHIR;
             serializeHIR(context, hir.get(), scope->frame, jsonHIR, document);
             statements.PushBack(jsonHIR, document.GetAllocator());
