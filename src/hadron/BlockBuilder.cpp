@@ -115,16 +115,18 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, co
 
 hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
         const ast::AST* ast) {
-    hir::ID nodeValue;
+    hir::ID nodeValue = hir::kInvalidID;
 
     switch(ast->astType) {
     case ast::ASTType::kEmpty:
         nodeValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
+        assert(nodeValue != hir::kInvalidID);
         break;
 
     case ast::ASTType::kSequence: {
         const auto seq = reinterpret_cast<const ast::SequenceAST*>(ast);
         nodeValue = buildFinalValue(context, method, currentBlock, seq);
+        assert(nodeValue != hir::kInvalidID);
     } break;
 
     // Blocks encountered here are are block literals, and are candidates for inlining.
@@ -133,17 +135,20 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
         auto blockHIROwning = std::make_unique<hir::BlockLiteralHIR>();
         auto blockHIR = blockHIROwning.get();
         nodeValue = currentBlock->append(std::move(blockHIROwning));
+        assert(nodeValue != hir::kInvalidID);
         blockHIR->frame = buildFrame(context, method, blockAST, blockHIR);
     } break;
 
     case ast::ASTType::kIf: {
         const auto ifAST = reinterpret_cast<const ast::IfAST*>(ast);
         nodeValue = buildIf(context, method, currentBlock, ifAST);
+        assert(nodeValue != hir::kInvalidID);
     } break;
 
     case ast::ASTType::kWhile: {
         const auto whileAST = reinterpret_cast<const ast::WhileAST*>(ast);
         nodeValue = buildWhile(context, method, currentBlock, whileAST);
+        assert(nodeValue != hir::kInvalidID);
     } break;
 
     case ast::ASTType::kMessage: {
@@ -165,6 +170,7 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
         }
 
         nodeValue = currentBlock->append(std::move(messageHIR));
+        assert(nodeValue != hir::kInvalidID);
     } break;
 
     case ast::ASTType::kName: {
@@ -172,6 +178,7 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
         auto assignHIR = currentBlock->findName(context, nameAST->name);
         assert(assignHIR);
         nodeValue = assignHIR->valueId;
+        assert(nodeValue != hir::kInvalidID);
     } break;
 
     case ast::ASTType::kAssign: {
@@ -182,6 +189,8 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
         assert(assignHIR);
 
         nodeValue = buildValue(context, method, currentBlock, assignAST->value.get());
+        assert(nodeValue != hir::kInvalidID);
+
         auto assignOwning = std::make_unique<hir::AssignHIR>(assignAST->name->name, nodeValue);
         assignHIR = assignOwning.get();
         currentBlock->append(std::move(assignOwning));
@@ -195,6 +204,8 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
         currentBlock->scope()->variableNames.emplace(defineAST->name->name);
 
         nodeValue = buildValue(context, method, currentBlock, defineAST->value.get());
+        assert(nodeValue != hir::kInvalidID);
+
         auto assignOwning = std::make_unique<hir::AssignHIR>(defineAST->name->name, nodeValue);
         auto assignHIR = assignOwning.get();
         currentBlock->append(std::move(assignOwning));
@@ -204,28 +215,40 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
     case ast::ASTType::kConstant: {
         const auto constAST = reinterpret_cast<const ast::ConstantAST*>(ast);
         nodeValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(constAST->constant));
+        assert(nodeValue != hir::kInvalidID);
     } break;
 
     case ast::ASTType::kMethodReturn: {
         const auto retAST = reinterpret_cast<const ast::MethodReturnAST*>(ast);
         nodeValue = buildValue(context, method, currentBlock, retAST->value.get());
+        assert(nodeValue != hir::kInvalidID);
+
         currentBlock->append(std::make_unique<hir::StoreReturnHIR>(nodeValue));
         currentBlock->append(std::make_unique<hir::MethodReturnHIR>());
     } break;
     }
 
+    assert(nodeValue != hir::kInvalidID);
     return nodeValue;
 }
 
 hir::ID BlockBuilder::buildFinalValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
         const ast::SequenceAST* sequenceAST) {
-    for (const auto& ast : sequenceAST->sequence) {
-        buildValue(context, method, currentBlock, ast.get());
+    auto finalValue = hir::kInvalidID;
 
-        // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
-        if (currentBlock->hasMethodReturn()) { break; }
+    if (sequenceAST->sequence.size()) {
+        for (const auto& ast : sequenceAST->sequence) {
+            finalValue = buildValue(context, method, currentBlock, ast.get());
+            currentBlock->setFinalValue(finalValue);
+
+            // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
+            if (currentBlock->hasMethodReturn()) { break; }
+        }
+    } else {
+        finalValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
     }
-    return currentBlock->finalValue();
+
+    return finalValue;
 }
 
 hir::ID BlockBuilder::buildIf(ThreadContext* context, library::Method method, Block*& currentBlock,
@@ -283,6 +306,8 @@ hir::ID BlockBuilder::buildIf(ThreadContext* context, library::Method method, Bl
         trueScope->blocks.back()->successors().emplace_back(currentBlock);
         currentBlock->predecessors().emplace_back(trueScope->blocks.back().get());
         nodeValue = trueScope->blocks.back()->finalValue();
+        assert(nodeValue != hir::kInvalidID);
+        assert(currentBlock->frame()->values[nodeValue]);
     }
 
     // Wire falseFrame exit block to the continue block here.
@@ -293,6 +318,8 @@ hir::ID BlockBuilder::buildIf(ThreadContext* context, library::Method method, Bl
         falseScope->blocks.back()->successors().emplace_back(currentBlock);
         currentBlock->predecessors().emplace_back(falseScope->blocks.back().get());
         nodeValue = falseScope->blocks.back()->finalValue();
+        assert(nodeValue != hir::kInvalidID);
+        assert(currentBlock->frame()->values[nodeValue]);
     }
 
     // Add a Phi with the final value of both the false and true blocks here, and which serves as the value of the

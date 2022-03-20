@@ -56,7 +56,7 @@ public:
     inline hir::ID finalValue() const { return m_finalValue; }
 
     void setHasMethodReturn(bool hasReturn) { m_hasMethodReturn = hasReturn; }
-    void setFinalValue(hir::ID value) { m_finalValue = value; }
+    void setFinalValue(hir::ID value) { assert(value != hir::kInvalidID); m_finalValue = value; }
 
 private:
     hir::ID insert(std::unique_ptr<hir::HIR> hir, std::list<std::unique_ptr<hir::HIR>>::iterator iter);
