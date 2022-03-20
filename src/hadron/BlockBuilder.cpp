@@ -246,8 +246,10 @@ hir::ID BlockBuilder::buildFinalValue(ThreadContext* context, const library::Met
         }
     } else {
         finalValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
+        currentBlock->setFinalValue(finalValue);
     }
 
+    assert(finalValue != hir::kInvalidID);
     return finalValue;
 }
 
