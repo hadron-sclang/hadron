@@ -29,27 +29,15 @@ Block::Block(Scope* owningScope, Block::ID blockID, bool isSealed):
         m_finalValue(hir::kInvalidID) {}
 
 hir::ID Block::append(std::unique_ptr<hir::HIR> hir) {
-    auto value = insert(std::move(hir), m_statements.end());
-    if (value != hir::kInvalidID) {
-        m_finalValue = value;
-    }
-    return value;
+    return insert(std::move(hir), m_statements.end());
 }
 
 hir::ID Block::prependExit(std::unique_ptr<hir::HIR> hir) {
-    auto value = insert(std::move(hir), m_prependExitIterator);
-    if (value != hir::kInvalidID) {
-        m_finalValue = value;
-    }
-    return value;
+    return insert(std::move(hir), m_prependExitIterator);
 }
 
 hir::ID Block::prepend(std::unique_ptr<hir::HIR> hir) {
-    auto value = insert(std::move(hir), m_statements.begin());
-    if (m_finalValue == hir::kInvalidID) {
-        m_finalValue = value;
-    }
-    return value;
+    return insert(std::move(hir), m_statements.begin());
 }
 
 hir::AssignHIR* Block::findName(ThreadContext* context, library::Symbol name) {
@@ -154,8 +142,8 @@ hir::AssignHIR* Block::findName(ThreadContext* context, library::Symbol name) {
     if (!isMetaClass) {
         auto instVarIndex = classDef.instVarNames().indexOf(name);
         if (instVarIndex.isInt32()) {
-            auto thisAssign = findName(context, context->symbolTable->thisSymbol());
-            // *this* should always be provided as a frame-level argument, so should always resolve.
+            auto thisAssign = importBlock->findName(context, context->symbolTable->thisSymbol());
+            // *this* should always be provided as a frame-level argument, so should always resolve in the import block.
             assert(thisAssign);
             nodeValue = importBlock->prependExit(std::make_unique<hir::ImportInstanceVariableHIR>(thisAssign->valueId,
                     instVarIndex.getInt32()));
@@ -228,6 +216,7 @@ hir::AssignHIR* Block::findName(ThreadContext* context, library::Symbol name) {
     if (nodeValue != hir::kInvalidID) {
         auto assignHIROwning = std::make_unique<hir::AssignHIR>(name, nodeValue);
         auto assignHIR = assignHIROwning.get();
+        append(std::move(assignHIROwning));
         m_nameAssignments[name] = assignHIR;
         return assignHIR;
     } else {
@@ -374,7 +363,7 @@ hir::AssignHIR* Block::findScopedNameRecursive(ThreadContext* context, library::
     }
 
     // Unsealed blocks always create phis, because we can't search the complete list of predecessors.
-    if (m_isSealed) {
+    if (!m_isSealed) {
         auto phi = std::make_unique<hir::PhiHIR>(name);
         // This is an empty phi until the block is sealed, so we set its type widely for now, can refine type of the phi
         // once the block is sealed.
