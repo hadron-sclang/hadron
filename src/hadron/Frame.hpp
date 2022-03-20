@@ -4,6 +4,7 @@
 #include "hadron/hir/HIR.hpp"
 #include "hadron/library/Array.hpp"
 #include "hadron/library/ArrayedCollection.hpp"
+#include "hadron/library/Kernel.hpp"
 
 #include <memory>
 #include <unordered_map>
@@ -21,12 +22,20 @@ struct Scope;
 
 // Represents a stack frame, so can have arguments supplied and can be called so has an entry, return value, and exit.
 struct Frame {
-    Frame() = default;
+    Frame() = delete;
+    Frame(hir::BlockLiteralHIR* outerBlock, library::Method meth, library::SymbolArray argOrder,
+            library::Array argDefaults);
     ~Frame() = default;
 
     // Replaces pairs (key, value). May cause other replacements, which are handled sequentially. Destructively modifies
     // the |replacements| map. All pointers to HIR must be owned by blocks within this frame.
     void replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& replacements);
+
+    // Function literals can capture values from outside frames, so we include a pointer to the InlineBlockHIR in the
+    // containing frame to support search of those frames for those values.
+    hir::BlockLiteralHIR* outerBlockHIR = nullptr;
+
+    library::Method method;
 
     // A library::Array with in-order hashes of argument names.
     library::SymbolArray argumentOrder;
@@ -34,7 +43,7 @@ struct Frame {
     library::Array argumentDefaults;
 
     // If true, the last argument named in the list is a variable argument array.
-    bool hasVarArgs = false;
+    bool hasVarArgs;
 
     std::unique_ptr<Scope> rootScope;
 
@@ -44,11 +53,7 @@ struct Frame {
     std::vector<hir::HIR*> values;
 
     // Counter used as a serial number to uniquely identify blocks.
-    int32_t numberOfBlocks = 0;
-
-    // Function literals can capture values from outside frames, so we include a pointer to the InlineBlockHIR in the
-    // containing frame to support search of those frames for those values.
-    hir::BlockLiteralHIR* outerBlockHIR = nullptr;
+    int32_t numberOfBlocks;
 
     // To avoid creation of duplicate constants we track all constant values in a map.
     std::unordered_map<Slot, hir::ID> constantValues;

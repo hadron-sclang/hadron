@@ -8,6 +8,16 @@
 
 namespace hadron {
 
+Frame::Frame(hir::BlockLiteralHIR* outerBlock, library::Method meth, library::SymbolArray argOrder,
+        library::Array argDefaults):
+        outerBlockHIR(outerBlock),
+        method(meth),
+        argumentOrder(argOrder),
+        argumentDefaults(argDefaults),
+        hasVarArgs(false),
+        rootScope(std::make_unique<Scope>(this)),
+        numberOfBlocks(0) {}
+
 void Frame::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& replacements) {
     std::unordered_set<hir::HIR*> toRemove;
 

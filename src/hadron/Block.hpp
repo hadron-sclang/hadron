@@ -38,10 +38,10 @@ public:
     // Follow order of precedence in names to locate an identifer symbol, including in local variables, arguments,
     // instance variables, class variables, and pre-defined identifiers. Can return hir::kInvalidID, which means a
     // compilation error that the name is not found.
-    hir::AssignHIR* findName(ThreadContext* context, const library::Method method, library::Symbol name);
+    hir::AssignHIR* findName(ThreadContext* context, library::Symbol name);
 
     // For unsealed blocks, resolves all incomplete phis and marks the block as sealed.
-    void seal();
+    void seal(ThreadContext* context);
 
     inline std::unordered_map<library::Symbol, hir::AssignHIR*>& nameAssignments() { return m_nameAssignments; }
     inline Scope* scope() const { return m_scope; }
@@ -51,9 +51,16 @@ public:
     inline std::list<Block*>& successors() { return m_successors; }
     inline std::list<std::unique_ptr<hir::PhiHIR>>& phis() { return m_phis; }
     inline std::list<std::unique_ptr<hir::HIR>>& statements() { return m_statements; }
+    inline hir::ID finalValue() const { return m_finalValue; }
+    inline bool hasMethodReturn() const { return m_hasMethodReturn; }
     inline bool isSealed() const { return m_isSealed; }
 
+    void setHasMethodReturn(bool hasReturn) { m_hasMethodReturn = hasReturn; }
+    void setFinalValue(hir::ID finalValue) { m_finalValue = finalValue; }
+
 private:
+    hir::ID insert(std::unique_ptr<hir::HIR> hir, std::list<std::unique_ptr<hir::HIR>>::iterator iter);
+
     // Recursively traverse through blocks looking for recent revisions of the value and type. Then do the phi insertion
     // to propagate the values back to the currrent block. Also needs to insert the name into the local block revision
     // tables. Can return nullptr which means the name was not found.
@@ -82,6 +89,8 @@ private:
 
     // Statements in order of execution.
     std::list<std::unique_ptr<hir::HIR>> m_statements;
+
+    std::list<std::unique_ptr<hir::HIR>>::iterator m_prependExitIterator;
 
     // The value of executing any block is the final value that was created in the block.
     hir::ID m_finalValue;
