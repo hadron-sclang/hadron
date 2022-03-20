@@ -33,7 +33,7 @@ struct Frame {
 
     // Function literals can capture values from outside frames, so we include a pointer to the InlineBlockHIR in the
     // containing frame to support search of those frames for those values.
-    hir::BlockLiteralHIR* outerBlockHIR = nullptr;
+    hir::BlockLiteralHIR* outerBlockHIR;
 
     library::Method method;
 

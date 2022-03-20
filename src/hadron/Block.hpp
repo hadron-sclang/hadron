@@ -51,12 +51,11 @@ public:
     inline std::list<Block*>& successors() { return m_successors; }
     inline std::list<std::unique_ptr<hir::PhiHIR>>& phis() { return m_phis; }
     inline std::list<std::unique_ptr<hir::HIR>>& statements() { return m_statements; }
-    inline hir::ID finalValue() const { return m_finalValue; }
     inline bool hasMethodReturn() const { return m_hasMethodReturn; }
     inline bool isSealed() const { return m_isSealed; }
+    inline hir::ID finalValue() const { return m_finalValue; }
 
     void setHasMethodReturn(bool hasReturn) { m_hasMethodReturn = hasReturn; }
-    void setFinalValue(hir::ID finalValue) { m_finalValue = finalValue; }
 
 private:
     hir::ID insert(std::unique_ptr<hir::HIR> hir, std::list<std::unique_ptr<hir::HIR>>::iterator iter);
@@ -92,14 +91,14 @@ private:
 
     std::list<std::unique_ptr<hir::HIR>>::iterator m_prependExitIterator;
 
-    // The value of executing any block is the final value that was created in the block.
-    hir::ID m_finalValue;
     bool m_hasMethodReturn;
 
     // Sealed blocks have had all their predecessors added, and so can complete phis. Unsealed blocks cannot, and so
     // we create incomplete phis and use them until the block can be sealed.
     bool m_isSealed;
     std::list<std::unique_ptr<hir::PhiHIR>> m_incompletePhis;
+
+    hir::ID m_finalValue;
 };
 
 } // namespace hadron

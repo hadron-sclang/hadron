@@ -86,7 +86,7 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
     block->successors().emplace_back(currentBlock);
     currentBlock->predecessors().emplace_back(block);
 
-    currentBlock->setFinalValue(buildFinalValue(context, method, currentBlock, blockAST->statements.get()));
+    buildFinalValue(context, method, currentBlock, blockAST->statements.get());
 
     // We append a return statement in the final block, if one wasn't already provided.
     if (!currentBlock->hasMethodReturn()) {
@@ -108,7 +108,7 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, co
     assert(blockAST->argumentNames.size() <= 1);
 
     Block* currentBlock = block;
-    currentBlock->setFinalValue(buildFinalValue(context, method, currentBlock, blockAST->statements.get()));
+    buildFinalValue(context, method, currentBlock, blockAST->statements.get());
 
     return scope;
 }
@@ -220,7 +220,7 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
 hir::ID BlockBuilder::buildFinalValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
         const ast::SequenceAST* sequenceAST) {
     for (const auto& ast : sequenceAST->sequence) {
-        currentBlock->setFinalValue(buildValue(context, method, currentBlock, ast.get()));
+        buildValue(context, method, currentBlock, ast.get());
 
         // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
         if (currentBlock->hasMethodReturn()) { break; }

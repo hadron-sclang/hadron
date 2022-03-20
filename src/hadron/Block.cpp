@@ -24,20 +24,32 @@ Block::Block(Scope* owningScope, Block::ID blockID, bool isSealed):
         m_frame(owningScope->frame),
         m_id(blockID),
         m_prependExitIterator(m_statements.end()),
-        m_finalValue(hir::kInvalidID),
         m_hasMethodReturn(false),
-        m_isSealed(isSealed) {}
+        m_isSealed(isSealed),
+        m_finalValue(hir::kInvalidID) {}
 
 hir::ID Block::append(std::unique_ptr<hir::HIR> hir) {
-    return insert(std::move(hir), m_statements.end());
+    auto value = insert(std::move(hir), m_statements.end());
+    if (value != hir::kInvalidID) {
+        m_finalValue = value;
+    }
+    return value;
 }
 
 hir::ID Block::prependExit(std::unique_ptr<hir::HIR> hir) {
-    return insert(std::move(hir), m_prependExitIterator);
+    auto value = insert(std::move(hir), m_prependExitIterator);
+    if (value != hir::kInvalidID) {
+        m_finalValue = value;
+    }
+    return value;
 }
 
 hir::ID Block::prepend(std::unique_ptr<hir::HIR> hir) {
-    return insert(std::move(hir), m_statements.begin());
+    auto value = insert(std::move(hir), m_statements.begin());
+    if (m_finalValue == hir::kInvalidID) {
+        m_finalValue = value;
+    }
+    return value;
 }
 
 hir::AssignHIR* Block::findName(ThreadContext* context, library::Symbol name) {
@@ -99,7 +111,7 @@ hir::AssignHIR* Block::findName(ThreadContext* context, library::Symbol name) {
                 innerBlock = innerBlocks.top();
                 innerBlocks.pop();
 
-                // Insert just after the branch statement at the end of the import block.
+                // Insert just before the branch statement at the end of the import block.
                 auto importBlock = innerBlock->m_frame->rootScope->blocks.front().get();
                 auto importValue = importBlock->prependExit(std::move(import));
 
