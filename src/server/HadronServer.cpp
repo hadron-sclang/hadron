@@ -189,7 +189,7 @@ void HadronServer::addCompilationUnit(hadron::library::Method methodDef, std::sh
 
     if (stopAfter >= DiagnosticsStoppingPoint::kHIRFinalization) {
         SPDLOG_TRACE("Compile Diagnostics NameSaver {}", name);
-        hadron::NameSaver nameSaver(m_errorReporter);
+        hadron::NameSaver nameSaver(m_runtime->context(), m_errorReporter);
         nameSaver.scanFrame(frame.get());
     }
 

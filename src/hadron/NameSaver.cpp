@@ -3,12 +3,15 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/hir/AssignHIR.hpp"
+#include "hadron/hir/BlockLiteralHIR.hpp"
 #include "hadron/ThreadContext.hpp"
+
+#include "spdlog/spdlog.h"
 
 namespace hadron {
 
-NameSaver::NameSaver(/*ThreadContext* context, */ std::shared_ptr<ErrorReporter> errorReporter):
-    /* m_threadContext(context), */ m_errorReporter(errorReporter) {}
+NameSaver::NameSaver(ThreadContext* context, std::shared_ptr<ErrorReporter> errorReporter):
+    m_threadContext(context), m_errorReporter(errorReporter) {}
 
 void NameSaver::scanFrame(Frame* frame) {
     std::unordered_set<Block::ID> visitedBlocks;
@@ -18,12 +21,17 @@ void NameSaver::scanFrame(Frame* frame) {
 void NameSaver::scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBlocks) {
     visitedBlocks.emplace(block->id());
 
-    auto iter = block->statements().begin();
-
     std::unordered_map<hir::ID, NameType> valueTypes;
 
+    auto iter = block->statements().begin();
     while (iter != block->statements().end()) {
         switch ((*iter)->opcode) {
+        case hir::Opcode::kBlockLiteral: {
+            auto blockHIR = reinterpret_cast<hir::BlockLiteralHIR*>(iter->get());
+            NameSaver saver(m_threadContext, m_errorReporter);
+            saver.scanFrame(blockHIR->frame.get());
+        } break;
+
         case hir::Opcode::kImportClassVariable:
             valueTypes.emplace(std::make_pair((*iter)->id, NameType::kClass));
             break;
@@ -58,7 +66,10 @@ void NameSaver::scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBl
                 stateIter->second.assign = assignHIR;
 
                 // TODO: actually emit instruction to save value if needed.
-
+                if (stateIter->second.type == NameType::kExternal &&
+                        stateIter->second.initialValue != stateIter->second.value) {
+                    SPDLOG_CRITICAL("capture needed for {}", stateIter->first.view(m_threadContext));
+                }
             } else {
                 // Create new value with this name, no save needed as this is initial load.
                 auto nameType = NameType::kLocal;
@@ -67,8 +78,8 @@ void NameSaver::scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBl
                     nameType = valueIter->second;
                 }
 
-                m_nameStates.emplace(std::make_pair(assignHIR->name, NameState{nameType, assignHIR->valueId, -1,
-                        assignHIR}));
+                m_nameStates.emplace(std::make_pair(assignHIR->name, NameState{nameType, assignHIR->valueId,
+                        assignHIR->valueId, -1, assignHIR}));
             }
         } break;
 

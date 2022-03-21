@@ -27,7 +27,7 @@ struct AssignHIR;
 class NameSaver {
 public:
     NameSaver() = delete;
-    NameSaver(/* ThreadContext* context, */ std::shared_ptr<ErrorReporter> errorReporter);
+    NameSaver(ThreadContext* context, std::shared_ptr<ErrorReporter> errorReporter);
     ~NameSaver() = default;
 
     void scanFrame(Frame* frame);
@@ -35,7 +35,7 @@ public:
 private:
     void scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBlocks);
 
-//    ThreadContext* m_threadContext;
+    ThreadContext* m_threadContext;
     std::shared_ptr<ErrorReporter> m_errorReporter;
 
     enum NameType {
@@ -46,6 +46,7 @@ private:
     };
     struct NameState {
         NameType type;
+        hir::ID initialValue;
         hir::ID value;
         int32_t index;
         hir::AssignHIR* assign;
