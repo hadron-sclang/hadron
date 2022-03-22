@@ -91,15 +91,12 @@ void NameSaver::scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBl
         } break;
 
         case hir::Opcode::kImportClassVariable:
-            valueTypes.emplace(std::make_pair((*iter)->id, NameType::kClass));
             break;
 
         case hir::Opcode::kImportInstanceVariable:
-            valueTypes.emplace(std::make_pair((*iter)->id, NameType::kInstance));
             break;
 
         case hir::Opcode::kImportLocalVariable:
-            valueTypes.emplace(std::make_pair((*iter)->id, NameType::kExternal));
             break;
 
         case hir::Opcode::kAssign: {
@@ -122,7 +119,7 @@ void NameSaver::scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBl
                 // Update assignment to new value.
                 stateIter->second.value = assignHIR->valueId;
                 stateIter->second.assign = assignHIR;
-
+/*
                 // TODO: actually emit instruction to save value if needed.
                 if (stateIter->second.type == NameType::kExternal &&
                         stateIter->second.initialValue != stateIter->second.value) {
@@ -138,6 +135,7 @@ void NameSaver::scanBlock(Block* block, std::unordered_set<Block::ID>& visitedBl
 
                 m_nameStates.emplace(std::make_pair(assignHIR->name, NameState{nameType, assignHIR->valueId,
                         assignHIR->valueId, -1, assignHIR}));
+*/
             }
         } break;
 
