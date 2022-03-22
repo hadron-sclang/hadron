@@ -39,10 +39,10 @@ private:
     std::shared_ptr<ErrorReporter> m_errorReporter;
 
     enum NameType {
-        kClass,    // class variable
-        kExternal, // external value that may require capture if modified
-        kInstance, // instance variable
-        kLocal     // argument or local variable
+        kCapturedArgument,  // captured argument
+        kCapturedLocal,     // captured local variable
+        kClass,             // class variable
+        kInstance           // instance variable
     };
     struct NameState {
         NameType type;
@@ -52,6 +52,8 @@ private:
         hir::AssignHIR* assign;
     };
     std::unordered_map<library::Symbol, NameState> m_nameStates;
+
+    std::unordered_set<library::Symbol> m_toCapture;
 };
 
 } // namespace hadron
