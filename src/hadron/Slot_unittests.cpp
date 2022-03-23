@@ -128,12 +128,12 @@ TEST_CASE("Slot bool serialization") {
 
 TEST_CASE("Slot pointer serialization") {
     SUBCASE("pointer values") {
-        std::unique_ptr<uint8_t[]> pointer = std::make_unique<uint8_t[]>(16);
-        Slot p = Slot::makePointer(pointer.get());
-        REQUIRE(p.isPointer());
-        REQUIRE_EQ(reinterpret_cast<uint8_t*>(p.getPointer()), pointer.get());
-        pointer[3] = 0xff;
-        CHECK_EQ(reinterpret_cast<uint8_t*>(p.getPointer())[3], 0xff);
+        std::unique_ptr<int8_t[]> pointer = std::make_unique<int8_t[]>(16);
+        Slot p = Slot::makeRawPointer(pointer.get());
+        REQUIRE(p.isRawPointer());
+        REQUIRE_EQ(p.getRawPointer(), pointer.get());
+        pointer[3] = 0x1f;
+        CHECK_EQ(p.getRawPointer()[3], 0x1f);
     }
 
     SUBCASE("null pointers are nil") {

@@ -51,10 +51,11 @@ public:
         }
     }
 
-    static inline T alloc(ThreadContext* context) {
-        S* instance = reinterpret_cast<S*>(context->heap->allocateNew(sizeof(S)));
+    static inline T alloc(ThreadContext* context, int32_t extraSlots = 0) {
+        size_t sizeInBytes = sizeof(S) + (extraSlots * sizeof(Slot));
+        S* instance = reinterpret_cast<S*>(context->heap->allocateNew(sizeInBytes));
         instance->_className = S::kNameHash;
-        instance->_sizeInBytes = sizeof(S);
+        instance->_sizeInBytes = sizeInBytes;
         return T(instance);
     }
 

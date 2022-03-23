@@ -8,12 +8,9 @@
 
 namespace hadron {
 
-Frame::Frame(hir::BlockLiteralHIR* outerBlock, library::Method meth, library::SymbolArray argOrder,
-        library::Array argDefaults):
+Frame::Frame(hir::BlockLiteralHIR* outerBlock, library::Method meth):
         outerBlockHIR(outerBlock),
         method(meth),
-        argumentOrder(argOrder),
-        argumentDefaults(argDefaults),
         hasVarArgs(false),
         rootScope(std::make_unique<Scope>(this)),
         numberOfBlocks(0) {}

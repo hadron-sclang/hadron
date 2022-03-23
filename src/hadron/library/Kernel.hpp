@@ -9,6 +9,18 @@
 #include "hadron/schema/Common/Core/KernelSchema.hpp"
 
 namespace hadron {
+
+namespace schema {
+// Frame has no public members in the class library, so we add some privately here.
+struct FramePrivateSchema : public FrameSchema {
+    Slot method;
+    Slot caller;
+    Slot context;
+    Slot homeContext;
+    Slot ip;
+};
+} // namespace schema
+
 namespace library {
 
 class Class;
@@ -107,6 +119,15 @@ public:
         T& t = static_cast<T&>(*this);
         t.m_instance->argNames = a.slot();
     }
+
+    SymbolArray varNames() const {
+        T& t = static_cast<T&>(*this);
+        return SymbolArray(t.m_instance->varNames);
+    }
+    void setVarNames(SymbolArray a) {
+        T&t = static_cast<T&>(*this);
+        t.m_instance->varNames = a.slot();
+    }
 };
 
 class FunctionDef : public FunctionDefBase<FunctionDef, schema::FunctionDefSchema> {
@@ -142,6 +163,31 @@ public:
 
     int32_t charPos() const { return m_instance->charPos.getInt32(); }
     void setCharPos(int32_t pos) { m_instance->charPos = Slot::makeInt32(pos); }
+};
+
+class Frame : public Object<Frame, schema::FramePrivateSchema> {
+public:
+    Frame(): Object<Frame, schema::FramePrivateSchema>() {}
+    explicit Frame(schema::FramePrivateSchema* instance):
+        Object<Frame, schema::FramePrivateSchema>(instance) {}
+    explicit Frame(Slot instance):
+        Object<Frame, schema::FramePrivateSchema>(instance) {}
+    ~Frame() {}
+
+    Method method() const { return Method(m_instance->method); }
+    void setMethod(Method method) { m_instance->method = method.slot(); }
+
+    Object caller() const { return Object(m_instance->caller); }
+    void setCaller(Object caller) { m_instance->caller = caller.slot(); }
+
+    Array context() const { return Array(m_instance->context); }
+    void setContext(Array context) { m_instance->context = context.slot(); }
+
+    Array homeContext() const { return Array(m_instance->homeContext); }
+    void setHomeContext(Array homeContext) { m_instance->homeContext = homeContext.slot(); }
+
+    int8_t* ip() const { return m_instance->ip.getRawPointer(); }
+    void setIp(int8_t* ip) { m_instance->ip = Slot::makeRawPointer(ip); }
 };
 
 } // namespace library

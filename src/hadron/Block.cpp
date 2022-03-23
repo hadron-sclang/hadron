@@ -1,6 +1,7 @@
 #include "hadron/Block.hpp"
 
 #include "hadron/ClassLibrary.hpp"
+#include "hadron/Frame.hpp"
 #include "hadron/hir/AssignHIR.hpp"
 #include "hadron/hir/BlockLiteralHIR.hpp"
 #include "hadron/hir/ConstantHIR.hpp"
@@ -9,7 +10,7 @@
 #include "hadron/hir/ImportLocalVariableHIR.hpp"
 #include "hadron/hir/PhiHIR.hpp"
 #include "hadron/hir/RouteToSuperclassHIR.hpp"
-#include "hadron/Frame.hpp"
+#include "hadron/library/Thread.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
 

@@ -47,44 +47,11 @@ std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const l
 std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const library::Method method,
     const ast::BlockAST* blockAST, hir::BlockLiteralHIR* outerBlockHIR) {
     // Build outer frame, root scope, and entry block.
-    auto frame = std::make_unique<Frame>(outerBlockHIR, method, blockAST->argumentNames, blockAST->argumentDefaults);
-
-    // The first block in the root Scope is the "import" block, which we leave empty except for a branch instruction to
-    // the next block. This block can be used for insertion of LoadExternalHIR and LoadArgumentHIR instructions in a
-    // location that is guaranteed to *dominate* every other block in the graph.
+    auto frame = std::make_unique<Frame>(outerBlockHIR, method);
     auto scope = frame->rootScope.get();
     scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
     ++frame->numberOfBlocks;
-    auto block = scope->blocks.front().get();
-
-    // Load all arguments here.
-    for (int32_t argIndex = 0; argIndex < frame->argumentOrder.size(); ++argIndex) {
-        auto name = frame->argumentOrder.at(argIndex);
-        auto loadArg = std::make_unique<hir::LoadArgumentHIR>(argIndex);
-
-        // Set known class and type to *this* pointer.
-        if (argIndex == 0) {
-            loadArg->typeFlags = TypeFlags::kObjectFlag;
-        } else if (blockAST->hasVarArg && argIndex == frame->argumentOrder.size() - 1) {
-            // Variable arguments always have Array type.
-            loadArg->typeFlags = TypeFlags::kObjectFlag;
-        }
-        auto argValue = block->append(std::move(loadArg));
-        auto nameAssign = std::make_unique<hir::AssignHIR>(name, argValue);
-        block->nameAssignments().emplace(std::make_pair(name, nameAssign.get()));
-        block->append(std::move(nameAssign));
-    }
-
-    // Create a new block for the method body and insert a branch to the new block from the current one.
-    scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
-    ++frame->numberOfBlocks;
-    auto branch = std::make_unique<hir::BranchHIR>();
-    branch->blockId = scope->blocks.back()->id();
-    block->append(std::move(branch));
-
-    Block* currentBlock = scope->blocks.back().get();
-    block->successors().emplace_back(currentBlock);
-    currentBlock->predecessors().emplace_back(block);
+    auto currentBlock = scope->blocks.front().get();
 
     buildFinalValue(context, method, currentBlock, blockAST->statements.get());
 
