@@ -23,7 +23,6 @@ static constexpr int32_t kInvalidID = -1;
 static_assert(kInvalidID == lir::kInvalidVReg);
 
 enum Opcode {
-    kAssign,
     kBlockLiteral,
     kBranch,
     kBranchIfTrue,

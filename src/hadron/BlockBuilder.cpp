@@ -5,21 +5,23 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
-#include "hadron/hir/AssignHIR.hpp"
 #include "hadron/hir/BlockLiteralHIR.hpp"
 #include "hadron/hir/BranchHIR.hpp"
 #include "hadron/hir/BranchIfTrueHIR.hpp"
 #include "hadron/hir/ConstantHIR.hpp"
 #include "hadron/hir/HIR.hpp"
-#include "hadron/hir/ImportClassVariableHIR.hpp"
-#include "hadron/hir/ImportInstanceVariableHIR.hpp"
-#include "hadron/hir/ImportLocalVariableHIR.hpp"
 #include "hadron/hir/LoadArgumentHIR.hpp"
 #include "hadron/hir/MessageHIR.hpp"
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/hir/PhiHIR.hpp"
+#include "hadron/hir/ReadFromClassHIR.hpp"
+#include "hadron/hir/ReadFromFrameHIR.hpp"
+#include "hadron/hir/ReadFromThisHIR.hpp"
 #include "hadron/hir/RouteToSuperclassHIR.hpp"
 #include "hadron/hir/StoreReturnHIR.hpp"
+#include "hadron/hir/WriteToClassHIR.hpp"
+#include "hadron/hir/WriteToFrameHIR.hpp"
+#include "hadron/hir/WriteToThisHIR.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/LinearFrame.hpp"
 #include "hadron/Scope.hpp"
@@ -375,7 +377,6 @@ hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Blo
     if (name.isClassName(context)) {
         // Class names are read-only.
         if (!read) { return hir::kInvalidID; }
-        #error defer lookup of class names until runtime, breaking this tight coupling.
         auto classDef = context->classLibrary->findClassNamed(name);
         assert(!classDef.isNil());
         auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot());
@@ -422,7 +423,6 @@ hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Blo
         classDef = context->classLibrary->findClassNamed(library::Symbol::fromView(context, className));
         assert(!classDef.isNil());
     }
-
 
     // Search class variables next, starting from this class and up through all parents.
     library::Class classVarDef = classDef;
