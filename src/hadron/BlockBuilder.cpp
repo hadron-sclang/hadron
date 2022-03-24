@@ -49,6 +49,12 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>(outerBlockHIR, method);
     auto scope = frame->rootScope.get();
+
+    // Include the arguments in the root scope value names set.
+    for (int32_t i = 0; i < method.argNames().size(); ++i) {
+        scope->valueIndices.emplace(std::make_pair(method.argNames().at(i), i));
+    }
+
     scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
     ++frame->numberOfBlocks;
     auto currentBlock = scope->blocks.front().get();
@@ -362,5 +368,102 @@ hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method m
     // Inlined while loops in LSC always have a value of nil. Since Hadron inlines all while loops, we do the same.
     return currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
 }
+
+
+hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block, bool read) {
+    // If this symbol defines a class name look it up in the class library and provide it as a constant.
+    if (name.isClassName(context)) {
+        // Class names are read-only.
+        if (!read) { return hir::kInvalidID; }
+        #error defer lookup of class names until runtime, breaking this tight coupling.
+        auto classDef = context->classLibrary->findClassNamed(name);
+        assert(!classDef.isNil());
+        auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot());
+        return block->append(std::move(constant));
+    }
+
+    // Search through local values in scope.
+    Scope* scope = block->scope();
+    while (scope != nullptr) {
+        auto iter = scope->valueIndices.find(name);
+        if (iter != scope->valueIndices.end()) {
+            if (read) {
+                return block->append(std::make_unique<hir::ReadFromFrameHIR>(name, iter->second));
+            }
+            return block->append(std::make_unique<hir::WriteToFrameHIR>(name, iter->second));
+        }
+        scope = scope->parent;
+    }
+    // TODO - containing frames?
+
+    // Search instance variables next.
+    library::Class classDef = block->frame()->method.ownerClass();
+    auto className = classDef.name(context).view(context);
+    bool isMetaClass = (className.size() > 5) && (className.substr(0, 5) == "Meta_");
+
+    // Meta_ classes are descended from Class, so don't have access to these regular instance variables, so skip the
+    // search for instance variable names in that case.
+    if (!isMetaClass) {
+        auto instVarIndex = classDef.instVarNames().indexOf(name);
+        if (instVarIndex.isInt32()) {
+            // Go find the this pointer.
+            auto thisId = findName(context, context->symbolTable->thisSymbol(), block, true);
+            assert(thisId != hir::kInvalidID);
+            if (read) {
+                return block->append(std::make_unique<hir::ReadFromThisHIR>(name, instVarIndex.getInt32(), thisId));
+            } else {
+                return block->append(std::make_unique<hir::WriteToThisHIR>(name, instVarIndex.getInt32(), thisId));
+            }
+        }
+    } else {
+        // Meta_ classes to have access to the class variables and constants of their associated class, so adjust the
+        // classDef to point to the associated class instead.
+        className = className.substr(5);
+        classDef = context->classLibrary->findClassNamed(library::Symbol::fromView(context, className));
+        assert(!classDef.isNil());
+    }
+
+
+    // Search class variables next, starting from this class and up through all parents.
+    library::Class classVarDef = classDef;
+    while (!classVarDef.isNil()) {
+        auto classVarOffset = classVarDef.classVarNames().indexOf(name);
+        if (classVarOffset.isInt32()) {
+            #error can this happen at runtime? class variable lookup? OR - indicate a dependency between this method and this class, somehow, so that it can be recompiled too? Ah but this is class heirarchy, so definitely geting recompiled if a parent class has changed.
+            break;
+        }
+
+        classVarDef = context->classLibrary->findClassNamed(classVarDef.superclass(context));
+    }
+
+    // Search constants next.
+    library::Class classConstDef = classDef;
+    while (!classConstDef.isNil()) {
+        auto constIndex = classConstDef.constNames().indexOf(name);
+        if (constIndex.isInt32()) {
+            if (!read) { return hir::kInvalidID; }
+            #error
+            break;
+        }
+
+        classConstDef = context->classLibrary->findClassNamed(classConstDef.superclass(context));
+    }
+
+    // Check for special names.
+    if (name == context->symbolTable->superSymbol()) {
+        auto thisAssign = findName(context, context->symbolTable->thisSymbol());
+        assert(thisAssign);
+        nodeValue = append(std::make_unique<hir::RouteToSuperclassHIR>(thisAssign->valueId));
+    } else if (name == context->symbolTable->thisMethodSymbol()) {
+        nodeValue = append(std::make_unique<hir::ConstantHIR>(m_frame->method.slot()));
+    } else if (name == context->symbolTable->thisProcessSymbol()) {
+        nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisProcess)));
+    } else if (name == context->symbolTable->thisThreadSymbol()) {
+        nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisThread)));
+    }
+
+    return hir::kInvalidID;
+}
+
 
 } // namespace hadron
