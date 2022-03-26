@@ -64,6 +64,9 @@ private:
     hir::ID buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
             const ast::WhileAST* whileAST);
 
+    // if |toWrite| is kInvalidID that means this is a read operation.
+    hir::ID findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite);
+
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };
 

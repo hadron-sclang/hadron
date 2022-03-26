@@ -8,12 +8,13 @@ namespace hir {
 
 struct WriteToThisHIR : public HIR {
     WriteToThisHIR() = delete;
-    WriteToThisHIR(int index, library::Symbol name, hir::ID v);
+    WriteToThisHIR(hir::ID tID, int32_t index, library::Symbol name, hir::ID write);
     virtual ~WriteToThisHIR() = default;
 
-    hir::ID classVariableArray;
-    int arrayIndex;
+    hir::ID thisId;
+    int32_t index;
     library::Symbol valueName;
+    hir::ID toWrite;
 
     ID proposeValue(ID proposedId) override;
     bool replaceInput(ID original, ID replacement) override;

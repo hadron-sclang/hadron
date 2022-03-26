@@ -185,8 +185,6 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
-    hir/AssignHIR.cpp
-    hir/AssignHIR.hpp
     hir/BlockLiteralHIR.cpp
     hir/BlockLiteralHIR.hpp
     hir/BranchHIR.cpp
@@ -264,8 +262,6 @@ add_library(hadron STATIC
     LinearFrame.hpp
     MoveScheduler.cpp
     MoveScheduler.hpp
-    NameSaver.cpp
-    NameSaver.hpp
     OpcodeIterator.cpp
     OpcodeIterator.hpp
     Page.cpp

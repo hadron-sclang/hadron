@@ -8,7 +8,7 @@ namespace hir {
 
 struct WriteToClassHIR : public HIR {
     WriteToClassHIR() = delete;
-    WriteToClassHIR(hir::ID classArray, int index, library::Symbol name, hir::ID v);
+    WriteToClassHIR(hir::ID classArray, int index, library::Symbol name);
     virtual ~WriteToClassHIR() = daemon
 
     hir::ID classVariableArray;

@@ -371,12 +371,11 @@ hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method m
     return currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
 }
 
-
-hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block, bool read) {
+hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite) {
     // If this symbol defines a class name look it up in the class library and provide it as a constant.
     if (name.isClassName(context)) {
         // Class names are read-only.
-        if (!read) { return hir::kInvalidID; }
+        if (toWrite != hir::kInvalidID) { return hir::kInvalidID; }
         auto classDef = context->classLibrary->findClassNamed(name);
         assert(!classDef.isNil());
         auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot());
@@ -388,10 +387,10 @@ hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Blo
     while (scope != nullptr) {
         auto iter = scope->valueIndices.find(name);
         if (iter != scope->valueIndices.end()) {
-            if (read) {
+            if (toWrite == hir::kInvalidID) {
                 return block->append(std::make_unique<hir::ReadFromFrameHIR>(name, iter->second));
             }
-            return block->append(std::make_unique<hir::WriteToFrameHIR>(name, iter->second));
+            return block->append(std::make_unique<hir::WriteToFrameHIR>(name, iter->second, toWrite));
         }
         scope = scope->parent;
     }
@@ -410,10 +409,11 @@ hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Blo
             // Go find the this pointer.
             auto thisId = findName(context, context->symbolTable->thisSymbol(), block, true);
             assert(thisId != hir::kInvalidID);
-            if (read) {
+            if (toWrite == hir::kInvalidID) {
                 return block->append(std::make_unique<hir::ReadFromThisHIR>(name, instVarIndex.getInt32(), thisId));
             } else {
-                return block->append(std::make_unique<hir::WriteToThisHIR>(name, instVarIndex.getInt32(), thisId));
+                return block->append(std::make_unique<hir::WriteToThisHIR>(name, instVarIndex.getInt32(), thisId,
+                    toWrite));
             }
         }
     } else {
@@ -429,8 +429,15 @@ hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Blo
     while (!classVarDef.isNil()) {
         auto classVarOffset = classVarDef.classVarNames().indexOf(name);
         if (classVarOffset.isInt32()) {
-            #error can this happen at runtime? class variable lookup? OR - indicate a dependency between this method and this class, somehow, so that it can be recompiled too? Ah but this is class heirarchy, so definitely geting recompiled if a parent class has changed.
-            break;
+            auto classArray = block->append(std::make_unique<hir::ConstantHIR>(
+                    context->classLibrary->classVariables().slot()));
+            if (toWrite == hir::kInvalidID) {
+                return block->append(std::make_unique<hir::ReadFromClassHIR>(classArray, classVarOffset.getInt32(),
+                        name));
+            } else {
+                return block->append(std::make_unique<hir::WriteToClassHIR>(classArray, classVarOffset.getInt32(),
+                        name, toWrite));
+            }
         }
 
         classVarDef = context->classLibrary->findClassNamed(classVarDef.superclass(context));
@@ -441,9 +448,9 @@ hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Blo
     while (!classConstDef.isNil()) {
         auto constIndex = classConstDef.constNames().indexOf(name);
         if (constIndex.isInt32()) {
-            if (!read) { return hir::kInvalidID; }
-            #error
-            break;
+            if (toWrite == hir::kInvalidID) { return hir::kInvalidID; }
+            return block->append(std::make_unique<hir::ConstantHIR>(
+                    classConstDef.constValues().at(constIndex.getInt32())));
         }
 
         classConstDef = context->classLibrary->findClassNamed(classConstDef.superclass(context));
@@ -453,13 +460,13 @@ hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Blo
     if (name == context->symbolTable->superSymbol()) {
         auto thisAssign = findName(context, context->symbolTable->thisSymbol());
         assert(thisAssign);
-        nodeValue = append(std::make_unique<hir::RouteToSuperclassHIR>(thisAssign->valueId));
+        return block->append(std::make_unique<hir::RouteToSuperclassHIR>(thisAssign->valueId));
     } else if (name == context->symbolTable->thisMethodSymbol()) {
-        nodeValue = append(std::make_unique<hir::ConstantHIR>(m_frame->method.slot()));
+        return block->append(std::make_unique<hir::ConstantHIR>(m_frame->method.slot()));
     } else if (name == context->symbolTable->thisProcessSymbol()) {
-        nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisProcess)));
+        return block->append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisProcess)));
     } else if (name == context->symbolTable->thisThreadSymbol()) {
-        nodeValue = append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisThread)));
+        return block->append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisThread)));
     }
 
     return hir::kInvalidID;
