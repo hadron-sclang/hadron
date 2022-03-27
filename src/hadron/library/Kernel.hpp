@@ -180,11 +180,11 @@ public:
     Object caller() const { return Object(m_instance->caller); }
     void setCaller(Object caller) { m_instance->caller = caller.slot(); }
 
-    Array context() const { return Array(m_instance->context); }
-    void setContext(Array context) { m_instance->context = context.slot(); }
+    Frame context() const { return Frame(m_instance->context); }
+    void setContext(Frame context) { m_instance->context = context.slot(); }
 
-    Array homeContext() const { return Array(m_instance->homeContext); }
-    void setHomeContext(Array homeContext) { m_instance->homeContext = homeContext.slot(); }
+    Frame homeContext() const { return Frame(m_instance->homeContext); }
+    void setHomeContext(Frame homeContext) { m_instance->homeContext = homeContext.slot(); }
 
     int8_t* ip() const { return m_instance->ip.getRawPointer(); }
     void setIp(int8_t* ip) { m_instance->ip = Slot::makeRawPointer(ip); }
