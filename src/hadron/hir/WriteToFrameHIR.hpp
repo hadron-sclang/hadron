@@ -8,17 +8,17 @@ namespace hir {
 
 struct WriteToFrameHIR : public HIR {
     WriteToFrameHIR() = delete;
-    WriteToFrameHIR(int index, library::Symbol name, hir::ID v);
+    WriteToFrameHIR(int32_t index, library::Symbol name, hir::ID v);
     virtual ~WriteToFrameHIR() = default;
 
-    hir::ID classVariableArray;
-    int arrayIndex;
+    int32_t arrayIndex;
     library::Symbol valueName;
+    hir::ID toWrite;
 
     ID proposeValue(ID proposedId) override;
     bool replaceInput(ID original, ID replacement) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
-}
+};
 
 } // namespace hir
 } // namespace hadron

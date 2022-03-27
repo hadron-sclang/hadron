@@ -200,10 +200,22 @@ add_library(hadron STATIC
     hir/MethodReturnHIR.hpp
     hir/PhiHIR.cpp
     hir/PhiHIR.hpp
+    hir/ReadFromClassHIR.cpp
+    hir/ReadFromClassHIR.hpp
+    hir/ReadFromFrameHIR.cpp
+    hir/ReadFromFrameHIR.hpp
+    hir/ReadFromThisHIR.cpp
+    hir/ReadFromThisHIR.hpp
     hir/RouteToSuperclassHIR.cpp
     hir/RouteToSuperclassHIR.hpp
     hir/StoreReturnHIR.cpp
     hir/StoreReturnHIR.hpp
+    hir/WriteToClassHIR.cpp
+    hir/WriteToClassHIR.hpp
+    hir/WriteToFrameHIR.cpp
+    hir/WriteToFrameHIR.hpp
+    hir/WriteToThisHIR.cpp
+    hir/WriteToThisHIR.hpp
 
     library/AbstractFunction.hpp
     library/Array.hpp

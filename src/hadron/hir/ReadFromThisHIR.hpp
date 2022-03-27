@@ -8,7 +8,7 @@ namespace hir {
 
 struct ReadFromThisHIR : public HIR {
     ReadFromThisHIR() = delete;
-    ReadFromThisHIR(hir::ID tID, int32_t index, library::Symbol name);
+    ReadFromThisHIR(hir::ID tID, int32_t idx, library::Symbol name);
     virtual ~ReadFromThisHIR() = default;
 
     hir::ID thisId;
@@ -23,6 +23,5 @@ struct ReadFromThisHIR : public HIR {
 
 } // namespace hir
 } // namespace hadron
-
 
 #endif // SRC_HADRON_HIR_READ_FROM_THIS_HIR_HPP_

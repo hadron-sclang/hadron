@@ -8,7 +8,7 @@ namespace hir {
 
 struct WriteToThisHIR : public HIR {
     WriteToThisHIR() = delete;
-    WriteToThisHIR(hir::ID tID, int32_t index, library::Symbol name, hir::ID write);
+    WriteToThisHIR(hir::ID tID, int32_t idx, library::Symbol name, hir::ID write);
     virtual ~WriteToThisHIR() = default;
 
     hir::ID thisId;
@@ -19,7 +19,7 @@ struct WriteToThisHIR : public HIR {
     ID proposeValue(ID proposedId) override;
     bool replaceInput(ID original, ID replacement) override;
     void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
-}
+};
 
 } // namespace hir
 } // namespace hadron
