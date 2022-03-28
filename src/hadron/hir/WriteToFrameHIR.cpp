@@ -3,7 +3,7 @@
 namespace hadron {
 namespace hir {
 
-struct WriteToFrameHIR::WriteToFrameHIR(int32_t index, library::Symbol name, hir::ID v):
+WriteToFrameHIR::WriteToFrameHIR(int32_t index, library::Symbol name, hir::ID v):
     HIR(kWriteToFrame),
     arrayIndex(index),
     valueName(name),

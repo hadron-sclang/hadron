@@ -4,7 +4,7 @@ namespace hadron {
 namespace hir {
 
 WriteToClassHIR::WriteToClassHIR(hir::ID classArray, int32_t index, library::Symbol name, hir::ID v):
-        HIR(kWriteToClassHIR), classVariableArray(classArray), arrayIndex(index), valueName(name), toWrite(v) {
+        HIR(kWriteToClass), classVariableArray(classArray), arrayIndex(index), valueName(name), toWrite(v) {
     reads.emplace(classVariableArray);
     reads.emplace(toWrite);
 }

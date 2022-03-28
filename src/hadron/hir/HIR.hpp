@@ -27,17 +27,18 @@ enum Opcode {
     kBranch,
     kBranchIfTrue,
     kConstant,
+    kLoadOuterFrame,
     kMessage,
     kMethodReturn,
     kPhi,
-    kReadFromClassHIR,
-    kReadFromFrameHIR,
-    kReadFromThisHIR,
+    kReadFromClass,
+    kReadFromFrame,
+    kReadFromThis,
     kRouteToSuperclass,
     kStoreReturn,
-    kWriteToClassHIR,
-    kWriteToFrameHIR,
-    kWriteToThisHIR
+    kWriteToClass,
+    kWriteToFrame,
+    kWriteToThis
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in

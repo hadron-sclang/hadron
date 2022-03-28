@@ -458,14 +458,16 @@ hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Blo
 
     // Check for special names.
     if (name == context->symbolTable->superSymbol()) {
-        auto thisAssign = findName(context, context->symbolTable->thisSymbol());
-        assert(thisAssign);
-        return block->append(std::make_unique<hir::RouteToSuperclassHIR>(thisAssign->valueId));
+        auto thisAssign = findName(context, context->symbolTable->thisSymbol(), hir::kInvalidID);
+        assert(thisAssign != hir::kInvalidID);
+        return block->append(std::make_unique<hir::RouteToSuperclassHIR>(thisAssign));
     } else if (name == context->symbolTable->thisMethodSymbol()) {
-        return block->append(std::make_unique<hir::ConstantHIR>(m_frame->method.slot()));
+        return block->append(std::make_unique<hir::ConstantHIR>(block->frame->method.slot()));
     } else if (name == context->symbolTable->thisProcessSymbol()) {
+        assert(false); // this is not a constant
         return block->append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisProcess)));
     } else if (name == context->symbolTable->thisThreadSymbol()) {
+        assert(false); // this is not a constant
         return block->append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisThread)));
     }
 

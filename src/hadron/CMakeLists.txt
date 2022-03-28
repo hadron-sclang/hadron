@@ -194,6 +194,8 @@ add_library(hadron STATIC
     hir/ConstantHIR.cpp
     hir/ConstantHIR.hpp
     hir/HIR.hpp
+    hir/LoadOuterFrameHIR.cpp
+    hir/LoadOuterFrameHIR.hpp
     hir/MessageHIR.cpp
     hir/MessageHIR.hpp
     hir/MethodReturnHIR.cpp

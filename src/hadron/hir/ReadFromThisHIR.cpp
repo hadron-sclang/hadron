@@ -4,7 +4,7 @@ namespace hadron {
 namespace hir {
 
 ReadFromThisHIR::ReadFromThisHIR(hir::ID tID, int32_t idx, library::Symbol name):
-    HIR(kReadFromThisHIR, TypeFlags::kAllFlags),
+    HIR(kReadFromThis, TypeFlags::kAllFlags),
     thisId(tID),
     index(idx),
     valueName(name) { reads.emplace(tID); }
