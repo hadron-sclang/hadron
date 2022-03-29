@@ -158,13 +158,10 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
 
     case ast::ASTType::kAssign: {
         const auto assignAST = reinterpret_cast<const ast::AssignAST*>(ast);
-        // It's possible that this is an external value, and the code is writing it before reading it. Set up the
-        // imports and flow the value here, or detect an error if the name is not found.
-        auto assignHIR = currentBlock->findName(context, assignAST->name->name);
-        assert(assignHIR);
 
         nodeValue = buildValue(context, method, currentBlock, assignAST->value.get());
         assert(nodeValue != hir::kInvalidID);
+
 
         auto assignOwning = std::make_unique<hir::AssignHIR>(assignAST->name->name, nodeValue);
         assignHIR = assignOwning.get();
@@ -371,7 +368,9 @@ hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method m
     return currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
 }
 
-hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite) {
+hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite) {
+    hir::HIR* hir;
+
     // If this symbol defines a class name look it up in the class library and provide it as a constant.
     if (name.isClassName(context)) {
         // Class names are read-only.
@@ -379,7 +378,9 @@ hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Blo
         auto classDef = context->classLibrary->findClassNamed(name);
         assert(!classDef.isNil());
         auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot());
-        return block->append(std::move(constant));
+        hir = constant.get();
+        block->append(std::move(constant));
+        return hir;
     }
 
     // Search through local values in scope.
@@ -388,9 +389,15 @@ hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Blo
         auto iter = scope->valueIndices.find(name);
         if (iter != scope->valueIndices.end()) {
             if (toWrite == hir::kInvalidID) {
-                return block->append(std::make_unique<hir::ReadFromFrameHIR>(name, iter->second));
+                auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(iter->second, name);
+                hir = readFromFrame.get();
+                block->append(std::move(readFromFrame));
+                return hir;
             }
-            return block->append(std::make_unique<hir::WriteToFrameHIR>(name, iter->second, toWrite));
+            auto writeToFrame = std::make_unique<hir::WriteToFrameHIR>(iter->second, name, toWrite);
+            hir = writeToFrame.get();
+            block->append(std::move(writeToFrame));
+            return hir;
         }
         scope = scope->parent;
     }
@@ -407,13 +414,20 @@ hir::ID BlockBuilder::findName(ThreadContext* context, library::Symbol name, Blo
         auto instVarIndex = classDef.instVarNames().indexOf(name);
         if (instVarIndex.isInt32()) {
             // Go find the this pointer.
-            auto thisId = findName(context, context->symbolTable->thisSymbol(), block, true);
-            assert(thisId != hir::kInvalidID);
+            auto thisHir = findName(context, context->symbolTable->thisSymbol(), block, hir::kInvalidID);
+            assert(thisHir);
+            assert(thisHir->id != hir::kInvalidID);
             if (toWrite == hir::kInvalidID) {
-                return block->append(std::make_unique<hir::ReadFromThisHIR>(name, instVarIndex.getInt32(), thisId));
+                auto readFromThis = std::make_unique<hir::ReadFromThisHIR>(thisHir->id, instVarIndex.getInt32(), name);
+                hir = readFromThis.get();
+                block->append(std::move(readFromThis));
+                return hir;
             } else {
-                return block->append(std::make_unique<hir::WriteToThisHIR>(name, instVarIndex.getInt32(), thisId,
-                    toWrite));
+                auto writeToThis = std::make_unique<hir::WriteToThisHIR>(thisHir->id, instVarIndex.getInt32(), name,
+                    toWrite);
+                hir = writeToThis.get();
+                block->append(std::move(writeToThis));
+                return hir;
             }
         }
     } else {

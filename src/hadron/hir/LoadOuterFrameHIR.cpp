@@ -4,7 +4,7 @@ namespace hadron {
 namespace hir {
 
 LoadOuterFrameHIR::LoadOuterFrameHIR(hir::ID inner):
-    HIR(kLoadOuterFrame, TypeFlags::kObject), innerContext(inner) {}
+    HIR(kLoadOuterFrame, TypeFlags::kObjectFlag), innerContext(inner) {}
 
 ID LoadOuterFrameHIR::proposeValue(ID proposedId) {
     id = proposedId;
