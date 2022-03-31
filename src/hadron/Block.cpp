@@ -2,7 +2,6 @@
 
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/Frame.hpp"
-#include "hadron/hir/BlockLiteralHIR.hpp"
 #include "hadron/hir/ConstantHIR.hpp"
 #include "hadron/hir/PhiHIR.hpp"
 #include "hadron/hir/RouteToSuperclassHIR.hpp"

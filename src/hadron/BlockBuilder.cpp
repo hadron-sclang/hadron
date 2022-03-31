@@ -150,25 +150,19 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
 
     case ast::ASTType::kName: {
         const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);
-        auto assignHIR = currentBlock->findName(context, nameAST->name);
-        assert(assignHIR);
-        nodeValue = assignHIR->valueId;
-        assert(nodeValue != hir::kInvalidID);
+        auto findHIR = findName(context, nameAST->name, currentBlock, hir::kInvalidID);
+        assert(findHIR);
+        assert(findHIR->id != hir::kInvalidID);
+        nodeValue = findHIR->id;
     } break;
 
     case ast::ASTType::kAssign: {
         const auto assignAST = reinterpret_cast<const ast::AssignAST*>(ast);
-
         nodeValue = buildValue(context, method, currentBlock, assignAST->value.get());
         assert(nodeValue != hir::kInvalidID);
 
-
-        auto assignOwning = std::make_unique<hir::AssignHIR>(assignAST->name->name, nodeValue);
-        assignHIR = assignOwning.get();
-        currentBlock->append(std::move(assignOwning));
-
-        // Update the name of the built value to reflect the assignment.
-        currentBlock->nameAssignments()[assignAST->name->name] = assignHIR;
+        auto assign = findName(context, assignAST->name->name, currentBlock, nodeValue);
+        assert(assign);
     } break;
 
     case ast::ASTType::kDefine: {
