@@ -51,10 +51,11 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
     // Build outer frame, root scope, and entry block.
     auto frame = std::make_unique<Frame>(outerBlockHIR, method);
     auto scope = frame->rootScope.get();
+    frame->prototypeFrame = method.prototypeFrame().copy(context);
 
     // Include the arguments in the root scope value names set.
     for (int32_t i = 0; i < method.argNames().size(); ++i) {
-        scope->valueIndices.emplace(std::make_pair(method.argNames().at(i), i));
+        scope->valueIndices.emplace(std::make_pair(method.argNames().at(i), library::Frame::schemaSize() + i));
     }
 
     scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
@@ -79,7 +80,7 @@ std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, co
     auto block = scope->blocks.front().get();
     block->predecessors().emplace_back(predecessor);
 
-    // For now we can't handle inline blocks with arguments
+    // For now we can't handle inline blocks with arguments (other than "this")
     assert(blockAST->argumentNames.size() <= 1);
 
     Block* currentBlock = block;
@@ -167,15 +168,27 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
 
     case ast::ASTType::kDefine: {
         const auto defineAST = reinterpret_cast<const ast::DefineAST*>(ast);
-        currentBlock->scope()->variableNames.emplace(defineAST->name->name);
 
-        nodeValue = buildValue(context, method, currentBlock, defineAST->value.get());
-        assert(nodeValue != hir::kInvalidID);
+        // Add the name to variable index tracking.
+        currentBlock->frame()->variableNames = currentBlock->frame()->variableNames.add(context, defineAST->name->name);
+        currentBlock->scope()->valueIndices.emplace(std::make_pair(defineAST->name->name,
+                currentBlock->frame()->prototypeFrame.size()));
 
-        auto assignOwning = std::make_unique<hir::AssignHIR>(defineAST->name->name, nodeValue);
-        auto assignHIR = assignOwning.get();
-        currentBlock->append(std::move(assignOwning));
-        currentBlock->nameAssignments()[defineAST->name->name] = assignHIR;
+        // Simple constant definitions don't need to be saved, rather we add the value to initial values array.
+        if (defineAST->value->astType == ast::ASTType::kConstant) {
+            const auto constAST = reinterpret_cast<const ast::ConstantAST*>(defineAST->value.get());
+            currentBlock->frame()->prototypeFrame = currentBlock->frame()->prototypeFrame.add(context,
+                    constAST->constant);
+
+            nodeValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(constAST->constant));
+        } else {
+            // Complex value, assign nil as the prototype value, then create a write statement here to that offset.
+            currentBlock->frame()->prototypeFrame = currentBlock->frame()->prototypeFrame.add(context, Slot::makeNil());
+
+            nodeValue = buildValue(context, method, currentBlock, defineAST->value.get());
+            auto assign = findName(context, defineAST->name->name, currentBlock, nodeValue);
+            assert(assign);
+        }
     } break;
 
     case ast::ASTType::kConstant: {
@@ -342,9 +355,6 @@ hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method m
     trueBranch->blockId = repeatScope->blocks.front()->id();
     conditionExitBlock->append(std::move(trueBranch));
 
-    // Seal the condition block now that the condition predecessors are all in place.
-    conditionScope->blocks.front()->seal(context);
-
     // Build continuation block.
     auto continueBlock = std::make_unique<Block>(parentScope, parentScope->frame->numberOfBlocks);
     ++parentScope->frame->numberOfBlocks;
@@ -363,12 +373,12 @@ hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method m
 }
 
 hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite) {
-    hir::HIR* hir;
+    hir::HIR* hir = nullptr;
 
     // If this symbol defines a class name look it up in the class library and provide it as a constant.
     if (name.isClassName(context)) {
         // Class names are read-only.
-        if (toWrite != hir::kInvalidID) { return hir::kInvalidID; }
+        if (toWrite != hir::kInvalidID) { return nullptr; }
         auto classDef = context->classLibrary->findClassNamed(name);
         assert(!classDef.isNil());
         auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot());
@@ -440,11 +450,17 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
             auto classArray = block->append(std::make_unique<hir::ConstantHIR>(
                     context->classLibrary->classVariables().slot()));
             if (toWrite == hir::kInvalidID) {
-                return block->append(std::make_unique<hir::ReadFromClassHIR>(classArray, classVarOffset.getInt32(),
-                        name));
+                auto readFromClass = std::make_unique<hir::ReadFromClassHIR>(classArray, classVarOffset.getInt32(),
+                        name);
+                hir = readFromClass.get();
+                block->append(std::move(readFromClass));
+                return hir;
             } else {
-                return block->append(std::make_unique<hir::WriteToClassHIR>(classArray, classVarOffset.getInt32(),
-                        name, toWrite));
+                auto writeToClass = std::make_unique<hir::WriteToClassHIR>(classArray, classVarOffset.getInt32(),
+                        name, toWrite);
+                hir = writeToClass.get();
+                block->append(std::move(writeToClass));
+                return hir;
             }
         }
 
@@ -456,9 +472,11 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
     while (!classConstDef.isNil()) {
         auto constIndex = classConstDef.constNames().indexOf(name);
         if (constIndex.isInt32()) {
-            if (toWrite == hir::kInvalidID) { return hir::kInvalidID; }
-            return block->append(std::make_unique<hir::ConstantHIR>(
-                    classConstDef.constValues().at(constIndex.getInt32())));
+            if (toWrite == hir::kInvalidID) { return nullptr; }
+            auto constant = std::make_unique<hir::ConstantHIR>(classConstDef.constValues().at(constIndex.getInt32()));
+            hir = constant.get();
+            block->append(std::move(constant));
+            return hir;
         }
 
         classConstDef = context->classLibrary->findClassNamed(classConstDef.superclass(context));
@@ -466,20 +484,25 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
 
     // Check for special names.
     if (name == context->symbolTable->superSymbol()) {
-        auto thisAssign = findName(context, context->symbolTable->thisSymbol(), hir::kInvalidID);
-        assert(thisAssign != hir::kInvalidID);
-        return block->append(std::make_unique<hir::RouteToSuperclassHIR>(thisAssign));
+        auto thisRead = findName(context, context->symbolTable->thisSymbol(), block, hir::kInvalidID);
+        assert(thisRead);
+        assert(thisRead->id != hir::kInvalidID);
+        auto super = std::make_unique<hir::RouteToSuperclassHIR>(thisRead->id);
+        hir = super.get();
+        block->append(std::move(super));
     } else if (name == context->symbolTable->thisMethodSymbol()) {
-        return block->append(std::make_unique<hir::ConstantHIR>(block->frame->method.slot()));
+        auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(
+                static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method) / sizeof(Slot)), context->symbolTable->thisMethodSymbol());
+        auto constant = std::make_unique<hir::ConstantHIR>(block->frame()->method.slot());
+        hir = constant.get();
+        block->append(std::move(constant));
     } else if (name == context->symbolTable->thisProcessSymbol()) {
-        assert(false); // this is not a constant
-        return block->append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisProcess)));
+        assert(false); // LoadFromContextHIR??
     } else if (name == context->symbolTable->thisThreadSymbol()) {
-        assert(false); // this is not a constant
-        return block->append(std::make_unique<hir::ConstantHIR>(Slot::makePointer(context->thisThread)));
+        assert(false); // LoadFromContextHIR??
     }
 
-    return hir::kInvalidID;
+    return hir;
 }
 
 

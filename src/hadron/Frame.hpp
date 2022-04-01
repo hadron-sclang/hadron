@@ -39,6 +39,11 @@ struct Frame {
     // If true, the last argument named in the list is a variable argument array.
     bool hasVarArgs;
 
+    // Flattened variable name array.
+    library::SymbolArray variableNames;
+    // Initial values, for concatenation onto the prototypeFrame.
+    library::Array prototypeFrame;
+
     std::unique_ptr<Scope> rootScope;
 
     // Map of value IDs as index to HIR objects. During optimization HIR can change, for example simplifying MessageHIR

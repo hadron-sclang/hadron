@@ -78,6 +78,7 @@ public:
         return m_instance->_className;
     }
     static inline Hash nameHash() { return S::kNameHash; }
+    static inline int32_t schemaSize() { return (sizeof(S) - sizeof(Schema)) / sizeof(Slot); }
 
 protected:
     S* m_instance;
