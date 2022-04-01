@@ -50,7 +50,7 @@ private:
 
     // Re-uses the containing stack frame but produces a new scope.
     std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, const library::Method method, Scope* parentScope,
-            Block* predecessor, const ast::BlockAST* blockAST, bool isSealed = true);
+            Block* predecessor, const ast::BlockAST* blockAST);
 
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not

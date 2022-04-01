@@ -103,7 +103,7 @@ public:
     }
 
     Array prototypeFrame() const {
-        T& t = static_cast<T&>(*this);
+        const T& t = static_cast<const T&>(*this);
         return Array(t.m_instance->prototypeFrame);
     }
     void setPrototypeFrame(Array a) {
@@ -112,7 +112,7 @@ public:
     }
 
     SymbolArray argNames() const {
-        T& t = static_cast<T&>(*this);
+        const T& t = static_cast<const T&>(*this);
         return SymbolArray(t.m_instance->argNames);
     }
     void setArgNames(SymbolArray a) {

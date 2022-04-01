@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstddef>
 #include <string>
+#include <type_traits>
 
 // Tagged pointer/double 8-byte Slot structure. Uses code and techniques borrowed from:
 // https://www.npopov.com/2012/02/02/Pointer-magic-for-efficient-dynamic-value-representations.html
@@ -35,8 +36,8 @@ enum TypeFlags : std::int32_t {
 
 class Slot {
 public:
-    Slot(const Slot& s) { m_asBits = s.m_asBits; }
-    inline Slot operator=(const Slot& s) { m_asBits = s.m_asBits; return *this; }
+    Slot(const Slot& s) { m_bits = s.m_bits; }
+    inline Slot operator=(const Slot& s) { m_bits = s.m_bits; return *this; }
     ~Slot() = default;
 
     // TODO: could these be constexpr? And rename to fromFloat(), 'make' is confusing.
@@ -49,21 +50,21 @@ public:
     static inline Slot makeChar(char c) { return Slot(kCharTag | c); }
     static inline Slot makeRawPointer(int8_t* p) { return Slot(kRawPointerTag | reinterpret_cast<uint64_t>(p)); }
 
-    inline bool operator==(const Slot& s) const { return m_asBits == s.m_asBits; }
-    inline bool operator!=(const Slot& s) const { return m_asBits != s.m_asBits; }
+    inline bool operator==(const Slot& s) const { return m_bits == s.m_bits; }
+    inline bool operator!=(const Slot& s) const { return m_bits != s.m_bits; }
 
     TypeFlags getType() const {
-        if (m_asBits < kMaxDouble) {
+        if (m_bits < kMaxDouble) {
             return TypeFlags::kFloatFlag;
         }
 
-        switch (m_asBits & kTagMask) {
+        switch (m_bits & kTagMask) {
         case kInt32Tag:
             return TypeFlags::kIntegerFlag;
         case kBooleanTag:
             return TypeFlags::kBooleanFlag;
         case kPointerTag:
-            return m_asBits == kPointerTag ? TypeFlags::kNilFlag : TypeFlags::kObjectFlag;
+            return m_bits == kPointerTag ? TypeFlags::kNilFlag : TypeFlags::kObjectFlag;
         case kHashTag:
             return TypeFlags::kSymbolFlag;
         case kCharTag:
@@ -76,27 +77,31 @@ public:
         }
     }
 
-    inline bool isFloat() const { return m_asBits < kMaxDouble; }
-    inline bool isNil() const { return m_asBits == kPointerTag; }
-    inline bool isInt32() const { return (m_asBits & kTagMask) == kInt32Tag; }
-    inline bool isBool() const { return (m_asBits & kTagMask) == kBooleanTag; }
-    inline bool isPointer() const { return ((m_asBits & kTagMask) == kPointerTag) && (m_asBits != kPointerTag); }
-    inline bool isHash() const { return (m_asBits & kTagMask) == kHashTag; }
-    inline bool isChar() const { return (m_asBits & kTagMask) == kCharTag; }
-    inline bool isRawPointer() const { return (m_asBits & kTagMask) == kRawPointerTag; }
+    inline bool isFloat() const { return m_bits < kMaxDouble; }
+    inline bool isNil() const { return m_bits == kPointerTag; }
+    inline bool isInt32() const { return (m_bits & kTagMask) == kInt32Tag; }
+    inline bool isBool() const { return (m_bits & kTagMask) == kBooleanTag; }
+    inline bool isPointer() const { return ((m_bits & kTagMask) == kPointerTag) && (m_bits != kPointerTag); }
+    inline bool isHash() const { return (m_bits & kTagMask) == kHashTag; }
+    inline bool isChar() const { return (m_bits & kTagMask) == kCharTag; }
+    inline bool isRawPointer() const { return (m_bits & kTagMask) == kRawPointerTag; }
 
-    inline double getFloat() const { assert(isFloat()); return m_asDouble; }
-    inline int32_t getInt32() const { assert(isInt32()); return static_cast<int32_t>(m_asBits & (~kTagMask)); }
-    inline bool getBool() const { assert(isBool()); return m_asBits & (~kTagMask); }
+    inline double getFloat() const {
+        assert(isFloat());
+        double d = *(reinterpret_cast<const double*>(&m_bits));
+        return d;
+    }
+    inline int32_t getInt32() const { assert(isInt32()); return static_cast<int32_t>(m_bits & (~kTagMask)); }
+    inline bool getBool() const { assert(isBool()); return m_bits & (~kTagMask); }
     inline library::Schema* getPointer() const {
         assert(isPointer());
-        return reinterpret_cast<library::Schema*>(m_asBits & (~kTagMask));
+        return reinterpret_cast<library::Schema*>(m_bits & (~kTagMask));
     }
-    inline uint64_t getHash() const { assert(isHash()); return m_asBits & (~kTagMask); }
-    inline char getChar() const { assert(isChar()); return m_asBits & (~kTagMask); }
+    inline uint64_t getHash() const { assert(isHash()); return m_bits & (~kTagMask); }
+    inline char getChar() const { assert(isChar()); return m_bits & (~kTagMask); }
     inline int8_t* getRawPointer() const {
         assert(isRawPointer());
-        return reinterpret_cast<int8_t*>(m_asBits & (~kTagMask));
+        return reinterpret_cast<int8_t*>(m_bits & (~kTagMask));
     }
 
     // Maximum double (quiet NaN with sign bit set without payload):
@@ -112,21 +117,20 @@ public:
     static constexpr uint64_t kTagMask       = 0xffff000000000000;
 
     // For debugging, normal access should use the get*() methods.
-    inline uint64_t asBits() const { return m_asBits; }
+    inline uint64_t asBits() const { return m_bits; }
 
 private:
-    explicit Slot(double floatValue) { m_asDouble = floatValue; }
-    explicit Slot(uint64_t bitsValue) { m_asBits = bitsValue; }
+    explicit Slot(double floatValue) { m_bits = *(reinterpret_cast<uint64_t*>(&floatValue)); }
+    explicit Slot(uint64_t bitsValue) { m_bits = bitsValue; }
 
-    union {
-        double m_asDouble;
-        uint64_t m_asBits;
-    };
+    uint64_t m_bits;
 };
 
 static_assert(sizeof(Slot) == 8);
+static_assert(std::is_standard_layout<Slot>::value);
 // Making this a signed integer makes for easier pointer arithmetic.
-static constexpr int kSlotSize = 8;
+static constexpr int32_t kSlotSize = static_cast<int32_t>(sizeof(Slot));
+
 
 } // namespace hadron
 

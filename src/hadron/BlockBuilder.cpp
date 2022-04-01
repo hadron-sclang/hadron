@@ -73,9 +73,9 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
 }
 
 std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, const library::Method method,
-        Scope* parentScope, Block* predecessor, const ast::BlockAST* blockAST, bool isSealed) {
+        Scope* parentScope, Block* predecessor, const ast::BlockAST* blockAST) {
     auto scope = std::make_unique<Scope>(parentScope);
-    scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), scope->frame->numberOfBlocks, isSealed));
+    scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), scope->frame->numberOfBlocks));
     ++scope->frame->numberOfBlocks;
     auto block = scope->blocks.front().get();
     block->predecessors().emplace_back(predecessor);
@@ -323,8 +323,7 @@ hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method m
     Scope* parentScope = currentBlock->scope();
 
     // Build condition block. Note this block is unsealed.
-    auto conditionScopeOwning = buildInlineBlock(context, method, parentScope, currentBlock, whileAST->condition.get(),
-            false);
+    auto conditionScopeOwning = buildInlineBlock(context, method, parentScope, currentBlock, whileAST->condition.get());
     Scope* conditionScope = conditionScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(conditionScopeOwning));
 
@@ -492,7 +491,8 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
         block->append(std::move(super));
     } else if (name == context->symbolTable->thisMethodSymbol()) {
         auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(
-                static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method) / sizeof(Slot)), context->symbolTable->thisMethodSymbol());
+                static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method)) / kSlotSize),
+                context->symbolTable->thisMethodSymbol());
         auto constant = std::make_unique<hir::ConstantHIR>(block->frame()->method.slot());
         hir = constant.get();
         block->append(std::move(constant));
