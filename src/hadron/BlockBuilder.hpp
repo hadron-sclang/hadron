@@ -27,7 +27,6 @@ struct WhileAST;
 }
 
 namespace hir {
-struct AssignHIR;
 struct BlockLiteralHIR;
 }
 

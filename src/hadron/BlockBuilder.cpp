@@ -10,7 +10,7 @@
 #include "hadron/hir/BranchIfTrueHIR.hpp"
 #include "hadron/hir/ConstantHIR.hpp"
 #include "hadron/hir/HIR.hpp"
-#include "hadron/hir/LoadArgumentHIR.hpp"
+#include "hadron/hir/LoadOuterFrameHIR.hpp"
 #include "hadron/hir/MessageHIR.hpp"
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/hir/PhiHIR.hpp"
@@ -372,7 +372,7 @@ hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method m
 }
 
 hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite) {
-    hir::HIR* hir = nullptr;
+    SPDLOG_INFO("resolving name: {}", name.view(context));
 
     // If this symbol defines a class name look it up in the class library and provide it as a constant.
     if (name.isClassName(context)) {
@@ -381,7 +381,7 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
         auto classDef = context->classLibrary->findClassNamed(name);
         assert(!classDef.isNil());
         auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot());
-        hir = constant.get();
+        auto hir = constant.get();
         block->append(std::move(constant));
         return hir;
     }
@@ -393,12 +393,12 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
         if (iter != scope->valueIndices.end()) {
             if (toWrite == hir::kInvalidID) {
                 auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(iter->second, name);
-                hir = readFromFrame.get();
+                auto hir = readFromFrame.get();
                 block->append(std::move(readFromFrame));
                 return hir;
             }
             auto writeToFrame = std::make_unique<hir::WriteToFrameHIR>(iter->second, name, toWrite);
-            hir = writeToFrame.get();
+            auto hir = writeToFrame.get();
             block->append(std::move(writeToFrame));
             return hir;
         }
@@ -422,13 +422,13 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
             assert(thisHir->id != hir::kInvalidID);
             if (toWrite == hir::kInvalidID) {
                 auto readFromThis = std::make_unique<hir::ReadFromThisHIR>(thisHir->id, instVarIndex.getInt32(), name);
-                hir = readFromThis.get();
+                auto hir = readFromThis.get();
                 block->append(std::move(readFromThis));
                 return hir;
             } else {
                 auto writeToThis = std::make_unique<hir::WriteToThisHIR>(thisHir->id, instVarIndex.getInt32(), name,
                     toWrite);
-                hir = writeToThis.get();
+                auto hir = writeToThis.get();
                 block->append(std::move(writeToThis));
                 return hir;
             }
@@ -451,13 +451,13 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
             if (toWrite == hir::kInvalidID) {
                 auto readFromClass = std::make_unique<hir::ReadFromClassHIR>(classArray, classVarOffset.getInt32(),
                         name);
-                hir = readFromClass.get();
+                auto hir = readFromClass.get();
                 block->append(std::move(readFromClass));
                 return hir;
             } else {
                 auto writeToClass = std::make_unique<hir::WriteToClassHIR>(classArray, classVarOffset.getInt32(),
                         name, toWrite);
-                hir = writeToClass.get();
+                auto hir = writeToClass.get();
                 block->append(std::move(writeToClass));
                 return hir;
             }
@@ -471,9 +471,10 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
     while (!classConstDef.isNil()) {
         auto constIndex = classConstDef.constNames().indexOf(name);
         if (constIndex.isInt32()) {
-            if (toWrite == hir::kInvalidID) { return nullptr; }
+            // Constants are read-only.
+            if (toWrite != hir::kInvalidID) { return nullptr; }
             auto constant = std::make_unique<hir::ConstantHIR>(classConstDef.constValues().at(constIndex.getInt32()));
-            hir = constant.get();
+            auto hir = constant.get();
             block->append(std::move(constant));
             return hir;
         }
@@ -487,22 +488,31 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
         assert(thisRead);
         assert(thisRead->id != hir::kInvalidID);
         auto super = std::make_unique<hir::RouteToSuperclassHIR>(thisRead->id);
-        hir = super.get();
+        auto hir = super.get();
         block->append(std::move(super));
-    } else if (name == context->symbolTable->thisMethodSymbol()) {
-        auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(
-                static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method)) / kSlotSize),
+        return hir;
+    }
+
+    if (name == context->symbolTable->thisMethodSymbol()) {
+        auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(0,
+// TODO         static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method)) / kSlotSize),
                 context->symbolTable->thisMethodSymbol());
         auto constant = std::make_unique<hir::ConstantHIR>(block->frame()->method.slot());
-        hir = constant.get();
+        auto hir = constant.get();
         block->append(std::move(constant));
-    } else if (name == context->symbolTable->thisProcessSymbol()) {
-        assert(false); // LoadFromContextHIR??
-    } else if (name == context->symbolTable->thisThreadSymbol()) {
+        return hir;
+    }
+
+    if (name == context->symbolTable->thisProcessSymbol()) {
         assert(false); // LoadFromContextHIR??
     }
 
-    return hir;
+    if (name == context->symbolTable->thisThreadSymbol()) {
+        assert(false); // LoadFromContextHIR??
+    }
+
+    SPDLOG_CRITICAL("failed to find name: {}", name.view(context));
+    return nullptr;
 }
 
 

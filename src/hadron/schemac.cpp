@@ -200,8 +200,6 @@ int main(int argc, char* argv[]) {
 
         outFile << "};" << std::endl << std::endl;
 
-        outFile << fmt::format("static_assert(std::is_standard_layout<{}Schema>::value);\n\n", className);
-
         node = classNode->next.get();
     }
 

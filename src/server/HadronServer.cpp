@@ -14,7 +14,6 @@
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/LinearFrame.hpp"
-#include "hadron/NameSaver.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
@@ -188,9 +187,7 @@ void HadronServer::addCompilationUnit(hadron::library::Method methodDef, std::sh
     }
 
     if (stopAfter >= DiagnosticsStoppingPoint::kHIRFinalization) {
-        SPDLOG_TRACE("Compile Diagnostics NameSaver {}", name);
-        hadron::NameSaver nameSaver(m_runtime->context(), m_errorReporter);
-        nameSaver.scanFrame(frame.get());
+        // TODO: may not be necessary
     }
 
     std::unique_ptr<hadron::LinearFrame> linearFrame;

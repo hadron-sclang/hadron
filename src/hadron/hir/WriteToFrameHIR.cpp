@@ -5,7 +5,7 @@ namespace hir {
 
 WriteToFrameHIR::WriteToFrameHIR(int32_t index, library::Symbol name, hir::ID v):
     HIR(kWriteToFrame),
-    arrayIndex(index),
+    frameIndex(index),
     valueName(name),
     toWrite(v) { reads.emplace(toWrite); }
 

@@ -11,7 +11,7 @@ struct WriteToFrameHIR : public HIR {
     WriteToFrameHIR(int32_t index, library::Symbol name, hir::ID v);
     virtual ~WriteToFrameHIR() = default;
 
-    int32_t arrayIndex;
+    int32_t frameIndex;
     library::Symbol valueName;
     hir::ID toWrite;
 
