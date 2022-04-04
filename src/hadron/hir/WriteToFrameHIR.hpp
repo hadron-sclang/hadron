@@ -8,10 +8,11 @@ namespace hir {
 
 struct WriteToFrameHIR : public HIR {
     WriteToFrameHIR() = delete;
-    WriteToFrameHIR(int32_t index, library::Symbol name, hir::ID v);
+    WriteToFrameHIR(int32_t index, hir::ID framePointer, library::Symbol name, hir::ID v);
     virtual ~WriteToFrameHIR() = default;
 
     int32_t frameIndex;
+    hir::ID frameId;
     library::Symbol valueName;
     hir::ID toWrite;
 

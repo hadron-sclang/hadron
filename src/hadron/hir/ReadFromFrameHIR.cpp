@@ -3,15 +3,25 @@
 namespace hadron {
 namespace hir {
 
-ReadFromFrameHIR::ReadFromFrameHIR(int index, library::Symbol name):
-    HIR(kReadFromFrame, TypeFlags::kAllFlags), frameIndex(index), valueName(name) {}
+ReadFromFrameHIR::ReadFromFrameHIR(int32_t index, hir::ID framePointer, library::Symbol name):
+        HIR(kReadFromFrame, TypeFlags::kAllFlags), frameIndex(index), frameId(framePointer), valueName(name) {
+    if (frameId != hir::kInvalidID) {
+        reads.emplace(frameId);
+    }
+}
 
 ID ReadFromFrameHIR::proposeValue(ID proposedId) {
     id = proposedId;
     return id;
 }
 
-bool ReadFromFrameHIR::replaceInput(ID /* original */, ID /* replacement */) {
+bool ReadFromFrameHIR::replaceInput(ID original, ID replacement) {
+    if (replaceReads(original, replacement)) {
+        assert(original == frameId);
+        frameId = replacement;
+        return true;
+    }
+
     return false;
 }
 

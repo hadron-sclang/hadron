@@ -381,30 +381,48 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
         auto classDef = context->classLibrary->findClassNamed(name);
         assert(!classDef.isNil());
         auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot());
-        auto hir = constant.get();
-        block->append(std::move(constant));
-        return hir;
+        auto id = block->append(std::move(constant));
+        return block->frame()->values[id];
     }
 
     // Search through local values in scope.
-    Scope* scope = block->scope();
-    while (scope != nullptr) {
-        auto iter = scope->valueIndices.find(name);
-        if (iter != scope->valueIndices.end()) {
-            if (toWrite == hir::kInvalidID) {
-                auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(iter->second, name);
-                auto hir = readFromFrame.get();
-                block->append(std::move(readFromFrame));
+    Block* searchBlock = block;
+    size_t nestedFramesCount = 0;
+
+
+    do {
+        Scope* scope = searchBlock->scope();
+
+        while (scope != nullptr) {
+            auto iter = scope->valueIndices.find(name);
+            if (iter != scope->valueIndices.end()) {
+                // Match found, load any and all needed nested frames.
+                auto frameId = hir::kInvalidID;
+                for (size_t i = 0; i < nestedFramesCount; ++i) {
+                    frameId = block->append(std::make_unique<hir::LoadOuterFrameHIR>(frameId));
+                }
+
+                if (toWrite == hir::kInvalidID) {
+                    auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(iter->second, frameId, name);
+                    auto hir = readFromFrame.get();
+                    block->append(std::move(readFromFrame));
+                    return hir;
+                }
+                auto writeToFrame = std::make_unique<hir::WriteToFrameHIR>(iter->second, frameId, name, toWrite);
+                auto hir = writeToFrame.get();
+                block->append(std::move(writeToFrame));
                 return hir;
             }
-            auto writeToFrame = std::make_unique<hir::WriteToFrameHIR>(iter->second, name, toWrite);
-            auto hir = writeToFrame.get();
-            block->append(std::move(writeToFrame));
-            return hir;
+            scope = scope->parent;
         }
-        scope = scope->parent;
-    }
-    // TODO - containing frames?
+
+        if (!searchBlock->frame()->outerBlockHIR) {
+            break;
+        }
+
+        ++nestedFramesCount;
+        searchBlock = searchBlock->frame()->outerBlockHIR->owningBlock;
+    } while (true);
 
     // Search instance variables next.
     library::Class classDef = block->frame()->method.ownerClass();
@@ -425,13 +443,12 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
                 auto hir = readFromThis.get();
                 block->append(std::move(readFromThis));
                 return hir;
-            } else {
-                auto writeToThis = std::make_unique<hir::WriteToThisHIR>(thisHir->id, instVarIndex.getInt32(), name,
-                    toWrite);
-                auto hir = writeToThis.get();
-                block->append(std::move(writeToThis));
-                return hir;
             }
+            auto writeToThis = std::make_unique<hir::WriteToThisHIR>(thisHir->id, instVarIndex.getInt32(), name,
+                toWrite);
+            auto hir = writeToThis.get();
+            block->append(std::move(writeToThis));
+            return hir;
         }
     } else {
         // Meta_ classes to have access to the class variables and constants of their associated class, so adjust the
@@ -454,13 +471,12 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
                 auto hir = readFromClass.get();
                 block->append(std::move(readFromClass));
                 return hir;
-            } else {
-                auto writeToClass = std::make_unique<hir::WriteToClassHIR>(classArray, classVarOffset.getInt32(),
-                        name, toWrite);
-                auto hir = writeToClass.get();
-                block->append(std::move(writeToClass));
-                return hir;
             }
+            auto writeToClass = std::make_unique<hir::WriteToClassHIR>(classArray, classVarOffset.getInt32(),
+                    name, toWrite);
+            auto hir = writeToClass.get();
+            block->append(std::move(writeToClass));
+            return hir;
         }
 
         classVarDef = context->classLibrary->findClassNamed(classVarDef.superclass(context));
@@ -474,9 +490,9 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
             // Constants are read-only.
             if (toWrite != hir::kInvalidID) { return nullptr; }
             auto constant = std::make_unique<hir::ConstantHIR>(classConstDef.constValues().at(constIndex.getInt32()));
-            auto hir = constant.get();
-            block->append(std::move(constant));
-            return hir;
+            auto id = block->append(std::move(constant));
+            assert(id != hir::kInvalidID);
+            return block->frame()->values[id];
         }
 
         classConstDef = context->classLibrary->findClassNamed(classConstDef.superclass(context));
@@ -496,10 +512,10 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
     if (name == context->symbolTable->thisMethodSymbol()) {
         auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(0,
 // TODO         static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method)) / kSlotSize),
+                hir::kInvalidID,
                 context->symbolTable->thisMethodSymbol());
-        auto constant = std::make_unique<hir::ConstantHIR>(block->frame()->method.slot());
-        auto hir = constant.get();
-        block->append(std::move(constant));
+        auto hir = readFromFrame.get();
+        block->append(std::move(readFromFrame));
         return hir;
     }
 

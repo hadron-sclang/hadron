@@ -8,10 +8,12 @@ namespace hir {
 
 struct ReadFromFrameHIR : public HIR {
     ReadFromFrameHIR() = delete;
-    ReadFromFrameHIR(int index, library::Symbol name);
+    // if |framePointer| is hir::kInvalidID this will use the current active frame pointer.
+    ReadFromFrameHIR(int32_t index, hir::ID framePointer, library::Symbol name);
     virtual ~ReadFromFrameHIR() = default;
 
-    int frameIndex;
+    int32_t frameIndex;
+    hir::ID frameId;
     library::Symbol valueName;
 
     // Forces the kAny type for all arguments.

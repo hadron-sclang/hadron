@@ -3,11 +3,19 @@
 namespace hadron {
 namespace hir {
 
-WriteToFrameHIR::WriteToFrameHIR(int32_t index, library::Symbol name, hir::ID v):
-    HIR(kWriteToFrame),
-    frameIndex(index),
-    valueName(name),
-    toWrite(v) { reads.emplace(toWrite); }
+WriteToFrameHIR::WriteToFrameHIR(int32_t index, hir::ID framePointer, library::Symbol name, hir::ID v):
+        HIR(kWriteToFrame),
+        frameIndex(index),
+        frameId(framePointer),
+        valueName(name),
+        toWrite(v) {
+
+    reads.emplace(toWrite);
+
+    if (frameId != hir::kInvalidID) {
+        reads.emplace(frameId);
+    }
+}
 
 ID WriteToFrameHIR::proposeValue(ID /* proposedId */) {
     return kInvalidID;
@@ -15,8 +23,12 @@ ID WriteToFrameHIR::proposeValue(ID /* proposedId */) {
 
 bool WriteToFrameHIR::replaceInput(ID original, ID replacement) {
     if (replaceReads(original, replacement)) {
-        assert(toWrite == original);
-        toWrite = replacement;
+        if (frameId == original) {
+            frameId = replacement;
+        }
+        if (toWrite == original) {
+            toWrite = replacement;
+        }
         return true;
     }
 
