@@ -204,6 +204,8 @@ add_library(hadron STATIC
     hir/PhiHIR.hpp
     hir/ReadFromClassHIR.cpp
     hir/ReadFromClassHIR.hpp
+    hir/ReadFromContextHIR.cpp
+    hir/ReadFromContextHIR.hpp
     hir/ReadFromFrameHIR.cpp
     hir/ReadFromFrameHIR.hpp
     hir/ReadFromThisHIR.cpp

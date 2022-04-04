@@ -32,6 +32,7 @@ enum Opcode {
     kMethodReturn,
     kPhi,
     kReadFromClass,
+    kReadFromContext,
     kReadFromFrame,
     kReadFromThis,
     kRouteToSuperclass,

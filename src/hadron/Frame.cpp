@@ -2,18 +2,22 @@
 
 #include "hadron/Block.hpp"
 #include "hadron/hir/PhiHIR.hpp"
+#include "hadron/library/Kernel.hpp"
 #include "hadron/Scope.hpp"
+#include "hadron/ThreadContext.hpp"
 
 #include "spdlog/spdlog.h"
 
 namespace hadron {
 
-Frame::Frame(hir::BlockLiteralHIR* outerBlock, library::Method meth):
+Frame::Frame(ThreadContext* context, hir::BlockLiteralHIR* outerBlock, library::Method meth):
         outerBlockHIR(outerBlock),
         method(meth),
         hasVarArgs(false),
         rootScope(std::make_unique<Scope>(this)),
-        numberOfBlocks(0) {}
+        numberOfBlocks(0) {
+    prototypeFrame = library::Array::newClear(context, library::Frame::schemaSize());
+}
 
 void Frame::replaceValues(std::unordered_map<hir::HIR*, hir::HIR*>& replacements) {
     std::unordered_set<hir::HIR*> toRemove;

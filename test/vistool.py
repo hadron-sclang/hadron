@@ -167,24 +167,18 @@ def valueToString(value):
     return '({}) v_{}'.format(flags, value['id'])
 
 def hirToString(hir):
-    if hir['opcode'] == 'Assign':
-        return '<i>{}</i> = {}'.format(hir['name'], valueToString(hir['assignId']))
-    elif hir['opcode'] == 'Branch':
+    if hir['opcode'] == 'Branch':
         return 'Branch to Block {}'.format(hir['blockId'])
     elif hir['opcode'] == 'BranchIfTrue':
         return 'BranchIfTrue {} to Block {}'.format(valueToString(hir['condition']), hir['blockId'])
     elif hir['opcode'] == 'Constant':
         return '{} &#8592; {}'.format(valueToString(hir['value']), slotToString(hir['constant']))
-    elif hir['opcode'] == 'ImportClassVariable':
-        return '{} &#8592; ImportClassVar({})'.format(valueToString(hir['value']), hir['offset'])
-    elif hir['opcode'] == 'ImportInstanceVariable':
-        return '{} &#8592; ImportInstanceVar(this: {}, off: {})'.format(valueToString(hir['value']), hir['thisId'],
-                hir['offset'])
-    elif hir['opcode'] == 'ImportLocalVariable':
-        # Re-using the name of the local value as the name of the imported value.
-        return '{} &#8592; ImportLocalVar(v_{})'.format(valueToString(hir['value']), hir['externalId'])
-    elif hir['opcode'] == 'LoadArgument':
-        return '{} &#8592; LoadArgument({})'.format(valueToString(hir['value']), hir['argIndex'])
+    elif hir['opcode'] == 'LoadOuterFrame':
+        if 'innerContext' in hir:
+            return '{} &#8592; LoadOuterFrame({})'.format(valueToString(hir['value']),
+                    valueToString(hir['innerContext']))
+        else:
+            return '{} &#8592; LoadOuterFrame()'.format(valueToString(hir['value']))
     elif hir['opcode'] == 'Message':
         message = '{} &#8592; {}.{}('.format(valueToString(hir['value']), valueToString(hir['arguments'][0]),
                 sourceToHTML(hir['selector']['string']))
@@ -200,8 +194,38 @@ def hirToString(hir):
         phi += ','.join(['v_{}'.format(x['id']) for x in hir['inputs']])
         phi += ')'
         return phi
+    elif hir['opcode'] == 'ReadFromClass':
+        return '{} &#8592; ReadFromClass(classVars: {}, name: {}, index: {})'.format(valueToString(hir['value']),
+                valueToString(hir['classVariableArray']), hir['valueName']['string'], hir['arrayIndex'])
+    elif hir['opcode'] == 'ReadFromContext':
+        return '{} &#8592; ReadFromContext(offset: {}, name: {})'.format(valueToString(hir['value']), hir['offset'],
+                hir['valueName']['string'])
+    elif hir['opcode'] == 'ReadFromFrame':
+        if 'frameId' in hir:
+            return '{} &#8592; ReadFromFrame(index: {}, frameId: {} name: {})'.format(valueToString(hir['value']),
+                    hir['frameIndex'], valueToString(hir['frameId']), hir['valueName']['string'])
+        else:
+            return '{} &#8592; ReadFromFrame(index: {}, name: {})'.format(valueToString(hir['value']),
+                    hir['frameIndex'], hir['valueName']['string'])
+    elif hir['opcode'] == 'ReadFromThis':
+        return '{} &#8592; ReadFromThis(this: {}, index: {}, name: {})'.format(valueToString(hir['value']),
+                valueToString(hir['thisId']), hir['index'], hir['valueName']['string'])
     elif hir['opcode'] == 'StoreReturn':
         return 'StoreReturn({})'.format(valueToString(hir['returnValue']))
+    elif hir['opcode'] == 'WriteToClass':
+        return 'WriteToClass(classVars: {}, name: {}, index: {}, toWrite: {})'.format(
+                valueToString(hir['classVariableArray']), hir['valueName']['string'], hir['arrayIndex'],
+                valueToString(hir['toWrite']))
+    elif hir['opcode'] == 'WriteToFrame':
+        if 'frameId' in hir:
+            return 'WriteToFrame(index: {}, frameId: {}, name: {}, toWrite: {})'.format(hir['frameIndex'],
+                    valueToString(hir['frameId']), hir['valueName']['string'], valueToString(hir['toWrite']))
+        else:
+            return 'WriteToFrame(index: {}, name: {}, toWrite: {})'.format(hir['frameIndex'],
+                    hir['valueName']['string'], valueToString(hir['toWrite']))
+    elif hir['opcode'] == 'WriteToThis':
+        return 'WriteToThis(this: {}, index: {}, name: {}, toWrite: {})'.format(valueToString(hir['thisId']),
+                hir['index'], hir['valueName']['string'], valueToString(hir['toWrite']))
     return 'unsupported hir opcode "{}"'.format(hir['opcode'])
 
 def saveScope(scope, dotFile, prefix):

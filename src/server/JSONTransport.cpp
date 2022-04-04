@@ -15,6 +15,7 @@
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/hir/PhiHIR.hpp"
 #include "hadron/hir/ReadFromClassHIR.hpp"
+#include "hadron/hir/ReadFromContextHIR.hpp"
 #include "hadron/hir/ReadFromFrameHIR.hpp"
 #include "hadron/hir/ReadFromThisHIR.hpp"
 #include "hadron/hir/RouteToSuperclassHIR.hpp"
@@ -1530,9 +1531,11 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
         const auto loadOuter = reinterpret_cast<const hadron::hir::LoadOuterFrameHIR*>(hir);
         jsonHIR.AddMember("opcode", "LoadOuterFrame", document.GetAllocator());
 
-        rapidjson::Value innerContext;
-        serializeValue(context, loadOuter->innerContext, frame, innerContext, document);
-        jsonHIR.AddMember("innerContext", innerContext, document.GetAllocator());
+        if (loadOuter->innerContext != hadron::hir::kInvalidID) {
+            rapidjson::Value innerContext;
+            serializeValue(context, loadOuter->innerContext, frame, innerContext, document);
+            jsonHIR.AddMember("innerContext", innerContext, document.GetAllocator());
+        }
     } break;
 
     case hadron::hir::Opcode::kMessage: {
@@ -1595,11 +1598,28 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
         jsonHIR.AddMember("valueName", valueName, document.GetAllocator());
     } break;
 
+    case hadron::hir::Opcode::kReadFromContext: {
+        const auto readContext = reinterpret_cast<const hadron::hir::ReadFromContextHIR*>(hir);
+        jsonHIR.AddMember("opcode", "ReadFromContext", document.GetAllocator());
+
+        jsonHIR.AddMember("offset", rapidjson::Value(readContext->offset), document.GetAllocator());
+
+        rapidjson::Value valueName;
+        serializeSymbol(context, readContext->valueName, valueName, document);
+        jsonHIR.AddMember("valueName", valueName, document.GetAllocator());
+    } break;
+
     case hadron::hir::Opcode::kReadFromFrame: {
         const auto readFrame = reinterpret_cast<const hadron::hir::ReadFromFrameHIR*>(hir);
         jsonHIR.AddMember("opcode", "ReadFromFrame", document.GetAllocator());
 
         jsonHIR.AddMember("frameIndex", rapidjson::Value(readFrame->frameIndex), document.GetAllocator());
+
+        if (readFrame->frameId != hadron::hir::kInvalidID) {
+            rapidjson::Value frameId;
+            serializeValue(context, readFrame->frameId, frame, frameId, document);
+            jsonHIR.AddMember("frameId", frameId, document.GetAllocator());
+        }
 
         rapidjson::Value valueName;
         serializeSymbol(context, readFrame->valueName, valueName, document);
@@ -1658,6 +1678,12 @@ void JSONTransport::JSONTransportImpl::serializeHIR(hadron::ThreadContext* conte
         jsonHIR.AddMember("opcode", "WriteToFrame", document.GetAllocator());
 
         jsonHIR.AddMember("frameIndex", rapidjson::Value(writeFrame->frameIndex), document.GetAllocator());
+
+        if (writeFrame->frameId != hadron::hir::kInvalidID) {
+            rapidjson::Value frameId;
+            serializeValue(context, writeFrame->frameId, frame, frameId, document);
+            jsonHIR.AddMember("frameId", frameId, document.GetAllocator());
+        }
 
         rapidjson::Value valueName;
         serializeSymbol(context, writeFrame->valueName, valueName, document);

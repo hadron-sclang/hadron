@@ -157,13 +157,6 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                         // Attach argument names from AST to the method definition.
                         method.setArgNames(ast->argumentNames);
 
-                        // We store the prototypeFrame as an Array, then during runtime make a copy of it, convert that
-                        // copy to a Frame object, and set the frame pointer to point at it. Start the array prototype
-                        // as an Array of size Frame with each member initialized to nil.
-                        library::Array prototypeFrame = library::Array::newClear(context, library::Frame::schemaSize());
-                        prototypeFrame = prototypeFrame.addAll(context, ast->argumentDefaults);
-                        method.setPrototypeFrame(prototypeFrame);
-
                         auto methodIter = m_methodASTs.find(methodClassDef.name(context));
                         assert(methodIter != m_methodASTs.end());
                         methodIter->second->emplace(std::make_pair(methodName, std::move(ast)));

@@ -13,6 +13,8 @@
 
 namespace hadron {
 
+struct ThreadContext;
+
 namespace hir {
 struct BlockLiteralHIR;
 }
@@ -23,7 +25,7 @@ struct Scope;
 // Represents a stack frame, so can have arguments supplied and can be called so has an entry, return value, and exit.
 struct Frame {
     Frame() = delete;
-    Frame(hir::BlockLiteralHIR* outerBlock, library::Method meth);
+    Frame(ThreadContext* context, hir::BlockLiteralHIR* outerBlock, library::Method meth);
     ~Frame() = default;
 
     // Replaces pairs (key, value). May cause other replacements, which are handled sequentially. Destructively modifies

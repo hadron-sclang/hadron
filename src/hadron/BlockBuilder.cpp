@@ -15,6 +15,7 @@
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/hir/PhiHIR.hpp"
 #include "hadron/hir/ReadFromClassHIR.hpp"
+#include "hadron/hir/ReadFromContextHIR.hpp"
 #include "hadron/hir/ReadFromFrameHIR.hpp"
 #include "hadron/hir/ReadFromThisHIR.hpp"
 #include "hadron/hir/RouteToSuperclassHIR.hpp"
@@ -49,13 +50,16 @@ std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const l
 std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const library::Method method,
     const ast::BlockAST* blockAST, hir::BlockLiteralHIR* outerBlockHIR) {
     // Build outer frame, root scope, and entry block.
-    auto frame = std::make_unique<Frame>(outerBlockHIR, method);
+    auto frame = std::make_unique<Frame>(context, outerBlockHIR, method);
     auto scope = frame->rootScope.get();
-    frame->prototypeFrame = method.prototypeFrame().copy(context);
+
+    // Add arguments to the prototype frame.
+    frame->prototypeFrame = frame->prototypeFrame.addAll(context, blockAST->argumentDefaults);
 
     // Include the arguments in the root scope value names set.
-    for (int32_t i = 0; i < method.argNames().size(); ++i) {
-        scope->valueIndices.emplace(std::make_pair(method.argNames().at(i), library::Frame::schemaSize() + i));
+    for (int32_t i = 0; i < blockAST->argumentNames.size(); ++i) {
+        scope->valueIndices.emplace(std::make_pair(blockAST->argumentNames.at(i), frame->prototypeFrame.size()));
+        frame->prototypeFrame = frame->prototypeFrame.add(context, blockAST->argumentDefaults.at(i));
     }
 
     scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
@@ -520,11 +524,19 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
     }
 
     if (name == context->symbolTable->thisProcessSymbol()) {
-        assert(false); // LoadFromContextHIR??
+        auto readFromContext = std::make_unique<hir::ReadFromContextHIR>(offsetof(ThreadContext, thisProcess),
+            context->symbolTable->thisProcessSymbol());
+        auto hir = readFromContext.get();
+        block->append(std::move(readFromContext));
+        return hir;
     }
 
     if (name == context->symbolTable->thisThreadSymbol()) {
-        assert(false); // LoadFromContextHIR??
+        auto readFromContext = std::make_unique<hir::ReadFromContextHIR>(offsetof(ThreadContext, thisThread),
+            context->symbolTable->thisThreadSymbol());
+        auto hir = readFromContext.get();
+        block->append(std::move(readFromContext));
+        return hir;
     }
 
     SPDLOG_CRITICAL("failed to find name: {}", name.view(context));

@@ -8,11 +8,11 @@ namespace hir {
 
 struct ReadFromClassHIR : public HIR {
     ReadFromClassHIR() = delete;
-    ReadFromClassHIR(hir::ID classArray, int index, library::Symbol name);
+    ReadFromClassHIR(hir::ID classArray, int32_t index, library::Symbol name);
     virtual ~ReadFromClassHIR() = default;
 
     hir::ID classVariableArray;
-    int arrayIndex;
+    int32_t arrayIndex;
     library::Symbol valueName;
 
     ID proposeValue(ID proposedId) override;
