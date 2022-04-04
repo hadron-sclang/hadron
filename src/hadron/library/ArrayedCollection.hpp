@@ -59,6 +59,11 @@ public:
         return *(start() + index);
     }
 
+    void put(int32_t index, E value) {
+        assert(index < size());
+        *(start() + index) = value;
+    }
+
     T& add(ThreadContext* context, E element) {
         int32_t oldSize = size();
         resize(context, oldSize + 1);

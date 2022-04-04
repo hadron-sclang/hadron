@@ -97,12 +97,13 @@ bool Runtime::buildTrampolines() {
 }
 
 void Runtime::enterMachineCode(const uint8_t* machineCode) {
+/*
     // Set machine return address as the exit trampoline into Hadron stack frame.
-    *(m_threadContext->framePointer) = Slot::makePointer(m_threadContext->framePointer);
+    *(m_threadContext->framePointer) = Slot::makeRawPointer(m_threadContext->framePointer);
     --(m_threadContext->framePointer);
-    *(m_threadContext->framePointer) = Slot::makePointer(m_threadContext->stackPointer);
+    *(m_threadContext->framePointer) = Slot::makeRawPointer(m_threadContext->stackPointer);
     --(m_threadContext->framePointer);
-    *(m_threadContext->framePointer) = Slot::makePointer(reinterpret_cast<uint8_t*>(m_exitTrampoline));
+    *(m_threadContext->framePointer) = Slot::makeRawPointer(reinterpret_cast<int8_t*>(m_exitTrampoline));
     --(m_threadContext->framePointer);
 
     // Initialize return value.
@@ -113,7 +114,7 @@ void Runtime::enterMachineCode(const uint8_t* machineCode) {
     // Set up exit state.
     m_threadContext->exitMachineCode = reinterpret_cast<uint8_t*>(m_exitTrampoline);
     m_threadContext->machineCodeStatus = 0;
-
+*/
     // Hit the trampoline.
     SPDLOG_INFO("Machine code entry.");
     m_entryTrampoline(m_threadContext.get(), machineCode);

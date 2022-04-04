@@ -5,21 +5,24 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
-#include "hadron/hir/AssignHIR.hpp"
 #include "hadron/hir/BlockLiteralHIR.hpp"
 #include "hadron/hir/BranchHIR.hpp"
 #include "hadron/hir/BranchIfTrueHIR.hpp"
 #include "hadron/hir/ConstantHIR.hpp"
 #include "hadron/hir/HIR.hpp"
-#include "hadron/hir/ImportClassVariableHIR.hpp"
-#include "hadron/hir/ImportInstanceVariableHIR.hpp"
-#include "hadron/hir/ImportLocalVariableHIR.hpp"
-#include "hadron/hir/LoadArgumentHIR.hpp"
+#include "hadron/hir/LoadOuterFrameHIR.hpp"
 #include "hadron/hir/MessageHIR.hpp"
 #include "hadron/hir/MethodReturnHIR.hpp"
 #include "hadron/hir/PhiHIR.hpp"
+#include "hadron/hir/ReadFromClassHIR.hpp"
+#include "hadron/hir/ReadFromContextHIR.hpp"
+#include "hadron/hir/ReadFromFrameHIR.hpp"
+#include "hadron/hir/ReadFromThisHIR.hpp"
 #include "hadron/hir/RouteToSuperclassHIR.hpp"
 #include "hadron/hir/StoreReturnHIR.hpp"
+#include "hadron/hir/WriteToClassHIR.hpp"
+#include "hadron/hir/WriteToFrameHIR.hpp"
+#include "hadron/hir/WriteToThisHIR.hpp"
 #include "hadron/Keywords.hpp"
 #include "hadron/LinearFrame.hpp"
 #include "hadron/Scope.hpp"
@@ -47,44 +50,21 @@ std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const l
 std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const library::Method method,
     const ast::BlockAST* blockAST, hir::BlockLiteralHIR* outerBlockHIR) {
     // Build outer frame, root scope, and entry block.
-    auto frame = std::make_unique<Frame>(outerBlockHIR, method, blockAST->argumentNames, blockAST->argumentDefaults);
-
-    // The first block in the root Scope is the "import" block, which we leave empty except for a branch instruction to
-    // the next block. This block can be used for insertion of LoadExternalHIR and LoadArgumentHIR instructions in a
-    // location that is guaranteed to *dominate* every other block in the graph.
+    auto frame = std::make_unique<Frame>(context, outerBlockHIR, method);
     auto scope = frame->rootScope.get();
-    scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
-    ++frame->numberOfBlocks;
-    auto block = scope->blocks.front().get();
 
-    // Load all arguments here.
-    for (int32_t argIndex = 0; argIndex < frame->argumentOrder.size(); ++argIndex) {
-        auto name = frame->argumentOrder.at(argIndex);
-        auto loadArg = std::make_unique<hir::LoadArgumentHIR>(argIndex);
+    // Add arguments to the prototype frame.
+    frame->prototypeFrame = frame->prototypeFrame.addAll(context, blockAST->argumentDefaults);
 
-        // Set known class and type to *this* pointer.
-        if (argIndex == 0) {
-            loadArg->typeFlags = TypeFlags::kObjectFlag;
-        } else if (blockAST->hasVarArg && argIndex == frame->argumentOrder.size() - 1) {
-            // Variable arguments always have Array type.
-            loadArg->typeFlags = TypeFlags::kObjectFlag;
-        }
-        auto argValue = block->append(std::move(loadArg));
-        auto nameAssign = std::make_unique<hir::AssignHIR>(name, argValue);
-        block->nameAssignments().emplace(std::make_pair(name, nameAssign.get()));
-        block->append(std::move(nameAssign));
+    // Include the arguments in the root scope value names set.
+    for (int32_t i = 0; i < blockAST->argumentNames.size(); ++i) {
+        scope->valueIndices.emplace(std::make_pair(blockAST->argumentNames.at(i), frame->prototypeFrame.size()));
+        frame->prototypeFrame = frame->prototypeFrame.add(context, blockAST->argumentDefaults.at(i));
     }
 
-    // Create a new block for the method body and insert a branch to the new block from the current one.
     scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
     ++frame->numberOfBlocks;
-    auto branch = std::make_unique<hir::BranchHIR>();
-    branch->blockId = scope->blocks.back()->id();
-    block->append(std::move(branch));
-
-    Block* currentBlock = scope->blocks.back().get();
-    block->successors().emplace_back(currentBlock);
-    currentBlock->predecessors().emplace_back(block);
+    auto currentBlock = scope->blocks.front().get();
 
     buildFinalValue(context, method, currentBlock, blockAST->statements.get());
 
@@ -97,14 +77,14 @@ std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const li
 }
 
 std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, const library::Method method,
-        Scope* parentScope, Block* predecessor, const ast::BlockAST* blockAST, bool isSealed) {
+        Scope* parentScope, Block* predecessor, const ast::BlockAST* blockAST) {
     auto scope = std::make_unique<Scope>(parentScope);
-    scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), scope->frame->numberOfBlocks, isSealed));
+    scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), scope->frame->numberOfBlocks));
     ++scope->frame->numberOfBlocks;
     auto block = scope->blocks.front().get();
     block->predecessors().emplace_back(predecessor);
 
-    // For now we can't handle inline blocks with arguments
+    // For now we can't handle inline blocks with arguments (other than "this")
     assert(blockAST->argumentNames.size() <= 1);
 
     Block* currentBlock = block;
@@ -175,41 +155,44 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
 
     case ast::ASTType::kName: {
         const auto nameAST = reinterpret_cast<const ast::NameAST*>(ast);
-        auto assignHIR = currentBlock->findName(context, nameAST->name);
-        assert(assignHIR);
-        nodeValue = assignHIR->valueId;
-        assert(nodeValue != hir::kInvalidID);
+        auto findHIR = findName(context, nameAST->name, currentBlock, hir::kInvalidID);
+        assert(findHIR);
+        assert(findHIR->id != hir::kInvalidID);
+        nodeValue = findHIR->id;
     } break;
 
     case ast::ASTType::kAssign: {
         const auto assignAST = reinterpret_cast<const ast::AssignAST*>(ast);
-        // It's possible that this is an external value, and the code is writing it before reading it. Set up the
-        // imports and flow the value here, or detect an error if the name is not found.
-        auto assignHIR = currentBlock->findName(context, assignAST->name->name);
-        assert(assignHIR);
-
         nodeValue = buildValue(context, method, currentBlock, assignAST->value.get());
         assert(nodeValue != hir::kInvalidID);
 
-        auto assignOwning = std::make_unique<hir::AssignHIR>(assignAST->name->name, nodeValue);
-        assignHIR = assignOwning.get();
-        currentBlock->append(std::move(assignOwning));
-
-        // Update the name of the built value to reflect the assignment.
-        currentBlock->nameAssignments()[assignAST->name->name] = assignHIR;
+        auto assign = findName(context, assignAST->name->name, currentBlock, nodeValue);
+        assert(assign);
     } break;
 
     case ast::ASTType::kDefine: {
         const auto defineAST = reinterpret_cast<const ast::DefineAST*>(ast);
-        currentBlock->scope()->variableNames.emplace(defineAST->name->name);
 
-        nodeValue = buildValue(context, method, currentBlock, defineAST->value.get());
-        assert(nodeValue != hir::kInvalidID);
+        // Add the name to variable index tracking.
+        currentBlock->frame()->variableNames = currentBlock->frame()->variableNames.add(context, defineAST->name->name);
+        currentBlock->scope()->valueIndices.emplace(std::make_pair(defineAST->name->name,
+                currentBlock->frame()->prototypeFrame.size()));
 
-        auto assignOwning = std::make_unique<hir::AssignHIR>(defineAST->name->name, nodeValue);
-        auto assignHIR = assignOwning.get();
-        currentBlock->append(std::move(assignOwning));
-        currentBlock->nameAssignments()[defineAST->name->name] = assignHIR;
+        // Simple constant definitions don't need to be saved, rather we add the value to initial values array.
+        if (defineAST->value->astType == ast::ASTType::kConstant) {
+            const auto constAST = reinterpret_cast<const ast::ConstantAST*>(defineAST->value.get());
+            currentBlock->frame()->prototypeFrame = currentBlock->frame()->prototypeFrame.add(context,
+                    constAST->constant);
+
+            nodeValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(constAST->constant));
+        } else {
+            // Complex value, assign nil as the prototype value, then create a write statement here to that offset.
+            currentBlock->frame()->prototypeFrame = currentBlock->frame()->prototypeFrame.add(context, Slot::makeNil());
+
+            nodeValue = buildValue(context, method, currentBlock, defineAST->value.get());
+            auto assign = findName(context, defineAST->name->name, currentBlock, nodeValue);
+            assert(assign);
+        }
     } break;
 
     case ast::ASTType::kConstant: {
@@ -344,8 +327,7 @@ hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method m
     Scope* parentScope = currentBlock->scope();
 
     // Build condition block. Note this block is unsealed.
-    auto conditionScopeOwning = buildInlineBlock(context, method, parentScope, currentBlock, whileAST->condition.get(),
-            false);
+    auto conditionScopeOwning = buildInlineBlock(context, method, parentScope, currentBlock, whileAST->condition.get());
     Scope* conditionScope = conditionScopeOwning.get();
     parentScope->subScopes.emplace_back(std::move(conditionScopeOwning));
 
@@ -376,9 +358,6 @@ hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method m
     trueBranch->blockId = repeatScope->blocks.front()->id();
     conditionExitBlock->append(std::move(trueBranch));
 
-    // Seal the condition block now that the condition predecessors are all in place.
-    conditionScope->blocks.front()->seal(context);
-
     // Build continuation block.
     auto continueBlock = std::make_unique<Block>(parentScope, parentScope->frame->numberOfBlocks);
     ++parentScope->frame->numberOfBlocks;
@@ -395,5 +374,174 @@ hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method m
     // Inlined while loops in LSC always have a value of nil. Since Hadron inlines all while loops, we do the same.
     return currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
 }
+
+hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite) {
+    SPDLOG_INFO("resolving name: {}", name.view(context));
+
+    // If this symbol defines a class name look it up in the class library and provide it as a constant.
+    if (name.isClassName(context)) {
+        // Class names are read-only.
+        if (toWrite != hir::kInvalidID) { return nullptr; }
+        auto classDef = context->classLibrary->findClassNamed(name);
+        assert(!classDef.isNil());
+        auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot());
+        auto id = block->append(std::move(constant));
+        return block->frame()->values[id];
+    }
+
+    // Search through local values in scope.
+    Block* searchBlock = block;
+    size_t nestedFramesCount = 0;
+
+
+    do {
+        Scope* scope = searchBlock->scope();
+
+        while (scope != nullptr) {
+            auto iter = scope->valueIndices.find(name);
+            if (iter != scope->valueIndices.end()) {
+                // Match found, load any and all needed nested frames.
+                auto frameId = hir::kInvalidID;
+                for (size_t i = 0; i < nestedFramesCount; ++i) {
+                    frameId = block->append(std::make_unique<hir::LoadOuterFrameHIR>(frameId));
+                }
+
+                if (toWrite == hir::kInvalidID) {
+                    auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(iter->second, frameId, name);
+                    auto hir = readFromFrame.get();
+                    block->append(std::move(readFromFrame));
+                    return hir;
+                }
+                auto writeToFrame = std::make_unique<hir::WriteToFrameHIR>(iter->second, frameId, name, toWrite);
+                auto hir = writeToFrame.get();
+                block->append(std::move(writeToFrame));
+                return hir;
+            }
+            scope = scope->parent;
+        }
+
+        if (!searchBlock->frame()->outerBlockHIR) {
+            break;
+        }
+
+        ++nestedFramesCount;
+        searchBlock = searchBlock->frame()->outerBlockHIR->owningBlock;
+    } while (true);
+
+    // Search instance variables next.
+    library::Class classDef = block->frame()->method.ownerClass();
+    auto className = classDef.name(context).view(context);
+    bool isMetaClass = (className.size() > 5) && (className.substr(0, 5) == "Meta_");
+
+    // Meta_ classes are descended from Class, so don't have access to these regular instance variables, so skip the
+    // search for instance variable names in that case.
+    if (!isMetaClass) {
+        auto instVarIndex = classDef.instVarNames().indexOf(name);
+        if (instVarIndex.isInt32()) {
+            // Go find the this pointer.
+            auto thisHir = findName(context, context->symbolTable->thisSymbol(), block, hir::kInvalidID);
+            assert(thisHir);
+            assert(thisHir->id != hir::kInvalidID);
+            if (toWrite == hir::kInvalidID) {
+                auto readFromThis = std::make_unique<hir::ReadFromThisHIR>(thisHir->id, instVarIndex.getInt32(), name);
+                auto hir = readFromThis.get();
+                block->append(std::move(readFromThis));
+                return hir;
+            }
+            auto writeToThis = std::make_unique<hir::WriteToThisHIR>(thisHir->id, instVarIndex.getInt32(), name,
+                toWrite);
+            auto hir = writeToThis.get();
+            block->append(std::move(writeToThis));
+            return hir;
+        }
+    } else {
+        // Meta_ classes to have access to the class variables and constants of their associated class, so adjust the
+        // classDef to point to the associated class instead.
+        className = className.substr(5);
+        classDef = context->classLibrary->findClassNamed(library::Symbol::fromView(context, className));
+        assert(!classDef.isNil());
+    }
+
+    // Search class variables next, starting from this class and up through all parents.
+    library::Class classVarDef = classDef;
+    while (!classVarDef.isNil()) {
+        auto classVarOffset = classVarDef.classVarNames().indexOf(name);
+        if (classVarOffset.isInt32()) {
+            auto classArray = block->append(std::make_unique<hir::ConstantHIR>(
+                    context->classLibrary->classVariables().slot()));
+            if (toWrite == hir::kInvalidID) {
+                auto readFromClass = std::make_unique<hir::ReadFromClassHIR>(classArray, classVarOffset.getInt32(),
+                        name);
+                auto hir = readFromClass.get();
+                block->append(std::move(readFromClass));
+                return hir;
+            }
+            auto writeToClass = std::make_unique<hir::WriteToClassHIR>(classArray, classVarOffset.getInt32(),
+                    name, toWrite);
+            auto hir = writeToClass.get();
+            block->append(std::move(writeToClass));
+            return hir;
+        }
+
+        classVarDef = context->classLibrary->findClassNamed(classVarDef.superclass(context));
+    }
+
+    // Search constants next.
+    library::Class classConstDef = classDef;
+    while (!classConstDef.isNil()) {
+        auto constIndex = classConstDef.constNames().indexOf(name);
+        if (constIndex.isInt32()) {
+            // Constants are read-only.
+            if (toWrite != hir::kInvalidID) { return nullptr; }
+            auto constant = std::make_unique<hir::ConstantHIR>(classConstDef.constValues().at(constIndex.getInt32()));
+            auto id = block->append(std::move(constant));
+            assert(id != hir::kInvalidID);
+            return block->frame()->values[id];
+        }
+
+        classConstDef = context->classLibrary->findClassNamed(classConstDef.superclass(context));
+    }
+
+    // Check for special names.
+    if (name == context->symbolTable->superSymbol()) {
+        auto thisRead = findName(context, context->symbolTable->thisSymbol(), block, hir::kInvalidID);
+        assert(thisRead);
+        assert(thisRead->id != hir::kInvalidID);
+        auto super = std::make_unique<hir::RouteToSuperclassHIR>(thisRead->id);
+        auto hir = super.get();
+        block->append(std::move(super));
+        return hir;
+    }
+
+    if (name == context->symbolTable->thisMethodSymbol()) {
+        auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(0,
+// TODO         static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method)) / kSlotSize),
+                hir::kInvalidID,
+                context->symbolTable->thisMethodSymbol());
+        auto hir = readFromFrame.get();
+        block->append(std::move(readFromFrame));
+        return hir;
+    }
+
+    if (name == context->symbolTable->thisProcessSymbol()) {
+        auto readFromContext = std::make_unique<hir::ReadFromContextHIR>(offsetof(ThreadContext, thisProcess),
+            context->symbolTable->thisProcessSymbol());
+        auto hir = readFromContext.get();
+        block->append(std::move(readFromContext));
+        return hir;
+    }
+
+    if (name == context->symbolTable->thisThreadSymbol()) {
+        auto readFromContext = std::make_unique<hir::ReadFromContextHIR>(offsetof(ThreadContext, thisThread),
+            context->symbolTable->thisThreadSymbol());
+        auto hir = readFromContext.get();
+        block->append(std::move(readFromContext));
+        return hir;
+    }
+
+    SPDLOG_CRITICAL("failed to find name: {}", name.view(context));
+    return nullptr;
+}
+
 
 } // namespace hadron

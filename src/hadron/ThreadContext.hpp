@@ -22,12 +22,12 @@ struct ThreadContext {
 
     // We keep a separate stack for Hadron JIT from the main C/C++ application stack.
     size_t stackSize = 0;
-    Slot* hadronStack = nullptr;
-    Slot* framePointer = nullptr;
-    Slot* stackPointer = nullptr;
+    int8_t* hadronStack = nullptr;
+    int8_t* framePointer = nullptr;
+    int8_t* stackPointer = nullptr;
 
     // The return address to restore the C stack and exit the machine code ABI.
-    const uint8_t* exitMachineCode = nullptr;
+    const int8_t* exitMachineCode = nullptr;
     // An exit flag that can be set to indicate unusual exit conditions.
     int machineCodeStatus = 0;
 

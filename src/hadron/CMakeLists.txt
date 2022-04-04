@@ -185,8 +185,6 @@ add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
 
-    hir/AssignHIR.cpp
-    hir/AssignHIR.hpp
     hir/BlockLiteralHIR.cpp
     hir/BlockLiteralHIR.hpp
     hir/BranchHIR.cpp
@@ -196,24 +194,32 @@ add_library(hadron STATIC
     hir/ConstantHIR.cpp
     hir/ConstantHIR.hpp
     hir/HIR.hpp
-    hir/ImportClassVariableHIR.cpp
-    hir/ImportClassVariableHIR.hpp
-    hir/ImportInstanceVariableHIR.cpp
-    hir/ImportInstanceVariableHIR.hpp
-    hir/ImportLocalVariableHIR.cpp
-    hir/ImportLocalVariableHIR.hpp
-    hir/LoadArgumentHIR.cpp
-    hir/LoadArgumentHIR.hpp
+    hir/LoadOuterFrameHIR.cpp
+    hir/LoadOuterFrameHIR.hpp
     hir/MessageHIR.cpp
     hir/MessageHIR.hpp
     hir/MethodReturnHIR.cpp
     hir/MethodReturnHIR.hpp
     hir/PhiHIR.cpp
     hir/PhiHIR.hpp
+    hir/ReadFromClassHIR.cpp
+    hir/ReadFromClassHIR.hpp
+    hir/ReadFromContextHIR.cpp
+    hir/ReadFromContextHIR.hpp
+    hir/ReadFromFrameHIR.cpp
+    hir/ReadFromFrameHIR.hpp
+    hir/ReadFromThisHIR.cpp
+    hir/ReadFromThisHIR.hpp
     hir/RouteToSuperclassHIR.cpp
     hir/RouteToSuperclassHIR.hpp
     hir/StoreReturnHIR.cpp
     hir/StoreReturnHIR.hpp
+    hir/WriteToClassHIR.cpp
+    hir/WriteToClassHIR.hpp
+    hir/WriteToFrameHIR.cpp
+    hir/WriteToFrameHIR.hpp
+    hir/WriteToThisHIR.cpp
+    hir/WriteToThisHIR.hpp
 
     library/AbstractFunction.hpp
     library/Array.hpp
@@ -272,8 +278,6 @@ add_library(hadron STATIC
     LinearFrame.hpp
     MoveScheduler.cpp
     MoveScheduler.hpp
-    NameSaver.cpp
-    NameSaver.hpp
     OpcodeIterator.cpp
     OpcodeIterator.hpp
     Page.cpp

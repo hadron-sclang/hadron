@@ -2,7 +2,6 @@
 
 #include "hadron/Block.hpp"
 #include "hadron/Frame.hpp"
-#include "hadron/hir/ImportLocalVariableHIR.hpp"
 #include "hadron/Scope.hpp"
 
 namespace hadron {
@@ -16,23 +15,8 @@ ID BlockLiteralHIR::proposeValue(ID proposedId) {
     return id;
 }
 
-bool BlockLiteralHIR::replaceInput(ID original, ID replacement) {
-    assert(frame);
-    bool modified = false;
-
-    // The frame could have ImportLocalValueHIR that has |original| as the imported value, so inspect the first block
-    // within the frame.
-    for (auto& hir : frame->rootScope->blocks.front()->statements()) {
-        if (hir->opcode == hir::Opcode::kImportLocalVariable) {
-            auto* importLocal = reinterpret_cast<ImportLocalVariableHIR*>(hir.get());
-            if (importLocal->externalId == original) {
-                modified = true;
-                importLocal->externalId = replacement;
-            }
-        }
-    }
-
-    return modified;
+bool BlockLiteralHIR::replaceInput(ID /* original */, ID /* replacement */) {
+    return false;
 }
 
 void BlockLiteralHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,

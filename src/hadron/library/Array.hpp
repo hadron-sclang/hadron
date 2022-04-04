@@ -18,6 +18,15 @@ public:
     explicit Array(schema::ArraySchema* instance): ArrayedCollection<Array, schema::ArraySchema, Slot>(instance) {}
     explicit Array(Slot instance): ArrayedCollection<Array, schema::ArraySchema, Slot>(instance) {}
     ~Array() {}
+
+    // Makes a new array of size |indexedSize| with each element set to nil.
+    static Array newClear(ThreadContext* context, int32_t indexedSize) {
+        Array array = Array::alloc(context, indexedSize);
+        for (int32_t i = 0; i < indexedSize; ++i) {
+            array.put(i, Slot::makeNil());
+        }
+        return array;
+    }
 };
 
 template<typename T>

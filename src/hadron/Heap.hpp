@@ -16,7 +16,9 @@
 
 namespace hadron {
 
-struct ObjectHeader;
+namespace library {
+struct Schema;
+}
 
 // Manages dynamic memory allocation for Hadron, including garbage collection. Inspired by the design of the v8 garbage
 // collection system, but greatly simplified.
@@ -80,7 +82,7 @@ private:
 
     // Not garbage collected, permanently allocated objects. Root objects are where scanning starts, along with the
     // stack.
-    std::unordered_set<ObjectHeader*> m_rootSet;
+    std::unordered_set<library::Schema*> m_rootSet;
 
     // Hadron program stack support.
     std::vector<std::unique_ptr<Page>> m_stackSegments;

@@ -23,20 +23,23 @@ static constexpr int32_t kInvalidID = -1;
 static_assert(kInvalidID == lir::kInvalidVReg);
 
 enum Opcode {
-    kAssign,
     kBlockLiteral,
     kBranch,
     kBranchIfTrue,
     kConstant,
-    kImportClassVariable,
-    kImportInstanceVariable,
-    kImportLocalVariable,
-    kLoadArgument,
+    kLoadOuterFrame,
     kMessage,
     kMethodReturn,
     kPhi,
+    kReadFromClass,
+    kReadFromContext,
+    kReadFromFrame,
+    kReadFromThis,
     kRouteToSuperclass,
-    kStoreReturn
+    kStoreReturn,
+    kWriteToClass,
+    kWriteToFrame,
+    kWriteToThis
 };
 
 // All HIR instructions modify the value, thus creating a new version, and may read multiple other values, recorded in

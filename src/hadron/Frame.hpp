@@ -13,6 +13,8 @@
 
 namespace hadron {
 
+struct ThreadContext;
+
 namespace hir {
 struct BlockLiteralHIR;
 }
@@ -23,8 +25,7 @@ struct Scope;
 // Represents a stack frame, so can have arguments supplied and can be called so has an entry, return value, and exit.
 struct Frame {
     Frame() = delete;
-    Frame(hir::BlockLiteralHIR* outerBlock, library::Method meth, library::SymbolArray argOrder,
-            library::Array argDefaults);
+    Frame(ThreadContext* context, hir::BlockLiteralHIR* outerBlock, library::Method meth);
     ~Frame() = default;
 
     // Replaces pairs (key, value). May cause other replacements, which are handled sequentially. Destructively modifies
@@ -37,13 +38,13 @@ struct Frame {
 
     library::Method method;
 
-    // A library::Array with in-order hashes of argument names.
-    library::SymbolArray argumentOrder;
-    // A library::Array with default values for arguments, if they are literals.
-    library::Array argumentDefaults;
-
     // If true, the last argument named in the list is a variable argument array.
     bool hasVarArgs;
+
+    // Flattened variable name array.
+    library::SymbolArray variableNames;
+    // Initial values, for concatenation onto the prototypeFrame.
+    library::Array prototypeFrame;
 
     std::unique_ptr<Scope> rootScope;
 

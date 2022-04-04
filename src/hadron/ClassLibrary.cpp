@@ -153,6 +153,10 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                         ASTBuilder astBuilder(m_errorReporter);
                         auto ast = astBuilder.buildBlock(context, lexer.get(), methodNode->body.get());
                         if (!ast) { return false; }
+
+                        // Attach argument names from AST to the method definition.
+                        method.setArgNames(ast->argumentNames);
+
                         auto methodIter = m_methodASTs.find(methodClassDef.name(context));
                         assert(methodIter != m_methodASTs.end());
                         methodIter->second->emplace(std::make_pair(methodName, std::move(ast)));

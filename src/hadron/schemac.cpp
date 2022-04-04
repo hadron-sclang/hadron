@@ -199,6 +199,7 @@ int main(int argc, char* argv[]) {
         }
 
         outFile << "};" << std::endl << std::endl;
+
         node = classNode->next.get();
     }
 

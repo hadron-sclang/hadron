@@ -11,6 +11,7 @@
 #include "hadron/schema/Common/Core/ObjectSchema.hpp"
 
 #include <cassert>
+#include <type_traits>
 
 namespace hadron {
 namespace library {
@@ -46,15 +47,16 @@ public:
     void initToNil() {
         if (!m_instance) { assert(false); return; }
         Slot* s = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(m_instance) + sizeof(Schema));
-        for (size_t i = 0; i < (m_instance->_sizeInBytes - sizeof(Schema)) / sizeof(Slot); ++i) {
+        for (size_t i = 0; i < (m_instance->_sizeInBytes - sizeof(Schema)) / kSlotSize; ++i) {
             s[i] = Slot::makeNil();
         }
     }
 
-    static inline T alloc(ThreadContext* context) {
-        S* instance = reinterpret_cast<S*>(context->heap->allocateNew(sizeof(S)));
+    static inline T alloc(ThreadContext* context, int32_t extraSlots = 0) {
+        size_t sizeInBytes = sizeof(S) + (extraSlots * kSlotSize);
+        S* instance = reinterpret_cast<S*>(context->heap->allocateNew(sizeInBytes));
         instance->_className = S::kNameHash;
-        instance->_sizeInBytes = sizeof(S);
+        instance->_sizeInBytes = sizeInBytes;
         return T(instance);
     }
 
@@ -77,6 +79,7 @@ public:
         return m_instance->_className;
     }
     static inline Hash nameHash() { return S::kNameHash; }
+    static inline int32_t schemaSize() { return (sizeof(S) - sizeof(Schema)) / kSlotSize; }
 
 protected:
     S* m_instance;

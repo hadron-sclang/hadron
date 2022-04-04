@@ -4,6 +4,8 @@
 #include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
 
+#include <type_traits>
+
 namespace hadron {
 namespace library {
 
@@ -27,7 +29,7 @@ struct Schema {
 };
 
 // Important we not have a vtable in these objects, so no virtual functions.
-static_assert(sizeof(Schema) == 2 * sizeof(Slot));
+static_assert(std::is_standard_layout<Schema>::value);
 
 } // namespace library
 } // namespace hadron

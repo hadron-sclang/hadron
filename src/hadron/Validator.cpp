@@ -12,14 +12,6 @@ namespace hadron {
 
 // static
 bool Validator::validateFrame(const Frame* frame) {
-    int32_t argumentOrderArraySize = frame->argumentOrder.size();
-    int32_t argumentDefaultsArraySize = frame->argumentDefaults.size();
-    if (argumentOrderArraySize != argumentDefaultsArraySize) {
-        SPDLOG_ERROR("Frame has mismatched argument order and defaults array sizes of {} and {} respectively",
-            argumentOrderArraySize, argumentDefaultsArraySize);
-        return false;
-    }
-
     std::unordered_set<Block::ID> blockIds;
     std::unordered_set<hir::ID> valueIds;
     if (!validateSubScope(frame->rootScope.get(), nullptr, blockIds, valueIds)) { return false; }
@@ -53,12 +45,6 @@ bool Validator::validateSubScope(const Scope* scope, const Scope* parent, std::u
         // Block ids must be unique.
         if (blockIds.find(block->id()) != blockIds.end()) {
             SPDLOG_ERROR("Non-unique block number {}", block->id());
-            return false;
-        }
-
-        // All blocks must be sealed.
-        if (!block->isSealed()) {
-            SPDLOG_ERROR("Block {} is not sealed.", block->id());
             return false;
         }
 

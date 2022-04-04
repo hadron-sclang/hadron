@@ -27,7 +27,6 @@ struct WhileAST;
 }
 
 namespace hir {
-struct AssignHIR;
 struct BlockLiteralHIR;
 }
 
@@ -50,7 +49,7 @@ private:
 
     // Re-uses the containing stack frame but produces a new scope.
     std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, const library::Method method, Scope* parentScope,
-            Block* predecessor, const ast::BlockAST* blockAST, bool isSealed = true);
+            Block* predecessor, const ast::BlockAST* blockAST);
 
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not
@@ -63,6 +62,9 @@ private:
             const ast::IfAST* ifAST);
     hir::ID buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
             const ast::WhileAST* whileAST);
+
+    // If |toWrite| is kInvalidID that means this is a read operation. Returns nullptr if name not found.
+    hir::HIR* findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };
