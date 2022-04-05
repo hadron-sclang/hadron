@@ -144,6 +144,11 @@ int main(int argc, char* argv[]) {
         pathEnd = FLAGS_classFiles.find_first_of(';', pathBegin);
     } while (true);
 
+    // Now that we've parsed all the input files, we should have the complete class heirarchy defined for each input
+    // class, and can generate the output files.
+    for (const auto& pair : classFiles) {
+        std::cout << pair.first << std::endl;
+    }
 
 
     return -1;
