@@ -165,19 +165,17 @@ foreach(CLASS_FILE ${SCLANG_CLASS_FILES})
     string(REGEX REPLACE ".sc$" "" SCHEMA_BASE ${CLASS_FILE})
     string(REGEX REPLACE ${SCLANG_PATH} "" SCHEMA_BASE ${SCHEMA_BASE})
     set(SCHEMA_FILE ${CMAKE_CURRENT_BINARY_DIR}/schema/${SCHEMA_BASE}Schema.hpp)
-    set(CASE_FILE ${CMAKE_CURRENT_BINARY_DIR}/case/${SCHEMA_BASE}PrimitiveCases.inl)
     get_filename_component(SCHEMA_FILE_DIRECTORY ${SCHEMA_FILE} DIRECTORY)
     file(MAKE_DIRECTORY ${SCHEMA_FILE_DIRECTORY})
-    get_filename_component(CASE_FILE_DIRECTORY ${CASE_FILE} DIRECTORY)
-    file(MAKE_DIRECTORY ${CASE_FILE_DIRECTORY})
     list(APPEND SCHEMA_FILES ${SCHEMA_FILE})
-    add_custom_command(OUTPUT ${SCHEMA_FILE} ${CASE_FILE}
-        COMMAND schemac --classFile ${CLASS_FILE} --schemaFile ${SCHEMA_FILE} --caseFile ${CASE_FILE}
-        MAIN_DEPENDENCY ${CLASS_FILE}
-        DEPENDS schemac
-        VERBATIM
-    )
 endforeach()
+
+add_custom_command(OUTPUT ${SCHEMA_FILES}
+    COMMAND schemac --classFiles "${SCLANG_CLASS_FILES}" --libraryPath ${SCLANG_PATH}
+            --schemaPath ${CMAKE_CURRENT_BINARY_DIR}/schema
+    DEPENDS ${SCLANG_CLASS_FILES} schemac
+    VERBATIM
+)
 
 add_custom_target(schemafiles ALL DEPENDS ${SCHEMA_FILES})
 

@@ -13,18 +13,20 @@
 #include <array>
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
-DEFINE_string(classFile, "", "Path to the SC class file to generate schema file from.");
-DEFINE_string(schemaFile, "", "Path to save the schema output header file to.");
-DEFINE_string(caseFile, "", "Path to save switch statements for function dispatch to.");
+DEFINE_string(classFiles, "", "Semicolon-delineated list of input class files to process.");
+DEFINE_string(libraryPath, "", "Base path of the SC class library.");
+DEFINE_string(schemaPath, "", "Base path of output schema files.");
 
 namespace {
 // While we generate a Schema struct for these objects they are not represented by Hadron with pointers, rather their
 // values are packed into the Slot directly. So they are excluded from the Schema class heirarchy.
-static const std::array<const char*, 6> kPrimitiveTypeNames{
+std::unordered_set<std::string> PrimitiveTypeNames {
     "Boolean",
     "Char",
     "Float",
@@ -32,30 +34,120 @@ static const std::array<const char*, 6> kPrimitiveTypeNames{
     "Nil",
     "Symbol"
 };
+
+// Some argument names in sclang are C++ keywords, causing the generated file to have invalid code. We keep a list
+// here of suitable replacements and use them if a match is encountered.
+std::unordered_map<std::string, std::string> keywordSubs {
+    {"bool", "scBool"}
+};
+
+struct ClassInfo {
+    std::string className;
+    std::string superClassName;
+    bool isPrimitiveType;
+    std::vector<std::string> variables;
+};
 } // namespace
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
+
     auto errorReporter = std::make_shared<hadron::ErrorReporter>();
-    hadron::SourceFile sourceFile(FLAGS_classFile);
-    if (!sourceFile.read(errorReporter)) {
-        std::cerr << "schema parser failed to read input class file: " << FLAGS_classFile << std::endl;
-        return -1;
-    }
-    auto code = sourceFile.codeView();
-    errorReporter->setCode(code.data());
 
-    hadron::Lexer lexer(code, errorReporter);
-    if (!lexer.lex() || !errorReporter->ok()) {
-        std::cerr << "schema failed to lex input class file: " << FLAGS_classFile << std::endl;
-        return -1;
-    }
+    // Map of class names to info.
+    std::unordered_map<std::string, ClassInfo> classes;
+    // Map of paths to in-order class names to define.
+    std::unordered_map<std::string, std::vector<std::string>> classFiles;
 
-    hadron::Parser parser(&lexer, errorReporter);
-    if (!parser.parseClass() || !errorReporter->ok()) {
-        std::cerr << "schema failed to parse input class file: " << FLAGS_classFile << std::endl;
-        return -1;
-    }
+    // Parse semicolon-delinated list of input class files.
+    size_t pathBegin = 0;
+    size_t pathEnd = FLAGS_classFiles.find_first_of(';');
+    do {
+        fs::path classFile = pathEnd == std::string::npos ? FLAGS_classFiles.substr(pathBegin) :
+                FLAGS_classFiles.substr(pathBegin, pathEnd - pathBegin);
+
+        if (!fs::exists(classFile)) {
+            std::cerr << "Class file path: " << classFile.string() << " does not exist.";
+            return -1;
+        }
+
+        hadron::SourceFile sourceFile(classFile);
+        if (!sourceFile.read(errorReporter)) {
+            std::cerr << "Failed to read input class file: " << classFile << std::endl;
+            return -1;
+        }
+        auto code = sourceFile.codeView();
+        errorReporter->setCode(code.data());
+
+        hadron::Lexer lexer(code, errorReporter);
+        if (!lexer.lex() || !errorReporter->ok()) {
+            std::cerr << "schema failed to lex input class file: " << classFile << std::endl;
+            return -1;
+        }
+
+        hadron::Parser parser(&lexer, errorReporter);
+        if (!parser.parseClass() || !errorReporter->ok()) {
+            std::cerr << "schema failed to parse input class file: " << classFile << std::endl;
+            return -1;
+        }
+
+        // Place an empty vector for appending class names.
+        std::vector<std::string> classNames;
+
+        const hadron::parse::Node* node = parser.root();
+        while (node) {
+            if (node->nodeType != hadron::parse::NodeType::kClass) {
+                std::cerr << "No Class root node in parse tree for file: " << classFile << std::endl;
+                return -1;
+            }
+            const hadron::parse::ClassNode* classNode = reinterpret_cast<const hadron::parse::ClassNode*>(node);
+
+            ClassInfo classInfo;
+
+            auto token = lexer.tokens()[classNode->tokenIndex];
+            classInfo.className = std::string(token.range);
+            classNames.emplace_back(classInfo.className);
+
+            if (classInfo.className != "Object") {
+                if (classNode->superClassNameIndex) {
+                    token = lexer.tokens()[classNode->superClassNameIndex.value()];
+                    classInfo.superClassName = std::string(token.range);
+                } else {
+                    classInfo.superClassName = "Object";
+                }
+            }
+
+            classInfo.isPrimitiveType = PrimitiveTypeNames.count(classInfo.className) != 0;
+
+            // Add instance variables to classInfo struct.
+            const hadron::parse::VarListNode* varList = classNode->variables.get();
+            while (varList) {
+                if (lexer.tokens()[varList->tokenIndex].hash == hadron::kVarHash) {
+                    const hadron::parse::VarDefNode* varDef = varList->definitions.get();
+                    while (varDef) {
+                        classInfo.variables.emplace_back(std::string(lexer.tokens()[varDef->tokenIndex].range));
+                        varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
+                    }
+                }
+                varList = reinterpret_cast<const hadron::parse::VarListNode*>(varList->next.get());
+            }
+
+            classes.emplace(std::make_pair(classInfo.className, std::move(classInfo)));
+
+            node = classNode->next.get();
+        }
+
+        classFiles.emplace(std::make_pair(classFile, std::move(classNames)));
+
+        if (pathEnd == std::string::npos) { break; }
+        pathBegin = pathEnd + 1;
+        pathEnd = FLAGS_classFiles.find_first_of(';', pathBegin);
+    } while (true);
+
+
+
+    return -1;
+/*
 
     std::ofstream outFile(FLAGS_schemaFile);
     if (!outFile) {
@@ -69,9 +161,6 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // Some argument names in sclang are C++ keywords, causing the generated file to have invalid code. We keep a list
-    // here of suitable replacements and use them if a match is encountered.
-    std::map<std::string, std::string> keywordSubs{{"bool", "scBool"}};
 
     fs::path outFilePath(FLAGS_schemaFile);
     auto includeGuard = fmt::format("SRC_HADRON_SCHEMA_{:012X}", hadron::hash(FLAGS_schemaFile));
@@ -85,33 +174,6 @@ int main(int argc, char* argv[]) {
     outFile << "namespace hadron {" << std::endl;
     outFile << "namespace schema {" << std::endl << std::endl;
 
-    const hadron::parse::Node* node = parser.root();
-    while (node) {
-        if (node->nodeType != hadron::parse::NodeType::kClass) {
-            std::cerr << "schema did not find a Class root node in parse tree for file: " << FLAGS_classFile
-                    << std::endl;
-            return -1;
-        }
-        const hadron::parse::ClassNode* classNode = reinterpret_cast<const hadron::parse::ClassNode*>(node);
-        auto token = lexer.tokens()[classNode->tokenIndex];
-        std::string className(token.range.data(), token.range.size());
-        std::string superClassName;
-        if (className != "Object") {
-            if (classNode->superClassNameIndex) {
-                token = lexer.tokens()[classNode->superClassNameIndex.value()];
-                superClassName = std::string(token.range);
-            } else {
-                superClassName = "Object";
-            }
-        }
-
-        bool isPrimitiveType = false;
-        for (size_t i = 0; i < kPrimitiveTypeNames.size(); ++i) {
-            if (className.compare(kPrimitiveTypeNames[i]) == 0) {
-                isPrimitiveType = true;
-                break;
-            }
-        }
 
         outFile << "// ========== " << className << std::endl;
         if (isPrimitiveType) {
@@ -200,12 +262,11 @@ int main(int argc, char* argv[]) {
 
         outFile << "};" << std::endl << std::endl;
 
-        node = classNode->next.get();
-    }
 
     outFile << "} // namespace library" << std::endl;
     outFile << "} // namespace hadron" << std::endl << std::endl;
 
     outFile << "#endif // " << includeGuard << std::endl;
     return 0;
+*/
 }
