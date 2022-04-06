@@ -32,6 +32,7 @@ std::unordered_set<std::string> PrimitiveTypeNames {
     "Float",
     "Integer",
     "Nil",
+    "RawPointer",
     "Symbol"
 };
 
@@ -52,6 +53,16 @@ struct ClassInfo {
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
 
+    fs::path libraryPath(FLAGS_libraryPath);
+    if (!fs::exists(libraryPath)) {
+        std::cerr << "Class library path does not exist: " << libraryPath << std::endl;
+        return -1;
+    }
+    libraryPath = fs::absolute(libraryPath);
+
+    fs::path schemaBasePath(FLAGS_schemaPath);
+    schemaBasePath = fs::absolute(schemaBasePath);
+
     auto errorReporter = std::make_shared<hadron::ErrorReporter>();
 
     // Map of class names to info.
@@ -65,11 +76,23 @@ int main(int argc, char* argv[]) {
     do {
         fs::path classFile = pathEnd == std::string::npos ? FLAGS_classFiles.substr(pathBegin) :
                 FLAGS_classFiles.substr(pathBegin, pathEnd - pathBegin);
+        classFile = fs::absolute(classFile);
 
         if (!fs::exists(classFile)) {
             std::cerr << "Class file path: " << classFile.string() << " does not exist.";
             return -1;
         }
+
+        // The class file must be in a subdirectory of the library path.
+        if (classFile.string().substr(0, libraryPath.string().length()) != libraryPath.string()) {
+            std::cerr << "Class file path: " << classFile.string() << " not in a subdirectory of library path: "
+                    << libraryPath.string() << std::endl;
+            return -1;
+        }
+
+        fs::path schemaPath = schemaBasePath /
+            fs::path(classFile.string().substr(libraryPath.string().length())).parent_path().relative_path() /
+            fs::path(classFile.stem().string() + "Schema.hpp");
 
         hadron::SourceFile sourceFile(classFile);
         if (!sourceFile.read(errorReporter)) {
@@ -125,7 +148,10 @@ int main(int argc, char* argv[]) {
                 if (lexer.tokens()[varList->tokenIndex].hash == hadron::kVarHash) {
                     const hadron::parse::VarDefNode* varDef = varList->definitions.get();
                     while (varDef) {
-                        classInfo.variables.emplace_back(std::string(lexer.tokens()[varDef->tokenIndex].range));
+                        std::string varName(lexer.tokens()[varDef->tokenIndex].range);
+                        auto subs = keywordSubs.find(varName);
+                        if (subs != keywordSubs.end()) { varName = subs->second; }
+                        classInfo.variables.emplace_back(varName);
                         varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
                     }
                 }
@@ -137,7 +163,7 @@ int main(int argc, char* argv[]) {
             node = classNode->next.get();
         }
 
-        classFiles.emplace(std::make_pair(classFile, std::move(classNames)));
+        classFiles.emplace(std::make_pair(schemaPath, std::move(classNames)));
 
         if (pathEnd == std::string::npos) { break; }
         pathBegin = pathEnd + 1;
@@ -147,131 +173,72 @@ int main(int argc, char* argv[]) {
     // Now that we've parsed all the input files, we should have the complete class heirarchy defined for each input
     // class, and can generate the output files.
     for (const auto& pair : classFiles) {
-        std::cout << pair.first << std::endl;
-    }
+        std::ofstream outFile(pair.first);
+        if (!outFile) {
+            std::cerr << "Schema file create error on ouput file: " << pair.first << std::endl;
+            return -1;
+        }
 
+        auto includeGuard = fmt::format("SRC_HADRON_SCHEMA_{:012X}", hadron::hash(pair.first));
+        outFile << "#ifndef " << includeGuard << std::endl;
+        outFile << "#define " << includeGuard << std::endl << std::endl;
 
-    return -1;
-/*
+        outFile << "// NOTE: schemac automatically generated this file from sclang input file." << std::endl;
+        outFile << "// Edits will likely be clobbered." << std::endl << std::endl;
 
-    std::ofstream outFile(FLAGS_schemaFile);
-    if (!outFile) {
-        std::cerr << "schema file error on ouput file: " << FLAGS_schemaFile << std::endl;
-        return -1;
-    }
+        outFile << "namespace hadron {" << std::endl;
+        outFile << "namespace schema {" << std::endl << std::endl;
 
-    std::ofstream caseFile(FLAGS_caseFile);
-    if (!caseFile) {
-        std::cerr << "schema file error on case file: " << FLAGS_caseFile << std::endl;
-        return -1;
-    }
+        for (const auto& className : pair.second) {
+            auto classIter = classes.find(className);
+            if (classIter == classes.end()) {
+                std::cerr << "Mismatch between class name in file and class name in map: " << className << std::endl;
+                return -1;
+            }
 
-
-    fs::path outFilePath(FLAGS_schemaFile);
-    auto includeGuard = fmt::format("SRC_HADRON_SCHEMA_{:012X}", hadron::hash(FLAGS_schemaFile));
-    outFile << "#ifndef " << includeGuard << std::endl;
-    outFile << "#define " << includeGuard << std::endl << std::endl;
-
-    outFile << "// NOTE: schemac generated this file from sclang input file:" << std::endl;
-    outFile << "// " << FLAGS_classFile << std::endl;
-    outFile << "// edits will likely be clobbered." << std::endl << std::endl;
-
-    outFile << "namespace hadron {" << std::endl;
-    outFile << "namespace schema {" << std::endl << std::endl;
-
-
-        outFile << "// ========== " << className << std::endl;
-        if (isPrimitiveType) {
+            outFile << "// ========== " << className << std::endl;
             outFile << fmt::format("struct {}Schema {{\n", className);
-        } else {
-            if (className == "Object") {
-                outFile << "struct ObjectSchema : public library::Schema {\n";
-            } else {
-                outFile << fmt::format("struct {}Schema : public {}Schema {{\n", className, superClassName);
+            outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:012x};\n", hadron::hash(className));
+            outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:012x};\n\n",
+                    hadron::hash(fmt::format("Meta_{}", className)));
+
+            if (classIter->second.isPrimitiveType) {
+                outFile << "};" << std::endl << std::endl;
+                continue;
             }
-        }
 
-        outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:012x};\n", hadron::hash(className));
-        outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:012x};\n\n",
-                hadron::hash(fmt::format("Meta_{}", className)));
+            std::stack<std::unordered_map<std::string, ClassInfo>::iterator> lineage;
+            auto lineageIter = classIter;
+            lineage.emplace(lineageIter);
 
-        // Add member variables to struct definition.
-        const hadron::parse::VarListNode* varList = classNode->variables.get();
-        while (varList) {
-            if (lexer.tokens()[varList->tokenIndex].hash == hadron::kVarHash) {
-                const hadron::parse::VarDefNode* varDef = varList->definitions.get();
-                while (varDef) {
-                    outFile << fmt::format("    Slot {};\n", lexer.tokens()[varDef->tokenIndex].range);
-                    varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
+            while (lineageIter->second.superClassName != "") {
+                lineageIter = classes.find(lineageIter->second.superClassName);
+                if (lineageIter == classes.end()) {
+                    std::cerr << "Missing class definition in lineage for " << className << std::endl;
+                    return -1;
+                }
+                lineage.emplace(lineageIter);
+            }
+
+            // Start with the object header.
+            outFile << "    Hash _className;" << std::endl
+                << "    uint64_t _sizeInBytes;" << std::endl << std::endl;
+
+            // Lineage in order from top to bottom.
+            while (lineage.size()) {
+                lineageIter = lineage.top();
+                lineage.pop();
+                outFile << "    // " << lineageIter->second.className << std::endl;
+                for (const auto& varName : lineageIter->second.variables) {
+                    outFile << "    Slot " << varName << ";" << std::endl;
                 }
             }
-            varList = reinterpret_cast<const hadron::parse::VarListNode*>(varList->next.get());
+
+            outFile << "};" << std::endl << std::endl;
         }
 
-        std::map<std::string, std::string> primitives;
-        std::map<std::string, std::string> caseBlocks;
+        outFile << "#endif // " << includeGuard << std::endl;
+    }
 
-        // TODO: need to differentiate between Class methods (put them in Meta_ClassName structs) and instance methods.
-
-        // Add any primitives as member functions.
-        const hadron::parse::MethodNode* method = classNode->methods.get();
-        while (method) {
-            if (method->primitiveIndex) {
-                std::string primitiveName(lexer.tokens()[method->primitiveIndex.value()].range);
-                // Uniqueify the primitive calls, as they can occur in more than one method.
-                if (primitives.find(primitiveName) == primitives.end()) {
-                    std::string signature = fmt::format("    static Slot {}(ThreadContext* context, Slot _this",
-                            primitiveName);
-                    std::string caseBlock = fmt::format("// {}:{}\ncase 0x{:012x}: {{\n", className,
-                            primitiveName, hadron::hash(primitiveName));
-                    std::vector<std::string> argNames;
-                    if (method->body && method->body->arguments && method->body->arguments->varList) {
-                        // TODO: vargargs? Is there such a thing as a varargs primitive?
-                        const hadron::parse::VarDefNode* varDef = method->body->arguments->varList->definitions.get();
-                        while (varDef) {
-                            std::string varName(lexer.tokens()[varDef->tokenIndex].range);
-                            auto subs = keywordSubs.find(varName);
-                            if (subs != keywordSubs.end()) { varName = subs->second; }
-                            signature += fmt::format(", Slot {}", varName);
-                            argNames.emplace_back(varName);
-                            varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
-                        }
-                    }
-
-                    signature += ");\n";
-                    primitives.emplace(std::make_pair(primitiveName, signature));
-
-                    size_t numberOfArgs = argNames.size() + 1;
-                    caseBlock += fmt::format("    Slot _this = *(sp + {});\n", numberOfArgs);
-                    for (size_t i = 0; i < argNames.size(); ++i) {
-                        caseBlock += fmt::format("    Slot {} = *(sp + {});\n", argNames[i], numberOfArgs - i - 1);
-                    }
-                    caseBlock += fmt::format("    return library::{}::{}(context, _this", className, primitiveName);
-                    for (const auto& arg : argNames) {
-                        caseBlock += fmt::format(", {}", arg);
-                    }
-                    caseBlock += ");\n}\n\n";
-                    caseBlocks.emplace(std::make_pair(primitiveName, caseBlock));
-                }
-            }
-            method = reinterpret_cast<const hadron::parse::MethodNode*>(method->next.get());
-        }
-
-        // Output all primitives in sorted order.
-        for (auto primitive : primitives) {
-            outFile << primitive.second;
-        }
-        for (auto caseBlock : caseBlocks) {
-            caseFile << caseBlock.second;
-        }
-
-        outFile << "};" << std::endl << std::endl;
-
-
-    outFile << "} // namespace library" << std::endl;
-    outFile << "} // namespace hadron" << std::endl << std::endl;
-
-    outFile << "#endif // " << includeGuard << std::endl;
     return 0;
-*/
 }
