@@ -225,8 +225,8 @@ add_library(hadron STATIC
     library/Collection.hpp
     library/Kernel.hpp
     library/Object.hpp
-    library/SequenceableCollection.hpp
     library/Schema.hpp
+    library/SequenceableCollection.hpp
     library/Stream.hpp
     library/String.hpp
     library/Symbol.cpp
