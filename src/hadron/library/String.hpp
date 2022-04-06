@@ -23,7 +23,7 @@ public:
     static String fromView(ThreadContext* context, std::string_view v) {
         String s = String::arrayAlloc(context, v.size());
         std::memcpy(s.start(), v.data(), v.size());
-        s.m_instance->_sizeInBytes = sizeof(schema::StringSchema) + v.size();
+        s.m_instance->schema._sizeInBytes = sizeof(schema::StringSchema) + v.size();
         return s;
     }
 

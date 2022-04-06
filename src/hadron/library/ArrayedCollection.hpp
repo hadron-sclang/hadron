@@ -22,8 +22,8 @@ public:
 
     static T arrayAlloc(ThreadContext* context, int32_t maxSize) {
         S* instance = arrayAllocRaw(context, maxSize);
-        instance->_className = S::kNameHash;
-        instance->_sizeInBytes = sizeof(S);
+        instance->schema._className = S::kNameHash;
+        instance->schema._sizeInBytes = sizeof(S);
         return T(instance);
     }
 
@@ -34,7 +34,7 @@ public:
             const T& t = static_cast<const T&>(*this);
             if (t.m_instance) {
                 S* instance = arrayAllocRaw(context, maxSize);
-                std::memcpy(instance, t.m_instance, t.m_instance->_sizeInBytes);
+                std::memcpy(instance, t.m_instance, t.m_instance->schema._sizeInBytes);
                 return T(instance);
             } else {
                 // Copying an empty array but requesting a nonzero maxSize so we just create a new array with that size.
@@ -49,7 +49,7 @@ public:
     int32_t size() const {
         const T& t = static_cast<const T&>(*this);
         if (t.m_instance == nullptr) { return 0; }
-        int32_t elementsSize = (t.m_instance->_sizeInBytes - sizeof(S)) / sizeof(E);
+        int32_t elementsSize = (t.m_instance->schema._sizeInBytes - sizeof(S)) / sizeof(E);
         assert(elementsSize >= 0);
         return elementsSize;
     }
@@ -103,17 +103,17 @@ public:
         if (newSize > capacity(context)) {
             S* newArray = arrayAllocRaw(context, newSize);
             if (t.m_instance) {
-                assert(t.m_instance->_className == S::kNameHash);
-                std::memcpy(newArray, t.m_instance, t.m_instance->_sizeInBytes);
+                assert(t.m_instance->schema._className == S::kNameHash);
+                std::memcpy(newArray, t.m_instance, t.m_instance->schema._sizeInBytes);
             } else {
-                newArray->_className = S::kNameHash;
+                newArray->schema._className = S::kNameHash;
             }
 
             t.m_instance = newArray;
         }
 
         if (t.m_instance) {
-            t.m_instance->_sizeInBytes = sizeof(S) + (newSize * sizeof(E));
+            t.m_instance->schema._sizeInBytes = sizeof(S) + (newSize * sizeof(E));
         }
     }
 
@@ -155,8 +155,8 @@ public:
         size_t size = sizeof(schema::Int8ArraySchema) + byteSize;
         schema::Int8ArraySchema* instance = reinterpret_cast<schema::Int8ArraySchema*>(
             context->heap->allocateJIT(size, maxSize));
-        instance->_className = schema::Int8ArraySchema::kNameHash;
-        instance->_sizeInBytes = size;
+        instance->schema._className = schema::Int8ArraySchema::kNameHash;
+        instance->schema._sizeInBytes = size;
         return Int8Array(instance);
     }
 };

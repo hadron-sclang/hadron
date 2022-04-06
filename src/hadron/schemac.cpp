@@ -220,9 +220,7 @@ int main(int argc, char* argv[]) {
                 lineage.emplace(lineageIter);
             }
 
-            // Start with the object header.
-            outFile << "    Hash _className;" << std::endl
-                << "    uint64_t _sizeInBytes;" << std::endl << std::endl;
+            outFile << "    library::Schema schema;" << std::endl << std::endl;
 
             // Lineage in order from top to bottom.
             while (lineage.size()) {
@@ -235,7 +233,12 @@ int main(int argc, char* argv[]) {
             }
 
             outFile << "};" << std::endl << std::endl;
+            outFile << "static_assert(std::is_standard_layout<" << className << "Schema>::value);"
+                    << std::endl << std::endl;
         }
+
+        outFile << "} // namespace schema" << std::endl;
+        outFile << "} // namespace hadron" << std::endl << std::endl;
 
         outFile << "#endif // " << includeGuard << std::endl;
     }

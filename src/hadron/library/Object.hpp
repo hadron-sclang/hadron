@@ -29,14 +29,14 @@ public:
     // without type checking, use wrapUnsafe().
     explicit Object(S* instance): m_instance(instance) {
         if (m_instance) {
-            assert(m_instance->_className == S::kNameHash);
+            assert(m_instance->schema._className == S::kNameHash);
         }
     }
     explicit Object(Slot instance) {
         if (instance.isNil()) { m_instance = nullptr; }
         else {
             m_instance = reinterpret_cast<S*>(instance.getPointer());
-            assert(m_instance->_className == S::kNameHash);
+            assert(m_instance->schema._className == S::kNameHash);
         }
     }
 
@@ -47,7 +47,7 @@ public:
     void initToNil() {
         if (!m_instance) { assert(false); return; }
         Slot* s = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(m_instance) + sizeof(Schema));
-        for (size_t i = 0; i < (m_instance->_sizeInBytes - sizeof(Schema)) / kSlotSize; ++i) {
+        for (size_t i = 0; i < (m_instance->schema._sizeInBytes - sizeof(Schema)) / kSlotSize; ++i) {
             s[i] = Slot::makeNil();
         }
     }
@@ -55,8 +55,8 @@ public:
     static inline T alloc(ThreadContext* context, int32_t extraSlots = 0) {
         size_t sizeInBytes = sizeof(S) + (extraSlots * kSlotSize);
         S* instance = reinterpret_cast<S*>(context->heap->allocateNew(sizeInBytes));
-        instance->_className = S::kNameHash;
-        instance->_sizeInBytes = sizeInBytes;
+        instance->schema._className = S::kNameHash;
+        instance->schema._sizeInBytes = sizeInBytes;
         return T(instance);
     }
 
@@ -72,11 +72,11 @@ public:
     }
 
     inline S* instance() { return m_instance; }
-    inline Slot slot() const { return Slot::makePointer(m_instance); }
+    inline Slot slot() const { return Slot::makePointer(reinterpret_cast<library::Schema*>(m_instance)); }
     inline bool isNil() const { return m_instance == nullptr; }
     inline Hash className() const {
         if (isNil()) { return kNilHash; }
-        return m_instance->_className;
+        return m_instance->schema._className;
     }
     static inline Hash nameHash() { return S::kNameHash; }
     static inline int32_t schemaSize() { return (sizeof(S) - sizeof(Schema)) / kSlotSize; }
