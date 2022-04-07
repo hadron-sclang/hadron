@@ -25,6 +25,8 @@ namespace library {
 
 class Class;
 using ClassArray = TypedArray<Class>;
+class FunctionDef;
+using FunctionDefArray = TypedArray<FunctionDef>;
 class Method;
 using MethodArray = TypedArray<Method>;
 
@@ -100,6 +102,15 @@ public:
     void setCode(Int8Array c) {
         T& t = static_cast<T&>(*this);
         t.m_instance->code = c.slot();
+    }
+
+    FunctionDefArray selectors() const {
+        T& t = static_cast<T&>(*this);
+        return FunctionDefArray(t.m_instance->selectors);
+    }
+    void setSelectors(FunctionDefArray a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->selectors = a.slot();
     }
 
     Array prototypeFrame() const {
