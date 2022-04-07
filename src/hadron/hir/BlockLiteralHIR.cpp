@@ -7,8 +7,8 @@
 namespace hadron {
 namespace hir {
 
-BlockLiteralHIR::BlockLiteralHIR():
-    HIR(kBlockLiteral, TypeFlags::kObjectFlag) {}
+BlockLiteralHIR::BlockLiteralHIR(int32_t index):
+    HIR(kBlockLiteral, TypeFlags::kObjectFlag), selectorIndex(index) {}
 
 ID BlockLiteralHIR::proposeValue(ID proposedId) {
     id = proposedId;
