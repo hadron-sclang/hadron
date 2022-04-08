@@ -2,6 +2,7 @@
 
 #include "hadron/Block.hpp"
 #include "hadron/Frame.hpp"
+#include "hadron/LinearFrame.hpp"
 #include "hadron/Scope.hpp"
 
 namespace hadron {
@@ -19,10 +20,8 @@ bool BlockLiteralHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 
-void BlockLiteralHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
-        LIRList& /* append */) const {
-    // WRITEME
-    assert(false);
+void BlockLiteralHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
+    
 }
 
 } // namespace hir

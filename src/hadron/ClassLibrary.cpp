@@ -43,7 +43,7 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
     if (!resetLibrary(context)) { return false; }
     if (!scanFiles(context)) { return false; }
     if (!finalizeHeirarchy(context)) { return false; }
-//    if (!serializeFrames(context)) { return false; }
+    if (!serializeFrames(context)) { return false; }
     return cleanUp();
 }
 

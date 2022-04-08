@@ -273,6 +273,7 @@ add_library(hadron STATIC
     LifetimeInterval.hpp
     LighteningJIT.cpp
     LighteningJIT.hpp
+    LinearFrame.cpp
     LinearFrame.hpp
     MoveScheduler.cpp
     MoveScheduler.hpp

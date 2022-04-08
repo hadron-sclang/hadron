@@ -15,8 +15,6 @@ std::unique_ptr<LinearFrame> BlockSerializer::serialize(const Frame* frame) {
     auto linearFrame = std::make_unique<LinearFrame>();
     linearFrame->blockOrder.reserve(frame->numberOfBlocks);
     linearFrame->blockLabels.resize(frame->numberOfBlocks, linearFrame->instructions.end());
-    // Reserve room for all the values in the HIR, so new values are appended after.
-    linearFrame->vRegs.resize(frame->values.size(), linearFrame->instructions.end());
 
     // Map of block number to Block struct, useful when recursing through control flow graph.
     std::vector<Block*> blockPointers;

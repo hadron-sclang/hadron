@@ -17,8 +17,6 @@ using LabelID = int32_t;
 struct LIR;
 } // namespace lir
 
-using LIRList = std::list<std::unique_ptr<lir::LIR>>;
-
 namespace lir {
 
 enum Opcode {
@@ -26,6 +24,7 @@ enum Opcode {
     kBranch,
     kBranchIfTrue,
     kBranchToRegister,
+    kInterrupt,
     kLabel,
     kLoadConstant,
     kLoadFromPointer,

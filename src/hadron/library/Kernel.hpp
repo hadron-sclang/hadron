@@ -12,13 +12,19 @@ namespace hadron {
 
 namespace schema {
 // Frame has no public members in the class library, so we add some privately here.
-struct FramePrivateSchema : public FrameSchema {
+struct FramePrivateSchema {
+    static constexpr Hash kNameHash = FrameSchema::kNameHash;
+    static constexpr Hash kMetaNameHash = FrameSchema::kMetaNameHash;
+
+    library::Schema schema;
+
     Slot method;
     Slot caller;
     Slot context;
     Slot homeContext;
     Slot ip;
 };
+
 } // namespace schema
 
 namespace library {
