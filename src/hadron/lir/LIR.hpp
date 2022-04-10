@@ -17,6 +17,8 @@ using LabelID = int32_t;
 struct LIR;
 } // namespace lir
 
+using LIRList = std::list<std::unique_ptr<lir::LIR>>;
+
 namespace lir {
 
 enum Opcode {
@@ -55,16 +57,19 @@ struct LIR {
     // already scheduled for a move is an error. These are *predicate* moves, meaning they are executed before the HIR.
     std::unordered_map<int, int> moves;
 
-    // Emits machine code into the provided JIT buffer. Base implementation should be called first by derived classes,
-    // and emits any needed register moves.
-    virtual void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& patchNeeded) const = 0;
+    // If true, LinearBlock should assign a value to this LIR, otherwise it's assumed to be read-only.
+    virtual bool producesValue() const { return false; }
 
     // If true, the register allocation system will assume that this instruction destroys all register values during
     // execution, and will spill all outstanding register allocations. Typically used for message dispatch.
     virtual bool shouldPreserveRegisters() const { return false; }
 
+    // Emits machine code into the provided JIT buffer. Base implementation should be called first by derived classes,
+    // and emits any needed register moves.
+    virtual void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& patchNeeded) const = 0;
+
 protected:
-    LIR(Opcode op, VReg v, TypeFlags t): opcode(op), value(v), typeFlags(t) {}
+    LIR(Opcode op, TypeFlags t): opcode(op), typeFlags(t) {}
     void emitBase(JIT* jit) const;
 };
 

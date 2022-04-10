@@ -37,8 +37,11 @@ struct LinearFrame {
 
     std::unordered_map<hir::ID, lir::VReg> hirToRegMap;
 
-    // If hirId is valid then we add to the mapping.
-    void append(hir::ID hirId, std::unique_ptr<lir::LIR> lir);
+    // Convenience function, returns associated VReg in LIR or kInvalidVReg if no hir value found.
+    lir::VReg hirToReg(hir::ID hirId);
+
+    // If hirId is valid then we add to the mapping. Returns the assigned VReg or kInvalidVReg if no value assigned.
+    lir::VReg append(hir::ID hirId, std::unique_ptr<lir::LIR> lir);
 };
 
 } // namespace hadron

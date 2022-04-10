@@ -4,7 +4,11 @@
 
 namespace hadron {
 
-void LinearFrame::append(hir::ID hirId, std::unique_ptr<lir::LIR> lir) {
+lir::VReg LinearFrame::append(hir::ID hirId, std::unique_ptr<lir::LIR> lir) {
+    if (lir->producesValue()) {
+        lir->value = static_cast<lir::VReg>(vRegs.size());
+    }
+
     if (hirId != hir::kInvalidID) {
         assert(lir->value != lir::kInvalidVReg);
         auto pair = hirToRegMap.emplace(std::make_pair(hirId, lir->value));
@@ -20,6 +24,8 @@ void LinearFrame::append(hir::ID hirId, std::unique_ptr<lir::LIR> lir) {
         --iter;
         vRegs.emplace_back(iter);
     }
+
+    return value;
 }
 
 } // namespace hadron

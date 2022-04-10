@@ -9,12 +9,14 @@ namespace lir {
 
 struct LoadConstantLIR : public LIR {
     LoadConstantLIR() = delete;
-    LoadConstantLIR(VReg v, Slot c):
-        LIR(kLoadConstant, v, c.getType()),
+    explicit LoadConstantLIR(Slot c):
+        LIR(kLoadConstant, c.getType()),
         constant(c) {}
     virtual ~LoadConstantLIR() = default;
 
     Slot constant;
+
+    bool producesValue() const override { return true; }
 
     void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
         emitBase(jit);
