@@ -14,6 +14,7 @@ namespace hadron {
 
 class Block;
 struct Frame;
+struct LinearFrame;
 
 namespace hir {
 
@@ -68,15 +69,8 @@ struct HIR {
     // any change to the HIR.
     virtual bool replaceInput(ID original, ID replacement) = 0;
 
-    // Given this HIR, and all other HIR |values| in the frame, output zero or more LIR instructions to |append|.
-    virtual void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs,
-            LIRList& append) const = 0;
-
-    // Most HIR directly translates from NamedValue id to lir::VReg, but we introduce a function as a means of allowing
-    // for HIR-specific changes to this.
-    virtual lir::VReg vReg() const {
-        return id != kInvalidID ? static_cast<lir::VReg>(id) : lir::kInvalidVReg;
-    }
+    // Given this HIR, and all other HIR |values| in the frame, output zero or more LIR instructions to |linearFrame|.
+    virtual void lower(const std::vector<HIR*>& values, LinearFrame* linearFrame) const = 0;
 
 protected:
     explicit HIR(Opcode op): opcode(op), id(kInvalidID), typeFlags(TypeFlags::kNoFlags), owningBlock(nullptr) {}

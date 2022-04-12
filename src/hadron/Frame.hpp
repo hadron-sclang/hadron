@@ -46,6 +46,11 @@ struct Frame {
     // Initial values, for concatenation onto the prototypeFrame.
     library::Array prototypeFrame;
 
+    // Any Blocks defined in this frame that can't be inlined must be tracked in the method->selectors field, to prevent
+    // their premature garbage collection, and also allow runtime access. During this stage of compilation they are
+    // tracked as BlockLiteralHIR instructions, which are later compiled into FunctionDef instances
+    std::vector<hir::BlockLiteralHIR*> innerBlocks;
+
     std::unique_ptr<Scope> rootScope;
 
     // Map of value IDs as index to HIR objects. During optimization HIR can change, for example simplifying MessageHIR

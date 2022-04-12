@@ -233,7 +233,6 @@ add_library(hadron STATIC
     library/Symbol.hpp
     library/Thread.hpp
 
-    lir/AssignLIR.hpp
     lir/BranchIfTrueLIR.hpp
     lir/BranchLIR.hpp
     lir/BranchToRegisterLIR.hpp
@@ -273,6 +272,7 @@ add_library(hadron STATIC
     LifetimeInterval.hpp
     LighteningJIT.cpp
     LighteningJIT.hpp
+    LinearFrame.cpp
     LinearFrame.hpp
     MoveScheduler.cpp
     MoveScheduler.hpp

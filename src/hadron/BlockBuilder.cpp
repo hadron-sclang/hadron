@@ -112,8 +112,10 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
     // Blocks encountered here are are block literals, and are candidates for inlining.
     case ast::ASTType::kBlock: {
         const auto blockAST = reinterpret_cast<const ast::BlockAST*>(ast);
-        auto blockHIROwning = std::make_unique<hir::BlockLiteralHIR>();
+        auto blockHIROwning = std::make_unique<hir::BlockLiteralHIR>(static_cast<int32_t>(
+                currentBlock->frame()->innerBlocks.size()));
         auto blockHIR = blockHIROwning.get();
+        currentBlock->frame()->innerBlocks.emplace_back(blockHIR);
         nodeValue = currentBlock->append(std::move(blockHIROwning));
         assert(nodeValue != hir::kInvalidID);
         blockHIR->frame = buildFrame(context, method, blockAST, blockHIR);
@@ -376,8 +378,6 @@ hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method m
 }
 
 hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite) {
-    SPDLOG_INFO("resolving name: {}", name.view(context));
-
     // If this symbol defines a class name look it up in the class library and provide it as a constant.
     if (name.isClassName(context)) {
         // Class names are read-only.
@@ -514,8 +514,8 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
     }
 
     if (name == context->symbolTable->thisMethodSymbol()) {
-        auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(0,
-// TODO         static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method)) / kSlotSize),
+        auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(
+                static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method)) / kSlotSize,
                 hir::kInvalidID,
                 context->symbolTable->thisMethodSymbol());
         auto hir = readFromFrame.get();

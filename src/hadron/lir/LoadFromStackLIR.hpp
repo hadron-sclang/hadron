@@ -8,14 +8,16 @@ namespace lir {
 
 struct LoadFromStackLIR : public LIR {
     LoadFromStackLIR() = delete;
-    LoadFromStackLIR(VReg v, bool useFP, int32_t off):
-            LIR(kLoadFromStack, v, TypeFlags::kAllFlags),
+    LoadFromStackLIR(bool useFP, int32_t off):
+            LIR(kLoadFromStack, TypeFlags::kAllFlags),
             useFramePointer(useFP),
             offset(off) {}
     virtual ~LoadFromStackLIR() = default;
 
     bool useFramePointer;
     int32_t offset;
+
+    bool producesValue() const override { return true; }
 
     void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
         emitBase(jit);

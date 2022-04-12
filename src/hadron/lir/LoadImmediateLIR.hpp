@@ -6,8 +6,8 @@ namespace lir {
 
 struct LoadImmediateLIR : public LIR {
     LoadImmediateLIR() = delete;
-    explicit LoadImmediateLIR(VReg v, void* p):
-        LIR(kLoadImmediate, v, TypeFlags::kAllFlags),
+    explicit LoadImmediateLIR(void* p):
+        LIR(kLoadImmediate, TypeFlags::kAllFlags),
         pointer(p) {}
     virtual ~LoadImmediateLIR() = default;
 

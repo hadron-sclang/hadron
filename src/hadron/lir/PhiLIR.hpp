@@ -9,18 +9,17 @@ namespace hadron {
 namespace lir {
 
 struct PhiLIR : public LIR {
-    PhiLIR() = delete;
-    explicit PhiLIR(VReg v): LIR(kPhi, v, TypeFlags::kNoFlags) {}
+    explicit PhiLIR(): LIR(kPhi, TypeFlags::kNoFlags) {}
     virtual ~PhiLIR() = default;
 
     std::vector<VReg> inputs;
 
-    void addInput(VReg input, std::vector<LIRList::iterator>& vRegs) {
-        assert(input != kInvalidVReg);
-        reads.emplace(input);
-        inputs.emplace_back(input);
+    void addInput(LIR* input) {
+        assert(input->value != kInvalidVReg);
+        reads.emplace(input->value);
+        inputs.emplace_back(input->value);
         typeFlags = static_cast<TypeFlags>(static_cast<int32_t>(typeFlags) |
-                                           static_cast<int32_t>((*vRegs[input])->typeFlags));
+                                           static_cast<int32_t>(input->typeFlags));
     }
 
     void emit(JIT* /* jit */, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {

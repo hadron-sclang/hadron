@@ -15,15 +15,21 @@ struct ThreadContext;
 
 namespace hir {
 
+// BlockLiterals can possibly be inlined after their construction. If not, they are lowered to define Function objects,
+// and the compiler adds the relevant FunctionDef as an element in the containing Method/FunctionDef's |selectors|
+// array.
 struct BlockLiteralHIR : public HIR {
-    BlockLiteralHIR();
+    BlockLiteralHIR() = delete;
+    explicit BlockLiteralHIR(int32_t index);
     virtual ~BlockLiteralHIR() = default;
 
+    // The index in the outer frame's |selectors| array of FunctionDefs.
+    int32_t selectorIndex;
     std::unique_ptr<Frame> frame;
 
     ID proposeValue(ID proposedId) override;
     bool replaceInput(ID original, ID replacement) override;
-    void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
+    void lower(const std::vector<HIR*>& values, LinearFrame* linearFrame) const override;
 };
 
 } // namespace hir

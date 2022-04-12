@@ -1,5 +1,6 @@
 #include "hadron/hir/PhiHIR.hpp"
 
+#include "hadron/LinearFrame.hpp"
 #include "hadron/lir/PhiLIR.hpp"
 
 namespace hadron {
@@ -70,15 +71,16 @@ bool PhiHIR::replaceInput(ID original, ID replacement) {
     return true;
 }
 
-void PhiHIR::lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const {
-    auto phiLIROwning = std::make_unique<lir::PhiLIR>(vReg());
-    lir::PhiLIR* phiLIR = phiLIROwning.get();
-    append.emplace_back(std::move(phiLIROwning));
-    vRegs[vReg()] = --(append.end());
+void PhiHIR::lower(const std::vector<HIR*>& values, LinearFrame* linearFrame) const {
+    auto phiLIR = std::make_unique<lir::PhiLIR>();
 
     for (auto nvid : inputs) {
-        phiLIR->addInput(values[nvid]->vReg(), vRegs);
+        auto vReg = linearFrame->hirToReg(values[nvid]->id);
+        assert(vReg != lir::kInvalidVReg);
+        phiLIR->addInput(linearFrame->vRegs[vReg]->get());
     }
+
+    linearFrame->append(id, std::move(phiLIR));
 }
 
 } // namespace hir

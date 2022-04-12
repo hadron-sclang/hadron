@@ -25,8 +25,7 @@ bool ReadFromFrameHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void ReadFromFrameHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
-        LIRList& /* append */) const {
+void ReadFromFrameHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
     assert(false);
 }
 

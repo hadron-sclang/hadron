@@ -9,7 +9,7 @@ namespace lir {
 struct BranchIfTrueLIR : public LIR {
     BranchIfTrueLIR() = delete;
     explicit BranchIfTrueLIR(VReg cond, LabelID label):
-            LIR(kBranchIfTrue, kInvalidVReg, TypeFlags::kNoFlags),
+            LIR(kBranchIfTrue, TypeFlags::kNoFlags),
             condition(cond),
             labelId(label) { reads.emplace(condition); }
     virtual ~BranchIfTrueLIR() = default;
