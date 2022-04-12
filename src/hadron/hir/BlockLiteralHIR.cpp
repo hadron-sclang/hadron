@@ -20,8 +20,8 @@ bool BlockLiteralHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 
-void BlockLiteralHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
-    
+void BlockLiteralHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
+    assert(false);
 }
 
 } // namespace hir

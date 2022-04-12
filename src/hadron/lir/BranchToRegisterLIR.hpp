@@ -9,7 +9,7 @@ namespace lir {
 struct BranchToRegisterLIR : public LIR {
     BranchToRegisterLIR() = delete;
     explicit BranchToRegisterLIR(VReg a):
-        LIR(kBranchToRegister, kInvalidVReg, TypeFlags::kNoFlags),
+        LIR(kBranchToRegister, TypeFlags::kNoFlags),
         address(a) { reads.emplace(address); }
     virtual ~BranchToRegisterLIR() = default;
 

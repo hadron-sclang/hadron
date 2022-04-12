@@ -1,5 +1,6 @@
 #include "hadron/hir/BranchHIR.hpp"
 
+#include "hadron/LinearFrame.hpp"
 #include "hadron/lir/BranchLIR.hpp"
 
 namespace hadron {
@@ -15,9 +16,8 @@ bool BranchHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 
-void BranchHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
-        LIRList& append) const {
-    append.emplace_back(std::make_unique<lir::BranchLIR>(blockId));
+void BranchHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
+    linearFrame->append(kInvalidID, std::make_unique<lir::BranchLIR>(blockId));
 }
 
 } // namespace hir

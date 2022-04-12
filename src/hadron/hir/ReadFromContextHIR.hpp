@@ -16,7 +16,7 @@ struct ReadFromContextHIR : public HIR {
 
     ID proposeValue(ID proposedId) override;
     bool replaceInput(ID original, ID replacement) override;
-    void lower(const std::vector<HIR*>& values, std::vector<LIRList::iterator>& vRegs, LIRList& append) const override;
+    void lower(const std::vector<HIR*>& values, LinearFrame* linearFrame) const override;
 };
 
 } // namespace hir

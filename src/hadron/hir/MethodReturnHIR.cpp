@@ -1,5 +1,6 @@
 #include "hadron/hir/MethodReturnHIR.hpp"
 
+#include "hadron/LinearFrame.hpp"
 #include "hadron/lir/BranchToRegisterLIR.hpp"
 #include "hadron/lir/LoadFromStackLIR.hpp"
 
@@ -17,14 +18,11 @@ bool MethodReturnHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 
-void MethodReturnHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& vRegs,
-        LIRList& append) const {
+void MethodReturnHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
     // Load return address into a register value
-    auto returnAddress = static_cast<lir::VReg>(vRegs.size());
-    append.emplace_back(std::make_unique<lir::LoadFromStackLIR>(returnAddress, true, 2));
-    vRegs.emplace_back(--(append.end()));
+    auto returnAddress = linearFrame->append(kInvalidID, std::make_unique<lir::LoadFromStackLIR>(true, 2));
     // Branch to that register value
-    append.emplace_back(std::make_unique<lir::BranchToRegisterLIR>(returnAddress));
+    linearFrame->append(kInvalidID, std::make_unique<lir::BranchToRegisterLIR>(returnAddress));
 }
 
 } // namespace hir

@@ -40,11 +40,9 @@ bool MessageHIR::replaceInput(ID original, ID replacement) {
     return true;
 }
 
-void MessageHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& vRegs,
-        LIRList& append) const {
+void MessageHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
     // TODO: implement me
-    append.emplace_back(std::make_unique<lir::LoadConstantLIR>(vReg(), Slot::makeNil()));
-    vRegs[vReg()] = --(append.end());
+    assert(false);
 }
 
 } // namespace hir

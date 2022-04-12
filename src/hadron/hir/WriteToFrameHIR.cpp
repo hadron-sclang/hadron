@@ -35,8 +35,7 @@ bool WriteToFrameHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void WriteToFrameHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
-        LIRList& /* append */) const {
+void WriteToFrameHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
     assert(false);
 }
 

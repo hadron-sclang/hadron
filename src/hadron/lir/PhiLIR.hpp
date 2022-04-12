@@ -19,7 +19,7 @@ struct PhiLIR : public LIR {
         reads.emplace(input->value);
         inputs.emplace_back(input->value);
         typeFlags = static_cast<TypeFlags>(static_cast<int32_t>(typeFlags) |
-                                           static_cast<int32_t>(lir->typeFlags));
+                                           static_cast<int32_t>(input->typeFlags));
     }
 
     void emit(JIT* /* jit */, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {

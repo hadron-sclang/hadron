@@ -29,7 +29,6 @@
 #include "hadron/LifetimeInterval.hpp"
 #include "hadron/LinearFrame.hpp"
 
-#include "hadron/lir/AssignLIR.hpp"
 #include "hadron/lir/BranchIfTrueLIR.hpp"
 #include "hadron/lir/BranchLIR.hpp"
 #include "hadron/lir/BranchToRegisterLIR.hpp"
@@ -1837,12 +1836,6 @@ void JSONTransport::JSONTransportImpl::serializeLIR(hadron::ThreadContext* conte
     jsonLIR.AddMember("locations", valueLocations, document.GetAllocator());
 
     switch(lir->opcode) {
-    case hadron::lir::Opcode::kAssign: {
-        const auto assign = reinterpret_cast<const hadron::lir::AssignLIR*>(lir);
-        jsonLIR.AddMember("opcode", "Assign", document.GetAllocator());
-        jsonLIR.AddMember("origin", rapidjson::Value(assign->origin), document.GetAllocator());
-    } break;
-
     case hadron::lir::Opcode::kBranch: {
         const auto branch = reinterpret_cast<const hadron::lir::BranchLIR*>(lir);
         jsonLIR.AddMember("opcode", "Branch", document.GetAllocator());

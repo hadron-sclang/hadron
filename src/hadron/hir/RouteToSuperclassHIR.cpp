@@ -25,8 +25,7 @@ bool RouteToSuperclassHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void RouteToSuperclassHIR::lower(const std::vector<HIR*>& /* values */, std::vector<LIRList::iterator>& /* vRegs */,
-        LIRList& /* append */) const {
+void RouteToSuperclassHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
     assert(false);
 }
 
