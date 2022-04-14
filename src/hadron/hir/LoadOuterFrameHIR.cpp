@@ -15,7 +15,7 @@ bool LoadOuterFrameHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 
-void LoadOuterFrameHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
+void LoadOuterFrameHIR::lower(LinearFrame* /* linearFrame */) const {
     assert(false);
 }
 

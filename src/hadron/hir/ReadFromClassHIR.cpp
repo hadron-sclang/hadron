@@ -24,7 +24,7 @@ bool ReadFromClassHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void ReadFromClassHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
+void ReadFromClassHIR::lower(LinearFrame* /* linearFrame */) const {
     // WRITEME
     assert(false);
 }

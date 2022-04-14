@@ -199,7 +199,7 @@ int main(int argc, char* argv[]) {
             outFile << "// ========== " << className << std::endl;
             outFile << fmt::format("struct {}Schema {{\n", className);
             outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:012x};\n", hadron::hash(className));
-            outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:012x};\n\n",
+            outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:012x};\n",
                     hadron::hash(fmt::format("Meta_{}", className)));
 
             if (classIter->second.isPrimitiveType) {
@@ -220,7 +220,7 @@ int main(int argc, char* argv[]) {
                 lineage.emplace(lineageIter);
             }
 
-            outFile << "    library::Schema schema;" << std::endl << std::endl;
+            outFile << std::endl << "    library::Schema schema;" << std::endl << std::endl;
 
             // Lineage in order from top to bottom.
             while (lineage.size()) {

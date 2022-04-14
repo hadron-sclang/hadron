@@ -48,8 +48,10 @@ struct Frame {
 
     // Any Blocks defined in this frame that can't be inlined must be tracked in the method->selectors field, to prevent
     // their premature garbage collection, and also allow runtime access. During this stage of compilation they are
-    // tracked as BlockLiteralHIR instructions, which are later compiled into FunctionDef instances
+    // tracked as BlockLiteralHIR instructions, which are later materialized into FunctionDef instances and appended to
+    // selectors.
     std::vector<hir::BlockLiteralHIR*> innerBlocks;
+    library::FunctionDefArray selectors;
 
     std::unique_ptr<Scope> rootScope;
 

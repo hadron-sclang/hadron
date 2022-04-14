@@ -71,11 +71,11 @@ bool PhiHIR::replaceInput(ID original, ID replacement) {
     return true;
 }
 
-void PhiHIR::lower(const std::vector<HIR*>& values, LinearFrame* linearFrame) const {
+void PhiHIR::lower(LinearFrame* linearFrame) const {
     auto phiLIR = std::make_unique<lir::PhiLIR>();
 
     for (auto nvid : inputs) {
-        auto vReg = linearFrame->hirToReg(values[nvid]->id);
+        auto vReg = linearFrame->hirToReg(nvid);
         assert(vReg != lir::kInvalidVReg);
         phiLIR->addInput(linearFrame->vRegs[vReg]->get());
     }

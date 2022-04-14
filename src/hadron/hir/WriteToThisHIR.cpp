@@ -34,7 +34,7 @@ bool WriteToThisHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void WriteToThisHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
+void WriteToThisHIR::lower(LinearFrame* linearFrame) const {
     auto thisVReg = linearFrame->hirToReg(thisId);
     auto toStoreVReg = linearFrame->hirToReg(toWrite);
     linearFrame->append(kInvalidID, std::make_unique<lir::StoreToPointerLIR>(thisVReg, toStoreVReg, index));

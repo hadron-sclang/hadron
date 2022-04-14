@@ -15,7 +15,7 @@ bool ReadFromContextHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 
-void ReadFromContextHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
+void ReadFromContextHIR::lower(LinearFrame* /* linearFrame */) const {
     assert(false);
 }
 

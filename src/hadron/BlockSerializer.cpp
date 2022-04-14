@@ -35,14 +35,14 @@ std::unique_ptr<LinearFrame> BlockSerializer::serialize(const Frame* frame) {
             label->successors.emplace_back(succ->id());
         }
         for (const auto& phi : block->phis()) {
-            phi->lower(block->frame()->values, linearFrame.get());
+            phi->lower(linearFrame.get());
         }
         // Start the block with a label and then append all contained instructions.
         linearFrame->instructions.emplace_back(std::move(label));
         linearFrame->blockLabels[block->id()] = --(linearFrame->instructions.end());
 
         for (const auto& hir : block->statements()) {
-            hir->lower(block->frame()->values, linearFrame.get());
+            hir->lower(linearFrame.get());
         }
     }
 

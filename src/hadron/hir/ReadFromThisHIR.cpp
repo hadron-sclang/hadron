@@ -27,7 +27,7 @@ bool ReadFromThisHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void ReadFromThisHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
+void ReadFromThisHIR::lower(LinearFrame* linearFrame) const {
     auto thisIdVReg = linearFrame->hirToReg(thisId);
     linearFrame->append(id, std::make_unique<lir::LoadFromPointerLIR>(thisIdVReg, index));
 }

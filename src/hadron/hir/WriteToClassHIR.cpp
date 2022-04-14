@@ -30,7 +30,7 @@ bool WriteToClassHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void WriteToClassHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
+void WriteToClassHIR::lower(LinearFrame* linearFrame) const {
     auto classVarVReg = linearFrame->hirToReg(classVariableArray);
     auto toWriteVReg = linearFrame->hirToReg(toWrite);
     linearFrame->append(kInvalidID, std::make_unique<lir::StoreToPointerLIR>(classVarVReg, toWriteVReg, arrayIndex));

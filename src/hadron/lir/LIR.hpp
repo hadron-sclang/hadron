@@ -12,7 +12,10 @@
 namespace hadron {
 namespace lir {
 using VReg = int32_t;
-static constexpr int32_t kInvalidVReg = -1;
+static constexpr int32_t kInvalidVReg = -4;
+static constexpr int32_t kContextPointerVReg = -3;
+static constexpr int32_t kFramePointerVReg = -2;
+static constexpr int32_t kStackPointerVReg = -1;
 using LabelID = int32_t;
 struct LIR;
 } // namespace lir
@@ -22,18 +25,21 @@ using LIRList = std::list<std::unique_ptr<lir::LIR>>;
 namespace lir {
 
 enum Opcode {
+    kAssign,  // TODO - useful for copying registers around for other stuff.
     kBranch,
     kBranchIfTrue,
     kBranchToRegister,
+    kInterrupt, // TODO - essential for everying we can't do in machine code (right now memory allocation and messages)
     kLabel,
     kLoadConstant,
+    kLoadFromFrame, // redundant with loadfrompointer
     kLoadFromPointer,
-    kLoadFromStack,
-    kLoadImmediate,
+    kLoadFromStack, // redundant with loadfrompointer
+    kLoadImmediate, // redundant with loadfrompointer (with offset == 0)
     kPhi,
-    kStoreToFrame,
+    kStoreToFrame, // redundant with storetopointer
     kStoreToPointer,
-    kStoreToStack
+    kStoreToStack // redundant with storetopointer
 };
 
 struct LIR {

@@ -25,7 +25,7 @@ bool StoreReturnHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void StoreReturnHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
+void StoreReturnHIR::lower(LinearFrame* linearFrame) const {
     // Overwrite the value at argument 0 with the return value.
     auto returnValueVReg = linearFrame->hirToReg(returnValue);
     linearFrame->append(hir::kInvalidID, std::make_unique<lir::StoreToFrameLIR>(returnValueVReg,

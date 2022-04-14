@@ -40,7 +40,7 @@ bool MessageHIR::replaceInput(ID original, ID replacement) {
     return true;
 }
 
-void MessageHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
+void MessageHIR::lower(LinearFrame* /* linearFrame */) const {
     // TODO: implement me
     assert(false);
 }

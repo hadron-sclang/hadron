@@ -112,13 +112,11 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
     // Blocks encountered here are are block literals, and are candidates for inlining.
     case ast::ASTType::kBlock: {
         const auto blockAST = reinterpret_cast<const ast::BlockAST*>(ast);
-        auto blockHIROwning = std::make_unique<hir::BlockLiteralHIR>(static_cast<int32_t>(
-                currentBlock->frame()->innerBlocks.size()));
-        auto blockHIR = blockHIROwning.get();
-        currentBlock->frame()->innerBlocks.emplace_back(blockHIR);
-        nodeValue = currentBlock->append(std::move(blockHIROwning));
+        auto blockHIR = std::make_unique<hir::BlockLiteralHIR>();
+        auto& blockRef = currentBlock->frame()->innerBlocks.emplace_back(blockHIR.get());
+        nodeValue = currentBlock->append(std::move(blockHIR));
         assert(nodeValue != hir::kInvalidID);
-        blockHIR->frame = buildFrame(context, method, blockAST, blockHIR);
+        blockHIR->frame = buildFrame(context, method, blockAST, blockRef);
     } break;
 
     case ast::ASTType::kIf: {

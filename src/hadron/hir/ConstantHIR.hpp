@@ -17,7 +17,7 @@ struct ConstantHIR : public HIR {
     // Forces the type of the |constant| Slot.
     ID proposeValue(ID proposedId) override;
     bool replaceInput(ID original, ID replacement) override;
-    void lower(const std::vector<HIR*>& values, LinearFrame* linearFrame) const override;
+    void lower(LinearFrame* linearFrame) const override;
 };
 
 } // namespace hir
