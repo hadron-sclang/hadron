@@ -31,6 +31,7 @@ enum Opcode {
     kLoadFromStack,
     kLoadImmediate,
     kPhi,
+    kStoreToFrame,
     kStoreToPointer,
     kStoreToStack
 };

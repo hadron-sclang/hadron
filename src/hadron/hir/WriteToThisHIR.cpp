@@ -1,5 +1,8 @@
 #include "hadron/hir/WriteToThisHIR.hpp"
 
+#include "hadron/LinearFrame.hpp"
+#include "hadron/lir/StoreToPointerLIR.hpp"
+
 namespace hadron {
 namespace hir {
 
@@ -31,8 +34,10 @@ bool WriteToThisHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void WriteToThisHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
-    assert(false);
+void WriteToThisHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
+    auto thisVReg = linearFrame->hirToReg(thisId);
+    auto toStoreVReg = linearFrame->hirToReg(toWrite);
+    linearFrame->append(kInvalidID, std::make_unique<lir::StoreToPointerLIR>(thisVReg, toStoreVReg, index));
 }
 
 } // namespace hir

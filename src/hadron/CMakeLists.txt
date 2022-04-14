@@ -244,6 +244,7 @@ add_library(hadron STATIC
     lir/LoadFromStackLIR.hpp
     lir/LoadImmediateLIR.hpp
     lir/PhiLIR.hpp
+    lir/StoreToFrameLIR.hpp
     lir/StoreToPointerLIR.hpp
     lir/StoreToStackLIR.hpp
 
