@@ -2,7 +2,7 @@
 
 #include "hadron/library/Kernel.hpp"
 #include "hadron/LinearFrame.hpp"
-#include "hadron/lir/StoreToFrameLIR.hpp"
+#include "hadron/lir/StoreToPointerLIR.hpp"
 
 namespace hadron {
 namespace hir {
@@ -28,8 +28,8 @@ bool StoreReturnHIR::replaceInput(ID original, ID replacement) {
 void StoreReturnHIR::lower(LinearFrame* linearFrame) const {
     // Overwrite the value at argument 0 with the return value.
     auto returnValueVReg = linearFrame->hirToReg(returnValue);
-    linearFrame->append(hir::kInvalidID, std::make_unique<lir::StoreToFrameLIR>(returnValueVReg,
-            static_cast<int32_t>(sizeof(schema::FramePrivateSchema))));
+    linearFrame->append(hir::kInvalidID, std::make_unique<lir::StoreToPointerLIR>(lir::kFramePointerVReg,
+            returnValueVReg, static_cast<int32_t>(sizeof(schema::FramePrivateSchema))));
 }
 
 } // namespace hir

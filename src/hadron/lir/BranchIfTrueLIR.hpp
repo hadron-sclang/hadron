@@ -19,7 +19,7 @@ struct BranchIfTrueLIR : public LIR {
 
     void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& patchNeeded) const override {
         emitBase(jit);
-        patchNeeded.emplace_back(std::make_pair(jit->beqi(locations.at(condition), 1), labelId));
+        patchNeeded.emplace_back(std::make_pair(jit->beqi(locate(condition), 1), labelId));
     }
 };
 

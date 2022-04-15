@@ -17,7 +17,7 @@ struct BranchToRegisterLIR : public LIR {
 
     void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
         emitBase(jit);
-        jit->jmpr(locations.at(address));
+        jit->jmpr(locate(address));
     }
 };
 

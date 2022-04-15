@@ -4,6 +4,8 @@
 #include "hadron/Frame.hpp"
 #include "hadron/LinearFrame.hpp"
 #include "hadron/library/Function.hpp"
+#include "hadron/lir/AssignLIR.hpp"
+#include "hadron/lir/InterruptLIR.hpp"
 #include "hadron/lir/LoadConstantLIR.hpp"
 #include "hadron/lir/StoreToPointerLIR.hpp"
 #include "hadron/Scope.hpp"

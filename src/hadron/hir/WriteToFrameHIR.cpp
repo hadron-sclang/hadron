@@ -1,7 +1,6 @@
 #include "hadron/hir/WriteToFrameHIR.hpp"
 
 #include "hadron/LinearFrame.hpp"
-#include "hadron/lir/StoreToFrameLIR.hpp"
 #include "hadron/lir/StoreToPointerLIR.hpp"
 
 namespace hadron {
@@ -42,7 +41,8 @@ bool WriteToFrameHIR::replaceInput(ID original, ID replacement) {
 void WriteToFrameHIR::lower(LinearFrame* linearFrame) const {
     auto toWriteVReg = linearFrame->hirToReg(toWrite);
     if (frameId == kInvalidID) {
-        linearFrame->append(kInvalidID, std::make_unique<lir::StoreToFrameLIR>(toWriteVReg, frameIndex));
+        linearFrame->append(kInvalidID, std::make_unique<lir::StoreToPointerLIR>(lir::kFramePointerVReg,toWriteVReg,
+                frameIndex));
         return;
     }
 

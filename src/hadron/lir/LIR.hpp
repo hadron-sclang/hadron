@@ -25,21 +25,16 @@ using LIRList = std::list<std::unique_ptr<lir::LIR>>;
 namespace lir {
 
 enum Opcode {
-    kAssign,  // TODO - useful for copying registers around for other stuff.
+    kAssign,
     kBranch,
     kBranchIfTrue,
     kBranchToRegister,
-    kInterrupt, // TODO - essential for everying we can't do in machine code (right now memory allocation and messages)
+    kInterrupt,
     kLabel,
     kLoadConstant,
-    kLoadFromFrame, // redundant with loadfrompointer
     kLoadFromPointer,
-    kLoadFromStack, // redundant with loadfrompointer
-    kLoadImmediate, // redundant with loadfrompointer (with offset == 0)
     kPhi,
-    kStoreToFrame, // redundant with storetopointer
-    kStoreToPointer,
-    kStoreToStack // redundant with storetopointer
+    kStoreToPointer
 };
 
 struct LIR {
@@ -61,6 +56,26 @@ struct LIR {
     // requires origins be copied only once, so enforcing unique keys means trying to insert a move from an origin
     // already scheduled for a move is an error. These are *predicate* moves, meaning they are executed before the HIR.
     std::unordered_map<int, int> moves;
+
+    inline JIT::Reg locate(VReg vReg) const {
+        if (vReg >= 0) {
+            return locations.at(vReg);
+        }
+
+        switch (vReg) {
+        case kStackPointerVReg:
+            return JIT::kStackPointerReg;
+
+        case kFramePointerVReg:
+            return JIT::kFramePointerReg;
+
+        case kContextPointerVReg:
+            return JIT::kContextPointerReg;
+        }
+
+        assert(false);
+        return 0;
+    }
 
     // If true, LinearBlock should assign a value to this LIR, otherwise it's assumed to be read-only.
     virtual bool producesValue() const { return false; }

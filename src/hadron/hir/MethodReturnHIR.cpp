@@ -3,7 +3,6 @@
 #include "hadron/library/Kernel.hpp"
 #include "hadron/LinearFrame.hpp"
 #include "hadron/lir/BranchToRegisterLIR.hpp"
-#include "hadron/lir/LoadFromFrameLIR.hpp"
 #include "hadron/lir/LoadFromPointerLIR.hpp"
 
 namespace hadron {
@@ -22,8 +21,8 @@ bool MethodReturnHIR::replaceInput(ID /* original */, ID /* replacement */) {
 
 void MethodReturnHIR::lower(LinearFrame* linearFrame) const {
     // Load caller Frame pointer.
-    auto callerFrame = linearFrame->append(kInvalidID,
-            std::make_unique<lir::LoadFromFrameLIR>(offsetof(schema::FramePrivateSchema, caller)));
+    auto callerFrame = linearFrame->append(kInvalidID, std::make_unique<lir::LoadFromPointerLIR>(lir::kFramePointerVReg,
+            offsetof(schema::FramePrivateSchema, caller)));
     // Load return address into a register value
     auto returnAddress = linearFrame->append(kInvalidID,
             std::make_unique<lir::LoadFromPointerLIR>(callerFrame, offsetof(schema::FramePrivateSchema, ip)));

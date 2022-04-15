@@ -20,8 +20,6 @@ namespace hir {
 
 using ID = int32_t;
 static constexpr int32_t kInvalidID = -1;
-// This assumption has crept into the code so document it and enforce with the compiler.
-static_assert(kInvalidID == lir::kInvalidVReg);
 
 enum Opcode {
     kBlockLiteral,

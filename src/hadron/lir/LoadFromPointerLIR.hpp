@@ -19,7 +19,7 @@ struct LoadFromPointerLIR : public LIR {
 
     void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
         emitBase(jit);
-        jit->ldxi_w(locations.at(value), locations.at(pointer), offset * kSlotSize);
+        jit->ldxi_w(locate(value), locate(pointer), offset * kSlotSize);
     }
 };
 

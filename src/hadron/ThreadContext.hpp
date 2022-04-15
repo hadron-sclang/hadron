@@ -28,8 +28,13 @@ struct ThreadContext {
 
     // The return address to restore the C stack and exit the machine code ABI.
     const int8_t* exitMachineCode = nullptr;
-    // An exit flag that can be set to indicate unusual exit conditions.
-    int machineCodeStatus = 0;
+
+    enum InterruptCode : int32_t {
+        kNormalReturn,
+        kDispatch,
+        kAllocateMemory
+    };
+    InterruptCode interruptCode = InterruptCode::kNormalReturn;
 
     // The stack pointer as preserved on entry into machine code.
     void* cStackPointer = nullptr;

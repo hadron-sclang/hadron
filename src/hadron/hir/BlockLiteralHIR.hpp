@@ -3,6 +3,8 @@
 
 #include "hadron/hir/HIR.hpp"
 
+#include "hadron/library/Kernel.hpp"
+
 #include <memory>
 
 namespace hadron {

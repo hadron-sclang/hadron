@@ -1,7 +1,6 @@
 #include "hadron/hir/ReadFromFrameHIR.hpp"
 
 #include "hadron/LinearFrame.hpp"
-#include "hadron/lir/LoadFromFrameLIR.hpp"
 #include "hadron/lir/LoadFromPointerLIR.hpp"
 
 namespace hadron {
@@ -36,7 +35,7 @@ void ReadFromFrameHIR::lower(LinearFrame* linearFrame) const {
         return;
     }
 
-    linearFrame->append(id, std::make_unique<lir::LoadFromFrameLIR>(frameIndex));
+    linearFrame->append(id, std::make_unique<lir::LoadFromPointerLIR>(lir::kFramePointerVReg, frameIndex));
 }
 
 } // namespace hir
