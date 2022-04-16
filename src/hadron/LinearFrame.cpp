@@ -10,6 +10,7 @@ lir::VReg LinearFrame::hirToReg(hir::ID hirId) {
         return regIter->second;
     }
 
+    assert(false);
     return lir::kInvalidVReg;
 }
 
@@ -28,7 +29,7 @@ lir::VReg LinearFrame::append(hir::ID hirId, std::unique_ptr<lir::LIR> lir) {
     instructions.emplace_back(std::move(lir));
 
     if (value != lir::kInvalidVReg) {
-        assert(value == static_cast<int32_t>(vRegs.size()));
+        assert(value == static_cast<lir::VReg>(vRegs.size()));
         auto iter = instructions.end();
         --iter;
         vRegs.emplace_back(iter);

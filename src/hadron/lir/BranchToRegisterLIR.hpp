@@ -10,14 +10,14 @@ struct BranchToRegisterLIR : public LIR {
     BranchToRegisterLIR() = delete;
     explicit BranchToRegisterLIR(VReg a):
         LIR(kBranchToRegister, TypeFlags::kNoFlags),
-        address(a) { reads.emplace(address); }
+        address(a) { read(address); }
     virtual ~BranchToRegisterLIR() = default;
 
     VReg address;
 
     void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
         emitBase(jit);
-        jit->jmpr(locations.at(address));
+        jit->jmpr(locate(address));
     }
 };
 

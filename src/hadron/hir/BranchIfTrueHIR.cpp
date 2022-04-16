@@ -25,7 +25,7 @@ bool BranchIfTrueHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void BranchIfTrueHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
+void BranchIfTrueHIR::lower(LinearFrame* linearFrame) const {
     linearFrame->append(kInvalidID, std::make_unique<lir::BranchIfTrueLIR>(linearFrame->hirToReg(condition), blockId));
 }
 

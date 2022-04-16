@@ -35,14 +35,24 @@ std::unique_ptr<LinearFrame> BlockSerializer::serialize(const Frame* frame) {
             label->successors.emplace_back(succ->id());
         }
         for (const auto& phi : block->phis()) {
-            phi->lower(block->frame()->values, linearFrame.get());
+            // TODO: this is a duplication of the logic in LinearFrame::append() for phis, and is mixing iterators
+            // in vRegs between the label->phi and the linearFrame->instructions which seems likely to create bugs.
+            // Reconsider.
+            auto phiLIR = phi->lowerPhi(linearFrame.get());
+            auto value = static_cast<lir::VReg>(linearFrame->vRegs.size());
+            phiLIR->value = value;
+            linearFrame->hirToRegMap.emplace(std::make_pair(phi->id, value));
+            label->phis.emplace_back(std::move(phiLIR));
+            auto iter = label->phis.end();
+            --iter;
+            linearFrame->vRegs.emplace_back(iter);
         }
         // Start the block with a label and then append all contained instructions.
         linearFrame->instructions.emplace_back(std::move(label));
         linearFrame->blockLabels[block->id()] = --(linearFrame->instructions.end());
 
         for (const auto& hir : block->statements()) {
-            hir->lower(block->frame()->values, linearFrame.get());
+            hir->lower(linearFrame.get());
         }
     }
 

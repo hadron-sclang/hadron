@@ -17,7 +17,7 @@ bool ConstantHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 
-void ConstantHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
+void ConstantHIR::lower(LinearFrame* linearFrame) const {
     linearFrame->append(id, std::make_unique<lir::LoadConstantLIR>(constant));
 }
 

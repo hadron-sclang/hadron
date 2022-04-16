@@ -1,5 +1,8 @@
 #include "hadron/hir/RouteToSuperclassHIR.hpp"
 
+#include "hadron/LinearFrame.hpp"
+#include "hadron/lir/AssignLIR.hpp"
+
 namespace hadron {
 namespace hir {
 
@@ -25,8 +28,10 @@ bool RouteToSuperclassHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void RouteToSuperclassHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
-    assert(false);
+void RouteToSuperclassHIR::lower(LinearFrame* linearFrame) const {
+    // TODO: needs redesign
+    auto thisVReg = linearFrame->hirToReg(thisId);
+    linearFrame->append(id, std::make_unique<lir::AssignLIR>(thisVReg));
 }
 
 } // namespace hir

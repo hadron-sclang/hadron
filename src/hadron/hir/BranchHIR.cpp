@@ -16,7 +16,7 @@ bool BranchHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 
-void BranchHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* linearFrame) const {
+void BranchHIR::lower(LinearFrame* linearFrame) const {
     linearFrame->append(kInvalidID, std::make_unique<lir::BranchLIR>(blockId));
 }
 

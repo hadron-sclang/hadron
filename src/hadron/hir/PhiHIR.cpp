@@ -37,6 +37,19 @@ ID PhiHIR::getTrivialValue() const {
     return *(reads.begin());
 }
 
+
+std::unique_ptr<lir::PhiLIR> PhiHIR::lowerPhi(LinearFrame* linearFrame) const {
+    auto phiLIR = std::make_unique<lir::PhiLIR>();
+
+    for (auto nvid : inputs) {
+        auto vReg = linearFrame->hirToReg(nvid);
+        assert(vReg != lir::kInvalidVReg);
+        phiLIR->addInput(linearFrame->vRegs[vReg]->get());
+    }
+
+    return phiLIR;
+}
+
 ID PhiHIR::proposeValue(ID proposedId) {
     id = proposedId;
     return id;
@@ -71,16 +84,8 @@ bool PhiHIR::replaceInput(ID original, ID replacement) {
     return true;
 }
 
-void PhiHIR::lower(const std::vector<HIR*>& values, LinearFrame* linearFrame) const {
-    auto phiLIR = std::make_unique<lir::PhiLIR>();
-
-    for (auto nvid : inputs) {
-        auto vReg = linearFrame->hirToReg(values[nvid]->id);
-        assert(vReg != lir::kInvalidVReg);
-        phiLIR->addInput(linearFrame->vRegs[vReg]->get());
-    }
-
-    linearFrame->append(id, std::move(phiLIR));
+void PhiHIR::lower(LinearFrame* /* linearFrame */) const {
+    assert(false); // call lowerPhi() instead.
 }
 
 } // namespace hir

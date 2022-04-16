@@ -8,7 +8,6 @@
 
 #include <memory>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace hadron {
@@ -48,8 +47,10 @@ struct Frame {
 
     // Any Blocks defined in this frame that can't be inlined must be tracked in the method->selectors field, to prevent
     // their premature garbage collection, and also allow runtime access. During this stage of compilation they are
-    // tracked as BlockLiteralHIR instructions, which are later compiled into FunctionDef instances
+    // tracked as BlockLiteralHIR instructions, which are later materialized into FunctionDef instances and appended to
+    // selectors.
     std::vector<hir::BlockLiteralHIR*> innerBlocks;
+    library::FunctionDefArray selectors;
 
     std::unique_ptr<Scope> rootScope;
 
@@ -61,11 +62,6 @@ struct Frame {
     // Counter used as a serial number to uniquely identify blocks.
     int32_t numberOfBlocks;
 
-    // To avoid creation of duplicate constants we track all constant values in a map.
-    std::unordered_map<Slot, hir::ID> constantValues;
-
-    // For quickly determining if a given ID is a constant.
-    std::unordered_set<hir::ID> constantIds;
 };
 
 } // namespace hadron

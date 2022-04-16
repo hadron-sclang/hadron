@@ -1,5 +1,8 @@
 #include "hadron/hir/ReadFromContextHIR.hpp"
 
+#include "hadron/LinearFrame.hpp"
+#include "hadron/lir/LoadFromPointerLIR.hpp"
+
 namespace hadron {
 namespace hir {
 
@@ -15,8 +18,8 @@ bool ReadFromContextHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 
-void ReadFromContextHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
-    assert(false);
+void ReadFromContextHIR::lower(LinearFrame* linearFrame) const {
+    linearFrame->append(id, std::make_unique<lir::LoadFromPointerLIR>(lir::kContextPointerVReg, offset));
 }
 
 } // namespace hir

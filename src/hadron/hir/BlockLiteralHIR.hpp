@@ -3,6 +3,8 @@
 
 #include "hadron/hir/HIR.hpp"
 
+#include "hadron/library/Kernel.hpp"
+
 #include <memory>
 
 namespace hadron {
@@ -11,7 +13,6 @@ struct BlockAST;
 }
 
 struct Frame;
-struct ThreadContext;
 
 namespace hir {
 
@@ -19,17 +20,15 @@ namespace hir {
 // and the compiler adds the relevant FunctionDef as an element in the containing Method/FunctionDef's |selectors|
 // array.
 struct BlockLiteralHIR : public HIR {
-    BlockLiteralHIR() = delete;
-    explicit BlockLiteralHIR(int32_t index);
+    BlockLiteralHIR();
     virtual ~BlockLiteralHIR() = default;
 
-    // The index in the outer frame's |selectors| array of FunctionDefs.
-    int32_t selectorIndex;
     std::unique_ptr<Frame> frame;
+    library::FunctionDef functionDef;
 
     ID proposeValue(ID proposedId) override;
     bool replaceInput(ID original, ID replacement) override;
-    void lower(const std::vector<HIR*>& values, LinearFrame* linearFrame) const override;
+    void lower(LinearFrame* linearFrame) const override;
 };
 
 } // namespace hir

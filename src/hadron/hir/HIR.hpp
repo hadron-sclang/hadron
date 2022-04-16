@@ -20,8 +20,6 @@ namespace hir {
 
 using ID = int32_t;
 static constexpr int32_t kInvalidID = -1;
-// This assumption has crept into the code so document it and enforce with the compiler.
-static_assert(kInvalidID == lir::kInvalidVReg);
 
 enum Opcode {
     kBlockLiteral,
@@ -69,8 +67,8 @@ struct HIR {
     // any change to the HIR.
     virtual bool replaceInput(ID original, ID replacement) = 0;
 
-    // Given this HIR, and all other HIR |values| in the frame, output zero or more LIR instructions to |linearFrame|.
-    virtual void lower(const std::vector<HIR*>& values, LinearFrame* linearFrame) const = 0;
+    // Given this HIR, output zero or more LIR instructions to |linearFrame|.
+    virtual void lower(LinearFrame* linearFrame) const = 0;
 
 protected:
     explicit HIR(Opcode op): opcode(op), id(kInvalidID), typeFlags(TypeFlags::kNoFlags), owningBlock(nullptr) {}

@@ -207,6 +207,16 @@ public:
     void setIp(int8_t* ip) { m_instance->ip = Slot::makeRawPointer(ip); }
 };
 
+class Interpreter : public Object<Interpreter, schema::InterpreterSchema> {
+public:
+    Interpreter(): Object<Interpreter, schema::InterpreterSchema>() {}
+    explicit Interpreter(schema::InterpreterSchema* instance):
+        Object<Interpreter, schema::InterpreterSchema>(instance) {}
+    explicit Interpreter(Slot instance):
+        Object<Interpreter, schema::InterpreterSchema>(instance) {}
+    ~Interpreter() {}
+};
+
 } // namespace library
 } // namespace hadron
 

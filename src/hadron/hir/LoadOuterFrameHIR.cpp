@@ -1,5 +1,9 @@
 #include "hadron/hir/LoadOuterFrameHIR.hpp"
 
+#include "hadron/LinearFrame.hpp"
+#include "hadron/library/Kernel.hpp"
+#include "hadron/lir/LoadFromPointerLIR.hpp"
+
 namespace hadron {
 namespace hir {
 
@@ -15,8 +19,11 @@ bool LoadOuterFrameHIR::replaceInput(ID /* original */, ID /* replacement */) {
     return false;
 }
 
-void LoadOuterFrameHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
-    assert(false);
+void LoadOuterFrameHIR::lower(LinearFrame* linearFrame) const {
+    auto innerContextVReg = innerContext == hir::kInvalidID ? lir::kFramePointerVReg
+            : linearFrame->hirToReg(innerContext);
+    linearFrame->append(id, std::make_unique<lir::LoadFromPointerLIR>(innerContextVReg,
+            offsetof(schema::FramePrivateSchema, context)));
 }
 
 } // namespace hir

@@ -1,5 +1,8 @@
 #include "hadron/hir/ReadFromThisHIR.hpp"
 
+#include "hadron/LinearFrame.hpp"
+#include "hadron/lir/LoadFromPointerLIR.hpp"
+
 namespace hadron {
 namespace hir {
 
@@ -24,9 +27,9 @@ bool ReadFromThisHIR::replaceInput(ID original, ID replacement) {
     return false;
 }
 
-void ReadFromThisHIR::lower(const std::vector<HIR*>& /* values */, LinearFrame* /* linearFrame */) const {
-    // WRITEME
-    assert(false);
+void ReadFromThisHIR::lower(LinearFrame* linearFrame) const {
+    auto thisIdVReg = linearFrame->hirToReg(thisId);
+    linearFrame->append(id, std::make_unique<lir::LoadFromPointerLIR>(thisIdVReg, index));
 }
 
 } // namespace hir

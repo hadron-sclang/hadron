@@ -112,13 +112,11 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
     // Blocks encountered here are are block literals, and are candidates for inlining.
     case ast::ASTType::kBlock: {
         const auto blockAST = reinterpret_cast<const ast::BlockAST*>(ast);
-        auto blockHIROwning = std::make_unique<hir::BlockLiteralHIR>(static_cast<int32_t>(
-                currentBlock->frame()->innerBlocks.size()));
-        auto blockHIR = blockHIROwning.get();
-        currentBlock->frame()->innerBlocks.emplace_back(blockHIR);
-        nodeValue = currentBlock->append(std::move(blockHIROwning));
+        auto blockHIR = std::make_unique<hir::BlockLiteralHIR>();
+        auto& blockRef = currentBlock->frame()->innerBlocks.emplace_back(blockHIR.get());
+        nodeValue = currentBlock->append(std::move(blockHIR));
+        blockRef->frame = buildFrame(context, method, blockAST, blockRef);
         assert(nodeValue != hir::kInvalidID);
-        blockHIR->frame = buildFrame(context, method, blockAST, blockHIR);
     } break;
 
     case ast::ASTType::kIf: {
@@ -393,7 +391,6 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
     Block* searchBlock = block;
     size_t nestedFramesCount = 0;
 
-
     do {
         Scope* scope = searchBlock->scope();
 
@@ -467,6 +464,7 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
     while (!classVarDef.isNil()) {
         auto classVarOffset = classVarDef.classVarNames().indexOf(name);
         if (classVarOffset.isInt32()) {
+            // TODO: probably better to load this from ThreadContext at runtime.
             auto classArray = block->append(std::make_unique<hir::ConstantHIR>(
                     context->classLibrary->classVariables().slot()));
             if (toWrite == hir::kInvalidID) {

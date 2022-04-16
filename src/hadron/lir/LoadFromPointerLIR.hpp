@@ -11,15 +11,17 @@ struct LoadFromPointerLIR : public LIR {
     LoadFromPointerLIR(VReg p, int32_t off):
         LIR(kLoadFromPointer, TypeFlags::kAllFlags),
         pointer(p),
-        offset(off) { reads.emplace(pointer); }
+        offset(off) { read(pointer); }
     virtual ~LoadFromPointerLIR() = default;
 
     VReg pointer;
     int32_t offset;
 
+    bool producesValue() const override { return true; }
+
     void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
         emitBase(jit);
-        jit->ldxi_w(locations.at(value), locations.at(pointer), offset * kSlotSize);
+        jit->ldxi_w(locate(value), locate(pointer), offset * kSlotSize);
     }
 };
 

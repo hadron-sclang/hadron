@@ -12,7 +12,10 @@
 namespace hadron {
 namespace lir {
 using VReg = int32_t;
-static constexpr int32_t kInvalidVReg = -1;
+static constexpr int32_t kInvalidVReg = -4;
+static constexpr int32_t kContextPointerVReg = -3;
+static constexpr int32_t kFramePointerVReg = -2;
+static constexpr int32_t kStackPointerVReg = -1;
 using LabelID = int32_t;
 struct LIR;
 } // namespace lir
@@ -22,17 +25,16 @@ using LIRList = std::list<std::unique_ptr<lir::LIR>>;
 namespace lir {
 
 enum Opcode {
+    kAssign,
     kBranch,
     kBranchIfTrue,
     kBranchToRegister,
+    kInterrupt,
     kLabel,
     kLoadConstant,
     kLoadFromPointer,
-    kLoadFromStack,
-    kLoadImmediate,
     kPhi,
-    kStoreToPointer,
-    kStoreToStack
+    kStoreToPointer
 };
 
 struct LIR {
@@ -55,6 +57,32 @@ struct LIR {
     // already scheduled for a move is an error. These are *predicate* moves, meaning they are executed before the HIR.
     std::unordered_map<int, int> moves;
 
+    inline JIT::Reg locate(VReg vReg) const {
+        if (vReg >= 0) {
+            assert(locations.find(vReg) != locations.end());
+            return locations.at(vReg);
+        }
+
+        switch (vReg) {
+        case kStackPointerVReg:
+            return JIT::kStackPointerReg;
+
+        case kFramePointerVReg:
+            return JIT::kFramePointerReg;
+
+        case kContextPointerVReg:
+            return JIT::kContextPointerReg;
+        }
+
+        assert(false);
+        return 0;
+    }
+
+    inline void read(VReg vReg) {
+        assert(vReg != lir::kInvalidVReg);
+        if (vReg >= 0) { reads.emplace(vReg); }
+    }
+
     // If true, LinearBlock should assign a value to this LIR, otherwise it's assumed to be read-only.
     virtual bool producesValue() const { return false; }
 
@@ -67,7 +95,7 @@ struct LIR {
     virtual void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& patchNeeded) const = 0;
 
 protected:
-    LIR(Opcode op, TypeFlags t): opcode(op), typeFlags(t) {}
+    LIR(Opcode op, TypeFlags t): opcode(op), value(kInvalidVReg), typeFlags(t) {}
     void emitBase(JIT* jit) const;
 };
 

@@ -223,6 +223,7 @@ add_library(hadron STATIC
     library/Array.hpp
     library/ArrayedCollection.hpp
     library/Collection.hpp
+    library/Function.hpp
     library/Kernel.hpp
     library/Object.hpp
     library/Schema.hpp
@@ -233,19 +234,18 @@ add_library(hadron STATIC
     library/Symbol.hpp
     library/Thread.hpp
 
+    lir/AssignLIR.hpp
     lir/BranchIfTrueLIR.hpp
     lir/BranchLIR.hpp
     lir/BranchToRegisterLIR.hpp
+    lir/InterruptLIR.hpp
     lir/LabelLIR.hpp
     lir/LIR.cpp
     lir/LIR.hpp
     lir/LoadConstantLIR.hpp
     lir/LoadFromPointerLIR.hpp
-    lir/LoadFromStackLIR.hpp
-    lir/LoadImmediateLIR.hpp
     lir/PhiLIR.hpp
     lir/StoreToPointerLIR.hpp
-    lir/StoreToStackLIR.hpp
 
     Arch.hpp
     AST.hpp
@@ -274,6 +274,8 @@ add_library(hadron STATIC
     LighteningJIT.hpp
     LinearFrame.cpp
     LinearFrame.hpp
+    Materializer.cpp
+    Materializer.hpp
     MoveScheduler.cpp
     MoveScheduler.hpp
     OpcodeIterator.cpp
