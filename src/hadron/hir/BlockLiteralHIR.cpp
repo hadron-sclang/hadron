@@ -32,7 +32,8 @@ void BlockLiteralHIR::lower(LinearFrame* linearFrame) const {
     assert(!functionDef.isNil());
 
     // Interrupt to allocate memory for the Function object.
-    auto functionVReg = linearFrame->append(id, std::make_unique<lir::InterruptLIR>());
+    auto functionVReg = linearFrame->append(id, std::make_unique<lir::InterruptLIR>(
+            ThreadContext::InterruptCode::kAllocateMemory));
 
     // Set the Function context to the current context pointer. Make a copy of the current context register.
     auto contextVReg = linearFrame->append(kInvalidID, std::make_unique<lir::AssignLIR>(lir::kContextPointerVReg));
