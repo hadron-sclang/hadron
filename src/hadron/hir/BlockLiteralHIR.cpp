@@ -7,6 +7,7 @@
 #include "hadron/lir/AssignLIR.hpp"
 #include "hadron/lir/InterruptLIR.hpp"
 #include "hadron/lir/LoadConstantLIR.hpp"
+#include "hadron/lir/LoadFromPointerLIR.hpp"
 #include "hadron/lir/StoreToPointerLIR.hpp"
 #include "hadron/Scope.hpp"
 
@@ -32,8 +33,9 @@ void BlockLiteralHIR::lower(LinearFrame* linearFrame) const {
     assert(!functionDef.isNil());
 
     // Interrupt to allocate memory for the Function object.
-    auto functionVReg = linearFrame->append(id, std::make_unique<lir::InterruptLIR>(
-            ThreadContext::InterruptCode::kAllocateMemory));
+    linearFrame->append(kInvalidID, std::make_unique<lir::InterruptLIR>(ThreadContext::InterruptCode::kAllocateMemory));
+    // TODO: actual useful stack frame offset
+    auto functionVReg = linearFrame->append(id, std::make_unique<lir::LoadFromPointerLIR>(lir::kStackPointerVReg, 0));
 
     // Set the Function context to the current context pointer. Make a copy of the current context register.
     auto contextVReg = linearFrame->append(kInvalidID, std::make_unique<lir::AssignLIR>(lir::kContextPointerVReg));

@@ -11,7 +11,7 @@ struct AssignLIR : public LIR {
     explicit AssignLIR(VReg orig):
         LIR(kAssign, TypeFlags::kAllFlags),
         origin(orig) {
-            reads.emplace(origin);
+            read(origin);
     }
 
     VReg origin;

@@ -45,8 +45,8 @@ hir::ID Block::insert(std::unique_ptr<hir::HIR> hir, std::list<std::unique_ptr<h
         // dependencies.
         assert(hir->reads.size() == 0);
         auto constantHIR = reinterpret_cast<hir::ConstantHIR*>(hir.get());
-        auto constantIter = m_frame->constantValues.find(constantHIR->constant);
-        if (constantIter != m_frame->constantValues.end()) {
+        auto constantIter = constantValues.find(constantHIR->constant);
+        if (constantIter != constantValues.end()) {
             return constantIter->second;
         }
     }
@@ -71,8 +71,8 @@ hir::ID Block::insert(std::unique_ptr<hir::HIR> hir, std::list<std::unique_ptr<h
     // Adding a new constant, update the constants map and set.
     if (hir->opcode == hir::Opcode::kConstant) {
         auto constantHIR = reinterpret_cast<hir::ConstantHIR*>(hir.get());
-        m_frame->constantValues.emplace(std::make_pair(constantHIR->constant, value));
-        m_frame->constantIds.emplace(value);
+        constantValues.emplace(std::make_pair(constantHIR->constant, value));
+        constantIds.emplace(value);
     } else if (hir->opcode == hir::Opcode::kMethodReturn) {
         m_hasMethodReturn = true;
         keepPrependExitIter = true;

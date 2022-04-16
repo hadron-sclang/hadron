@@ -14,8 +14,8 @@ struct StoreToPointerLIR : public LIR {
         pointer(p),
         toStore(store),
         offset(off) {
-        reads.emplace(pointer);
-        reads.emplace(toStore);
+        read(pointer);
+        read(toStore);
     }
     virtual ~StoreToPointerLIR() = default;
 
@@ -25,7 +25,7 @@ struct StoreToPointerLIR : public LIR {
 
     void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
         emitBase(jit);
-        jit->stxi_w(offset * kSlotSize, locations.at(pointer), locations.at(toStore));
+        jit->stxi_w(offset * kSlotSize, locate(pointer), locate(toStore));
     }
 };
 

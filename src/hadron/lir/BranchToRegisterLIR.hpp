@@ -10,7 +10,7 @@ struct BranchToRegisterLIR : public LIR {
     BranchToRegisterLIR() = delete;
     explicit BranchToRegisterLIR(VReg a):
         LIR(kBranchToRegister, TypeFlags::kNoFlags),
-        address(a) { reads.emplace(address); }
+        address(a) { read(address); }
     virtual ~BranchToRegisterLIR() = default;
 
     VReg address;

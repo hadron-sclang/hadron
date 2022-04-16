@@ -11,7 +11,7 @@ struct BranchIfTrueLIR : public LIR {
     explicit BranchIfTrueLIR(VReg cond, LabelID label):
             LIR(kBranchIfTrue, TypeFlags::kNoFlags),
             condition(cond),
-            labelId(label) { reads.emplace(condition); }
+            labelId(label) { read(condition); }
     virtual ~BranchIfTrueLIR() = default;
 
     VReg condition;

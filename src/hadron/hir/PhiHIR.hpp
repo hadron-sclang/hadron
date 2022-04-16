@@ -27,6 +27,9 @@ struct PhiHIR : public HIR {
     // return the trivial value. Otherwise return an invalid value.
     ID getTrivialValue() const;
 
+    // Phis are not appended to the linearFrame, so get their own lowering function.
+    std::unique_ptr<lir::PhiLIR> lowerPhi(LinearFrame* linearFrame) const;
+
     ID proposeValue(ID proposedId) override;
     bool replaceInput(ID original, ID replacement) override;
     void lower(LinearFrame* linearFrame) const override;

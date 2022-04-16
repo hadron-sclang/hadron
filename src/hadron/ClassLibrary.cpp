@@ -5,7 +5,6 @@
 #include "hadron/ASTBuilder.hpp"
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
-#include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Frame.hpp"
@@ -17,6 +16,7 @@
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/LinearFrame.hpp"
+#include "hadron/Materializer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
@@ -43,7 +43,7 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
     if (!resetLibrary(context)) { return false; }
     if (!scanFiles(context)) { return false; }
     if (!finalizeHeirarchy(context)) { return false; }
-//    if (!serializeFrames(context)) { return false; }
+    if (!materializeFrames(context)) { return false; }
     return cleanUp();
 }
 
@@ -366,18 +366,25 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
     return true;
 }
 
-bool ClassLibrary::serializeFrames(ThreadContext* context) {
+bool ClassLibrary::materializeFrames(ThreadContext* context) {
     for (auto& methodMap : m_methodFrames) {
         auto className = methodMap.first;
+        assert(m_classMap.find(className) != m_classMap.end());
+        auto classDef = m_classMap.at(className);
+        auto methods = classDef.methods();
 
-        for (auto& methodFrame : (*methodMap.second)) {
-            auto methodName = methodFrame.first;
+        for (int32_t i = 0; i < methods.size(); ++i) {
+            auto method = methods.typedAt(i);
+            auto methodName = method.name(context);
 
-            SPDLOG_INFO("serializing frame for {}:{}", className.view(context), methodName.view(context));
+            // Methods that call a primitive have no Frame and should not be compiled.
+            auto frameIter = methodMap.second->find(methodName);
+            if (frameIter == methodMap.second->end()) { continue; }
 
-            BlockSerializer serializer;
-            auto linearFrame = serializer.serialize(methodFrame.second.get());
-            if (linearFrame == nullptr) { return false; }
+            SPDLOG_INFO("materializing frame for {}:{}", className.view(context), methodName.view(context));
+
+            auto bytecode = Materializer::materialize(context, frameIter->second.get());
+            method.setCode(bytecode);
         }
     }
 

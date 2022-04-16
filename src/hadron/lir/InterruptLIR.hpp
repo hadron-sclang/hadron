@@ -18,6 +18,14 @@ struct InterruptLIR : public LIR {
 
     void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& /* patchNeeded */) const override {
         emitBase(jit);
+        // Because all registers have been preserved, we can use hard-coded registers and clobber their values.
+        // Save the interrupt code to the threadContext.
+        jit->movi(0, interruptCode);
+        jit->stxi_i(offsetof(ThreadContext, interruptCode), JIT::kContextPointerReg, 0);
+
+        // Jump to the exitMachineCode address stored in the threadContext.
+        jit->ldxi_w(0, JIT::kContextPointerReg, offsetof(ThreadContext, exitMachineCode));
+        jit->jmpr(0);
     }
 };
 

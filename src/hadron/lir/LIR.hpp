@@ -59,6 +59,7 @@ struct LIR {
 
     inline JIT::Reg locate(VReg vReg) const {
         if (vReg >= 0) {
+            assert(locations.find(vReg) != locations.end());
             return locations.at(vReg);
         }
 
@@ -77,6 +78,11 @@ struct LIR {
         return 0;
     }
 
+    inline void read(VReg vReg) {
+        assert(vReg != lir::kInvalidVReg);
+        if (vReg >= 0) { reads.emplace(vReg); }
+    }
+
     // If true, LinearBlock should assign a value to this LIR, otherwise it's assumed to be read-only.
     virtual bool producesValue() const { return false; }
 
@@ -89,7 +95,7 @@ struct LIR {
     virtual void emit(JIT* jit, std::vector<std::pair<JIT::Label, LabelID>>& patchNeeded) const = 0;
 
 protected:
-    LIR(Opcode op, TypeFlags t): opcode(op), typeFlags(t) {}
+    LIR(Opcode op, TypeFlags t): opcode(op), value(kInvalidVReg), typeFlags(t) {}
     void emitBase(JIT* jit) const;
 };
 

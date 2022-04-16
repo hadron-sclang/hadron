@@ -65,8 +65,8 @@ private:
     bool finalizeHeirarchy(ThreadContext* context);
     bool composeSubclassesFrom(ThreadContext* context, library::Class classDef);
 
-
-    bool serializeFrames(ThreadContext* context);
+    // Finish compilation from Frame down to executable bytecode.
+    bool materializeFrames(ThreadContext* context);
 
     // Clean up any temporary data structures
     bool cleanUp();
