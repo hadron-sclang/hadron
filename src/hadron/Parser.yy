@@ -15,7 +15,7 @@
 %token <size_t> LITERAL FLOAT INTEGER PRIMITIVE PLUS MINUS ASTERISK ASSIGN LESSTHAN GREATERTHAN PIPE READWRITEVAR
 %token <size_t> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA
 %token <size_t> SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT ELLIPSES
-%token <size_t> CURRYARGUMENT IF WHILE
+%token <size_t> CURRYARGUMENT IF WHILE STRING
 // Include Hashes in the token when meaningful.
 %token <std::pair<size_t, hadron::Hash>> BINOP KEYWORD IDENTIFIER CLASSNAME
 
@@ -30,19 +30,20 @@
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist litdictslotdef litdictslotlist1
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> litdictslotlist
 %type <std::unique_ptr<hadron::parse::LiteralDictNode>> dictlit2
-%type <std::unique_ptr<hadron::parse::LiteralNode>> coreliteral
+// %type <std::unique_ptr<hadron::parse::LiteralNode>> coreliteral
 %type <std::unique_ptr<hadron::parse::LiteralListNode>> listlit listlit2
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
 %type <std::unique_ptr<hadron::parse::MultiAssignVarsNode>> mavars
 %type <std::unique_ptr<hadron::parse::NameNode>> mavarlist
 %type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
-%type <std::unique_ptr<hadron::parse::Node>> literallist1 literal listliteral
+%type <std::unique_ptr<hadron::parse::Node>> literallist1 literal listliteral coreliteral
 %type <std::unique_ptr<hadron::parse::ReturnNode>> funretval retval
 %type <std::unique_ptr<hadron::parse::SeriesIterNode>> valrange3
 %type <std::unique_ptr<hadron::parse::SeriesNode>> valrange2
 %type <std::unique_ptr<hadron::parse::VarDefNode>> rwslotdeflist rwslotdef slotdef vardef constdef constdeflist
 %type <std::unique_ptr<hadron::parse::VarDefNode>> vardeflist slotdeflist vardeflist0 slotdeflist0
 %type <std::unique_ptr<hadron::parse::VarListNode>> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
+%type <std::unique_ptr<hadron::parse::StringNode>> string stringlist
 
 %type <std::optional<size_t>> superclass optname
 %type <std::optional<size_t>> primitive
@@ -375,6 +376,13 @@ msgsend : IDENTIFIER blocklist1 {
                 performList->arguments = std::move($arglistv1);
                 performList->keywordArguments = std::move($optkeyarglist);
                 $msgsend = std::move(performList);
+            }
+        | CLASSNAME OPENSQUARE arrayelems CLOSESQUARE {
+                // This is shorthand for Classname.new() followed by (args.add)
+                auto newList = std::make_unique<hadron::parse::LiteralListNode>($OPENSQUARE);
+                newList->className = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                newList->elements = std::move($arrayelems);
+                $msgsend = std::move(newList);
             }
         | CLASSNAME blocklist1 {
                 // This is shorthand for Classname.new {args}
@@ -1026,6 +1034,9 @@ coreliteral : LITERAL {
                     literal->blockLiteral = std::move($block);
                     $coreliteral = std::move(literal);
                 }
+            | stringlist {
+                    $coreliteral = std::move($stringlist);
+                }
             ;
 
 integer : INTEGER { $integer = std::make_pair($INTEGER, hadronParser->token($INTEGER).value.getInt32()); }
@@ -1054,6 +1065,15 @@ binop   : BINOP { $binop = $BINOP; }
 binop2  : binop { $binop2 = $binop; }
         | KEYWORD { $binop2 = $KEYWORD; }
         ;
+
+string  : STRING { $string = std::make_unique<hadron::parse::StringNode>($STRING); }
+        ;
+
+stringlist[target]  : string { $target = std::move($string); }
+                    | stringlist[build] string {
+                            $target = append(std::move($build), std::move($string));
+                        }
+                    ;
 %%
 
 yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
@@ -1081,6 +1101,9 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
             return  yy::parser::make_FLOAT(index, token.location);
         }
         return yy::parser::make_LITERAL(index, token.location);
+
+    case hadron::Token::Name::kString:
+        return yy::parser::make_STRING(index, token.location);
 
     case hadron::Token::Name::kPrimitive:
         return yy::parser::make_PRIMITIVE(index, token.location);

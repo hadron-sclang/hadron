@@ -264,6 +264,7 @@ void JSONTransport::JSONTransportImpl::sendInitializeResult(std::optional<lsp::I
     tokenTypes.SetArray();
     tokenTypes.PushBack(rapidjson::Value("empty"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("interpret"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("string"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("literal"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("primitive"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("plus"), document.GetAllocator());

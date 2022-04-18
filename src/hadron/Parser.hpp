@@ -17,40 +17,41 @@ class Lexer;
 namespace parse {
 
 enum NodeType {
-    kEmpty = 0, // Represents a valid parse of an empty input buffer.
-    kVarDef = 1,
-    kVarList = 2,
-    kArgList = 3,
-    kMethod = 4,
-    kClassExt = 5,
-    kClass = 6,
-    kReturn = 7,
-    kList = 8,
-    kDictionary = 9,
-    kBlock = 10,
-    kLiteral = 11,
-    kName = 12,
-    kExprSeq = 13,
-    kAssign = 14,
-    kSetter = 15,
-    kKeyValue = 16,
-    kCall = 17,
-    kBinopCall = 18,
-    kPerformList = 19,
-    kNumericSeries = 20,
-    kCurryArgument = 21,
-    kArrayRead = 22,
-    kArrayWrite = 23,
-    kCopySeries = 24,
-    kNew = 25,
-    kSeries = 26,
-    kSeriesIter = 27,
-    kLiteralList = 28,
-    kLiteralDict = 29,
-    kMultiAssignVars = 30,
-    kMultiAssign = 31,
-    kIf = 32,
-    kWhile = 33
+    kEmpty, // Represents a valid parse of an empty input buffer.
+    kVarDef,
+    kVarList,
+    kArgList,
+    kMethod,
+    kClassExt,
+    kClass,
+    kReturn,
+    kList,  // kArray - an array of elements without classname, e.g. [1, 2, 3], always makes an array
+    kDictionary,  // kEvent - a keyword/value pair in parens makes an event e.g. (a: 4, b: 5) always makes an Event
+    kBlock,
+    kLiteral, // want kBlock, kString and kSymbol too, to handle the special cases of escaping/auto concatenation - kSlot?
+    kString,
+    kName,
+    kExprSeq,
+    kAssign,
+    kSetter,
+    kKeyValue,
+    kCall,
+    kBinopCall,
+    kPerformList,
+    kNumericSeries,
+    kCurryArgument,
+    kArrayRead,
+    kArrayWrite,
+    kCopySeries,
+    kNew,
+    kSeries,
+    kSeriesIter,
+    kLiteralList,  // kNewFrom - class can be specified at runtime, elements are expected to be appended in order
+    kLiteralDict,  // kNewEvent - in LSC the parser accepts exprseq : exprseq associations for DynDict, and literals only for kDictionary. Do we care? CONCLUSION: There's one kEvent, but there are two parses for it - one that accepts only literals and is treated as a literal (LitDictNode), and the other where anything colon-separated goes, (DynDictNode)
+    kMultiAssignVars,
+    kMultiAssign,
+    kIf,
+    kWhile
 };
 
 struct Node {
@@ -322,6 +323,12 @@ struct LiteralDictNode : public Node {
     virtual ~LiteralDictNode() = default;
 
     std::unique_ptr<Node> elements;
+};
+
+// StringNode->next may point at additional StringNodes that should be concatenated to this one when lowering to AST.
+struct StringNode : public Node {
+    StringNode(size_t index): Node(NodeType::kString, index) {}
+    virtual ~StringNode() = default;
 };
 
 struct MultiAssignVarsNode : public Node {

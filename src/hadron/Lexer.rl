@@ -37,7 +37,7 @@
         ###################
         # Double-quoted string. Increments counter on escape characters for length computation.
         '"' (('\\' any %counter) | (extend - '"'))* '"' {
-            m_tokens.emplace_back(Token::makeStringLiteral(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
+            m_tokens.emplace_back(Token::makeString(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
                     counter > 0));
             counter = 0;
         };

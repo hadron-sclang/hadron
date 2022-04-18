@@ -15,11 +15,8 @@ enum LiteralType {
     kFloat,
     kBoolean,
     kChar,
-    kString,
-    kSymbol,
-    kObject,
-    kArray,
-    kBlock,
+    kBlock, // to go separete
+    kSymbol // to go separate for copies
 };
 
 // Lexer lexes source to produce Tokens, Parser consumes Tokens to produce Parse Tree.
@@ -37,49 +34,51 @@ struct Token {
                         // other ways to resolve this ambiguity but they will likely require some changes to the
                         // grammar.
         kLiteral = 2,
-        kPrimitive = 3,
+        kString = 3,    // Strings are lexed differently from other literals to allow support for concatenating literal
+                        // strings at compile time, e.g. "line1" "line2" "line3" should end up as one string in the AST.
+        kPrimitive = 4,
 
         // <<< all below could also be binops >>>
-        kPlus = 4,         // so named because it could be an addition or a class extension
-        kMinus = 5,        // Could be unary negation so handled separately
-        kAsterisk = 6,     // so named because it could be a multiply or a class method
-        kAssign = 7,
-        kLessThan = 8,
-        kGreaterThan = 9,
-        kPipe = 10,
-        kReadWriteVar = 11,
-        kLeftArrow = 12,
-        kBinop = 13,  // TODO: rename kGenericBinop, this is some arbitrary collection of the valid binop characters.
-        kKeyword = 14,      // Any identifier with a colon after it.
+        kPlus = 5,         // so named because it could be an addition or a class extension
+        kMinus = 6,        // Could be unary negation so handled separately
+        kAsterisk = 7,     // so named because it could be a multiply or a class method
+        kAssign = 8,
+        kLessThan = 9,
+        kGreaterThan = 10,
+        kPipe = 11,
+        kReadWriteVar = 12,
+        kLeftArrow = 13,
+        kBinop = 14,  // TODO: rename kGenericBinop, this is some arbitrary collection of the valid binop characters.
+        kKeyword = 15,      // Any identifier with a colon after it.
         // <<< all above could also be binops >>>
 
-        kOpenParen = 15,
-        kCloseParen = 16,
-        kOpenCurly = 17,
-        kCloseCurly = 18,
-        kOpenSquare = 19,
-        kCloseSquare =  20,
-        kComma = 21,
-        kSemicolon = 22,
-        kColon = 23,
-        kCaret = 24,
-        kTilde = 25,
-        kHash = 26,
-        kGrave = 27,
-        kVar = 28,
-        kArg = 29,
-        kConst = 30,
-        kClassVar = 31,
-        kIdentifier = 32,
-        kClassName = 33,
-        kDot = 34,
-        kDotDot = 35,
-        kEllipses = 36,
-        kCurryArgument = 37,
+        kOpenParen = 16,
+        kCloseParen = 17,
+        kOpenCurly = 18,
+        kCloseCurly = 19,
+        kOpenSquare = 20,
+        kCloseSquare = 21,
+        kComma = 22,
+        kSemicolon = 23,
+        kColon = 24,
+        kCaret = 25,
+        kTilde = 26,
+        kHash = 27,
+        kGrave = 28,
+        kVar = 29,
+        kArg = 30,
+        kConst = 31,
+        kClassVar = 32,
+        kIdentifier = 33,
+        kClassName = 34,
+        kDot = 35,
+        kDotDot = 36,
+        kEllipses = 37,
+        kCurryArgument = 38,
 
         // Control Flow
-        kIf = 38,
-        kWhile = 39
+        kIf = 39,
+        kWhile = 40
     };
 
     Name name;
@@ -107,8 +106,8 @@ struct Token {
         return Token(kLiteral, r, Slot::makeFloat(f), LiteralType::kFloat, false, 0, false, loc);
     }
     // Note we don't copy strings or symbols into SC-side String or Symbol objects for now
-    static inline Token makeStringLiteral(std::string_view r, Location loc, bool escape) {
-        return Token(kLiteral, r, Slot::makeNil(), LiteralType::kString, false, 0, escape, loc);
+    static inline Token makeString(std::string_view r, Location loc, bool escape) {
+        return Token(kString, r, Slot::makeNil(), LiteralType::kNone, false, 0, escape, loc);
     }
     static inline Token makeSymbolLiteral(std::string_view r, Location loc, bool escape) {
         return Token(kLiteral, r, Slot::makeNil(), LiteralType::kSymbol, false, 0, escape, loc);

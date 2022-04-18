@@ -174,15 +174,20 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         }
 
         Slot value = literal->value;
-        if (literal->type == LiteralType::kString) {
+/*        if (literal->type == LiteralType::kString) {
             value = library::String::fromView(context, lexer->tokens()[literal->tokenIndex].range).slot();
-        } else if (literal->type == LiteralType::kSymbol) {
+        } else */ if (literal->type == LiteralType::kSymbol) {
             value = library::Symbol::fromView(context, lexer->tokens()[literal->tokenIndex].range).slot();
         } else {
             // The only pointer-based constants allowed are Strings and Symbols.
             assert(!value.isPointer());
         }
         return std::make_unique<ast::ConstantAST>(value);
+    }
+
+    case parse::NodeType::kString: {
+        const auto string = reinterpret_cast<const parse::StringNode*>(node);
+        if ()
     }
 
     case parse::NodeType::kName: {
