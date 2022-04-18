@@ -230,8 +230,9 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
                     lexer->tokens()[varDef->tokenIndex].range));
             if (varDef->initialValue) {
                 ASTBuilder builder(m_errorReporter);
-                auto literal = builder.buildLiteral(context, lexer, varDef->initialValue.get());
-                if (!m_errorReporter->ok()) { return false; }
+                Slot literal = Slot::makeNil();
+                auto wasLiteral = builder.buildLiteral(context, lexer, varDef->initialValue.get(), literal);
+                assert(wasLiteral);
                 valueArray = valueArray.add(context, literal);
             } else {
                 valueArray = valueArray.add(context, Slot::makeNil());

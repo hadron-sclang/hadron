@@ -18,6 +18,7 @@ public:
     void preloadSymbols(ThreadContext* context);
 
     Hash addSymbol(ThreadContext* context, std::string_view v);
+    Hash addSymbol(library::String s);
 
     // Returns true if the hash exists in the symbolMap.
     bool isDefined(Hash h) const { return m_symbolMap.find(h) != m_symbolMap.end(); }
@@ -31,6 +32,8 @@ public:
     inline library::Symbol atSymbol() const { return m_at; }
     // 'copySeries'
     inline library::Symbol copySeriesSymbol() const { return m_copySeries; }
+    // 'Event'
+    inline library::Symbol eventSymbol() const { return m_Event; }
     // 'functionCompileContext'
     inline library::Symbol functionCompileContextSymbol() const { return m_functionCompileContext; }
     // 'Interpreter'
@@ -64,6 +67,7 @@ private:
     library::Symbol m_Array;
     library::Symbol m_at;
     library::Symbol m_copySeries;
+    library::Symbol m_Event;
     library::Symbol m_functionCompileContext;
     library::Symbol m_Interpreter;
     library::Symbol m_isNil;

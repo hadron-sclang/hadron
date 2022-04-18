@@ -15,7 +15,7 @@
 %token <size_t> LITERAL FLOAT INTEGER PRIMITIVE PLUS MINUS ASTERISK ASSIGN LESSTHAN GREATERTHAN PIPE READWRITEVAR
 %token <size_t> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA
 %token <size_t> SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT ELLIPSES
-%token <size_t> CURRYARGUMENT IF WHILE STRING
+%token <size_t> CURRYARGUMENT IF WHILE STRING SYMBOL
 // Include Hashes in the token when meaningful.
 %token <std::pair<size_t, hadron::Hash>> BINOP KEYWORD IDENTIFIER CLASSNAME
 
@@ -30,7 +30,6 @@
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist litdictslotdef litdictslotlist1
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> litdictslotlist
 %type <std::unique_ptr<hadron::parse::LiteralDictNode>> dictlit2
-// %type <std::unique_ptr<hadron::parse::LiteralNode>> coreliteral
 %type <std::unique_ptr<hadron::parse::LiteralListNode>> listlit listlit2
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
 %type <std::unique_ptr<hadron::parse::MultiAssignVarsNode>> mavars
@@ -102,12 +101,11 @@ std::ostream& operator<<(std::ostream& o, const hadron::Token::Location& loc) {
 // provided ExprSeq as the inner sequence. Used in the 'if' grammar to accept raw expressions in the true and false
 // clauses, in keeping with their roots as message arguments.
 std::unique_ptr<hadron::parse::BlockNode> wrapInnerBlock(std::unique_ptr<hadron::parse::ExprSeqNode>&& exprSeq) {
-    if (exprSeq->expr && exprSeq->expr->nodeType == hadron::parse::kLiteral) {
-        auto literal = reinterpret_cast<hadron::parse::LiteralNode*>(exprSeq->expr.get());
-        if (literal->type == hadron::LiteralType::kBlock) {
-            return std::move(literal->blockLiteral);
-        }
+    if (exprSeq->expr && exprSeq->expr->nodeType == hadron::parse::kBlock) {
+        auto block = reinterpret_cast<hadron::parse::BlockNode*>(exprSeq->expr.get());
+        return block->moveTo();
     }
+
     auto block = std::make_unique<hadron::parse::BlockNode>(exprSeq->tokenIndex);
     block->body = std::move(exprSeq);
     return block;
@@ -538,20 +536,18 @@ arrayelems  : %empty { $arrayelems = nullptr; }
 arrayelems1[target] : exprseq { $target = std::move($exprseq); }
                     | exprseq[build] COLON exprseq[next] { $target = append(std::move($build), std::move($next)); }
                     | KEYWORD exprseq {
-                            auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD.first,
-                                hadron::LiteralType::kSymbol, hadron::Slot::makeNil());
+                            auto symbol = std::make_unique<hadron::parse::SymbolNode>($KEYWORD.first);
                             auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first,
-                                std::move(literal));
+                                    std::move(symbol));
                             $target = append(std::move(exprSeq), std::move($exprseq));
                         }
                     | arrayelems1[build] COMMA exprseq {
                             $target = append(std::move($build), std::move($exprseq));
                         }
                     | arrayelems1[build] COMMA KEYWORD exprseq {
-                            auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD.first,
-                                hadron::LiteralType::kSymbol, hadron::Slot::makeNil());
+                            auto symbol = std::make_unique<hadron::parse::SymbolNode>($KEYWORD.first);
                             auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first,
-                                    std::move(literal));
+                                    std::move(symbol));
                             auto affixes = append(std::move(exprSeq), std::move($exprseq));
                             $target = append(std::move($build), std::move(affixes));
                         }
@@ -577,16 +573,16 @@ expr1[target]   : literal { $target = std::move($literal); }
                         $target = std::move(name);
                     }
                 | OPENSQUARE arrayelems CLOSESQUARE {
-                        auto list = std::make_unique<hadron::parse::ListNode>($OPENSQUARE);
-                        list->elements = std::move($arrayelems);
-                        $target = std::move(list);
+                        auto array = std::make_unique<hadron::parse::ArrayNode>($OPENSQUARE);
+                        array->elements = std::move($arrayelems);
+                        $target = std::move(array);
                     }
                 | OPENPAREN valrange2 CLOSEPAREN { $target = std::move($valrange2); }
                 | OPENPAREN COLON valrange3 CLOSEPAREN { $target = std::move($valrange3); }
                 | OPENPAREN dictslotlist CLOSEPAREN {
-                        auto dict = std::make_unique<hadron::parse::DictionaryNode>($OPENPAREN);
-                        dict->elements = std::move($dictslotlist);
-                        $target = std::move(dict);
+                        auto event = std::make_unique<hadron::parse::EventNode>($OPENPAREN);
+                        event->elements = std::move($dictslotlist);
+                        $target = std::move(event);
                     }
                 | expr1[build] OPENSQUARE arglist1 CLOSESQUARE {
                         auto arrayNode = std::make_unique<hadron::parse::ArrayReadNode>($OPENSQUARE);
@@ -860,9 +856,8 @@ vardef  : IDENTIFIER { $vardef = std::make_unique<hadron::parse::VarDefNode>($ID
 
 dictslotdef  : exprseq[build] COLON exprseq[next] { $dictslotdef = append(std::move($build), std::move($next)); }
              | KEYWORD exprseq {
-                    auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD.first,
-                        hadron::LiteralType::kSymbol, hadron::Slot::makeNil());
-                    auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first, std::move(literal));
+                    auto symbol = std::make_unique<hadron::parse::SymbolNode>($KEYWORD.first);
+                    auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first, std::move(symbol));
                     $dictslotdef = append(std::move(exprSeq), std::move($exprseq));
                 }
              ;
@@ -1025,26 +1020,20 @@ literal : coreliteral { $literal = std::move($coreliteral); }
         ;
 
 coreliteral : LITERAL {
-                $coreliteral = std::make_unique<hadron::parse::LiteralNode>($LITERAL,
-                    hadronParser->token($LITERAL).literalType, hadronParser->token($LITERAL).value);
+                    $coreliteral = std::make_unique<hadron::parse::SlotNode>($LITERAL,
+                            hadronParser->token($LITERAL).value);
                 }
             | integer {
-                    $coreliteral = std::make_unique<hadron::parse::LiteralNode>($integer.first,
-                            hadron::LiteralType::kInteger, hadron::Slot::makeInt32($integer.second));
+                    $coreliteral = std::make_unique<hadron::parse::SlotNode>($integer.first,
+                            hadron::Slot::makeInt32($integer.second));
                 }
             | float {
-                    $coreliteral = std::make_unique<hadron::parse::LiteralNode>($float.first,
-                            hadron::LiteralType::kFloat, hadron::Slot::makeFloat($float.second));
+                    $coreliteral = std::make_unique<hadron::parse::SlotNode>($float.first,
+                            hadron::Slot::makeFloat($float.second));
                 }
-            | block {
-                    auto literal = std::make_unique<hadron::parse::LiteralNode>($block->tokenIndex,
-                            hadron::LiteralType::kBlock, hadron::Slot::makeNil());
-                    literal->blockLiteral = std::move($block);
-                    $coreliteral = std::move(literal);
-                }
-            | stringlist {
-                    $coreliteral = std::move($stringlist);
-                }
+            | block { $coreliteral = std::move($block); }
+            | stringlist { $coreliteral = std::move($stringlist); }
+            | SYMBOL { $coreliteral = std::make_unique<hadron::parse::SymbolNode>($SYMBOL); }
             ;
 
 integer : INTEGER { $integer = std::make_pair($INTEGER, hadronParser->token($INTEGER).value.getInt32()); }
@@ -1103,15 +1092,18 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
 
     case hadron::Token::Name::kLiteral:
         // We special-case integers and floats to support unary negation.
-        if (token.literalType == hadron::LiteralType::kInteger) {
+        if (token.value.isInt32()) {
             return yy::parser::make_INTEGER(index, token.location);
-        } else if (token.literalType == hadron::LiteralType::kFloat) {
+        } else if (token.value.isFloat()) {
             return  yy::parser::make_FLOAT(index, token.location);
         }
         return yy::parser::make_LITERAL(index, token.location);
 
     case hadron::Token::Name::kString:
         return yy::parser::make_STRING(index, token.location);
+
+    case hadron::Token::Name::kSymbol:
+        return yy::parser::make_SYMBOL(index, token.location);
 
     case hadron::Token::Name::kPrimitive:
         return yy::parser::make_PRIMITIVE(index, token.location);
@@ -1296,7 +1288,7 @@ bool Parser::innerParse() {
 
     // Valid parse of empty input buffer, which we represent with an empty node.
     if (!m_root) {
-        m_root = std::make_unique<hadron::parse::Node>(hadron::parse::NodeType::kEmpty, 0);
+        m_root = std::make_unique<hadron::parse::EmptyNode>();
     }
 
     return m_errorReporter->errorCount() == 0;

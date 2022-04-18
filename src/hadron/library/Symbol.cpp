@@ -15,6 +15,11 @@ Symbol Symbol::fromView(ThreadContext* context, std::string_view v) {
     return Symbol(context->symbolTable->addSymbol(context, v));
 }
 
+// static
+Symbol Symbol::fromString(ThreadContext* context, library::String s) {
+    return Symbol(context->symbolTable->addSymbol(s));
+}
+
 std::string_view Symbol::view(ThreadContext* context) const {
     return context->symbolTable->getString(*this).view();
 }

@@ -39,8 +39,9 @@ public:
     std::unique_ptr<ast::BlockAST> buildBlock(ThreadContext* context, const Lexer* lexer,
             const parse::BlockNode* blockNode);
 
-    // Node can be a LiteralNode, SymbolNode, or one or more StringNodes. Sets errors in errorReporter if parsing error.
-    Slot buildLiteral(ThreadContext* context, const Lexer* lexer, const parse::Node* node);
+    // Node can be a SlotNode, SymbolNode, or one or more StringNodes. Sets value in |literal| and returns true
+    // if node was a useful literal, otherwise sets |literal| to nil and returns false.
+    bool buildLiteral(ThreadContext* context, const Lexer* lexer, const parse::Node* node, Slot& literal);
 
 private:
     void appendToSequence(ThreadContext* context, const Lexer* lexer, ast::SequenceAST* sequence,

@@ -5,7 +5,7 @@
     action returnBlock { fret; }
 
     action marker { marker = p; }
-    action counter { ++counter; }
+    action hasEscape { hasEscapeChars = true; }
     action eof_ok { return true; }
     action newline { m_lineEndings.emplace(p - m_code.data()); }
 
@@ -35,25 +35,25 @@
         ###################
         # string literals #
         ###################
-        # Double-quoted string. Increments counter on escape characters for length computation.
-        '"' (('\\' any %counter) | (extend - '"'))* '"' {
+        # Double-quoted string.
+        '"' (('\\' any %hasEscape) | (extend - '"'))* '"' {
             m_tokens.emplace_back(Token::makeString(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
-                    counter > 0));
-            counter = 0;
+                    hasEscapeChars));
+            hasEscapeChars = false;
         };
 
         ###########
         # symbols #
         ###########
-        # Single-quoted symbol. Increments counter on escape characters for length computation.
-        '\'' (('\\' any %counter) | (extend - '\''))* '\'' {
-            m_tokens.emplace_back(Token::makeSymbolLiteral(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
-                    counter > 0));
-            counter = 0;
+        # Single-quoted symbol.
+        '\'' (('\\' any %hasEscape) | (extend - '\''))* '\'' {
+            m_tokens.emplace_back(Token::makeSymbol(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
+                    hasEscapeChars));
+            hasEscapeChars = false;
         };
         # Slash symbols.
         '\\' [a-zA-Z0-9_]* {
-            m_tokens.emplace_back(Token::makeSymbolLiteral(std::string_view(ts + 1, te - ts - 1), getLocation(ts + 1),
+            m_tokens.emplace_back(Token::makeSymbol(std::string_view(ts + 1, te - ts - 1), getLocation(ts + 1),
                     false));
         };
 
@@ -323,8 +323,8 @@ bool Lexer::lex() {
 
     // Some parses need a mid-token marker (like hex numbers) so we declare it here.
     const char* marker = nullptr;
-    // Some parses need a counter (like string and symbol).
-    int counter = 0;
+    // A flag for string and symbol parsing for if they have escape symbols (so can't be blitted).
+    bool hasEscapeChars = false;
 
     %% write init;
 

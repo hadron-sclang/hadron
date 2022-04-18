@@ -6,6 +6,7 @@ void SymbolTable::preloadSymbols(ThreadContext* context) {
     m_Array = library::Symbol::fromView(context, "Array");
     m_at = library::Symbol::fromView(context, "at");
     m_copySeries = library::Symbol::fromView(context, "copySeries");
+    m_Event = library::Symbol::fromView(context, "Event");
     m_functionCompileContext = library::Symbol::fromView(context, "functionCompileContext");
     m_Interpreter = library::Symbol::fromView(context, "Interpreter");
     m_isNil = library::Symbol::fromView(context, "isNil");
@@ -29,6 +30,17 @@ Hash SymbolTable::addSymbol(ThreadContext* context, std::string_view v) {
     } else {
         // TODO: when this assert fails we have a hash collision and will need to design accordingly.
         assert(mapIter->second.compare(v));
+    }
+    return h;
+}
+
+Hash SymbolTable::addSymbol(library::String s) {
+    Hash h = hash(s.view());
+    auto mapIter = m_symbolMap.find(h);
+    if (mapIter == m_symbolMap.end()) {
+        m_symbolMap.emplace(std::make_pair(h, s));
+    } else {
+        assert(mapIter->second.compare(s));
     }
     return h;
 }

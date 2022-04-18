@@ -12,6 +12,8 @@ struct ThreadContext;
 
 namespace library {
 
+class String;
+
 // Rather than wrapping a pointer, a Symbol is a wrapper around a Hash of a String. The difference between Hash and
 // Symbol is that we try to take care that a Symbol must always exist in the SymbolTable, and we provide some debug
 // consistency checks that enforce that.
@@ -27,10 +29,12 @@ public:
 
     // Creates a new symbol from the string_view |v|, if not already defined.
     static Symbol fromView(ThreadContext* context, std::string_view v);
+    // Creates a new symbol from an already existing String, avoiding the copy.
+    static Symbol fromString(ThreadContext* context, library::String s);
 
-    bool isNil() const { return m_slot.isNil(); }
-    Hash hash() const { return m_slot.getHash(); }
-    Slot slot() const { return m_slot; }
+    inline bool isNil() const { return m_slot.isNil(); }
+    inline Hash hash() const { return m_slot.getHash(); }
+    inline Slot slot() const { return m_slot; }
     std::string_view view(ThreadContext* context) const;
 
     bool isClassName(ThreadContext* context) const;

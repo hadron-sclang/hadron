@@ -230,6 +230,7 @@ add_library(hadron STATIC
     library/SequenceableCollection.hpp
     library/Stream.hpp
     library/String.hpp
+    library/String.cpp
     library/Symbol.cpp
     library/Symbol.hpp
     library/Thread.hpp
