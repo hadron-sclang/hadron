@@ -714,6 +714,10 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(hadron::ThreadContext*
         path.pop_back();
     } break;
 
+    case hadron::parse::NodeType::kString: {
+        jsonNode.AddMember("nodeType", rapidjson::Value("String"), document.GetAllocator());
+    } break;
+
     case hadron::parse::NodeType::kName: {
         const auto name = reinterpret_cast<const hadron::parse::NameNode*>(node);
         jsonNode.AddMember("nodeType", rapidjson::Value("Name"), document.GetAllocator());

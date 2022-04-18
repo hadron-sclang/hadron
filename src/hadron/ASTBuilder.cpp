@@ -174,9 +174,7 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         }
 
         Slot value = literal->value;
-/*        if (literal->type == LiteralType::kString) {
-            value = library::String::fromView(context, lexer->tokens()[literal->tokenIndex].range).slot();
-        } else */ if (literal->type == LiteralType::kSymbol) {
+        if (literal->type == LiteralType::kSymbol) {
             value = library::Symbol::fromView(context, lexer->tokens()[literal->tokenIndex].range).slot();
         } else {
             // The only pointer-based constants allowed are Strings and Symbols.
@@ -186,8 +184,30 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     }
 
     case parse::NodeType::kString: {
-        const auto string = reinterpret_cast<const parse::StringNode*>(node);
-        if ()
+        const auto stringNode = reinterpret_cast<const parse::StringNode*>(node);
+        const auto& token = lexer->tokens()[stringNode->tokenIndex];
+
+        // Compute total length of string, to avoid recopies during concatenation.
+        int32_t totalLength = token.range.size();
+        const parse::Node* nextNode = stringNode->next.get();
+        while (nextNode) {
+            assert(nextNode->nodeType == parse::NodeType::kString);
+            totalLength += lexer->tokens()[nextNode->tokenIndex].range.size();
+            nextNode = nextNode->next.get();
+        }
+
+        // Build the string from the individual components.
+        auto string = library::String::arrayAlloc(context, totalLength);
+        string = string.appendView(context, token.range, token.escapeString);
+
+        nextNode = stringNode->next.get();
+        while (nextNode) {
+            const auto& nextToken = lexer->tokens()[nextNode->tokenIndex];
+            string = string.appendView(context, nextToken.range, nextToken.escapeString);
+            nextNode = nextNode->next.get();
+        }
+
+        return std::make_unique<ast::ConstantAST>(string.slot());
     }
 
     case parse::NodeType::kName: {
