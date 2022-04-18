@@ -42,7 +42,7 @@ struct LIR {
     virtual ~LIR() = default;
 
     Opcode opcode;
-    VReg value; 
+    VReg value;
     TypeFlags typeFlags;
     std::unordered_set<VReg> reads;
 
