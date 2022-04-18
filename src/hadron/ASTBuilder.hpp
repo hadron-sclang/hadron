@@ -2,6 +2,7 @@
 #define SRC_HADRON_AST_BUILDER_HPP_
 
 #include "hadron/AST.hpp"
+#include "hadron/Slot.hpp"
 
 #include <memory>
 
@@ -37,6 +38,9 @@ public:
     // We only build AST from Blocks, leaving the higher-level language constructs (like Classes) behind.
     std::unique_ptr<ast::BlockAST> buildBlock(ThreadContext* context, const Lexer* lexer,
             const parse::BlockNode* blockNode);
+
+    // Node can be a LiteralNode, SymbolNode, or one or more StringNodes. Sets errors in errorReporter if parsing error.
+    Slot buildLiteral(ThreadContext* context, const Lexer* lexer, const parse::Node* node);
 
 private:
     void appendToSequence(ThreadContext* context, const Lexer* lexer, ast::SequenceAST* sequence,

@@ -229,12 +229,10 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
             nameArray = nameArray.add(context, library::Symbol::fromView(context,
                     lexer->tokens()[varDef->tokenIndex].range));
             if (varDef->initialValue) {
-                if (varDef->initialValue->nodeType != parse::NodeType::kLiteral) {
-                    SPDLOG_ERROR("non-literal initial value in class.");
-                    assert(false);
-                }
-                auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
-                valueArray = valueArray.add(context, literal->value);
+                ASTBuilder builder(m_errorReporter);
+                auto literal = builder.buildLiteral(context, lexer, varDef->initialValue.get());
+                if (!m_errorReporter->ok()) { return false; }
+                valueArray = valueArray.add(context, literal);
             } else {
                 valueArray = valueArray.add(context, Slot::makeNil());
             }

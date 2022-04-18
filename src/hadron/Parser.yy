@@ -603,19 +603,27 @@ valrangex1  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE {
                     auto copySeries = std::make_unique<hadron::parse::CopySeriesNode>($OPENSQUARE);
                     copySeries->target = std::move($expr1);
                     copySeries->first = std::move($arglist1);
+                    if (copySeries->first->next) {
+                        copySeries->second = std::move(copySeries->first->next);
+                        copySeries->first->next = nullptr;
+                    }
                     $valrangex1 = std::move(copySeries);
                 }
-            | expr1 OPENSQUARE DOTDOT exprseq CLOSESQUARE {
+            | expr1 OPENSQUARE DOTDOT exprseq[last] CLOSESQUARE {
                     auto copySeries = std::make_unique<hadron::parse::CopySeriesNode>($OPENSQUARE);
                     copySeries->target = std::move($expr1);
-                    copySeries->last = std::move($exprseq);
+                    copySeries->last = std::move($last);
                     $valrangex1 = std::move(copySeries);
                 }
-            | expr1 OPENSQUARE arglist1 DOTDOT exprseq CLOSESQUARE {
+            | expr1 OPENSQUARE arglist1 DOTDOT exprseq[last] CLOSESQUARE {
                     auto copySeries = std::make_unique<hadron::parse::CopySeriesNode>($OPENSQUARE);
                     copySeries->target = std::move($expr1);
                     copySeries->first = std::move($arglist1);
-                    copySeries->last = std::move($exprseq);
+                    if (copySeries->first->next) {
+                        copySeries->second = std::move(copySeries->first->next);
+                        copySeries->first->next = nullptr;
+                    }
+                    copySeries->last = std::move($last);
                     $valrangex1 = std::move(copySeries);
                 }
             ;

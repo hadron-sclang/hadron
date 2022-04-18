@@ -29,6 +29,8 @@ public:
     inline library::Symbol arraySymbol() const { return m_Array; }
     // 'at'
     inline library::Symbol atSymbol() const { return m_at; }
+    // 'copySeries'
+    inline library::Symbol copySeriesSymbol() const { return m_copySeries; }
     // 'functionCompileContext'
     inline library::Symbol functionCompileContextSymbol() const { return m_functionCompileContext; }
     // 'Interpreter'
@@ -61,6 +63,7 @@ private:
 
     library::Symbol m_Array;
     library::Symbol m_at;
+    library::Symbol m_copySeries;
     library::Symbol m_functionCompileContext;
     library::Symbol m_Interpreter;
     library::Symbol m_isNil;

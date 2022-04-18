@@ -93,6 +93,55 @@ std::unique_ptr<ast::BlockAST> ASTBuilder::buildBlock(ThreadContext* context, co
     return blockAST;
 }
 
+Slot ASTBuilder::buildLiteral(ThreadContext* context, const Lexer* lexer, const parse::Node* node) {
+    switch(node->nodeType) {
+    case parse::NodeType::kLiteral: {
+        const auto literal = reinterpret_cast<const parse::LiteralNode*>(node);
+        assert(!literal->blockLiteral);
+
+        Slot value = literal->value;
+        if (literal->type == LiteralType::kSymbol) {
+            value = library::Symbol::fromView(context, lexer->tokens()[literal->tokenIndex].range).slot();
+        } else {
+            // The only pointer-based constants allowed are Strings and Symbols.
+            assert(!value.isPointer());
+        }
+        return value;
+    }
+
+    case parse::NodeType::kString: {
+        const auto stringNode = reinterpret_cast<const parse::StringNode*>(node);
+        const auto& token = lexer->tokens()[stringNode->tokenIndex];
+
+        // Compute total length of string, to avoid recopies during concatenation.
+        int32_t totalLength = token.range.size();
+        const parse::Node* nextNode = stringNode->next.get();
+        while (nextNode) {
+            assert(nextNode->nodeType == parse::NodeType::kString);
+            totalLength += lexer->tokens()[nextNode->tokenIndex].range.size();
+            nextNode = nextNode->next.get();
+        }
+
+        // Build the string from the individual components.
+        auto string = library::String::arrayAlloc(context, totalLength);
+        string = string.appendView(context, token.range, token.escapeString);
+
+        nextNode = stringNode->next.get();
+        while (nextNode) {
+            const auto& nextToken = lexer->tokens()[nextNode->tokenIndex];
+            string = string.appendView(context, nextToken.range, nextToken.escapeString);
+            nextNode = nextNode->next.get();
+        }
+
+        return string.slot();
+    }
+
+    default:
+        assert(false);
+        return Slot::makeNil();
+    }
+}
+
 void ASTBuilder::appendToSequence(ThreadContext* context, const Lexer* lexer, ast::SequenceAST* sequenceAST,
         const parse::Node* node) {
     while (node != nullptr) {
@@ -173,41 +222,13 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
             return buildBlock(context, lexer, literal->blockLiteral.get());
         }
 
-        Slot value = literal->value;
-        if (literal->type == LiteralType::kSymbol) {
-            value = library::Symbol::fromView(context, lexer->tokens()[literal->tokenIndex].range).slot();
-        } else {
-            // The only pointer-based constants allowed are Strings and Symbols.
-            assert(!value.isPointer());
-        }
+        Slot value = buildLiteral(context, lexer, node);
         return std::make_unique<ast::ConstantAST>(value);
     }
 
     case parse::NodeType::kString: {
-        const auto stringNode = reinterpret_cast<const parse::StringNode*>(node);
-        const auto& token = lexer->tokens()[stringNode->tokenIndex];
-
-        // Compute total length of string, to avoid recopies during concatenation.
-        int32_t totalLength = token.range.size();
-        const parse::Node* nextNode = stringNode->next.get();
-        while (nextNode) {
-            assert(nextNode->nodeType == parse::NodeType::kString);
-            totalLength += lexer->tokens()[nextNode->tokenIndex].range.size();
-            nextNode = nextNode->next.get();
-        }
-
-        // Build the string from the individual components.
-        auto string = library::String::arrayAlloc(context, totalLength);
-        string = string.appendView(context, token.range, token.escapeString);
-
-        nextNode = stringNode->next.get();
-        while (nextNode) {
-            const auto& nextToken = lexer->tokens()[nextNode->tokenIndex];
-            string = string.appendView(context, nextToken.range, nextToken.escapeString);
-            nextNode = nextNode->next.get();
-        }
-
-        return std::make_unique<ast::ConstantAST>(string.slot());
+        auto string = buildLiteral(context, lexer, node);
+        return std::make_unique<ast::ConstantAST>(string);
     }
 
     case parse::NodeType::kName: {
@@ -292,7 +313,7 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         appendToSequence(context, lexer, message->arguments.get(), readNode->targetArray.get());
         appendToSequence(context, lexer, message->arguments.get(), readNode->indexArgument.get());
         return message;
-    } break;
+    }
 
     case parse::NodeType::kArrayWrite: {
         const auto writeNode = reinterpret_cast<const parse::ArrayWriteNode*>(node);
@@ -302,11 +323,24 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         appendToSequence(context, lexer, message->arguments.get(), writeNode->indexArgument.get());
         appendToSequence(context, lexer, message->arguments.get(), writeNode->value.get());
         return message;
-    } break;
+    }
 
     case parse::NodeType::kCopySeries: {
-        assert(false); // TODO
-    } break;
+        const auto copySeriesNode = reinterpret_cast<const parse::CopySeriesNode*>(node);
+        auto message = std::make_unique<ast::MessageAST>();
+        message->selector = context->symbolTable->copySeriesSymbol();
+        appendToSequence(context, lexer, message->arguments.get(), copySeriesNode->target.get());
+        appendToSequence(context, lexer, message->arguments.get(), copySeriesNode->first.get());
+        // Provide second argument if present, otherwise default to nil.
+        if (copySeriesNode->second) {
+            appendToSequence(context, lexer, message->arguments.get(), copySeriesNode->second.get());
+        } else {
+            message->arguments->sequence.emplace_back(std::make_unique<ast::ConstantAST>(Slot::makeNil()));
+        }
+
+        appendToSequence(context, lexer, message->arguments.get(), copySeriesNode->last.get());
+        return message;
+    }
 
     case parse::NodeType::kNew: {
         const auto newNode = reinterpret_cast<const parse::NewNode*>(node);
@@ -316,7 +350,7 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         appendToSequence(context, lexer, message->arguments.get(), newNode->arguments.get());
         appendToSequence(context, lexer, message->keywordArguments.get(), newNode->keywordArguments.get());
         return message;
-    } break;
+    }
 
     case parse::NodeType::kSeries: {
         assert(false); // TODO

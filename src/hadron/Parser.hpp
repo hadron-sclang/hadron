@@ -17,40 +17,40 @@ class Lexer;
 namespace parse {
 
 enum NodeType {
-    kEmpty, // Represents a valid parse of an empty input buffer.
-    kVarDef,
-    kVarList,
     kArgList,
-    kMethod,
-    kClassExt,
-    kClass,
-    kReturn,
-    kList,  // kArray - an array of elements without classname, e.g. [1, 2, 3], always makes an array
-    kDictionary,  // kEvent - a keyword/value pair in parens makes an event e.g. (a: 4, b: 5) always makes an Event
-    kBlock,
-    kLiteral, // want kBlock, kString and kSymbol too, to handle the special cases of escaping/auto concatenation - kSlot?
-    kString,
-    kName,
-    kExprSeq,
-    kAssign,
-    kSetter,
-    kKeyValue,
-    kCall,
-    kBinopCall,
-    kPerformList,
-    kNumericSeries,
-    kCurryArgument,
     kArrayRead,
     kArrayWrite,
+    kAssign,
+    kBinopCall,
+    kBlock,
+    kCall,
+    kClass,
+    kClassExt,
     kCopySeries,
+    kCurryArgument,
+    kDictionary,  // kEvent - a keyword/value pair in parens makes an event e.g. (a: 4, b: 5) always makes an Event
+    kEmpty, // Represents a valid parse of an empty input buffer.
+    kExprSeq,
+    kIf,
+    kKeyValue,
+    kList,  // kArray - an array of elements without classname, e.g. [1, 2, 3], always makes an array
+    kLiteral, // want kBlock, kString and kSymbol too, to handle the special cases of escaping/auto concatenation - kSlot?
+    kLiteralDict,  // kNewEvent - in LSC the parser accepts exprseq : exprseq associations for DynDict, and literals only for kDictionary. Do we care? CONCLUSION: There's one kEvent, but there are two parses for it - one that accepts only literals and is treated as a literal (LitDictNode), and the other where anything colon-separated goes, (DynDictNode)
+    kLiteralList,  // kNewFrom - class can be specified at runtime, elements are expected to be appended in order
+    kMethod,
+    kMultiAssign,
+    kMultiAssignVars,
+    kName,
     kNew,
+    kNumericSeries,
+    kPerformList,
+    kReturn,
     kSeries,
     kSeriesIter,
-    kLiteralList,  // kNewFrom - class can be specified at runtime, elements are expected to be appended in order
-    kLiteralDict,  // kNewEvent - in LSC the parser accepts exprseq : exprseq associations for DynDict, and literals only for kDictionary. Do we care? CONCLUSION: There's one kEvent, but there are two parses for it - one that accepts only literals and is treated as a literal (LitDictNode), and the other where anything colon-separated goes, (DynDictNode)
-    kMultiAssignVars,
-    kMultiAssign,
-    kIf,
+    kSetter,
+    kString,
+    kVarDef,
+    kVarList,
     kWhile
 };
 
@@ -278,6 +278,7 @@ struct CopySeriesNode : public Node {
 
     std::unique_ptr<Node> target;
     std::unique_ptr<ExprSeqNode> first;
+    std::unique_ptr<Node> second;
     std::unique_ptr<ExprSeqNode> last;
 };
 

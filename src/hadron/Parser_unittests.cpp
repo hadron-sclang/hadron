@@ -3100,9 +3100,9 @@ TEST_CASE("Parser valrangex1") {
         const parse::LiteralNode* literal = reinterpret_cast<const parse::LiteralNode*>(copySeries->first->expr.get());
         CHECK(literal->type == LiteralType::kInteger);
         CHECK(literal->value == Slot::makeInt32(3));
-        REQUIRE(copySeries->first->next);
-        REQUIRE(copySeries->first->next->nodeType == parse::NodeType::kExprSeq);
-        const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(copySeries->first->next.get());
+        REQUIRE(copySeries->second);
+        REQUIRE(copySeries->second->nodeType == parse::NodeType::kExprSeq);
+        const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(copySeries->second.get());
         REQUIRE(exprSeq->expr);
         REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kLiteral);
         literal = reinterpret_cast<const parse::LiteralNode*>(exprSeq->expr.get());
