@@ -26,6 +26,8 @@ public:
     // String can be nil if hash not found.
     library::String getString(const library::Symbol s);
 
+    // 'add'
+    inline library::Symbol addSymbol() const { return m_add; }
     // 'Array'
     inline library::Symbol arraySymbol() const { return m_Array; }
     // 'at'
@@ -64,6 +66,7 @@ public:
 private:
     std::unordered_map<Hash, library::String> m_symbolMap;
 
+    library::Symbol m_add;
     library::Symbol m_Array;
     library::Symbol m_at;
     library::Symbol m_copySeries;

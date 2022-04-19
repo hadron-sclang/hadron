@@ -34,8 +34,8 @@ enum NodeType {
     kExprSeq,
     kIf,
     kKeyValue,
-    kLiteralDict,  // kNewEvent - in LSC the parser accepts exprseq : exprseq associations for DynDict, and literals only for kDictionary. Do we care? CONCLUSION: There's one kEvent, but there are two parses for it - one that accepts only literals and is treated as a literal (LitDictNode), and the other where anything colon-separated goes, (DynDictNode)
-    kLiteralList,  // kNewFrom - class can be specified at runtime, elements are expected to be appended in order
+    kLiteralDict, // TODO: possibly merge with kEvent?
+    kLiteralList, // TODO: possibly merge with kArray?
     kMethod,
     kMultiAssign,
     kMultiAssignVars,

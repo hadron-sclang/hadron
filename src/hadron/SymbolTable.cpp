@@ -3,6 +3,7 @@
 namespace hadron {
 
 void SymbolTable::preloadSymbols(ThreadContext* context) {
+    m_add = library::Symbol::fromView(context, "add");
     m_Array = library::Symbol::fromView(context, "Array");
     m_at = library::Symbol::fromView(context, "at");
     m_copySeries = library::Symbol::fromView(context, "copySeries");
