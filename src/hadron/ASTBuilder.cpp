@@ -209,20 +209,18 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     // New events must first be created, then each pair added with a call to newEvent.put()
     case parse::NodeType::kEvent: {
         const auto eventNode = reinterpret_cast<const parse::EventNode*>(node);
-        auto sequence = std::make_unique<ast::SequenceAST>();
 
-        auto message = std::make_unique<ast::MessageAST>();
-        message->selector = context->symbolTable->newSymbol();
-        message->arguments->sequence.emplace_back(std::make_unique<ast::NameAST>(context->symbolTable->eventSymbol()));
-        sequence->sequence.emplace_back(std::move(message));
+        auto rootAST = std::make_unique<ast::MessageAST>();
+        rootAST->selector = context->symbolTable->newSymbol();
+        rootAST->arguments->sequence.emplace_back(std::make_unique<ast::NameAST>(context->symbolTable->eventSymbol()));
 
         const parse::Node* elements = eventNode->elements.get();
         while (elements) {
             auto putMessage = std::make_unique<ast::MessageAST>();
             putMessage->selector = context->symbolTable->putSymbol();
 
-#error what node represents the target of this message, and how can we capture the temporary value again?
-#error we could build a tree
+            // First argument is the target, which is the Event returned by the last put() or new() call.
+            putMessage->arguments->sequence.emplace_back(std::move(rootAST));
 
             assert(elements->nodeType == parse::NodeType::kExprSeq);
             auto key = transformSequence(context, lexer, reinterpret_cast<const parse::ExprSeqNode*>(elements));
@@ -237,10 +235,11 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
             assert(value);
             putMessage->arguments->sequence.emplace_back(std::move(value));
 
-            sequence->sequence.emplace_back(std::move(putMessage));
+            rootAST = std::move(putMessage);
             elements = elements->next.get();
         }
-        return sequence;
+
+        return rootAST;
     }
 
     case parse::NodeType::kBlock: {
@@ -390,32 +389,34 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     // Transform into className.new() followed by add() messages for each element.
     case parse::NodeType::kLiteralList: {
         const auto listNode = reinterpret_cast<const parse::LiteralListNode*>(node);
-        auto sequence = std::make_unique<ast::SequenceAST>();
 
-        auto message = std::make_unique<ast::MessageAST>();
-        message->selector = context->symbolTable->newSymbol();
+        auto rootAST = std::make_unique<ast::MessageAST>();
+        rootAST->selector = context->symbolTable->newSymbol();
 
         // Provide `Array` as the default class name if one was not provided.
         if (listNode->className) {
-            message->arguments->sequence.emplace_back(transform(context, lexer, listNode->className.get()));
+            rootAST->arguments->sequence.emplace_back(transform(context, lexer, listNode->className.get()));
         } else {
-            message->arguments->sequence.emplace_back(std::make_unique<ast::NameAST>(
+            rootAST->arguments->sequence.emplace_back(std::make_unique<ast::NameAST>(
                     context->symbolTable->arraySymbol()));
         }
-        sequence->sequence.emplace_back(std::move(message));
 
         const parse::Node* elementNode = listNode->elements.get();
         while (elementNode) {
             auto addMessage = std::make_unique<ast::MessageAST>();
             addMessage->selector = context->symbolTable->addSymbol();
-#error target?
+            // Target is the object returned by the last call to the new() or add() message.
+            addMessage->arguments->sequence.emplace_back(std::move(rootAST));
+
             auto element = transform(context, lexer, elementNode);
             assert(element);
             addMessage->arguments->sequence.emplace_back(std::move(element));
-            sequence->sequence.emplace_back(std::move(addMessage));
+
+            rootAST = std::move(addMessage);
             elementNode = elementNode->next.get();
         }
-        return sequence;
+
+        return rootAST;
     } break;
 
     case parse::NodeType::kLiteralDict: {
@@ -428,6 +429,10 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
 
     case parse::NodeType::kMultiAssign: {
         assert(false); // TODO
+        // multiAssignNode->value needs to be evaluated, then with the results of that
+        // get assigned to the individual elements of name with result[i]
+        // lastly if there's vars->rest it gets the rest of the stuff as an array
+
     } break;
 
     case parse::NodeType::kIf: {
