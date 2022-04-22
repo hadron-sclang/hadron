@@ -209,6 +209,36 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
         currentBlock->append(std::make_unique<hir::StoreReturnHIR>(nodeValue));
         currentBlock->append(std::make_unique<hir::MethodReturnHIR>());
     } break;
+
+    case ast::ASTType::kMultiAssign: {
+        const auto multiAssignAST = reinterpret_cast<const ast::MultiAssignAST*>(ast);
+        // Final value of multiAssign statements is the array-like type returned by the expression.
+        nodeValue = buildValue(context, method, currentBlock, multiAssignAST->arrayValue.get());
+        assert(nodeValue != hir::kInvalidID);
+
+        // Each assignment is now translated into a name = nodeValue.at(i) message call.
+        int32_t assignIndex = 0;
+        for (const auto& name : multiAssignAST->targetNames) {
+            auto message = std::make_unique<hir::MessageHIR>();
+
+            if (multiAssignAST->lastIsRemain &&
+                    assignIndex == (static_cast<int32_t>(multiAssignAST->targetNames.size()) - 1)) {
+                message->selector = context->symbolTable->copySeriesSymbol();
+            } else {
+                message->selector = context->symbolTable->atSymbol();
+            }
+
+            message->arguments.emplace_back(nodeValue);
+
+            auto indexValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(assignIndex)));
+            message->arguments.emplace_back(indexValue);
+            ++assignIndex;
+
+            auto messageValue = currentBlock->append(std::move(message));
+            auto assign = findName(context, name->name, currentBlock, messageValue);
+            assert(assign);
+        }
+    } break;
     }
 
     assert(nodeValue != hir::kInvalidID);

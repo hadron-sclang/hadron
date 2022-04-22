@@ -34,8 +34,8 @@ enum NodeType {
     kExprSeq,
     kIf,
     kKeyValue,
-    kLiteralDict, // TODO: possibly merge with kEvent?
-    kLiteralList, // TODO: possibly merge with kArray?
+    kLiteralDict, // kNewEvent - these are calls and allow curry args, created at runtime
+    kLiteralList, // kNewCollection
     kMethod,
     kMultiAssign,
     kMultiAssignVars,
@@ -70,6 +70,19 @@ struct Node {
 
 protected:
     Node(NodeType type, size_t index): nodeType(type), tokenIndex(index), tail(this) {}
+};
+
+// Any operation with arguments can be converted into a partially applied function with the presence of curried
+// argument nodes. CallBaseNode provides a virtual method to determine if that conversion should happen.
+struct CallBaseNode : public Node {
+    CallBaseNode() = delete;
+    virtual ~CallBaseNode() = default;
+
+    // A nonzero return means this call is only partially applied.
+    virtual int32_t countCurriedArguments() const = 0;
+
+protected:
+    CallBaseNode(NodeType type, size_t index): Node(type, index) {}
 };
 
 struct VarListNode;
@@ -121,9 +134,17 @@ struct AssignNode : public Node {
     std::unique_ptr<Node> value;
 };
 
-struct BinopCallNode : public Node {
-    BinopCallNode(size_t index): Node(NodeType::kBinopCall, index) {}
+struct BinopCallNode : public CallBaseNode {
+    BinopCallNode(size_t index): CallBaseNode(NodeType::kBinopCall, index) {}
     virtual ~BinopCallNode() = default;
+
+    int32_t countCurriedArguments() const override {
+        int32_t count = 0;
+        if (leftHand->nodeType == NodeType::kCurryArgument) { ++count; }
+        if (rightHand->nodeType == NodeType::kCurryArgument) { ++count; }
+        if (adverb && adverb->nodeType == NodeType::kCurryArgument) { ++count; }
+        return count;
+    }
 
     std::unique_ptr<Node> leftHand;
     std::unique_ptr<Node> rightHand;
@@ -158,9 +179,19 @@ struct BlockNode : public Node {
 struct KeyValueNode;
 
 // target.selector(arguments, keyword: arguments)
-struct CallNode : public Node {
-    CallNode(std::pair<size_t, Hash> sel): Node(NodeType::kCall, sel.first), selector(sel.second) {}
+struct CallNode : public CallBaseNode {
+    CallNode(std::pair<size_t, Hash> sel): CallBaseNode(NodeType::kCall, sel.first), selector(sel.second) {}
     virtual ~CallNode() = default;
+
+    int32_t countCurriedArguments() const override {
+        int32_t count = 0;
+        const Node* arg = arguments.get();
+        while (arg) {
+            if (arg->nodeType == NodeType::kCurryArgument) { ++count; }
+            arg = arg->next.get();
+        }
+        return count;
+    }
 
     Hash selector; // TODO: not useful, deprecate
     std::unique_ptr<Node> target;
@@ -244,17 +275,37 @@ struct KeyValueNode : public Node {
     std::unique_ptr<Node> value;
 };
 
-struct LiteralListNode : public Node {
-    LiteralListNode(size_t index): Node(NodeType::kLiteralList, index) {}
+struct LiteralListNode : public CallBaseNode {
+    LiteralListNode(size_t index): CallBaseNode(NodeType::kLiteralList, index) {}
     virtual ~LiteralListNode() = default;
+
+    int32_t countCurriedArguments() const override {
+        int32_t count = 0;
+        const Node* element = elements.get();
+        while (element) {
+            if (element->nodeType == NodeType::kCurryArgument) { ++count; }
+            element = element->next.get();
+        }
+        return count;
+    }
 
     std::unique_ptr<NameNode> className;
     std::unique_ptr<Node> elements;
 };
 
-struct LiteralDictNode : public Node {
-    LiteralDictNode(size_t index): Node(NodeType::kLiteralDict, index) {}
+struct LiteralDictNode : public CallBaseNode {
+    LiteralDictNode(size_t index): CallBaseNode(NodeType::kLiteralDict, index) {}
     virtual ~LiteralDictNode() = default;
+
+    int32_t countCurriedArguments() const override {
+        int32_t count = 0;
+        const Node* element = elements.get();
+        while (element) {
+            if (element->nodeType == NodeType::kCurryArgument) { ++count; }
+            element = element->next.get();
+        }
+        return count;
+    }
 
     std::unique_ptr<Node> elements;
 };
@@ -351,9 +402,16 @@ struct SeriesIterNode : public Node {
 };
 
 // target.selector = value, token should point at selector
-struct SetterNode : public Node {
-    SetterNode(size_t index): Node(NodeType::kSetter, index) {}
+struct SetterNode : public CallBaseNode {
+    SetterNode(size_t index): CallBaseNode(NodeType::kSetter, index) {}
     virtual ~SetterNode() = default;
+
+    int32_t countCurriedArguments() const override {
+        int32_t count = 0;
+        if (target->nodeType == NodeType::kCurryArgument) { ++count; }
+        if (value->nodeType == NodeType::kCurryArgument) { ++count; }
+        return count;
+    }
 
     // The recipient of the assigned value.
     std::unique_ptr<Node> target;

@@ -1073,6 +1073,10 @@ void JSONTransport::JSONTransportImpl::serializeAST(hadron::ThreadContext* conte
         }
         path.pop_back();
     } break;
+
+    case hadron::ast::ASTType::kMultiAssign: {
+        assert(false); // TODO
+    } break;
     }
 }
 

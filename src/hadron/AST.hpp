@@ -19,6 +19,7 @@ enum ASTType {
     kIf,
     kMessage,
     kMethodReturn,
+    kMultiAssign,
     kName,
     kSequence,
     kWhile
@@ -34,17 +35,17 @@ protected:
     AST(ASTType type): astType(type) {}
 };
 
-struct EmptyAST : public AST {
-    EmptyAST(): AST(kEmpty) {}
-    virtual ~EmptyAST() = default;
+struct NameAST;
+
+struct AssignAST : public AST {
+    AssignAST(): AST(kAssign) {}
+    virtual ~AssignAST() = default;
+
+    std::unique_ptr<NameAST> name;
+    std::unique_ptr<AST> value;
 };
 
-struct SequenceAST : public AST {
-    SequenceAST(): AST(kSequence) {}
-    virtual ~SequenceAST() = default;
-
-    std::list<std::unique_ptr<AST>> sequence;
-};
+struct SequenceAST;
 
 struct BlockAST : public AST {
     BlockAST(): AST(kBlock), hasVarArg(false), statements(std::make_unique<SequenceAST>()) {}
@@ -56,6 +57,26 @@ struct BlockAST : public AST {
     std::unique_ptr<SequenceAST> statements;
 };
 
+struct ConstantAST : public AST {
+    ConstantAST(Slot c): AST(kConstant), constant(c) {}
+    virtual ~ConstantAST() = default;
+
+    Slot constant;
+};
+
+struct DefineAST : public AST {
+    DefineAST(): AST(kDefine) {}
+    virtual ~DefineAST() = default;
+
+    std::unique_ptr<NameAST> name;
+    std::unique_ptr<AST> value;
+};
+
+struct EmptyAST : public AST {
+    EmptyAST(): AST(kEmpty) {}
+    virtual ~EmptyAST() = default;
+};
+
 struct IfAST : public AST {
     IfAST(): AST(kIf), condition(std::make_unique<SequenceAST>()) {}
     virtual ~IfAST() = default;
@@ -63,13 +84,6 @@ struct IfAST : public AST {
     std::unique_ptr<SequenceAST> condition;
     std::unique_ptr<BlockAST> trueBlock;
     std::unique_ptr<BlockAST> falseBlock;
-};
-
-struct WhileAST : public AST {
-    WhileAST(): AST(kWhile) {}
-
-    std::unique_ptr<BlockAST> condition;
-    std::unique_ptr<BlockAST> repeatBlock;
 };
 
 struct MessageAST : public AST {
@@ -83,6 +97,25 @@ struct MessageAST : public AST {
     std::unique_ptr<SequenceAST> keywordArguments;
 };
 
+struct MethodReturnAST : public AST {
+    MethodReturnAST(): AST(kMethodReturn) {}
+    virtual ~MethodReturnAST() = default;
+
+    std::unique_ptr<AST> value;
+};
+
+struct MultiAssignAST : public AST {
+    MultiAssignAST(): AST(kMultiAssign), lastIsRemain(false) {}
+    virtual ~MultiAssignAST() = default;
+
+    // The value that should evaluate to an Array.
+    std::unique_ptr<AST> arrayValue;
+    // The in-order sequence of names or anonymous targets that receive the individual elements of arrayValue.
+    std::list<std::unique_ptr<NameAST>> targetNames;
+    // If true, the last element receives the rest of the array.
+    bool lastIsRemain;
+};
+
 struct NameAST : public AST {
     NameAST(library::Symbol n): AST(kName), name(n) {}
     virtual ~NameAST() = default;
@@ -90,34 +123,18 @@ struct NameAST : public AST {
     library::Symbol name;
 };
 
-struct DefineAST : public AST {
-    DefineAST(): AST(kDefine) {}
-    virtual ~DefineAST() = default;
+struct SequenceAST : public AST {
+    SequenceAST(): AST(kSequence) {}
+    virtual ~SequenceAST() = default;
 
-    std::unique_ptr<NameAST> name;
-    std::unique_ptr<AST> value;
+    std::list<std::unique_ptr<AST>> sequence;
 };
 
-struct AssignAST : public AST {
-    AssignAST(): AST(kAssign) {}
-    virtual ~AssignAST() = default;
+struct WhileAST : public AST {
+    WhileAST(): AST(kWhile) {}
 
-    std::unique_ptr<NameAST> name;
-    std::unique_ptr<AST> value;
-};
-
-struct ConstantAST : public AST {
-    ConstantAST(Slot c): AST(kConstant), constant(c) {}
-    virtual ~ConstantAST() = default;
-
-    Slot constant;
-};
-
-struct MethodReturnAST : public AST {
-    MethodReturnAST(): AST(kMethodReturn) {}
-    virtual ~MethodReturnAST() = default;
-
-    std::unique_ptr<AST> value;
+    std::unique_ptr<BlockAST> condition;
+    std::unique_ptr<BlockAST> repeatBlock;
 };
 
 } // namespace ast

@@ -257,10 +257,8 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     }
 
     case parse::NodeType::kName: {
-        const auto name = reinterpret_cast<const parse::NameNode*>(node);
-        assert(!name->isGlobal); // TODO
-        return std::make_unique<ast::NameAST>(library::Symbol::fromView(context,
-                lexer->tokens()[name->tokenIndex].range));
+        const auto nameNode = reinterpret_cast<const parse::NameNode*>(node);
+        return transformName(context, lexer, nameNode);
     }
 
     case parse::NodeType::kExprSeq: {
@@ -306,6 +304,8 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         message->selector = library::Symbol::fromView(context, lexer->tokens()[call->tokenIndex].range);
         appendToSequence(context, lexer, message->arguments.get(), call->arguments.get());
         appendToSequence(context, lexer, message->keywordArguments.get(), call->keywordArguments.get());
+
+        auto curriedArgs = call->countCurriedArguments();
         return message;
     }
 
@@ -328,7 +328,9 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     } break;
 
     case parse::NodeType::kCurryArgument: {
-        assert(false); // TODO
+//        assert(false); // TODO
+        auto name = std::make_unique<ast::NameAST>(library::Symbol::fromView(context, "CURRY"));
+        return name;
     } break;
 
     case parse::NodeType::kArrayRead: {
@@ -424,15 +426,31 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     } break;
 
     case parse::NodeType::kMultiAssignVars: {
-        assert(false); // TODO
+        // Should not be encountered on its own, but only within a MultiAssignNode.
+        assert(false);
     } break;
 
     case parse::NodeType::kMultiAssign: {
-        assert(false); // TODO
-        // multiAssignNode->value needs to be evaluated, then with the results of that
-        // get assigned to the individual elements of name with result[i]
-        // lastly if there's vars->rest it gets the rest of the stuff as an array
+        const auto multiAssignNode = reinterpret_cast<const parse::MultiAssignNode*>(node);
+        auto multiAssignAST = std::make_unique<ast::MultiAssignAST>();
+        multiAssignAST->arrayValue = transform(context, lexer, multiAssignNode->value.get());
 
+        const parse::NameNode* nameNode = multiAssignNode->targets->names.get();
+        while (nameNode) {
+            multiAssignAST->targetNames.emplace_back(transformName(context, lexer, nameNode));
+            if (nameNode->next) {
+                assert(nameNode->next->nodeType == parse::NodeType::kName);
+            }
+            nameNode = reinterpret_cast<const parse::NameNode*>(nameNode->next.get());
+        }
+
+        if (multiAssignNode->targets->rest) {
+            multiAssignAST->targetNames.emplace_back(transformName(context, lexer,
+                    multiAssignNode->targets->rest.get()));
+            multiAssignAST->lastIsRemain = true;
+        }
+
+        return multiAssignAST;
     } break;
 
     case parse::NodeType::kIf: {
@@ -477,6 +495,13 @@ std::unique_ptr<ast::SequenceAST> ASTBuilder::transformSequence(ThreadContext* c
     if (!exprSeqNode || !exprSeqNode->expr) { return sequenceAST; }
     appendToSequence(context, lexer, sequenceAST.get(), exprSeqNode->expr.get());
     return sequenceAST;
+}
+
+std::unique_ptr<ast::NameAST> ASTBuilder::transformName(ThreadContext* context, const Lexer* lexer,
+        const parse::NameNode* nameNode) {
+        assert(!nameNode->isGlobal); // TODO
+        return std::make_unique<ast::NameAST>(library::Symbol::fromView(context,
+                lexer->tokens()[nameNode->tokenIndex].range));
 }
 
 } // namespace hadron

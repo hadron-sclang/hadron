@@ -14,11 +14,13 @@ struct ThreadContext;
 
 namespace ast {
 struct BlockAST;
+struct NameAST;
 }
 
 namespace parse {
 struct BlockNode;
 struct ExprSeqNode;
+struct NameNode;
 struct Node;
 }
 
@@ -49,6 +51,8 @@ private:
     std::unique_ptr<ast::AST> transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node);
     std::unique_ptr<ast::SequenceAST> transformSequence(ThreadContext* context, const Lexer* lexer,
             const parse::ExprSeqNode* exprSeqNode);
+    std::unique_ptr<ast::NameAST> transformName(ThreadContext* context, const Lexer* lexer,
+                const parse::NameNode* nameNode);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };
