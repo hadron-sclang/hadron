@@ -344,7 +344,11 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         appendToSequence(context, lexer, message->keywordArguments.get(), call->keywordArguments.get());
 
         auto curriedArgs = call->countCurriedArguments();
-        return message;
+        if (curriedArgs == 0) {
+            return message;
+        }
+
+
     }
 
     case parse::NodeType::kPerformList: {
