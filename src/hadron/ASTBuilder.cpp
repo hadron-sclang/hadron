@@ -157,6 +157,64 @@ void ASTBuilder::appendToSequence(ThreadContext* context, const Lexer* lexer, as
 
 std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node) {
     switch(node->nodeType) {
+
+    case parse::NodeType::kArgList:
+        assert(false); // internal error, not a valid node within a block
+        return std::make_unique<ast::EmptyAST>();
+
+    // Transform literal lists into Array.with(elements) call.
+    case parse::NodeType::kArray: {
+        const auto arrayNode = reinterpret_cast<const parse::ArrayNode*>(node);
+        auto message = std::make_unique<ast::MessageAST>();
+        message->selector = context->symbolTable->withSymbol();
+        message->arguments->sequence.emplace_back(std::make_unique<ast::NameAST>(context->symbolTable->arraySymbol()));
+        appendToSequence(context, lexer, message->arguments.get(), arrayNode->elements.get());
+        return message;
+    }
+
+    case parse::NodeType::kArrayRead: {
+        const auto readNode = reinterpret_cast<const parse::ArrayReadNode*>(node);
+        auto message = std::make_unique<ast::MessageAST>();
+        message->selector = context->symbolTable->atSymbol();
+        appendToSequence(context, lexer, message->arguments.get(), readNode->targetArray.get());
+        appendToSequence(context, lexer, message->arguments.get(), readNode->indexArgument.get());
+        return message;
+    }
+
+    case parse::NodeType::kArrayWrite: {
+        const auto writeNode = reinterpret_cast<const parse::ArrayWriteNode*>(node);
+        auto message = std::make_unique<ast::MessageAST>();
+        message->selector = context->symbolTable->putSymbol();
+        appendToSequence(context, lexer, message->arguments.get(), writeNode->targetArray.get());
+        appendToSequence(context, lexer, message->arguments.get(), writeNode->indexArgument.get());
+        appendToSequence(context, lexer, message->arguments.get(), writeNode->value.get());
+        return message;
+    }
+
+    case parse::NodeType::kAssign: {
+        const auto assignNode = reinterpret_cast<const parse::AssignNode*>(node);
+        assert(assignNode->name);
+        auto name = library::Symbol::fromView(context, lexer->tokens()[assignNode->name->tokenIndex].range);
+        auto assign = std::make_unique<ast::AssignAST>();
+        assign->name = std::make_unique<ast::NameAST>(name);
+        assert(assignNode->value);
+        assign->value = transform(context, lexer, assignNode->value.get());
+        return assign;
+    }
+
+    case parse::NodeType::kBinopCall: {
+        const auto binop = reinterpret_cast<const parse::BinopCallNode*>(node);
+        auto message = std::make_unique<ast::MessageAST>();
+        message->selector = library::Symbol::fromView(context, lexer->tokens()[binop->tokenIndex].range);
+        appendToSequence(context, lexer, message->arguments.get(), binop->leftHand.get());
+        appendToSequence(context, lexer, message->arguments.get(), binop->rightHand.get());
+        assert(!binop->adverb); // TODO
+        return message;
+    }
+
+
+
+
     case parse::NodeType::kEmpty:
         return std::make_unique<ast::EmptyAST>();
 
@@ -181,7 +239,6 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         return seq;
     }
 
-    case parse::NodeType::kArgList:
     case parse::NodeType::kMethod:
     case parse::NodeType::kClassExt:
     case parse::NodeType::kClass:
@@ -196,15 +253,6 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         return methodReturn;
     }
 
-    // Transform literal lists into Array.with(elements) call.
-    case parse::NodeType::kArray: {
-        const auto arrayNode = reinterpret_cast<const parse::ArrayNode*>(node);
-        auto message = std::make_unique<ast::MessageAST>();
-        message->selector = context->symbolTable->withSymbol();
-        message->arguments->sequence.emplace_back(std::make_unique<ast::NameAST>(context->symbolTable->arraySymbol()));
-        appendToSequence(context, lexer, message->arguments.get(), arrayNode->elements.get());
-        return message;
-    }
 
     // New events must first be created, then each pair added with a call to newEvent.put()
     case parse::NodeType::kEvent: {
@@ -266,16 +314,6 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         return transformSequence(context, lexer, exprSeq);
     }
 
-    case parse::NodeType::kAssign: {
-        const auto assignNode = reinterpret_cast<const parse::AssignNode*>(node);
-        assert(assignNode->name);
-        auto name = library::Symbol::fromView(context, lexer->tokens()[assignNode->name->tokenIndex].range);
-        auto assign = std::make_unique<ast::AssignAST>();
-        assign->name = std::make_unique<ast::NameAST>(name);
-        assert(assignNode->value);
-        assign->value = transform(context, lexer, assignNode->value.get());
-        return assign;
-    }
 
     // target.selector = value transforms to target.selector_(value)
     case parse::NodeType::kSetter: {
@@ -309,16 +347,6 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         return message;
     }
 
-    case parse::NodeType::kBinopCall: {
-        const auto binop = reinterpret_cast<const parse::BinopCallNode*>(node);
-        auto message = std::make_unique<ast::MessageAST>();
-        message->selector = library::Symbol::fromView(context, lexer->tokens()[binop->tokenIndex].range);
-        appendToSequence(context, lexer, message->arguments.get(), binop->leftHand.get());
-        appendToSequence(context, lexer, message->arguments.get(), binop->rightHand.get());
-        assert(!binop->adverb); // TODO
-        return message;
-    }
-
     case parse::NodeType::kPerformList: {
         assert(false); // TODO
     } break;
@@ -333,24 +361,6 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         return name;
     } break;
 
-    case parse::NodeType::kArrayRead: {
-        const auto readNode = reinterpret_cast<const parse::ArrayReadNode*>(node);
-        auto message = std::make_unique<ast::MessageAST>();
-        message->selector = context->symbolTable->atSymbol();
-        appendToSequence(context, lexer, message->arguments.get(), readNode->targetArray.get());
-        appendToSequence(context, lexer, message->arguments.get(), readNode->indexArgument.get());
-        return message;
-    }
-
-    case parse::NodeType::kArrayWrite: {
-        const auto writeNode = reinterpret_cast<const parse::ArrayWriteNode*>(node);
-        auto message = std::make_unique<ast::MessageAST>();
-        message->selector = context->symbolTable->putSymbol();
-        appendToSequence(context, lexer, message->arguments.get(), writeNode->targetArray.get());
-        appendToSequence(context, lexer, message->arguments.get(), writeNode->indexArgument.get());
-        appendToSequence(context, lexer, message->arguments.get(), writeNode->value.get());
-        return message;
-    }
 
     case parse::NodeType::kCopySeries: {
         const auto copySeriesNode = reinterpret_cast<const parse::CopySeriesNode*>(node);
