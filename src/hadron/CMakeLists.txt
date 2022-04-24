@@ -51,27 +51,6 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     VERBATIM
 )
 
-# predefined symbol hash table
-add_executable(hashkw
-    Hash.cpp
-    Hash.hpp
-    Slot.hpp
-
-    hashkw.cpp
-)
-
-target_link_libraries(hashkw
-    fmt
-    xxHash::xxhash
-)
-
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
-    COMMAND hashkw
-    DEPENDS hashkw
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    VERBATIM
-)
-
 if (APPLE)
     # Default installed Bison is 2.x, we need a newer version from homebrew.
     execute_process(
@@ -99,7 +78,6 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
 configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
 
 set(HADRON_FRONTEND_FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/Keywords.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp"

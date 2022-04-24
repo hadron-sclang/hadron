@@ -1,7 +1,5 @@
 #include "hadron/Hash.hpp"
 
-#include "hadron/Slot.hpp"
-
 #include "xxhash.h"
 
 #include <cassert>

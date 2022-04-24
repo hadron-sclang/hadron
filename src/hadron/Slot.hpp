@@ -1,8 +1,6 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_SLOT_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_SLOT_HPP_
 
-#include "hadron/Hash.hpp"
-
 #include <functional>
 #include <cassert>
 #include <cstddef>
@@ -33,6 +31,8 @@ enum TypeFlags : std::int32_t {
     kRawPointerFlag = 0x80,
     kAllFlags       = 0xff
 };
+
+using Hash = uint64_t;
 
 class Slot {
 public:

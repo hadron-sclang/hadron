@@ -58,7 +58,6 @@
 %{
 #include "hadron/Parser.hpp"
 
-#include "Keywords.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Lexer.hpp"

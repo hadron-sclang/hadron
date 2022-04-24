@@ -23,7 +23,6 @@
 #include "hadron/hir/WriteToClassHIR.hpp"
 #include "hadron/hir/WriteToFrameHIR.hpp"
 #include "hadron/hir/WriteToThisHIR.hpp"
-#include "hadron/Keywords.hpp"
 #include "hadron/LinearFrame.hpp"
 #include "hadron/Scope.hpp"
 #include "hadron/Slot.hpp"
