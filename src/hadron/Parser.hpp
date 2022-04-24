@@ -180,7 +180,7 @@ struct KeyValueNode;
 
 // target.selector(arguments, keyword: arguments)
 struct CallNode : public CallBaseNode {
-    CallNode(std::pair<size_t, Hash> sel): CallBaseNode(NodeType::kCall, sel.first), selector(sel.second) {}
+    CallNode(size_t index, bool implied = false): CallBaseNode(NodeType::kCall, index), selectorImplied(implied) {}
     virtual ~CallNode() = default;
 
     int32_t countCurriedArguments() const override {
@@ -193,7 +193,9 @@ struct CallNode : public CallBaseNode {
         return count;
     }
 
-    Hash selector; // TODO: not useful, deprecate
+    // If false, the token at |tokenIndex| is the selector. If true, the parser didn't find a selector and it is
+    // implied to be 'value'.
+    bool selectorImplied;
     std::unique_ptr<Node> target;
     std::unique_ptr<Node> arguments;
     std::unique_ptr<KeyValueNode> keywordArguments;

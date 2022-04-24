@@ -2150,7 +2150,8 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(block->body->expr);
         REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
-        CHECK(call->selector == hash("bazoolie"));
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("bazoolie"), 0);
         CHECK(call->target == nullptr);
         CHECK(call->keywordArguments == nullptr);
         CHECK(call->next == nullptr);
@@ -2316,7 +2317,8 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(block->body->expr != nullptr);
         REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
-        CHECK(call->selector == hash("ar"));
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("ar"), 0);
         CHECK(call->arguments == nullptr);
 
         REQUIRE(call->target != nullptr);
@@ -2399,7 +2401,8 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(block->body->expr != nullptr);
         REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
-        CHECK(call->selector == hash("new"));
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("new"), 0);
         CHECK(call->arguments == nullptr);
         CHECK(call->keywordArguments == nullptr);
 
@@ -2423,8 +2426,8 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(block->body->expr != nullptr);
         REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
-        CHECK(call->selector == hash("method"));
-
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("method"), 0);
         REQUIRE(call->target != nullptr);
         REQUIRE(call->target->nodeType == parse::NodeType::kName);
         const parse::NameNode* name = reinterpret_cast<const parse::NameNode*>(call->target.get());
@@ -2529,7 +2532,8 @@ TEST_CASE("Parser msgsend") {
         REQUIRE(block->body->expr != nullptr);
         REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
-        CHECK(call->selector == hash("neg"));
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("neg"), 0);
         CHECK(call->arguments == nullptr);
         CHECK(call->keywordArguments == nullptr);
 
@@ -2792,14 +2796,16 @@ TEST_CASE("Parser expr1") {
         REQUIRE(block->body->expr != nullptr);
         REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
         const parse::CallNode* call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
-        CHECK(call->selector == hash("removeAllSuchThat"));
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("removeAllSuchThat"), 0);
         REQUIRE(call->arguments);
         REQUIRE(call->arguments->nodeType == parse::NodeType::kExprSeq);
         const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(call->arguments.get());
         REQUIRE(exprSeq->expr);
         REQUIRE(exprSeq->expr->nodeType == parse::NodeType::kCall);
         call = reinterpret_cast<const parse::CallNode*>(exprSeq->expr.get());
-        CHECK(call->selector == hash("isSpace"));
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("isSpace"), 0);
         REQUIRE(call->target);
         REQUIRE(call->target->nodeType == parse::NodeType::kCurryArgument);
     }
@@ -2838,7 +2844,8 @@ TEST_CASE("Parser expr1") {
         REQUIRE(ret->valueExpr != nullptr);
         REQUIRE(ret->valueExpr->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(ret->valueExpr.get());
-        CHECK(call->selector == hash("not"));
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("not"), 0);
         CHECK(call->arguments == nullptr);
         CHECK(call->keywordArguments == nullptr);
 
@@ -2941,7 +2948,8 @@ TEST_CASE("Parser expr1") {
         REQUIRE(block->body->expr);
         REQUIRE(block->body->expr->nodeType == parse::NodeType::kCall);
         auto call = reinterpret_cast<const parse::CallNode*>(block->body->expr.get());
-        CHECK(call->selector == hash("call"));
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("call"), 0);
         REQUIRE(call->target);
         REQUIRE(call->target->nodeType == parse::NodeType::kEvent);
         auto dict = reinterpret_cast<const parse::EventNode*>(call->target.get());
@@ -3391,7 +3399,8 @@ TEST_CASE("Parser if") {
         REQUIRE(ifNode->condition->expr != nullptr);
         REQUIRE(ifNode->condition->expr->nodeType == parse::NodeType::kCall);
         const parse::CallNode* call = reinterpret_cast<parse::CallNode*>(ifNode->condition->expr.get());
-        CHECK(call->selector == hash("choose"));
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("choose"), 0);
         REQUIRE(call->target != nullptr);
         REQUIRE(call->target->nodeType == parse::NodeType::kArray);
         const auto dynList = reinterpret_cast<const parse::ArrayNode*>(call->target.get());
@@ -3416,19 +3425,22 @@ TEST_CASE("Parser if") {
         REQUIRE(ifNode->trueBlock->body->expr);
         REQUIRE(ifNode->trueBlock->body->expr->nodeType == parse::NodeType::kCall);
         call = reinterpret_cast<const parse::CallNode*>(ifNode->trueBlock->body->expr.get());
-        CHECK(call->selector == hash("postln"));
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("postln"), 0);
         REQUIRE(call->target);
         REQUIRE(call->target->nodeType == parse::NodeType::kString);
         auto token = parser.lexer()->tokens()[call->target->tokenIndex];
         CHECK(token.range.compare("true") == 0);
         CHECK(literal->next == nullptr);
 
+        // { "false".postln }
         REQUIRE(ifNode->falseBlock);
         REQUIRE(ifNode->falseBlock->body);
         REQUIRE(ifNode->falseBlock->body->expr);
         REQUIRE(ifNode->falseBlock->body->expr->nodeType == parse::NodeType::kCall);
         call = reinterpret_cast<const parse::CallNode*>(ifNode->falseBlock->body->expr.get());
-        CHECK(call->selector == hash("postln"));
+        CHECK(!call->selectorImplied);
+        CHECK_EQ(parser.lexer()->tokens()[call->tokenIndex].range.compare("postln"), 0);
         REQUIRE(call->target);
         REQUIRE(call->target->nodeType == parse::NodeType::kString);
         token = parser.lexer()->tokens()[call->target->tokenIndex];
