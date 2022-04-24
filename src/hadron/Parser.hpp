@@ -275,6 +275,23 @@ struct KeyValueNode : public Node {
     std::unique_ptr<Node> value;
 };
 
+struct LiteralDictNode : public CallBaseNode {
+    LiteralDictNode(size_t index): CallBaseNode(NodeType::kLiteralDict, index) {}
+    virtual ~LiteralDictNode() = default;
+
+    int32_t countCurriedArguments() const override {
+        int32_t count = 0;
+        const Node* element = elements.get();
+        while (element) {
+            if (element->nodeType == NodeType::kCurryArgument) { ++count; }
+            element = element->next.get();
+        }
+        return count;
+    }
+
+    std::unique_ptr<Node> elements;
+};
+
 struct LiteralListNode : public CallBaseNode {
     LiteralListNode(size_t index): CallBaseNode(NodeType::kLiteralList, index) {}
     virtual ~LiteralListNode() = default;
@@ -290,23 +307,6 @@ struct LiteralListNode : public CallBaseNode {
     }
 
     std::unique_ptr<NameNode> className;
-    std::unique_ptr<Node> elements;
-};
-
-struct LiteralDictNode : public CallBaseNode {
-    LiteralDictNode(size_t index): CallBaseNode(NodeType::kLiteralDict, index) {}
-    virtual ~LiteralDictNode() = default;
-
-    int32_t countCurriedArguments() const override {
-        int32_t count = 0;
-        const Node* element = elements.get();
-        while (element) {
-            if (element->nodeType == NodeType::kCurryArgument) { ++count; }
-            element = element->next.get();
-        }
-        return count;
-    }
-
     std::unique_ptr<Node> elements;
 };
 

@@ -46,13 +46,15 @@ public:
     bool buildLiteral(ThreadContext* context, const Lexer* lexer, const parse::Node* node, Slot& literal);
 
 private:
-    void appendToSequence(ThreadContext* context, const Lexer* lexer, ast::SequenceAST* sequence,
-            const parse::Node* node);
-    std::unique_ptr<ast::AST> transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node);
+    int32_t appendToSequence(ThreadContext* context, const Lexer* lexer, ast::SequenceAST* sequence,
+            const parse::Node* node, int32_t startCurryCount = 0);
+    std::unique_ptr<ast::AST> transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node,
+            int32_t curryCounter = 0);
     std::unique_ptr<ast::SequenceAST> transformSequence(ThreadContext* context, const Lexer* lexer,
             const parse::ExprSeqNode* exprSeqNode);
     std::unique_ptr<ast::NameAST> transformName(ThreadContext* context, const Lexer* lexer,
                 const parse::NameNode* nameNode);
+    std::unique_ptr<ast::BlockAST> buildPartialBlock(ThreadContext* context, int32_t numberOfArguments);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };
