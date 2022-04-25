@@ -417,6 +417,21 @@ msgsend : IDENTIFIER blocklist1 {
                 newCall->keywordArguments = std::move($optkeyarglist);
                 $msgsend = std::move(newCall);
             }
+        | expr DOT OPENPAREN CLOSEPAREN blocklist {
+                auto call = std::make_unique<hadron::parse::CallNode>($DOT);
+                call->selectorImplied = true;
+                call->target = std::move($expr);
+                call->arguments = std::move($blocklist);
+                $msgsend = std::move(call);
+            }
+        | expr DOT OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
+                auto call = std::make_unique<hadron::parse::CallNode>($DOT);
+                call->selectorImplied = true;
+                call->target = std::move($expr);
+                call->arguments = std::move($blocklist);
+                call->keywordArguments = std::move($keyarglist1);
+                $msgsend = std::move(call);
+            }
         | expr DOT IDENTIFIER OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
                 call->target = std::move($expr);
@@ -424,8 +439,15 @@ msgsend : IDENTIFIER blocklist1 {
                 call->keywordArguments = std::move($keyarglist1);
                 $msgsend = std::move(call);
             }
-
-//        FIXME
+        | expr DOT OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
+                auto call = std::make_unique<hadron::parse::CallNode>($DOT);
+                call->selectorImplied = true;
+                call->target = std::move($expr);
+                call->arguments = append<std::unique_ptr<hadron::parse::Node>>(std::move($arglist1),
+                        std::move($blocklist));
+                call->keywordArguments = std::move($optkeyarglist);
+                $msgsend = std::move(call);
+            }
         | expr DOT IDENTIFIER OPENPAREN CLOSEPAREN blocklist {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
                 call->target = std::move($expr);
@@ -884,7 +906,7 @@ litdictslotdef  : listliteral[key] ':' listliteral[value] {
                     }
                 | KEYWORD listliteral {
                         auto keyValue = std::make_unique<hadron::parse::KeyValueNode>($KEYWORD);
-                        keyValue->key = std::make_unique<hadron::parse::NameNode>($KEYWORD);
+                        keyValue->key = std::make_unique<hadron::parse::SymbolNode>($KEYWORD);
                         keyValue->value = std::move($listliteral);
                         $litdictslotdef = std::move(keyValue);
                     }
@@ -973,8 +995,7 @@ keyarglist1[target] : keyarg { $target = std::move($keyarg); }
 
 keyarg  : KEYWORD exprseq {
                 auto keyArg = std::make_unique<hadron::parse::KeyValueNode>($KEYWORD);
-                auto name = std::make_unique<hadron::parse::NameNode>($KEYWORD);
-                keyArg->key = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD, std::move(name));
+                keyArg->key = std::make_unique<hadron::parse::SymbolNode>($KEYWORD);
                 keyArg->value = std::move($exprseq);
                 $keyarg = std::move(keyArg);
             }

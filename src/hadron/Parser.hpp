@@ -349,9 +349,19 @@ struct NameNode : public Node {
 };
 
 // Syntax shorthand for a call to the new() method.
-struct NewNode : public Node {
-    NewNode(size_t index): Node(NodeType::kNew, index) {}
+struct NewNode : public CallBaseNode {
+    NewNode(size_t index): CallBaseNode(NodeType::kNew, index) {}
     virtual ~NewNode() = default;
+
+    int32_t countCurriedArguments() const override {
+        int32_t count = 0;
+        const Node* arg = arguments.get();
+        while (arg) {
+            if (arg->nodeType == NodeType::kCurryArgument) { ++count; }
+            arg = arg->next.get();
+        }
+        return count;
+    }
 
     std::unique_ptr<Node> target;
     std::unique_ptr<Node> arguments;

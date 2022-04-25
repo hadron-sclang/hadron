@@ -128,7 +128,7 @@ bool ASTBuilder::buildLiteral(ThreadContext* context, const Lexer* lexer, const 
 
     case parse::NodeType::kSymbol: {
         const auto& token = lexer->tokens()[node->tokenIndex];
-        assert(token.name == Token::Name::kSymbol);
+        assert(token.name == Token::Name::kSymbol || token.name == Token::Name::kKeyword);
         auto string = library::String::arrayAlloc(context, token.range.size());
         string = string.appendView(context, token.range, token.escapeString);
         literal = library::Symbol::fromString(context, string).slot();
@@ -440,9 +440,17 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         auto message = std::make_unique<ast::MessageAST>();
         message->selector = context->symbolTable->newSymbol();
         appendToSequence(context, lexer, message->arguments.get(), newNode->target.get());
-        appendToSequence(context, lexer, message->arguments.get(), newNode->arguments.get());
+        auto curryCount = appendToSequence(context, lexer, message->arguments.get(), newNode->arguments.get());
         appendToSequence(context, lexer, message->keywordArguments.get(), newNode->keywordArguments.get());
-        return message;
+        assert(curryCount == newNode->countCurriedArguments());
+
+        if (curryCount == 0) {
+            return message;
+        }
+
+        auto block = buildPartialBlock(context, curryCount);
+        block->statements->sequence.emplace_back(std::move(message));
+        return block;
     }
 
     case parse::NodeType::kNumericSeries: {
