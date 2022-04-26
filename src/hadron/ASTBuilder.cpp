@@ -8,6 +8,7 @@
 #include "hadron/SymbolTable.hpp"
 
 #include "fmt/format.h"
+#include "spdlog/spdlog.h"
 
 #include <cassert>
 
@@ -128,7 +129,6 @@ bool ASTBuilder::buildLiteral(ThreadContext* context, const Lexer* lexer, const 
 
     case parse::NodeType::kSymbol: {
         const auto& token = lexer->tokens()[node->tokenIndex];
-        assert(token.name == Token::Name::kSymbol || token.name == Token::Name::kKeyword);
         auto string = library::String::arrayAlloc(context, token.range.size());
         string = string.appendView(context, token.range, token.escapeString);
         literal = library::Symbol::fromString(context, string).slot();
@@ -143,12 +143,10 @@ bool ASTBuilder::buildLiteral(ThreadContext* context, const Lexer* lexer, const 
 
 int32_t ASTBuilder::appendToSequence(ThreadContext* context, const Lexer* lexer, ast::SequenceAST* sequenceAST,
         const parse::Node* node, int32_t startCurryCount) {
-    int32_t curryCounter = startCurryCount;
+    int32_t curryCount = startCurryCount;
 
     while (node != nullptr) {
-        auto ast = transform(context, lexer, node, curryCounter);
-
-        if (node->nodeType == parse::NodeType::kCurryArgument) { ++curryCounter; }
+        auto ast = transform(context, lexer, node, curryCount);
 
         if (ast->astType == ast::ASTType::kSequence) {
             auto subSeq = reinterpret_cast<ast::SequenceAST*>(ast.get());
@@ -159,11 +157,11 @@ int32_t ASTBuilder::appendToSequence(ThreadContext* context, const Lexer* lexer,
         node = node->next.get();
     }
 
-    return curryCounter;
+    return curryCount;
 }
 
 std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node,
-        int32_t curryCounter) {
+        int32_t& curryCount) {
     switch(node->nodeType) {
 
     case parse::NodeType::kArgList:
@@ -206,7 +204,7 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         auto assign = std::make_unique<ast::AssignAST>();
         assign->name = std::make_unique<ast::NameAST>(name);
         assert(assignNode->value);
-        assign->value = transform(context, lexer, assignNode->value.get());
+        assign->value = transform(context, lexer, assignNode->value.get(), curryCount);
         return assign;
     }
 
@@ -217,7 +215,6 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         auto curryCount = appendToSequence(context, lexer, message->arguments.get(), binop->leftHand.get());
         curryCount = appendToSequence(context, lexer, message->arguments.get(), binop->rightHand.get(), curryCount);
         assert(!binop->adverb); // TODO
-        assert(curryCount == binop->countCurriedArguments());
 
         if (curryCount == 0) {
             return message;
@@ -235,23 +232,8 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
 
     case parse::NodeType::kCall: {
         const auto call = reinterpret_cast<const parse::CallNode*>(node);
-        auto message = std::make_unique<ast::MessageAST>();
-        appendToSequence(context, lexer, message->arguments.get(), call->target.get());
-        message->selector = library::Symbol::fromView(context, lexer->tokens()[call->tokenIndex].range);
-
-        auto curryCount = appendToSequence(context, lexer, message->arguments.get(), call->arguments.get());
-        assert(curryCount == call->countCurriedArguments());
-
-        appendToSequence(context, lexer, message->keywordArguments.get(), call->keywordArguments.get());
-
-        if (curryCount == 0) {
-            return message;
-        }
-
-        // The presence of curried arguments in the call means this is a partial application, define an inline function.
-        auto block = buildPartialBlock(context, curryCount);
-        block->statements->sequence.emplace_back(std::move(message));
-        return block;
+        return transformCallBase(context, lexer, call, library::Symbol::fromView(context,
+                lexer->tokens()[call->tokenIndex].range));
     }
 
     case parse::NodeType::kClass:
@@ -278,12 +260,36 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     }
 
     case parse::NodeType::kCurryArgument: {
-        auto curryArgName = library::Symbol::fromView(context, fmt::format("_curry{}", curryCounter));
+        auto curryArgName = library::Symbol::fromView(context, fmt::format("_curry{}", curryCount));
+        ++curryCount;
         return std::make_unique<ast::NameAST>(curryArgName);
-    } break;
+    }
 
     case parse::NodeType::kEmpty:
         return std::make_unique<ast::EmptyAST>();
+
+    case parse::NodeType::kEnvironmentAt: {
+        const auto envirAtNode = reinterpret_cast<const parse::EnvironmentAtNode*>(node);
+        auto message = std::make_unique<ast::MessageAST>();
+        message->selector = context->symbolTable->atSymbol();
+        message->arguments->sequence.emplace_back(
+                std::make_unique<ast::NameAST>(context->symbolTable->currentEnvironmentSymbol()));
+        message->arguments->sequence.emplace_back(std::make_unique<ast::ConstantAST>(
+                library::Symbol::fromView(context, lexer->tokens()[envirAtNode->tokenIndex].range).slot()));
+        return message;
+    }
+
+    case parse::NodeType::kEnvironmentPut: {
+        const auto envirPutNode = reinterpret_cast<const parse::EnvironmentPutNode*>(node);
+        auto message = std::make_unique<ast::MessageAST>();
+        message->selector = context->symbolTable->putSymbol();
+        message->arguments->sequence.emplace_back(
+                std::make_unique<ast::NameAST>(context->symbolTable->currentEnvironmentSymbol()));
+        message->arguments->sequence.emplace_back(std::make_unique<ast::ConstantAST>(
+                library::Symbol::fromView(context, lexer->tokens()[envirPutNode->tokenIndex].range).slot()));
+        message->arguments->sequence.emplace_back(transform(context, lexer, envirPutNode->value.get(), curryCount));
+        return message;
+    }
 
     // New events must first be created, then each pair added with a call to newEvent.put()
     case parse::NodeType::kEvent: {
@@ -302,7 +308,8 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
             putMessage->arguments->sequence.emplace_back(std::move(rootAST));
 
             assert(elements->nodeType == parse::NodeType::kExprSeq);
-            auto key = transformSequence(context, lexer, reinterpret_cast<const parse::ExprSeqNode*>(elements));
+            auto key = transformSequence(context, lexer, reinterpret_cast<const parse::ExprSeqNode*>(elements),
+                    curryCount);
             assert(key);
             putMessage->arguments->sequence.emplace_back(std::move(key));
 
@@ -310,7 +317,8 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
             elements = elements->next.get();
             assert(elements);
             assert(elements->nodeType == parse::NodeType::kExprSeq);
-            auto value = transformSequence(context, lexer, reinterpret_cast<const parse::ExprSeqNode*>(elements));
+            auto value = transformSequence(context, lexer, reinterpret_cast<const parse::ExprSeqNode*>(elements),
+                    curryCount);
             assert(value);
             putMessage->arguments->sequence.emplace_back(std::move(value));
 
@@ -323,7 +331,7 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
 
     case parse::NodeType::kExprSeq: {
         const auto exprSeq = reinterpret_cast<const parse::ExprSeqNode*>(node);
-        return transformSequence(context, lexer, exprSeq);
+        return transformSequence(context, lexer, exprSeq, curryCount);
     }
 
     case parse::NodeType::kIf: {
@@ -362,13 +370,13 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
 
         // Provide Array as the default class name if one was not provided.
         if (listNode->className) {
-            rootAST->arguments->sequence.emplace_back(transform(context, lexer, listNode->className.get()));
+            rootAST->arguments->sequence.emplace_back(transform(context, lexer, listNode->className.get(), curryCount));
         } else {
             rootAST->arguments->sequence.emplace_back(std::make_unique<ast::NameAST>(
                     context->symbolTable->arraySymbol()));
         }
 
-        int32_t curryCounter = 0;
+        int32_t subCurryCount = 0;
 
         const parse::Node* elementNode = listNode->elements.get();
         while (elementNode) {
@@ -377,23 +385,19 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
             // Target is the object returned by the last call to the new() or add() message.
             addMessage->arguments->sequence.emplace_back(std::move(rootAST));
 
-            auto element = transform(context, lexer, elementNode, curryCounter);
+            auto element = transform(context, lexer, elementNode, subCurryCount);
             assert(element);
             addMessage->arguments->sequence.emplace_back(std::move(element));
-
-            if (elementNode->nodeType == parse::NodeType::kCurryArgument) { ++curryCounter; }
 
             rootAST = std::move(addMessage);
             elementNode = elementNode->next.get();
         }
 
-        assert(curryCounter == listNode->countCurriedArguments());
-
-        if (curryCounter == 0) {
+        if (subCurryCount == 0) {
             return rootAST;
         }
 
-        auto block = buildPartialBlock(context, curryCounter);
+        auto block = buildPartialBlock(context, subCurryCount);
         block->statements->sequence.emplace_back(std::move(rootAST));
         return block;
     } break;
@@ -405,11 +409,12 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     case parse::NodeType::kMultiAssign: {
         const auto multiAssignNode = reinterpret_cast<const parse::MultiAssignNode*>(node);
         auto multiAssignAST = std::make_unique<ast::MultiAssignAST>();
-        multiAssignAST->arrayValue = transform(context, lexer, multiAssignNode->value.get());
+        multiAssignAST->arrayValue = transform(context, lexer, multiAssignNode->value.get(), curryCount);
 
         const parse::NameNode* nameNode = multiAssignNode->targets->names.get();
         while (nameNode) {
-            multiAssignAST->targetNames.emplace_back(transformName(context, lexer, nameNode));
+            multiAssignAST->targetNames.emplace_back(std::make_unique<ast::NameAST>(library::Symbol::fromView(context,
+                    lexer->tokens()[nameNode->tokenIndex].range)));
             if (nameNode->next) {
                 assert(nameNode->next->nodeType == parse::NodeType::kName);
             }
@@ -417,8 +422,8 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         }
 
         if (multiAssignNode->targets->rest) {
-            multiAssignAST->targetNames.emplace_back(transformName(context, lexer,
-                    multiAssignNode->targets->rest.get()));
+            multiAssignAST->targetNames.emplace_back(std::make_unique<ast::NameAST>(library::Symbol::fromView(context,
+                    lexer->tokens()[multiAssignNode->targets->rest->tokenIndex].range)));
             multiAssignAST->lastIsRemain = true;
         }
 
@@ -432,25 +437,13 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
 
     case parse::NodeType::kName: {
         const auto nameNode = reinterpret_cast<const parse::NameNode*>(node);
-        return transformName(context, lexer, nameNode);
+        return std::make_unique<ast::NameAST>(library::Symbol::fromView(context,
+                lexer->tokens()[nameNode->tokenIndex].range));
     }
 
     case parse::NodeType::kNew: {
         const auto newNode = reinterpret_cast<const parse::NewNode*>(node);
-        auto message = std::make_unique<ast::MessageAST>();
-        message->selector = context->symbolTable->newSymbol();
-        appendToSequence(context, lexer, message->arguments.get(), newNode->target.get());
-        auto curryCount = appendToSequence(context, lexer, message->arguments.get(), newNode->arguments.get());
-        appendToSequence(context, lexer, message->keywordArguments.get(), newNode->keywordArguments.get());
-        assert(curryCount == newNode->countCurriedArguments());
-
-        if (curryCount == 0) {
-            return message;
-        }
-
-        auto block = buildPartialBlock(context, curryCount);
-        block->statements->sequence.emplace_back(std::move(message));
-        return block;
+        return transformCallBase(context, lexer, newNode, context->symbolTable->newSymbol());
     }
 
     case parse::NodeType::kNumericSeries: {
@@ -458,14 +451,15 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     } break;
 
     case parse::NodeType::kPerformList: {
-        assert(false); // TODO
+        const auto performListNode = reinterpret_cast<const parse::PerformListNode*>(node);
+        return transformCallBase(context, lexer, performListNode, context->symbolTable->performListSymbol());
     } break;
 
     case parse::NodeType::kReturn: {
         const auto returnNode = reinterpret_cast<const parse::ReturnNode*>(node);
         assert(returnNode->valueExpr);
         auto methodReturn = std::make_unique<ast::MethodReturnAST>();
-        methodReturn->value = transform(context, lexer, returnNode->valueExpr.get());
+        methodReturn->value = transform(context, lexer, returnNode->valueExpr.get(), curryCount);
         return methodReturn;
     }
 
@@ -481,18 +475,16 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
     case parse::NodeType::kSetter: {
         const auto setter = reinterpret_cast<const parse::SetterNode*>(node);
         auto message = std::make_unique<ast::MessageAST>();
-        auto curryCount = appendToSequence(context, lexer, message->arguments.get(), setter->target.get());
+        auto subCurryCount = appendToSequence(context, lexer, message->arguments.get(), setter->target.get());
         message->selector = library::Symbol::fromView(context,
                 fmt::format("{}_", lexer->tokens()[setter->tokenIndex].range));
-        curryCount = appendToSequence(context, lexer, message->arguments.get(), setter->value.get(), curryCount);
+        subCurryCount = appendToSequence(context, lexer, message->arguments.get(), setter->value.get(), subCurryCount);
 
-        assert(curryCount == setter->countCurriedArguments());
-
-        if (curryCount == 0) {
+        if (subCurryCount == 0) {
             return message;
         }
 
-        auto block = buildPartialBlock(context, curryCount);
+        auto block = buildPartialBlock(context, subCurryCount);
         block->statements->sequence.emplace_back(std::move(message));
         return block;
     }
@@ -506,13 +498,18 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
         return std::make_unique<ast::ConstantAST>(value);
     }
 
+    case parse::NodeType::kValue: {
+        const auto value = reinterpret_cast<const parse::ValueNode*>(node);
+        return transformCallBase(context, lexer, value, context->symbolTable->valueSymbol());
+    }
+
     case parse::NodeType::kVarDef: {
         const auto varDef = reinterpret_cast<const parse::VarDefNode*>(node);
         auto name = library::Symbol::fromView(context, lexer->tokens()[varDef->tokenIndex].range);
         auto defineAST = std::make_unique<ast::DefineAST>();
         defineAST->name = std::make_unique<ast::NameAST>(name);
         if (varDef->initialValue) {
-            defineAST->value = transform(context, lexer, varDef->initialValue.get());
+            defineAST->value = transform(context, lexer, varDef->initialValue.get(), curryCount);
         } else {
             defineAST->value = std::make_unique<ast::ConstantAST>(Slot::makeNil());
         }
@@ -550,22 +547,16 @@ std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Le
 }
 
 std::unique_ptr<ast::SequenceAST> ASTBuilder::transformSequence(ThreadContext* context, const Lexer* lexer,
-        const parse::ExprSeqNode* exprSeqNode) {
+        const parse::ExprSeqNode* exprSeqNode, int32_t& curryCount) {
     auto sequenceAST = std::make_unique<ast::SequenceAST>();
     if (!exprSeqNode || !exprSeqNode->expr) { return sequenceAST; }
-    appendToSequence(context, lexer, sequenceAST.get(), exprSeqNode->expr.get());
+    curryCount = appendToSequence(context, lexer, sequenceAST.get(), exprSeqNode->expr.get(), curryCount);
     return sequenceAST;
-}
-
-std::unique_ptr<ast::NameAST> ASTBuilder::transformName(ThreadContext* context, const Lexer* lexer,
-        const parse::NameNode* nameNode) {
-        assert(!nameNode->isGlobal); // TODO
-        return std::make_unique<ast::NameAST>(library::Symbol::fromView(context,
-                lexer->tokens()[nameNode->tokenIndex].range));
 }
 
 std::unique_ptr<ast::BlockAST> ASTBuilder::buildPartialBlock(ThreadContext* context, int32_t numberOfArguments) {
     auto block = std::make_unique<ast::BlockAST>();
+    assert(numberOfArguments > 0);
 
     for (int32_t i = 0; i < numberOfArguments; ++i) {
         auto curryArgName = library::Symbol::fromView(context, fmt::format("_curry{}", i));
@@ -573,6 +564,26 @@ std::unique_ptr<ast::BlockAST> ASTBuilder::buildPartialBlock(ThreadContext* cont
         block->argumentDefaults = block->argumentDefaults.add(context, Slot::makeNil());
     }
 
+    return block;
+}
+
+std::unique_ptr<ast::AST> ASTBuilder::transformCallBase(ThreadContext* context, const Lexer* lexer,
+        const parse::CallBaseNode* callBaseNode, library::Symbol selector) {
+    auto message = std::make_unique<ast::MessageAST>();
+    appendToSequence(context, lexer, message->arguments.get(), callBaseNode->target.get());
+    message->selector = selector;
+
+    auto curryCount = appendToSequence(context, lexer, message->arguments.get(), callBaseNode->arguments.get());
+
+    appendToSequence(context, lexer, message->keywordArguments.get(), callBaseNode->keywordArguments.get());
+
+    if (curryCount == 0) {
+        return message;
+    }
+
+    // The presence of curried arguments in the call means this is a partial application, define an inline function.
+    auto block = buildPartialBlock(context, curryCount);
+    block->statements->sequence.emplace_back(std::move(message));
     return block;
 }
 

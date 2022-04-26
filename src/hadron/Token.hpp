@@ -64,10 +64,11 @@ struct Token {
         kDotDot = 37,
         kEllipses = 38,
         kCurryArgument = 39,
+        kBeginClosedFunction = 40, // #{
 
         // Control Flow
-        kIf = 40,
-        kWhile = 41
+        kIf = 41,
+        kWhile = 42
     };
 
     Name name;

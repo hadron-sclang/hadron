@@ -30,6 +30,8 @@ enum NodeType {
     kCopySeries,
     kCurryArgument,
     kEmpty,
+    kEnvironmentAt,
+    kEnvironmentPut,
     kEvent,
     kExprSeq,
     kIf,
@@ -50,6 +52,7 @@ enum NodeType {
     kSlot,
     kString,
     kSymbol,
+    kValue,
     kVarDef,
     kVarList,
     kWhile
@@ -72,14 +75,16 @@ protected:
     Node(NodeType type, size_t index): nodeType(type), tokenIndex(index), tail(this) {}
 };
 
-// Any operation with arguments can be converted into a partially applied function with the presence of curried
-// argument nodes. CallBaseNode provides a virtual method to determine if that conversion should happen.
+struct KeyValueNode;
+
+// Several Call-type parse nodes have the same member variables so we aggregate them in a base class.
 struct CallBaseNode : public Node {
     CallBaseNode() = delete;
     virtual ~CallBaseNode() = default;
 
-    // A nonzero return means this call is only partially applied.
-    virtual int32_t countCurriedArguments() const = 0;
+    std::unique_ptr<Node> target;
+    std::unique_ptr<Node> arguments;
+    std::unique_ptr<KeyValueNode> keywordArguments;
 
 protected:
     CallBaseNode(NodeType type, size_t index): Node(type, index) {}
@@ -134,17 +139,9 @@ struct AssignNode : public Node {
     std::unique_ptr<Node> value;
 };
 
-struct BinopCallNode : public CallBaseNode {
-    BinopCallNode(size_t index): CallBaseNode(NodeType::kBinopCall, index) {}
+struct BinopCallNode : public Node {
+    BinopCallNode(size_t index): Node(NodeType::kBinopCall, index) {}
     virtual ~BinopCallNode() = default;
-
-    int32_t countCurriedArguments() const override {
-        int32_t count = 0;
-        if (leftHand->nodeType == NodeType::kCurryArgument) { ++count; }
-        if (rightHand->nodeType == NodeType::kCurryArgument) { ++count; }
-        if (adverb && adverb->nodeType == NodeType::kCurryArgument) { ++count; }
-        return count;
-    }
 
     std::unique_ptr<Node> leftHand;
     std::unique_ptr<Node> rightHand;
@@ -176,29 +173,10 @@ struct BlockNode : public Node {
     std::unique_ptr<ExprSeqNode> body;
 };
 
-struct KeyValueNode;
-
 // target.selector(arguments, keyword: arguments)
 struct CallNode : public CallBaseNode {
-    CallNode(size_t index, bool implied = false): CallBaseNode(NodeType::kCall, index), selectorImplied(implied) {}
+    CallNode(size_t index): CallBaseNode(NodeType::kCall, index) {}
     virtual ~CallNode() = default;
-
-    int32_t countCurriedArguments() const override {
-        int32_t count = 0;
-        const Node* arg = arguments.get();
-        while (arg) {
-            if (arg->nodeType == NodeType::kCurryArgument) { ++count; }
-            arg = arg->next.get();
-        }
-        return count;
-    }
-
-    // If false, the token at |tokenIndex| is the selector. If true, the parser didn't find a selector and it is
-    // implied to be 'value'.
-    bool selectorImplied;
-    std::unique_ptr<Node> target;
-    std::unique_ptr<Node> arguments;
-    std::unique_ptr<KeyValueNode> keywordArguments;
 };
 
 struct MethodNode;
@@ -242,6 +220,18 @@ struct EmptyNode : public Node {
     virtual ~EmptyNode() = default;
 };
 
+struct EnvironmentAtNode : public Node {
+    EnvironmentAtNode(size_t index): Node(NodeType::kEnvironmentAt, index) {}
+    virtual ~EnvironmentAtNode() = default;
+};
+
+struct EnvironmentPutNode : public Node {
+    EnvironmentPutNode(size_t index): Node(NodeType::kEnvironmentPut, index) {}
+    virtual ~EnvironmentPutNode() = default;
+
+    std::unique_ptr<Node> value;
+};
+
   // A keyword/value pair in parens makes an event e.g. (a: 4, b: 5) always makes an Event
 struct EventNode : public Node {
     EventNode(size_t index): Node(NodeType::kEvent, index) {}
@@ -277,36 +267,16 @@ struct KeyValueNode : public Node {
     std::unique_ptr<Node> value;
 };
 
-struct LiteralDictNode : public CallBaseNode {
-    LiteralDictNode(size_t index): CallBaseNode(NodeType::kLiteralDict, index) {}
+struct LiteralDictNode : public Node {
+    LiteralDictNode(size_t index): Node(NodeType::kLiteralDict, index) {}
     virtual ~LiteralDictNode() = default;
-
-    int32_t countCurriedArguments() const override {
-        int32_t count = 0;
-        const Node* element = elements.get();
-        while (element) {
-            if (element->nodeType == NodeType::kCurryArgument) { ++count; }
-            element = element->next.get();
-        }
-        return count;
-    }
 
     std::unique_ptr<Node> elements;
 };
 
-struct LiteralListNode : public CallBaseNode {
-    LiteralListNode(size_t index): CallBaseNode(NodeType::kLiteralList, index) {}
+struct LiteralListNode : public Node {
+    LiteralListNode(size_t index): Node(NodeType::kLiteralList, index) {}
     virtual ~LiteralListNode() = default;
-
-    int32_t countCurriedArguments() const override {
-        int32_t count = 0;
-        const Node* element = elements.get();
-        while (element) {
-            if (element->nodeType == NodeType::kCurryArgument) { ++count; }
-            element = element->next.get();
-        }
-        return count;
-    }
 
     std::unique_ptr<NameNode> className;
     std::unique_ptr<Node> elements;
@@ -344,28 +314,12 @@ struct MultiAssignVarsNode : public Node {
 struct NameNode : public Node {
     NameNode(size_t index): Node(NodeType::kName, index) {}
     virtual ~NameNode() = default;
-
-    bool isGlobal = false;
 };
 
 // Syntax shorthand for a call to the new() method.
 struct NewNode : public CallBaseNode {
     NewNode(size_t index): CallBaseNode(NodeType::kNew, index) {}
     virtual ~NewNode() = default;
-
-    int32_t countCurriedArguments() const override {
-        int32_t count = 0;
-        const Node* arg = arguments.get();
-        while (arg) {
-            if (arg->nodeType == NodeType::kCurryArgument) { ++count; }
-            arg = arg->next.get();
-        }
-        return count;
-    }
-
-    std::unique_ptr<Node> target;
-    std::unique_ptr<Node> arguments;
-    std::unique_ptr<KeyValueNode> keywordArguments;
 };
 
 struct NumericSeriesNode : public Node {
@@ -377,13 +331,9 @@ struct NumericSeriesNode : public Node {
     std::unique_ptr<Node> stop;
 };
 
-struct PerformListNode : public Node {
-    PerformListNode(size_t index): Node(NodeType::kPerformList, index) {}
+struct PerformListNode : public CallBaseNode {
+    PerformListNode(size_t index): CallBaseNode(NodeType::kPerformList, index) {}
     virtual ~PerformListNode() = default;
-
-    std::unique_ptr<Node> target;
-    std::unique_ptr<Node> arguments;
-    std::unique_ptr<KeyValueNode> keywordArguments;
 };
 
 struct ReturnNode : public Node {
@@ -414,16 +364,9 @@ struct SeriesIterNode : public Node {
 };
 
 // target.selector = value, token should point at selector
-struct SetterNode : public CallBaseNode {
-    SetterNode(size_t index): CallBaseNode(NodeType::kSetter, index) {}
+struct SetterNode : public Node {
+    SetterNode(size_t index): Node(NodeType::kSetter, index) {}
     virtual ~SetterNode() = default;
-
-    int32_t countCurriedArguments() const override {
-        int32_t count = 0;
-        if (target->nodeType == NodeType::kCurryArgument) { ++count; }
-        if (value->nodeType == NodeType::kCurryArgument) { ++count; }
-        return count;
-    }
 
     // The recipient of the assigned value.
     std::unique_ptr<Node> target;
@@ -450,6 +393,12 @@ struct StringNode : public Node {
 struct SymbolNode : public Node {
     SymbolNode(size_t index): Node(NodeType::kSymbol, index) {}
     virtual ~SymbolNode() = default;
+};
+
+// Implied evaluation of a function, an implied call to value, like "f.(a, b)"
+struct ValueNode : public CallBaseNode {
+    explicit ValueNode(size_t index): CallBaseNode(NodeType::kValue, index) {}
+    virtual ~ValueNode() = default;
 };
 
 struct VarDefNode : public Node {

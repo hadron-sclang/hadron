@@ -12,13 +12,9 @@ class ErrorReporter;
 class Lexer;
 struct ThreadContext;
 
-namespace ast {
-struct BlockAST;
-struct NameAST;
-}
-
 namespace parse {
 struct BlockNode;
+struct CallBaseNode;
 struct ExprSeqNode;
 struct NameNode;
 struct Node;
@@ -49,12 +45,12 @@ private:
     int32_t appendToSequence(ThreadContext* context, const Lexer* lexer, ast::SequenceAST* sequence,
             const parse::Node* node, int32_t startCurryCount = 0);
     std::unique_ptr<ast::AST> transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node,
-            int32_t curryCounter = 0);
+            int32_t& curryCounter);
     std::unique_ptr<ast::SequenceAST> transformSequence(ThreadContext* context, const Lexer* lexer,
-            const parse::ExprSeqNode* exprSeqNode);
-    std::unique_ptr<ast::NameAST> transformName(ThreadContext* context, const Lexer* lexer,
-                const parse::NameNode* nameNode);
+            const parse::ExprSeqNode* exprSeqNode, int32_t& curryCount);
     std::unique_ptr<ast::BlockAST> buildPartialBlock(ThreadContext* context, int32_t numberOfArguments);
+    std::unique_ptr<ast::AST> transformCallBase(ThreadContext* context, const Lexer* lexer,
+            const parse::CallBaseNode* callBaseNode, library::Symbol selector);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };

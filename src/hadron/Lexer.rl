@@ -153,7 +153,10 @@
         };
         '<-' {
             m_tokens.emplace_back(Token::make(Token::Name::kLeftArrow, std::string_view(ts, 2), getLocation(ts), true));
-            m_tokens.back().location = getLocation(ts);
+        };
+        '#{' {
+            m_tokens.emplace_back(Token::make(Token::Name::kBeginClosedFunction, std::string_view(ts, 2),
+                    getLocation(ts), false));
         };
         (binopChar+ - (('/*' binopChar*) | ('//' binopChar*))) {
             m_tokens.emplace_back(Token::make(Token::Name::kBinop, std::string_view(ts, te - ts), getLocation(ts),

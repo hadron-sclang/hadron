@@ -302,6 +302,7 @@ void JSONTransport::JSONTransportImpl::sendInitializeResult(std::optional<lsp::I
     tokenTypes.PushBack(rapidjson::Value("dotdot"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("ellipses"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("curryArgument"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("beginClosedFunction"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("if"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("while"), document.GetAllocator());
     semanticTokensLegend.AddMember("tokenTypes", tokenTypes, document.GetAllocator());
@@ -721,9 +722,7 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(hadron::ThreadContext*
     } break;
 
     case hadron::parse::NodeType::kName: {
-        const auto name = reinterpret_cast<const hadron::parse::NameNode*>(node);
         jsonNode.AddMember("nodeType", rapidjson::Value("Name"), document.GetAllocator());
-        jsonNode.AddMember("isGlobal", rapidjson::Value(name->isGlobal), document.GetAllocator());
     } break;
 
     case hadron::parse::NodeType::kExprSeq: {
@@ -900,6 +899,12 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(hadron::ThreadContext*
         path.emplace_back(makeToken("falseBlock"));
         serializeParseNode(context, ifNode->falseBlock.get(), document, path, serial);
         path.pop_back();
+    } break;
+
+    case hadron::parse::NodeType::kEnvironmentAt:
+    case hadron::parse::NodeType::kEnvironmentPut:
+    case hadron::parse::NodeType::kValue: {
+        SPDLOG_WARN("Not yet implemented");
     } break;
 
     case hadron::parse::NodeType::kWhile: {

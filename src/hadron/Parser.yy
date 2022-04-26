@@ -15,12 +15,12 @@
 %token <size_t> LITERAL FLOAT INTEGER PRIMITIVE PLUS MINUS ASTERISK ASSIGN LESSTHAN GREATERTHAN PIPE READWRITEVAR
 %token <size_t> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA
 %token <size_t> SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT ELLIPSES
-%token <size_t> CURRYARGUMENT IF WHILE STRING SYMBOL BINOP KEYWORD IDENTIFIER CLASSNAME
+%token <size_t> CURRYARGUMENT IF WHILE STRING SYMBOL BINOP KEYWORD IDENTIFIER CLASSNAME BEGINCLOSEDFUNC
 
 %type <std::unique_ptr<hadron::parse::ArgListNode>> argdecls
 %type <std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode block blocklist1 blocklist optblock
-%type <std::unique_ptr<hadron::parse::ClassExtNode>> classextension classextensions
-%type <std::unique_ptr<hadron::parse::ClassNode>> classdef classes
+%type <std::unique_ptr<hadron::parse::ClassExtNode>> classextension
+%type <std::unique_ptr<hadron::parse::ClassNode>> classdef
 %type <std::unique_ptr<hadron::parse::ExprSeqNode>> dictslotlist1 dictslotdef arrayelems1
 %type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
 %type <std::unique_ptr<hadron::parse::IfNode>> if
@@ -33,7 +33,8 @@
 %type <std::unique_ptr<hadron::parse::MultiAssignVarsNode>> mavars
 %type <std::unique_ptr<hadron::parse::NameNode>> mavarlist
 %type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
-%type <std::unique_ptr<hadron::parse::Node>> literallist1 literal listliteral coreliteral
+%type <std::unique_ptr<hadron::parse::Node>> literallist1 literal listliteral coreliteral classorclassext
+%type <std::unique_ptr<hadron::parse::Node>> classorclassexts
 %type <std::unique_ptr<hadron::parse::ReturnNode>> funretval retval
 %type <std::unique_ptr<hadron::parse::SeriesIterNode>> valrange3
 %type <std::unique_ptr<hadron::parse::SeriesNode>> valrange2
@@ -112,20 +113,19 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser);
 }
 
 %%
-root    : classes { hadronParser->addRoot(std::move($classes)); }
-        | classextensions { hadronParser->addRoot(std::move($classextensions)); }
+root    : classorclassexts { hadronParser->addRoot(std::move($classorclassexts)); }
         | INTERPRET cmdlinecode { hadronParser->addRoot(std::move($cmdlinecode)); }
         ;
 
-classes[target] : %empty { $target = nullptr; }
-                | classes[build] classdef { $target = append(std::move($build), std::move($classdef)); }
-                ;
+classorclassexts[target]    : %empty { $target = nullptr; }
+                            | classorclassexts[build] classorclassext {
+                                    $target = append(std::move($build), std::move($classorclassext));
+                                }
+                            ;
 
-classextensions[target] : classextension { $target = std::move($classextension); }
-                        | classextensions[build] classextension {
-                                $target = append(std::move($build), std::move($classextension));
-                            }
-                        ;
+classorclassext : classdef { $classorclassext = std::move($classdef); }
+                | classextension { $classorclassext = std::move($classextension); }
+                ;
 
 classdef    : CLASSNAME superclass OPENCURLY classvardecls methods CLOSECURLY {
                     auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME);
@@ -418,19 +418,17 @@ msgsend : IDENTIFIER blocklist1 {
                 $msgsend = std::move(newCall);
             }
         | expr DOT OPENPAREN CLOSEPAREN blocklist {
-                auto call = std::make_unique<hadron::parse::CallNode>($DOT);
-                call->selectorImplied = true;
-                call->target = std::move($expr);
-                call->arguments = std::move($blocklist);
-                $msgsend = std::move(call);
+                auto value = std::make_unique<hadron::parse::ValueNode>($DOT);
+                value->target = std::move($expr);
+                value->arguments = std::move($blocklist);
+                $msgsend = std::move(value);
             }
         | expr DOT OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
-                auto call = std::make_unique<hadron::parse::CallNode>($DOT);
-                call->selectorImplied = true;
-                call->target = std::move($expr);
-                call->arguments = std::move($blocklist);
-                call->keywordArguments = std::move($keyarglist1);
-                $msgsend = std::move(call);
+                auto value = std::make_unique<hadron::parse::ValueNode>($DOT);
+                value->target = std::move($expr);
+                value->arguments = std::move($blocklist);
+                value->keywordArguments = std::move($keyarglist1);
+                $msgsend = std::move(value);
             }
         | expr DOT IDENTIFIER OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
@@ -440,13 +438,12 @@ msgsend : IDENTIFIER blocklist1 {
                 $msgsend = std::move(call);
             }
         | expr DOT OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
-                auto call = std::make_unique<hadron::parse::CallNode>($DOT);
-                call->selectorImplied = true;
-                call->target = std::move($expr);
-                call->arguments = append<std::unique_ptr<hadron::parse::Node>>(std::move($arglist1),
+                auto value = std::make_unique<hadron::parse::ValueNode>($DOT);
+                value->target = std::move($expr);
+                value->arguments = append<std::unique_ptr<hadron::parse::Node>>(std::move($arglist1),
                         std::move($blocklist));
-                call->keywordArguments = std::move($optkeyarglist);
-                $msgsend = std::move(call);
+                value->keywordArguments = std::move($optkeyarglist);
+                $msgsend = std::move(value);
             }
         | expr DOT IDENTIFIER OPENPAREN CLOSEPAREN blocklist {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
@@ -587,9 +584,8 @@ expr1[target]   : literal { $target = std::move($literal); }
                         $target = std::move($exprseq);
                     }
                 | TILDE IDENTIFIER {
-                        auto name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER);
-                        name->isGlobal = true;
-                        $target = std::move(name);
+                        auto envirAt = std::make_unique<hadron::parse::EnvironmentAtNode>($IDENTIFIER);
+                        $target = std::move(envirAt);
                     }
                 | OPENSQUARE arrayelems CLOSESQUARE {
                         auto array = std::make_unique<hadron::parse::ArrayNode>($OPENSQUARE);
@@ -725,11 +721,9 @@ expr[target]    : expr1 { $target = std::move($expr1); }
                         $target = std::move(assign);
                     }
                 | TILDE IDENTIFIER ASSIGN expr[build] {
-                        auto assign = std::make_unique<hadron::parse::AssignNode>($ASSIGN);
-                        assign->name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER);
-                        assign->name->isGlobal = true;
-                        assign->value = std::move($build);
-                        $target = std::move(assign);
+                        auto envirPut = std::make_unique<hadron::parse::EnvironmentPutNode>($IDENTIFIER);
+                        envirPut->value = std::move($build);
+                        $target = std::move(envirPut);
                     }
                 | expr[build] DOT IDENTIFIER ASSIGN expr[value] {
                         auto setter = std::make_unique<hadron::parse::SetterNode>($IDENTIFIER);
@@ -765,6 +759,13 @@ block   : OPENCURLY argdecls funcvardecls methbody CLOSECURLY {
                 block->arguments = std::move($argdecls);
                 block->variables = std::move($funcvardecls);
                 block->body = std::move($methbody);
+                $block = std::move(block);
+            }
+        | BEGINCLOSEDFUNC argdecls funcvardecls funcbody CLOSECURLY {
+                auto block = std::make_unique<hadron::parse::BlockNode>($BEGINCLOSEDFUNC);
+                block->arguments = std::move($argdecls);
+                block->variables = std::move($funcvardecls);
+                block->body = std::move($funcbody);
                 $block = std::move(block);
             }
         ;
@@ -1031,6 +1032,8 @@ mavarlist[target]   : IDENTIFIER {
 listliteral : coreliteral { $listliteral = std::move($coreliteral); }
         | listlit2 { $listliteral = std::move($listlit2); }
         | dictlit2 { $listliteral = std::move($dictlit2); }
+        // NOTE: within lists symbols can be specified without \ or '' notation.
+        | IDENTIFIER { $listliteral = std::make_unique<hadron::parse::SymbolNode>($IDENTIFIER); }
         ;
 
 literal : coreliteral { $literal = std::move($coreliteral); }
@@ -1227,6 +1230,9 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
 
     case hadron::Token::Name::kCurryArgument:
         return yy::parser::make_CURRYARGUMENT(index, token.location);
+
+    case hadron::Token::Name::kBeginClosedFunction:
+        return yy::parser::make_BEGINCLOSEDFUNC(index, token.location);
 
     case hadron::Token::Name::kIf:
         return yy::parser::make_IF(index, token.location);
