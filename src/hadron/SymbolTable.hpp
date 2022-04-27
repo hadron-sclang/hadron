@@ -18,6 +18,7 @@ public:
     void preloadSymbols(ThreadContext* context);
 
     Hash addSymbol(ThreadContext* context, std::string_view v);
+    Hash addSymbol(library::String s);
 
     // Returns true if the hash exists in the symbolMap.
     bool isDefined(Hash h) const { return m_symbolMap.find(h) != m_symbolMap.end(); }
@@ -25,10 +26,18 @@ public:
     // String can be nil if hash not found.
     library::String getString(const library::Symbol s);
 
+    // 'add'
+    inline library::Symbol addSymbol() const { return m_add; }
     // 'Array'
     inline library::Symbol arraySymbol() const { return m_Array; }
     // 'at'
     inline library::Symbol atSymbol() const { return m_at; }
+    // 'copySeries'
+    inline library::Symbol copySeriesSymbol() const { return m_copySeries; }
+    // 'currentEnvironment'
+    inline library::Symbol currentEnvironmentSymbol() const { return m_currentEnvironment; }
+    // 'Event'
+    inline library::Symbol eventSymbol() const { return m_Event; }
     // 'functionCompileContext'
     inline library::Symbol functionCompileContextSymbol() const { return m_functionCompileContext; }
     // 'Interpreter'
@@ -37,6 +46,8 @@ public:
     inline library::Symbol isNilSymbol() const { return m_isNil; }
     // 'new'
     inline library::Symbol newSymbol() const { return m_new; }
+    // 'performList'
+    inline library::Symbol performListSymbol() const { return m_performList; }
     // 'put'
     inline library::Symbol putSymbol() const { return m_put; }
     // 'super'
@@ -53,18 +64,25 @@ public:
     inline library::Symbol thisProcessSymbol() const { return m_thisProcess; }
     // 'thisThread'
     inline library::Symbol thisThreadSymbol() const { return m_thisThread; }
+    // 'value'
+    inline library::Symbol valueSymbol() const { return m_value; }
     // 'with'
     inline library::Symbol withSymbol() const { return m_with; }
 
 private:
     std::unordered_map<Hash, library::String> m_symbolMap;
 
+    library::Symbol m_add;
     library::Symbol m_Array;
     library::Symbol m_at;
+    library::Symbol m_copySeries;
+    library::Symbol m_currentEnvironment;
+    library::Symbol m_Event;
     library::Symbol m_functionCompileContext;
     library::Symbol m_Interpreter;
     library::Symbol m_isNil;
     library::Symbol m_new;
+    library::Symbol m_performList;
     library::Symbol m_put;
     library::Symbol m_super;
     library::Symbol m_this;
@@ -73,6 +91,7 @@ private:
     library::Symbol m_thisMethod;
     library::Symbol m_thisProcess;
     library::Symbol m_thisThread;
+    library::Symbol m_value;
     library::Symbol m_with;
 };
 

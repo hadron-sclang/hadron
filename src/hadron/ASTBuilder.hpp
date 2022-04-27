@@ -2,6 +2,7 @@
 #define SRC_HADRON_AST_BUILDER_HPP_
 
 #include "hadron/AST.hpp"
+#include "hadron/Slot.hpp"
 
 #include <memory>
 
@@ -11,13 +12,11 @@ class ErrorReporter;
 class Lexer;
 struct ThreadContext;
 
-namespace ast {
-struct BlockAST;
-}
-
 namespace parse {
 struct BlockNode;
+struct CallBaseNode;
 struct ExprSeqNode;
+struct NameNode;
 struct Node;
 }
 
@@ -38,12 +37,20 @@ public:
     std::unique_ptr<ast::BlockAST> buildBlock(ThreadContext* context, const Lexer* lexer,
             const parse::BlockNode* blockNode);
 
+    // Node can be a SlotNode, SymbolNode, or one or more StringNodes. Sets value in |literal| and returns true
+    // if node was a useful literal, otherwise sets |literal| to nil and returns false.
+    bool buildLiteral(ThreadContext* context, const Lexer* lexer, const parse::Node* node, Slot& literal);
+
 private:
-    void appendToSequence(ThreadContext* context, const Lexer* lexer, ast::SequenceAST* sequence,
-            const parse::Node* node);
-    std::unique_ptr<ast::AST> transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node);
+    int32_t appendToSequence(ThreadContext* context, const Lexer* lexer, ast::SequenceAST* sequence,
+            const parse::Node* node, int32_t startCurryCount = 0);
+    std::unique_ptr<ast::AST> transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node,
+            int32_t& curryCount);
     std::unique_ptr<ast::SequenceAST> transformSequence(ThreadContext* context, const Lexer* lexer,
-            const parse::ExprSeqNode* exprSeqNode);
+            const parse::ExprSeqNode* exprSeqNode, int32_t& curryCount);
+    std::unique_ptr<ast::BlockAST> buildPartialBlock(ThreadContext* context, int32_t numberOfArguments);
+    std::unique_ptr<ast::AST> transformCallBase(ThreadContext* context, const Lexer* lexer,
+            const parse::CallBaseNode* callBaseNode, library::Symbol selector, int32_t& curryCount);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };

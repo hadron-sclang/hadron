@@ -6,7 +6,6 @@
 #include "hadron/library/ArrayedCollection.hpp"
 #include "hadron/schema/Common/Collections/StringSchema.hpp"
 
-#include <cstring>
 #include <string_view>
 
 namespace hadron {
@@ -20,19 +19,18 @@ public:
     ~String() {}
 
     // Copies data into a heap-allocated string object.
-    static String fromView(ThreadContext* context, std::string_view v) {
-        String s = String::arrayAlloc(context, v.size());
-        std::memcpy(s.start(), v.data(), v.size());
-        s.m_instance->schema._sizeInBytes = sizeof(schema::StringSchema) + v.size();
-        return s;
-    }
+    static String fromView(ThreadContext* context, std::string_view v, int32_t additionalSize = 0);
+
+    // Appends the data contained at |v| to this string. If |hasEscape| is true, will process the characters
+    // individually and process any escape characters, otherwise it performs a batch copy.
+    String appendView(ThreadContext* context, std::string_view v, bool hasEscape);
 
     // Returns true if both strings are identical.
-    bool compare(String s) const {
+    inline bool compare(String s) const {
         if (size() != s.size()) return false;
         return std::memcmp(start(), s.start(), size()) == 0;
     }
-    bool compare(std::string_view v) const {
+    inline bool compare(std::string_view v) const {
         if (static_cast<size_t>(size()) != v.size()) return false;
         return std::memcmp(start(), v.data(), v.size()) == 0;
     }

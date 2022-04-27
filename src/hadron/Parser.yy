@@ -15,14 +15,12 @@
 %token <size_t> LITERAL FLOAT INTEGER PRIMITIVE PLUS MINUS ASTERISK ASSIGN LESSTHAN GREATERTHAN PIPE READWRITEVAR
 %token <size_t> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA
 %token <size_t> SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT ELLIPSES
-%token <size_t> CURRYARGUMENT IF WHILE
-// Include Hashes in the token when meaningful.
-%token <std::pair<size_t, hadron::Hash>> BINOP KEYWORD IDENTIFIER CLASSNAME
+%token <size_t> CURRYARGUMENT IF WHILE STRING SYMBOL BINOP KEYWORD IDENTIFIER CLASSNAME BEGINCLOSEDFUNC
 
 %type <std::unique_ptr<hadron::parse::ArgListNode>> argdecls
 %type <std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode block blocklist1 blocklist optblock
-%type <std::unique_ptr<hadron::parse::ClassExtNode>> classextension classextensions
-%type <std::unique_ptr<hadron::parse::ClassNode>> classdef classes
+%type <std::unique_ptr<hadron::parse::ClassExtNode>> classextension
+%type <std::unique_ptr<hadron::parse::ClassNode>> classdef
 %type <std::unique_ptr<hadron::parse::ExprSeqNode>> dictslotlist1 dictslotdef arrayelems1
 %type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
 %type <std::unique_ptr<hadron::parse::IfNode>> if
@@ -30,19 +28,20 @@
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist litdictslotdef litdictslotlist1
 %type <std::unique_ptr<hadron::parse::KeyValueNode>> litdictslotlist
 %type <std::unique_ptr<hadron::parse::LiteralDictNode>> dictlit2
-%type <std::unique_ptr<hadron::parse::LiteralNode>> coreliteral
 %type <std::unique_ptr<hadron::parse::LiteralListNode>> listlit listlit2
 %type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
 %type <std::unique_ptr<hadron::parse::MultiAssignVarsNode>> mavars
 %type <std::unique_ptr<hadron::parse::NameNode>> mavarlist
 %type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
-%type <std::unique_ptr<hadron::parse::Node>> literallist1 literal listliteral
+%type <std::unique_ptr<hadron::parse::Node>> literallist1 literal listliteral coreliteral classorclassext
+%type <std::unique_ptr<hadron::parse::Node>> classorclassexts
 %type <std::unique_ptr<hadron::parse::ReturnNode>> funretval retval
 %type <std::unique_ptr<hadron::parse::SeriesIterNode>> valrange3
 %type <std::unique_ptr<hadron::parse::SeriesNode>> valrange2
 %type <std::unique_ptr<hadron::parse::VarDefNode>> rwslotdeflist rwslotdef slotdef vardef constdef constdeflist
 %type <std::unique_ptr<hadron::parse::VarDefNode>> vardeflist slotdeflist vardeflist0 slotdeflist0
 %type <std::unique_ptr<hadron::parse::VarListNode>> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
+%type <std::unique_ptr<hadron::parse::StringNode>> string stringlist
 
 %type <std::optional<size_t>> superclass optname
 %type <std::optional<size_t>> primitive
@@ -50,7 +49,7 @@
 %type <bool> rspec
 %type <std::pair<size_t, int32_t>> integer
 %type <std::pair<size_t, double>> float
-%type <std::pair<size_t, hadron::Hash>> binop binop2
+%type <size_t> binop binop2
 
 %precedence ASSIGN
 %left BINOP KEYWORD PLUS MINUS ASTERISK LESSTHAN GREATERTHAN PIPE READWRITEVAR LEFTARROW
@@ -60,7 +59,6 @@
 %{
 #include "hadron/Parser.hpp"
 
-#include "Keywords.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Lexer.hpp"
@@ -101,12 +99,11 @@ std::ostream& operator<<(std::ostream& o, const hadron::Token::Location& loc) {
 // provided ExprSeq as the inner sequence. Used in the 'if' grammar to accept raw expressions in the true and false
 // clauses, in keeping with their roots as message arguments.
 std::unique_ptr<hadron::parse::BlockNode> wrapInnerBlock(std::unique_ptr<hadron::parse::ExprSeqNode>&& exprSeq) {
-    if (exprSeq->expr && exprSeq->expr->nodeType == hadron::parse::kLiteral) {
-        auto literal = reinterpret_cast<hadron::parse::LiteralNode*>(exprSeq->expr.get());
-        if (literal->type == hadron::LiteralType::kBlock) {
-            return std::move(literal->blockLiteral);
-        }
+    if (exprSeq->expr && exprSeq->expr->nodeType == hadron::parse::kBlock) {
+        auto block = reinterpret_cast<hadron::parse::BlockNode*>(exprSeq->expr.get());
+        return block->moveTo();
     }
+
     auto block = std::make_unique<hadron::parse::BlockNode>(exprSeq->tokenIndex);
     block->body = std::move(exprSeq);
     return block;
@@ -116,30 +113,29 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser);
 }
 
 %%
-root    : classes { hadronParser->addRoot(std::move($classes)); }
-        | classextensions { hadronParser->addRoot(std::move($classextensions)); }
+root    : classorclassexts { hadronParser->addRoot(std::move($classorclassexts)); }
         | INTERPRET cmdlinecode { hadronParser->addRoot(std::move($cmdlinecode)); }
         ;
 
-classes[target] : %empty { $target = nullptr; }
-                | classes[build] classdef { $target = append(std::move($build), std::move($classdef)); }
+classorclassexts[target]    : %empty { $target = nullptr; }
+                            | classorclassexts[build] classorclassext {
+                                    $target = append(std::move($build), std::move($classorclassext));
+                                }
+                            ;
+
+classorclassext : classdef { $classorclassext = std::move($classdef); }
+                | classextension { $classorclassext = std::move($classextension); }
                 ;
 
-classextensions[target] : classextension { $target = std::move($classextension); }
-                        | classextensions[build] classextension {
-                                $target = append(std::move($build), std::move($classextension));
-                            }
-                        ;
-
 classdef    : CLASSNAME superclass OPENCURLY classvardecls methods CLOSECURLY {
-                    auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME.first);
+                    auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME);
                     classDef->superClassNameIndex = $superclass;
                     classDef->variables = std::move($classvardecls);
                     classDef->methods = std::move($methods);
                     $classdef = std::move(classDef);
                 }
             | CLASSNAME OPENSQUARE optname CLOSESQUARE superclass OPENCURLY classvardecls methods CLOSECURLY {
-                    auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME.first);
+                    auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME);
                     classDef->superClassNameIndex = $superclass;
                     classDef->optionalNameIndex = $optname;
                     classDef->variables = std::move($classvardecls);
@@ -149,18 +145,18 @@ classdef    : CLASSNAME superclass OPENCURLY classvardecls methods CLOSECURLY {
             ;
 
 classextension  : PLUS CLASSNAME OPENCURLY methods CLOSECURLY {
-                        auto classExt = std::make_unique<hadron::parse::ClassExtNode>($CLASSNAME.first);
+                        auto classExt = std::make_unique<hadron::parse::ClassExtNode>($CLASSNAME);
                         classExt->methods = std::move($methods);
                         $classextension = std::move(classExt);
                     }
                 ;
 
 optname : %empty { $optname = std::nullopt; }
-        | IDENTIFIER { $optname = $IDENTIFIER.first; }
+        | IDENTIFIER { $optname = $IDENTIFIER; }
         ;
 
 superclass  : %empty { $superclass = std::nullopt; }
-            | COLON CLASSNAME { $superclass = $CLASSNAME.first; }
+            | COLON CLASSNAME { $superclass = $CLASSNAME; }
             ;
 
 classvardecls[target]   : %empty { $target = nullptr; }
@@ -191,7 +187,7 @@ methods[target] : %empty { $target = nullptr; }
                 ;
 
 methoddef   : IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = std::make_unique<hadron::parse::MethodNode>($IDENTIFIER.first, false);
+                    auto method = std::make_unique<hadron::parse::MethodNode>($IDENTIFIER, false);
                     method->primitiveIndex = $primitive;
                     method->body = std::make_unique<hadron::parse::BlockNode>($OPENCURLY);
                     method->body->arguments = std::move($argdecls);
@@ -200,7 +196,7 @@ methoddef   : IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOS
                     $methoddef = std::move(method);
                 }
             | ASTERISK IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = std::make_unique<hadron::parse::MethodNode>($IDENTIFIER.first, true);
+                    auto method = std::make_unique<hadron::parse::MethodNode>($IDENTIFIER, true);
                     method->primitiveIndex = $primitive;
                     method->body = std::make_unique<hadron::parse::BlockNode>($OPENCURLY);
                     method->body->arguments = std::move($argdecls);
@@ -209,7 +205,7 @@ methoddef   : IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOS
                     $methoddef = std::move(method);
                 }
             | binop OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = std::make_unique<hadron::parse::MethodNode>($binop.first, false);
+                    auto method = std::make_unique<hadron::parse::MethodNode>($binop, false);
                     method->primitiveIndex = $primitive;
                     method->body = std::make_unique<hadron::parse::BlockNode>($OPENCURLY);
                     method->body->arguments = std::move($argdecls);
@@ -218,7 +214,7 @@ methoddef   : IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOS
                     $methoddef = std::move(method);
                 }
             | ASTERISK binop OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = std::make_unique<hadron::parse::MethodNode>($binop.first, true);
+                    auto method = std::make_unique<hadron::parse::MethodNode>($binop, true);
                     method->primitiveIndex = $primitive;
                     method->body = std::make_unique<hadron::parse::BlockNode>($OPENCURLY);
                     method->body->arguments = std::move($argdecls);
@@ -371,48 +367,68 @@ msgsend : IDENTIFIER blocklist1 {
         | IDENTIFIER OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
                 // TODO - differentiate between this and superPerformList()
                 auto performList = std::make_unique<hadron::parse::PerformListNode>($OPENPAREN);
-                performList->target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
+                performList->target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER);
                 performList->arguments = std::move($arglistv1);
                 performList->keywordArguments = std::move($optkeyarglist);
                 $msgsend = std::move(performList);
             }
+        | CLASSNAME OPENSQUARE arrayelems CLOSESQUARE {
+                // This is shorthand for Classname.new() followed by (args.add)
+                auto newList = std::make_unique<hadron::parse::LiteralListNode>($OPENSQUARE);
+                newList->className = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
+                newList->elements = std::move($arrayelems);
+                $msgsend = std::move(newList);
+            }
         | CLASSNAME blocklist1 {
                 // This is shorthand for Classname.new {args}
-                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME.first);
-                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME);
+                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
                 newCall->arguments = std::move($blocklist1);
                 $msgsend = std::move(newCall);
             }
         | CLASSNAME OPENPAREN CLOSEPAREN blocklist {
                 // This is shorthand for Classname.new() {args}
-                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME.first);
-                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME);
+                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
                 newCall->arguments = std::move($blocklist);
                 $msgsend = std::move(newCall);
             }
         | CLASSNAME OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
                 // This is shorthand for Classname.new(foo: bazz) {args}
-                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME.first);
-                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME);
+                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
                 newCall->arguments = std::move($blocklist);
                 newCall->keywordArguments = std::move($keyarglist1);
                 $msgsend = std::move(newCall);
             }
         | CLASSNAME OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
                 // This is shorthand for Classname.new(arg, foo: bazz) {args}
-                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME.first);
-                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME);
+                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
                 newCall->arguments = append<std::unique_ptr<hadron::parse::Node>>(std::move($arglist1),
                         std::move($blocklist));
                 newCall->keywordArguments = std::move($optkeyarglist);
                 $msgsend = std::move(newCall);
             }
         | CLASSNAME OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
-                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME.first);
-                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME);
+                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
                 newCall->arguments = std::move($arglistv1);
                 newCall->keywordArguments = std::move($optkeyarglist);
                 $msgsend = std::move(newCall);
+            }
+        | expr DOT OPENPAREN CLOSEPAREN blocklist {
+                auto value = std::make_unique<hadron::parse::ValueNode>($DOT);
+                value->target = std::move($expr);
+                value->arguments = std::move($blocklist);
+                $msgsend = std::move(value);
+            }
+        | expr DOT OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
+                auto value = std::make_unique<hadron::parse::ValueNode>($DOT);
+                value->target = std::move($expr);
+                value->arguments = std::move($blocklist);
+                value->keywordArguments = std::move($keyarglist1);
+                $msgsend = std::move(value);
             }
         | expr DOT IDENTIFIER OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
@@ -420,6 +436,14 @@ msgsend : IDENTIFIER blocklist1 {
                 call->arguments = std::move($blocklist);
                 call->keywordArguments = std::move($keyarglist1);
                 $msgsend = std::move(call);
+            }
+        | expr DOT OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
+                auto value = std::make_unique<hadron::parse::ValueNode>($DOT);
+                value->target = std::move($expr);
+                value->arguments = append<std::unique_ptr<hadron::parse::Node>>(std::move($arglist1),
+                        std::move($blocklist));
+                value->keywordArguments = std::move($optkeyarglist);
+                $msgsend = std::move(value);
             }
         | expr DOT IDENTIFIER OPENPAREN CLOSEPAREN blocklist {
                 auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
@@ -437,7 +461,7 @@ msgsend : IDENTIFIER blocklist1 {
             }
         | expr DOT IDENTIFIER OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
                 // TODO - differentiate between this and superPerformList()
-                auto performList = std::make_unique<hadron::parse::PerformListNode>($IDENTIFIER.first);
+                auto performList = std::make_unique<hadron::parse::PerformListNode>($IDENTIFIER);
                 performList->target = std::move($expr);
                 performList->arguments = std::move($arglistv1);
                 performList->keywordArguments = std::move($optkeyarglist);
@@ -530,20 +554,16 @@ arrayelems  : %empty { $arrayelems = nullptr; }
 arrayelems1[target] : exprseq { $target = std::move($exprseq); }
                     | exprseq[build] COLON exprseq[next] { $target = append(std::move($build), std::move($next)); }
                     | KEYWORD exprseq {
-                            auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD.first,
-                                hadron::LiteralType::kSymbol, hadron::Slot::makeNil());
-                            auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first,
-                                std::move(literal));
+                            auto symbol = std::make_unique<hadron::parse::SymbolNode>($KEYWORD);
+                            auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD, std::move(symbol));
                             $target = append(std::move(exprSeq), std::move($exprseq));
                         }
                     | arrayelems1[build] COMMA exprseq {
                             $target = append(std::move($build), std::move($exprseq));
                         }
                     | arrayelems1[build] COMMA KEYWORD exprseq {
-                            auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD.first,
-                                hadron::LiteralType::kSymbol, hadron::Slot::makeNil());
-                            auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first,
-                                    std::move(literal));
+                            auto symbol = std::make_unique<hadron::parse::SymbolNode>($KEYWORD);
+                            auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD, std::move(symbol));
                             auto affixes = append(std::move(exprSeq), std::move($exprseq));
                             $target = append(std::move($build), std::move(affixes));
                         }
@@ -554,7 +574,7 @@ arrayelems1[target] : exprseq { $target = std::move($exprseq); }
                     ;
 
 expr1[target]   : literal { $target = std::move($literal); }
-                | IDENTIFIER { $target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first); }
+                | IDENTIFIER { $target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER); }
                 | CURRYARGUMENT { $target = std::make_unique<hadron::parse::CurryArgumentNode>($CURRYARGUMENT); }
                 | msgsend { $target = std::move($msgsend); }
                 | OPENPAREN exprseq CLOSEPAREN {
@@ -564,21 +584,20 @@ expr1[target]   : literal { $target = std::move($literal); }
                         $target = std::move($exprseq);
                     }
                 | TILDE IDENTIFIER {
-                        auto name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
-                        name->isGlobal = true;
-                        $target = std::move(name);
+                        auto envirAt = std::make_unique<hadron::parse::EnvironmentAtNode>($IDENTIFIER);
+                        $target = std::move(envirAt);
                     }
                 | OPENSQUARE arrayelems CLOSESQUARE {
-                        auto list = std::make_unique<hadron::parse::ListNode>($OPENSQUARE);
-                        list->elements = std::move($arrayelems);
-                        $target = std::move(list);
+                        auto array = std::make_unique<hadron::parse::ArrayNode>($OPENSQUARE);
+                        array->elements = std::move($arrayelems);
+                        $target = std::move(array);
                     }
                 | OPENPAREN valrange2 CLOSEPAREN { $target = std::move($valrange2); }
                 | OPENPAREN COLON valrange3 CLOSEPAREN { $target = std::move($valrange3); }
                 | OPENPAREN dictslotlist CLOSEPAREN {
-                        auto dict = std::make_unique<hadron::parse::DictionaryNode>($OPENPAREN);
-                        dict->elements = std::move($dictslotlist);
-                        $target = std::move(dict);
+                        auto event = std::make_unique<hadron::parse::EventNode>($OPENPAREN);
+                        event->elements = std::move($dictslotlist);
+                        $target = std::move(event);
                     }
                 | expr1[build] OPENSQUARE arglist1 CLOSESQUARE {
                         auto arrayNode = std::make_unique<hadron::parse::ArrayReadNode>($OPENSQUARE);
@@ -595,19 +614,27 @@ valrangex1  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE {
                     auto copySeries = std::make_unique<hadron::parse::CopySeriesNode>($OPENSQUARE);
                     copySeries->target = std::move($expr1);
                     copySeries->first = std::move($arglist1);
+                    if (copySeries->first->next) {
+                        copySeries->second = std::move(copySeries->first->next);
+                        copySeries->first->next = nullptr;
+                    }
                     $valrangex1 = std::move(copySeries);
                 }
-            | expr1 OPENSQUARE DOTDOT exprseq CLOSESQUARE {
+            | expr1 OPENSQUARE DOTDOT exprseq[last] CLOSESQUARE {
                     auto copySeries = std::make_unique<hadron::parse::CopySeriesNode>($OPENSQUARE);
                     copySeries->target = std::move($expr1);
-                    copySeries->last = std::move($exprseq);
+                    copySeries->last = std::move($last);
                     $valrangex1 = std::move(copySeries);
                 }
-            | expr1 OPENSQUARE arglist1 DOTDOT exprseq CLOSESQUARE {
+            | expr1 OPENSQUARE arglist1 DOTDOT exprseq[last] CLOSESQUARE {
                     auto copySeries = std::make_unique<hadron::parse::CopySeriesNode>($OPENSQUARE);
                     copySeries->target = std::move($expr1);
                     copySeries->first = std::move($arglist1);
-                    copySeries->last = std::move($exprseq);
+                    if (copySeries->first->next) {
+                        copySeries->second = std::move(copySeries->first->next);
+                        copySeries->first->next = nullptr;
+                    }
+                    copySeries->last = std::move($last);
                     $valrangex1 = std::move(copySeries);
                 }
             ;
@@ -679,9 +706,9 @@ valrange3   : exprseq[start] DOTDOT {
             ;
 
 expr[target]    : expr1 { $target = std::move($expr1); }
-                | CLASSNAME { $target = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first); }
+                | CLASSNAME { $target = std::make_unique<hadron::parse::NameNode>($CLASSNAME); }
                 | expr[build] binop2 /* adverb */ expr[rightHand] %prec BINOP {
-                        auto binop = std::make_unique<hadron::parse::BinopCallNode>($binop2.first);
+                        auto binop = std::make_unique<hadron::parse::BinopCallNode>($binop2);
                         binop->leftHand = std::move($build);
                         binop->rightHand = std::move($rightHand);
                         /* binop->adverb = std::move($adverb); */
@@ -689,19 +716,17 @@ expr[target]    : expr1 { $target = std::move($expr1); }
                     }
                 | IDENTIFIER ASSIGN expr[build] {
                         auto assign = std::make_unique<hadron::parse::AssignNode>($ASSIGN);
-                        assign->name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
+                        assign->name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER);
                         assign->value = std::move($build);
                         $target = std::move(assign);
                     }
                 | TILDE IDENTIFIER ASSIGN expr[build] {
-                        auto assign = std::make_unique<hadron::parse::AssignNode>($ASSIGN);
-                        assign->name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
-                        assign->name->isGlobal = true;
-                        assign->value = std::move($build);
-                        $target = std::move(assign);
+                        auto envirPut = std::make_unique<hadron::parse::EnvironmentPutNode>($IDENTIFIER);
+                        envirPut->value = std::move($build);
+                        $target = std::move(envirPut);
                     }
                 | expr[build] DOT IDENTIFIER ASSIGN expr[value] {
-                        auto setter = std::make_unique<hadron::parse::SetterNode>($IDENTIFIER.first);
+                        auto setter = std::make_unique<hadron::parse::SetterNode>($IDENTIFIER);
                         setter->target = std::move($build);
                         setter->value = std::move($value);
                         $target = std::move(setter);
@@ -710,7 +735,7 @@ expr[target]    : expr1 { $target = std::move($expr1); }
                         if ($optkeyarglist != nullptr) {
                             // TODO: LSC error condition "Setter method called with keyword arguments"
                         }
-                        auto setter = std::make_unique<hadron::parse::SetterNode>($IDENTIFIER.first);
+                        auto setter = std::make_unique<hadron::parse::SetterNode>($IDENTIFIER);
                         setter->target = std::move($arglist1);
                         setter->value = std::move($value);
                     }
@@ -734,6 +759,13 @@ block   : OPENCURLY argdecls funcvardecls methbody CLOSECURLY {
                 block->arguments = std::move($argdecls);
                 block->variables = std::move($funcvardecls);
                 block->body = std::move($methbody);
+                $block = std::move(block);
+            }
+        | BEGINCLOSEDFUNC argdecls funcvardecls funcbody CLOSECURLY {
+                auto block = std::make_unique<hadron::parse::BlockNode>($BEGINCLOSEDFUNC);
+                block->arguments = std::move($argdecls);
+                block->variables = std::move($funcvardecls);
+                block->body = std::move($funcbody);
                 $block = std::move(block);
             }
         ;
@@ -768,7 +800,7 @@ argdecls    : %empty { $argdecls = nullptr; }
                     auto argList = std::make_unique<hadron::parse::ArgListNode>($ARG);
                     argList->varList = std::make_unique<hadron::parse::VarListNode>($ARG);
                     argList->varList->definitions = std::move($vardeflist0);
-                    argList->varArgsNameIndex = $IDENTIFIER.first;
+                    argList->varArgsNameIndex = $IDENTIFIER;
                     $argdecls = std::move(argList);
                 }
             | PIPE[open] slotdeflist PIPE {
@@ -781,7 +813,7 @@ argdecls    : %empty { $argdecls = nullptr; }
                     auto argList = std::make_unique<hadron::parse::ArgListNode>($open);
                     argList->varList = std::make_unique<hadron::parse::VarListNode>($open);
                     argList->varList->definitions = std::move($slotdeflist0);
-                    argList->varArgsNameIndex = $IDENTIFIER.first;
+                    argList->varArgsNameIndex = $IDENTIFIER;
                     $argdecls = std::move(argList);
                 }
             ;
@@ -793,7 +825,7 @@ constdeflist[target]    : constdef { $target = std::move($constdef); }
                         ;
 
 constdef    : rspec IDENTIFIER ASSIGN literal {
-                    auto constDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER.first);
+                    auto constDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER);
                     constDef->hasReadAccessor = $rspec;
                     constDef->initialValue = std::move($literal);
                     $constdef = std::move(constDef);
@@ -808,14 +840,14 @@ slotdeflist[target] : slotdef { $target = std::move($slotdef); }
                     | slotdeflist[build] optcomma slotdef { $target = append(std::move($build), std::move($slotdef)); }
                     ;
 
-slotdef : IDENTIFIER { $slotdef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER.first); }
+slotdef : IDENTIFIER { $slotdef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER); }
         | IDENTIFIER optequal literal {
-                auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER.first);
+                auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER);
                 varDef->initialValue = std::move($literal);
                 $slotdef = std::move(varDef);
             }
         | IDENTIFIER optequal OPENPAREN exprseq CLOSEPAREN {
-                auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER.first);
+                auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER);
                 varDef->initialValue = std::move($exprseq);
                 $slotdef = std::move(varDef);
             }
@@ -829,14 +861,14 @@ vardeflist[target]  : vardef { $target = std::move($vardef); }
                     | vardeflist[build] COMMA vardef { $target = append(std::move($build), std::move($vardef)); }
                     ;
 
-vardef  : IDENTIFIER { $vardef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER.first); }
+vardef  : IDENTIFIER { $vardef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER); }
         | IDENTIFIER ASSIGN expr {
-                auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER.first);
+                auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER);
                 varDef->initialValue = std::move($expr);
                 $vardef = std::move(varDef);
             }
         | IDENTIFIER OPENPAREN exprseq CLOSEPAREN {
-                auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER.first);
+                auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER);
                 varDef->initialValue = std::move($exprseq);
                 $vardef = std::move(varDef);
             }
@@ -844,9 +876,8 @@ vardef  : IDENTIFIER { $vardef = std::make_unique<hadron::parse::VarDefNode>($ID
 
 dictslotdef  : exprseq[build] COLON exprseq[next] { $dictslotdef = append(std::move($build), std::move($next)); }
              | KEYWORD exprseq {
-                    auto literal = std::make_unique<hadron::parse::LiteralNode>($KEYWORD.first,
-                        hadron::LiteralType::kSymbol, hadron::Slot::makeNil());
-                    auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first, std::move(literal));
+                    auto symbol = std::make_unique<hadron::parse::SymbolNode>($KEYWORD);
+                    auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD, std::move(symbol));
                     $dictslotdef = append(std::move(exprSeq), std::move($exprseq));
                 }
              ;
@@ -875,8 +906,8 @@ litdictslotdef  : listliteral[key] ':' listliteral[value] {
                         $litdictslotdef = std::move(keyValue);
                     }
                 | KEYWORD listliteral {
-                        auto keyValue = std::make_unique<hadron::parse::KeyValueNode>($KEYWORD.first);
-                        keyValue->key = std::make_unique<hadron::parse::NameNode>($KEYWORD.first);
+                        auto keyValue = std::make_unique<hadron::parse::KeyValueNode>($KEYWORD);
+                        keyValue->key = std::make_unique<hadron::parse::SymbolNode>($KEYWORD);
                         keyValue->value = std::move($listliteral);
                         $litdictslotdef = std::move(keyValue);
                     }
@@ -904,7 +935,7 @@ listlit2 : OPENSQUARE literallistc CLOSESQUARE {
             }
         | CLASSNAME OPENSQUARE literallistc CLOSESQUARE {
                 auto litList = std::make_unique<hadron::parse::LiteralListNode>($OPENSQUARE);
-                litList->className = std::make_unique<hadron::parse::NameNode>($CLASSNAME.first);
+                litList->className = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
                 litList->elements = std::move($literallistc);
                 $listlit2 = std::move(litList);
             }
@@ -927,13 +958,13 @@ rwslotdeflist[target]   : rwslotdef { $target = std::move($rwslotdef); }
                         ;
 
 rwslotdef   : rwspec IDENTIFIER {
-                    auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER.first);
+                    auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER);
                     varDef->hasReadAccessor = $rwspec.first;
                     varDef->hasWriteAccessor = $rwspec.second;
                     $rwslotdef = std::move(varDef);
                 }
             | rwspec IDENTIFIER ASSIGN literal {
-                    auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER.first);
+                    auto varDef = std::make_unique<hadron::parse::VarDefNode>($IDENTIFIER);
                     varDef->hasReadAccessor = $rwspec.first;
                     varDef->hasWriteAccessor = $rwspec.second;
                     varDef->initialValue = std::move($literal);
@@ -964,9 +995,8 @@ keyarglist1[target] : keyarg { $target = std::move($keyarg); }
                     ;
 
 keyarg  : KEYWORD exprseq {
-                auto keyArg = std::make_unique<hadron::parse::KeyValueNode>($KEYWORD.first);
-                auto name = std::make_unique<hadron::parse::NameNode>($KEYWORD.first);
-                keyArg->key = std::make_unique<hadron::parse::ExprSeqNode>($KEYWORD.first, std::move(name));
+                auto keyArg = std::make_unique<hadron::parse::KeyValueNode>($KEYWORD);
+                keyArg->key = std::make_unique<hadron::parse::SymbolNode>($KEYWORD);
                 keyArg->value = std::move($exprseq);
                 $keyarg = std::move(keyArg);
             }
@@ -984,17 +1014,17 @@ mavars  : mavarlist {
         | mavarlist ELLIPSES IDENTIFIER {
                 auto multiVars = std::make_unique<hadron::parse::MultiAssignVarsNode>($mavarlist->tokenIndex);
                 multiVars->names = std::move($mavarlist);
-                multiVars->rest = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
+                multiVars->rest = std::make_unique<hadron::parse::NameNode>($IDENTIFIER);
                 $mavars = std::move(multiVars);
             }
         ;
 
 mavarlist[target]   : IDENTIFIER {
-                            auto name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
+                            auto name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER);
                             $target = std::move(name);
                         }
                     | mavarlist[build] COMMA IDENTIFIER {
-                            auto name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER.first);
+                            auto name = std::make_unique<hadron::parse::NameNode>($IDENTIFIER);
                             $target = append(std::move($build), std::move(name));
                         }
                     ;
@@ -1002,6 +1032,8 @@ mavarlist[target]   : IDENTIFIER {
 listliteral : coreliteral { $listliteral = std::move($coreliteral); }
         | listlit2 { $listliteral = std::move($listlit2); }
         | dictlit2 { $listliteral = std::move($dictlit2); }
+        // NOTE: within lists symbols can be specified without \ or '' notation.
+        | IDENTIFIER { $listliteral = std::make_unique<hadron::parse::SymbolNode>($IDENTIFIER); }
         ;
 
 literal : coreliteral { $literal = std::move($coreliteral); }
@@ -1009,23 +1041,20 @@ literal : coreliteral { $literal = std::move($coreliteral); }
         ;
 
 coreliteral : LITERAL {
-                $coreliteral = std::make_unique<hadron::parse::LiteralNode>($LITERAL,
-                    hadronParser->token($LITERAL).literalType, hadronParser->token($LITERAL).value);
+                    $coreliteral = std::make_unique<hadron::parse::SlotNode>($LITERAL,
+                            hadronParser->token($LITERAL).value);
                 }
             | integer {
-                    $coreliteral = std::make_unique<hadron::parse::LiteralNode>($integer.first,
-                            hadron::LiteralType::kInteger, hadron::Slot::makeInt32($integer.second));
+                    $coreliteral = std::make_unique<hadron::parse::SlotNode>($integer.first,
+                            hadron::Slot::makeInt32($integer.second));
                 }
             | float {
-                    $coreliteral = std::make_unique<hadron::parse::LiteralNode>($float.first,
-                            hadron::LiteralType::kFloat, hadron::Slot::makeFloat($float.second));
+                    $coreliteral = std::make_unique<hadron::parse::SlotNode>($float.first,
+                            hadron::Slot::makeFloat($float.second));
                 }
-            | block {
-                    auto literal = std::make_unique<hadron::parse::LiteralNode>($block->tokenIndex,
-                            hadron::LiteralType::kBlock, hadron::Slot::makeNil());
-                    literal->blockLiteral = std::move($block);
-                    $coreliteral = std::move(literal);
-                }
+            | block { $coreliteral = std::move($block); }
+            | stringlist { $coreliteral = std::move($stringlist); }
+            | SYMBOL { $coreliteral = std::make_unique<hadron::parse::SymbolNode>($SYMBOL); }
             ;
 
 integer : INTEGER { $integer = std::make_pair($INTEGER, hadronParser->token($INTEGER).value.getInt32()); }
@@ -1041,19 +1070,28 @@ float   : FLOAT { $float = std::make_pair($FLOAT, hadronParser->token($FLOAT).va
         ;
 
 binop   : BINOP { $binop = $BINOP; }
-        | PLUS { $binop = std::make_pair($PLUS, hadron::kAddHash); }
-        | MINUS { $binop = std::make_pair($MINUS, hadron::kSubtractHash); }
-        | ASTERISK { $binop = std::make_pair($ASTERISK, hadron::kMultiplyHash); }
-        | LESSTHAN { $binop = std::make_pair($LESSTHAN, hadron::kLessThanHash); }
-        | GREATERTHAN { $binop = std::make_pair($GREATERTHAN, hadron::kGreaterThanHash); }
-        | PIPE { $binop = std::make_pair($PIPE, hadron::kPipeHash); }
-        | READWRITEVAR { $binop = std::make_pair($READWRITEVAR, hadron::kReadWriteHash); }
-        | LEFTARROW { $binop = std::make_pair($LEFTARROW, hadron::kLeftArrowHash); }
+        | PLUS { $binop = $PLUS; }
+        | MINUS { $binop = $MINUS; }
+        | ASTERISK { $binop = $ASTERISK; }
+        | LESSTHAN { $binop = $LESSTHAN; }
+        | GREATERTHAN { $binop = $GREATERTHAN; }
+        | PIPE { $binop = $PIPE; }
+        | READWRITEVAR { $READWRITEVAR; }
+        | LEFTARROW { $LEFTARROW; }
         ;
 
 binop2  : binop { $binop2 = $binop; }
         | KEYWORD { $binop2 = $KEYWORD; }
         ;
+
+string  : STRING { $string = std::make_unique<hadron::parse::StringNode>($STRING); }
+        ;
+
+stringlist[target]  : string { $target = std::move($string); }
+                    | stringlist[build] string {
+                            $target = append(std::move($build), std::move($string));
+                        }
+                    ;
 %%
 
 yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
@@ -1075,12 +1113,18 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
 
     case hadron::Token::Name::kLiteral:
         // We special-case integers and floats to support unary negation.
-        if (token.literalType == hadron::LiteralType::kInteger) {
+        if (token.value.isInt32()) {
             return yy::parser::make_INTEGER(index, token.location);
-        } else if (token.literalType == hadron::LiteralType::kFloat) {
+        } else if (token.value.isFloat()) {
             return  yy::parser::make_FLOAT(index, token.location);
         }
         return yy::parser::make_LITERAL(index, token.location);
+
+    case hadron::Token::Name::kString:
+        return yy::parser::make_STRING(index, token.location);
+
+    case hadron::Token::Name::kSymbol:
+        return yy::parser::make_SYMBOL(index, token.location);
 
     case hadron::Token::Name::kPrimitive:
         return yy::parser::make_PRIMITIVE(index, token.location);
@@ -1113,10 +1157,10 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
         return yy::parser::make_LEFTARROW(index, token.location);
 
     case hadron::Token::Name::kBinop:
-        return yy::parser::make_BINOP(std::make_pair(index, token.hash), token.location);
+        return yy::parser::make_BINOP(index, token.location);
 
     case hadron::Token::Name::kKeyword:
-        return yy::parser::make_KEYWORD(std::make_pair(index, token.hash), token.location);
+        return yy::parser::make_KEYWORD(index, token.location);
 
     case hadron::Token::Name::kOpenParen:
         return yy::parser::make_OPENPAREN(index, token.location);
@@ -1170,10 +1214,10 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
         return yy::parser::make_CLASSVAR(index, token.location);
 
     case hadron::Token::Name::kIdentifier:
-        return yy::parser::make_IDENTIFIER(std::make_pair(index, token.hash), token.location);
+        return yy::parser::make_IDENTIFIER(index, token.location);
 
     case hadron::Token::Name::kClassName:
-        return yy::parser::make_CLASSNAME(std::make_pair(index, token.hash), token.location);
+        return yy::parser::make_CLASSNAME(index, token.location);
 
     case hadron::Token::Name::kDot:
         return yy::parser::make_DOT(index, token.location);
@@ -1186,6 +1230,9 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
 
     case hadron::Token::Name::kCurryArgument:
         return yy::parser::make_CURRYARGUMENT(index, token.location);
+
+    case hadron::Token::Name::kBeginClosedFunction:
+        return yy::parser::make_BEGINCLOSEDFUNC(index, token.location);
 
     case hadron::Token::Name::kIf:
         return yy::parser::make_IF(index, token.location);
@@ -1265,7 +1312,7 @@ bool Parser::innerParse() {
 
     // Valid parse of empty input buffer, which we represent with an empty node.
     if (!m_root) {
-        m_root = std::make_unique<hadron::parse::Node>(hadron::parse::NodeType::kEmpty, 0);
+        m_root = std::make_unique<hadron::parse::EmptyNode>();
     }
 
     return m_errorReporter->errorCount() == 0;

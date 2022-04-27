@@ -5,7 +5,7 @@
     action returnBlock { fret; }
 
     action marker { marker = p; }
-    action counter { ++counter; }
+    action hasEscape { hasEscapeChars = true; }
     action eof_ok { return true; }
     action newline { m_lineEndings.emplace(p - m_code.data()); }
 
@@ -35,25 +35,25 @@
         ###################
         # string literals #
         ###################
-        # Double-quoted string. Increments counter on escape characters for length computation.
-        '"' (('\\' any %counter) | (extend - '"'))* '"' {
-            m_tokens.emplace_back(Token::makeStringLiteral(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
-                    counter > 0));
-            counter = 0;
+        # Double-quoted string.
+        '"' (('\\' any %hasEscape) | (extend - '"'))* '"' {
+            m_tokens.emplace_back(Token::makeString(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
+                    hasEscapeChars));
+            hasEscapeChars = false;
         };
 
         ###########
         # symbols #
         ###########
-        # Single-quoted symbol. Increments counter on escape characters for length computation.
-        '\'' (('\\' any %counter) | (extend - '\''))* '\'' {
-            m_tokens.emplace_back(Token::makeSymbolLiteral(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
-                    counter > 0));
-            counter = 0;
+        # Single-quoted symbol.
+        '\'' (('\\' any %hasEscape) | (extend - '\''))* '\'' {
+            m_tokens.emplace_back(Token::makeSymbol(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
+                    hasEscapeChars));
+            hasEscapeChars = false;
         };
         # Slash symbols.
         '\\' [a-zA-Z0-9_]* {
-            m_tokens.emplace_back(Token::makeSymbolLiteral(std::string_view(ts + 1, te - ts - 1), getLocation(ts + 1),
+            m_tokens.emplace_back(Token::makeSymbol(std::string_view(ts + 1, te - ts - 1), getLocation(ts + 1),
                     false));
         };
 
@@ -126,66 +126,59 @@
         # operators #
         #############
         '+' {
-            m_tokens.emplace_back(Token::make(Token::Name::kPlus, std::string_view(ts, 1), getLocation(ts), true,
-                    kAddHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kPlus, std::string_view(ts, 1), getLocation(ts), true));
         };
         '-' {
-            m_tokens.emplace_back(Token::make(Token::Name::kMinus, std::string_view(ts, 1), getLocation(ts), true,
-                    kSubtractHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kMinus, std::string_view(ts, 1), getLocation(ts), true));
         };
         '*' {
-            m_tokens.emplace_back(Token::make(Token::Name::kAsterisk, std::string_view(ts, 1), getLocation(ts), true,
-                    kMultiplyHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kAsterisk, std::string_view(ts, 1), getLocation(ts), true));
         };
         '=' {
-            m_tokens.emplace_back(Token::make(Token::Name::kAssign, std::string_view(ts, 1), getLocation(ts), true,
-                    kAssignHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kAssign, std::string_view(ts, 1), getLocation(ts), true));
         };
         '<' {
-            m_tokens.emplace_back(Token::make(Token::Name::kLessThan, std::string_view(ts, 1), getLocation(ts), true,
-                    kLessThanHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kLessThan, std::string_view(ts, 1), getLocation(ts), true));
         };
         '>' {
             m_tokens.emplace_back(Token::make(Token::Name::kGreaterThan, std::string_view(ts, 1), getLocation(ts),
-                    true, kGreaterThanHash));
+                    true));
         };
         '|' {
-            m_tokens.emplace_back(Token::make(Token::Name::kPipe, std::string_view(ts, 1), getLocation(ts), true,
-                    kPipeHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kPipe, std::string_view(ts, 1), getLocation(ts), true));
         };
         '<>' {
             m_tokens.emplace_back(Token::make(Token::Name::kReadWriteVar, std::string_view(ts, 2), getLocation(ts),
-                    true, kReadWriteHash));
+                    true));
         };
         '<-' {
-            m_tokens.emplace_back(Token::make(Token::Name::kLeftArrow, std::string_view(ts, 2), getLocation(ts), true,
-                    kLeftArrowHash));
-            m_tokens.back().location = getLocation(ts);
+            m_tokens.emplace_back(Token::make(Token::Name::kLeftArrow, std::string_view(ts, 2), getLocation(ts), true));
+        };
+        '#{' {
+            m_tokens.emplace_back(Token::make(Token::Name::kBeginClosedFunction, std::string_view(ts, 2),
+                    getLocation(ts), false));
         };
         (binopChar+ - (('/*' binopChar*) | ('//' binopChar*))) {
             m_tokens.emplace_back(Token::make(Token::Name::kBinop, std::string_view(ts, te - ts), getLocation(ts),
-                    true, hash(ts, te - ts)));
+                    true));
         };
         # We don't include the colon at the end of the keyword to simplify parsing.
         lower (alnum | '_')* ':' {
             m_tokens.emplace_back(Token::make(Token::Name::kKeyword, std::string_view(ts, te - ts - 1), getLocation(ts),
-                    true, hash(ts, te - ts - 1)));
+                    true));
         };
 
         ############
         # keywords #
         ############
         'arg' {
-            m_tokens.emplace_back(Token::make(Token::Name::kArg, std::string_view(ts, 3), getLocation(ts), false,
-                    kArgHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kArg, std::string_view(ts, 3), getLocation(ts), false));
         };
         'classvar' {
-            m_tokens.emplace_back(Token::make(Token::Name::kClassVar, std::string_view(ts, 8), getLocation(ts), false,
-                    kClassVarHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kClassVar, std::string_view(ts, 8), getLocation(ts), false));
         };
         'const' {
-            m_tokens.emplace_back(Token::make(Token::Name::kConst, std::string_view(ts, 5), getLocation(ts), false,
-                    kConstHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kConst, std::string_view(ts, 5), getLocation(ts), false));
         };
         'false' {
             m_tokens.emplace_back(Token::makeBooleanLiteral(false, std::string_view(ts, 5), getLocation(ts)));
@@ -197,16 +190,13 @@
             m_tokens.emplace_back(Token::makeBooleanLiteral(true, std::string_view(ts, 4), getLocation(ts)));
         };
         'var' {
-            m_tokens.emplace_back(Token::make(Token::Name::kVar, std::string_view(ts, 3), getLocation(ts), false,
-                    kVarHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kVar, std::string_view(ts, 3), getLocation(ts), false));
         };
         'if' {
-            m_tokens.emplace_back(Token::make(Token::Name::kIf, std::string_view(ts, 2), getLocation(ts), false,
-                    kIfHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kIf, std::string_view(ts, 2), getLocation(ts), false));
         };
         'while' {
-            m_tokens.emplace_back(Token::make(Token::Name::kWhile, std::string_view(ts, 5), getLocation(ts), false,
-                    kWhileHash));
+            m_tokens.emplace_back(Token::make(Token::Name::kWhile, std::string_view(ts, 5), getLocation(ts), false));
         };
 
         ###############
@@ -214,7 +204,7 @@
         ###############
         lower (alnum | '_')* {
             m_tokens.emplace_back(Token::make(Token::Name::kIdentifier, std::string_view(ts, te - ts), getLocation(ts),
-                    false, hash(ts, te - ts)));
+                    false));
         };
 
         ###############
@@ -222,7 +212,7 @@
         ###############
         upper (alnum | '_')* {
             m_tokens.emplace_back(Token::make(Token::Name::kClassName, std::string_view(ts, te - ts), getLocation(ts),
-                    false, hash(ts, te - ts)));
+                    false));
         };
 
         ########
@@ -247,7 +237,7 @@
         ##############
         '_' (alnum | '_')+ {
             m_tokens.emplace_back(Token::make(Token::Name::kPrimitive, std::string_view(ts, te - ts), getLocation(ts),
-                    false, hash(ts, te - ts)));
+                    false));
         };
 
         ############
@@ -278,9 +268,7 @@
 #include "hadron/Lexer.hpp"
 
 #include "hadron/ErrorReporter.hpp"
-#include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
-#include "Keywords.hpp"
 
 #include "fmt/core.h"
 #include "spdlog/spdlog.h"
@@ -323,8 +311,8 @@ bool Lexer::lex() {
 
     // Some parses need a mid-token marker (like hex numbers) so we declare it here.
     const char* marker = nullptr;
-    // Some parses need a counter (like string and symbol).
-    int counter = 0;
+    // A flag for string and symbol parsing for if they have escape symbols (so can't be blitted).
+    bool hasEscapeChars = false;
 
     %% write init;
 

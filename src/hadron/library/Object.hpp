@@ -3,12 +3,11 @@
 
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
-#include "hadron/Keywords.hpp"
+#include "hadron/library/Schema.hpp"
+#include "hadron/schema/Common/Core/NilSchema.hpp"
+#include "hadron/schema/Common/Core/ObjectSchema.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/ThreadContext.hpp"
-
-#include "hadron/library/Schema.hpp"
-#include "hadron/schema/Common/Core/ObjectSchema.hpp"
 
 #include <cassert>
 #include <type_traits>
@@ -75,14 +74,23 @@ public:
     inline Slot slot() const { return Slot::makePointer(reinterpret_cast<library::Schema*>(m_instance)); }
     inline bool isNil() const { return m_instance == nullptr; }
     inline Hash className() const {
-        if (isNil()) { return kNilHash; }
+        assert(m_instance);
+        if (isNil()) { return schema::NilSchema::kNameHash; }
         return m_instance->schema._className;
     }
-    static inline Hash nameHash() { return S::kNameHash; }
-    static inline int32_t schemaSize() { return (sizeof(S) - sizeof(Schema)) / kSlotSize; }
+    static constexpr Hash nameHash() { return S::kNameHash; }
+    static constexpr int32_t schemaSize() { return (sizeof(S) - sizeof(Schema)) / kSlotSize; }
 
 protected:
     S* m_instance;
+};
+
+class ObjectActual : public Object<ObjectActual, schema::ObjectSchema> {
+public:
+    ObjectActual() = delete;
+    ObjectActual(const ObjectActual&) = delete;
+    ObjectActual(const ObjectActual&&) = delete;
+    ~ObjectActual() = delete;
 };
 
 } // namespace library

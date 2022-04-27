@@ -23,7 +23,6 @@
 #include "hadron/hir/WriteToClassHIR.hpp"
 #include "hadron/hir/WriteToFrameHIR.hpp"
 #include "hadron/hir/WriteToThisHIR.hpp"
-#include "hadron/Keywords.hpp"
 #include "hadron/LinearFrame.hpp"
 #include "hadron/Scope.hpp"
 #include "hadron/Slot.hpp"
@@ -209,6 +208,36 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
         currentBlock->append(std::make_unique<hir::StoreReturnHIR>(nodeValue));
         currentBlock->append(std::make_unique<hir::MethodReturnHIR>());
     } break;
+
+    case ast::ASTType::kMultiAssign: {
+        const auto multiAssignAST = reinterpret_cast<const ast::MultiAssignAST*>(ast);
+        // Final value of multiAssign statements is the array-like type returned by the expression.
+        nodeValue = buildValue(context, method, currentBlock, multiAssignAST->arrayValue.get());
+        assert(nodeValue != hir::kInvalidID);
+
+        // Each assignment is now translated into a name = nodeValue.at(i) message call.
+        int32_t assignIndex = 0;
+        for (const auto& name : multiAssignAST->targetNames) {
+            auto message = std::make_unique<hir::MessageHIR>();
+
+            if (multiAssignAST->lastIsRemain &&
+                    assignIndex == (static_cast<int32_t>(multiAssignAST->targetNames.size()) - 1)) {
+                message->selector = context->symbolTable->copySeriesSymbol();
+            } else {
+                message->selector = context->symbolTable->atSymbol();
+            }
+
+            message->arguments.emplace_back(nodeValue);
+
+            auto indexValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(assignIndex)));
+            message->arguments.emplace_back(indexValue);
+            ++assignIndex;
+
+            auto messageValue = currentBlock->append(std::move(message));
+            auto assign = findName(context, name->name, currentBlock, messageValue);
+            assert(assign);
+        }
+    } break;
     }
 
     assert(nodeValue != hir::kInvalidID);
@@ -381,7 +410,10 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
         // Class names are read-only.
         if (toWrite != hir::kInvalidID) { return nullptr; }
         auto classDef = context->classLibrary->findClassNamed(name);
-        assert(!classDef.isNil());
+        if (classDef.isNil()) {
+            SPDLOG_CRITICAL("failed to find class named: {}", name.view(context));
+            assert(false);
+        }
         auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot());
         auto id = block->append(std::move(constant));
         return block->frame()->values[id];
@@ -427,33 +459,31 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
 
     // Search instance variables next.
     library::Class classDef = block->frame()->method.ownerClass();
+    auto instVarIndex = classDef.instVarNames().indexOf(name);
+    if (instVarIndex.isInt32()) {
+        // Go find the this pointer.
+        auto thisHir = findName(context, context->symbolTable->thisSymbol(), block, hir::kInvalidID);
+        assert(thisHir);
+        assert(thisHir->id != hir::kInvalidID);
+        if (toWrite == hir::kInvalidID) {
+            auto readFromThis = std::make_unique<hir::ReadFromThisHIR>(thisHir->id, instVarIndex.getInt32(), name);
+            auto hir = readFromThis.get();
+            block->append(std::move(readFromThis));
+            return hir;
+        }
+        auto writeToThis = std::make_unique<hir::WriteToThisHIR>(thisHir->id, instVarIndex.getInt32(), name,
+            toWrite);
+        auto hir = writeToThis.get();
+        block->append(std::move(writeToThis));
+        return hir;
+    }
+
     auto className = classDef.name(context).view(context);
     bool isMetaClass = (className.size() > 5) && (className.substr(0, 5) == "Meta_");
 
-    // Meta_ classes are descended from Class, so don't have access to these regular instance variables, so skip the
-    // search for instance variable names in that case.
-    if (!isMetaClass) {
-        auto instVarIndex = classDef.instVarNames().indexOf(name);
-        if (instVarIndex.isInt32()) {
-            // Go find the this pointer.
-            auto thisHir = findName(context, context->symbolTable->thisSymbol(), block, hir::kInvalidID);
-            assert(thisHir);
-            assert(thisHir->id != hir::kInvalidID);
-            if (toWrite == hir::kInvalidID) {
-                auto readFromThis = std::make_unique<hir::ReadFromThisHIR>(thisHir->id, instVarIndex.getInt32(), name);
-                auto hir = readFromThis.get();
-                block->append(std::move(readFromThis));
-                return hir;
-            }
-            auto writeToThis = std::make_unique<hir::WriteToThisHIR>(thisHir->id, instVarIndex.getInt32(), name,
-                toWrite);
-            auto hir = writeToThis.get();
-            block->append(std::move(writeToThis));
-            return hir;
-        }
-    } else {
-        // Meta_ classes to have access to the class variables and constants of their associated class, so adjust the
-        // classDef to point to the associated class instead.
+    // Meta_ classes to have access to the class variables and constants of their associated class, so adjust the
+    // classDef to point to the associated class instead.
+    if (isMetaClass) {
         className = className.substr(5);
         classDef = context->classLibrary->findClassNamed(library::Symbol::fromView(context, className));
         assert(!classDef.isNil());

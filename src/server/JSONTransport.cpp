@@ -265,6 +265,8 @@ void JSONTransport::JSONTransportImpl::sendInitializeResult(std::optional<lsp::I
     tokenTypes.PushBack(rapidjson::Value("empty"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("interpret"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("literal"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("string"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("symbol"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("primitive"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("plus"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("minus"), document.GetAllocator());
@@ -300,6 +302,7 @@ void JSONTransport::JSONTransportImpl::sendInitializeResult(std::optional<lsp::I
     tokenTypes.PushBack(rapidjson::Value("dotdot"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("ellipses"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("curryArgument"), document.GetAllocator());
+    tokenTypes.PushBack(rapidjson::Value("beginClosedFunction"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("if"), document.GetAllocator());
     tokenTypes.PushBack(rapidjson::Value("while"), document.GetAllocator());
     semanticTokensLegend.AddMember("tokenTypes", tokenTypes, document.GetAllocator());
@@ -672,19 +675,19 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(hadron::ThreadContext*
         path.pop_back();
     } break;
 
-    case hadron::parse::NodeType::kList: {
-        const auto list = reinterpret_cast<const hadron::parse::ListNode*>(node);
-        jsonNode.AddMember("nodeType", rapidjson::Value("List"), document.GetAllocator());
+    case hadron::parse::NodeType::kArray: {
+        const auto array = reinterpret_cast<const hadron::parse::ArrayNode*>(node);
+        jsonNode.AddMember("nodeType", rapidjson::Value("Array"), document.GetAllocator());
         path.emplace_back(makeToken("elements"));;
-        serializeParseNode(context, list->elements.get(), document, path, serial);
+        serializeParseNode(context, array->elements.get(), document, path, serial);
         path.pop_back();
     } break;
 
-    case hadron::parse::NodeType::kDictionary: {
-        const auto dict = reinterpret_cast<const hadron::parse::DictionaryNode*>(node);
-        jsonNode.AddMember("nodeType", rapidjson::Value("Dictionary"), document.GetAllocator());
+    case hadron::parse::NodeType::kEvent: {
+        const auto event = reinterpret_cast<const hadron::parse::EventNode*>(node);
+        jsonNode.AddMember("nodeType", rapidjson::Value("Event"), document.GetAllocator());
         path.emplace_back(makeToken("elements"));;
-        serializeParseNode(context, dict->elements.get(), document, path, serial);
+        serializeParseNode(context, event->elements.get(), document, path, serial);
         path.pop_back();
     } break;
 
@@ -702,21 +705,24 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(hadron::ThreadContext*
         path.pop_back();
     } break;
 
-    case hadron::parse::NodeType::kLiteral: {
-        const auto literal = reinterpret_cast<const hadron::parse::LiteralNode*>(node);
-        jsonNode.AddMember("nodeType", rapidjson::Value("Literal"), document.GetAllocator());
+    case hadron::parse::NodeType::kSlot: {
+        const auto slotNode = reinterpret_cast<const hadron::parse::SlotNode*>(node);
+        jsonNode.AddMember("nodeType", rapidjson::Value("Slot"), document.GetAllocator());
         rapidjson::Value value;
-        serializeSlot(context, literal->value, value, document);
+        serializeSlot(context, slotNode->value, value, document);
         jsonNode.AddMember("value", value, document.GetAllocator());
-        path.emplace_back(makeToken("blockLiteral"));
-        serializeParseNode(context, literal->blockLiteral.get(), document, path, serial);
-        path.pop_back();
+    } break;
+
+    case hadron::parse::NodeType::kString: {
+        jsonNode.AddMember("nodeType", rapidjson::Value("String"), document.GetAllocator());
+    } break;
+
+    case hadron::parse::NodeType::kSymbol: {
+        jsonNode.AddMember("nodeType", rapidjson::Value("Symbol"), document.GetAllocator());
     } break;
 
     case hadron::parse::NodeType::kName: {
-        const auto name = reinterpret_cast<const hadron::parse::NameNode*>(node);
         jsonNode.AddMember("nodeType", rapidjson::Value("Name"), document.GetAllocator());
-        jsonNode.AddMember("isGlobal", rapidjson::Value(name->isGlobal), document.GetAllocator());
     } break;
 
     case hadron::parse::NodeType::kExprSeq: {
@@ -895,6 +901,12 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(hadron::ThreadContext*
         path.pop_back();
     } break;
 
+    case hadron::parse::NodeType::kEnvironmentAt:
+    case hadron::parse::NodeType::kEnvironmentPut:
+    case hadron::parse::NodeType::kValue: {
+        SPDLOG_WARN("Not yet implemented");
+    } break;
+
     case hadron::parse::NodeType::kWhile: {
         const auto whileNode = reinterpret_cast<const hadron::parse::WhileNode*>(node);
         jsonNode.AddMember("nodeType", rapidjson::Value("While"), document.GetAllocator());
@@ -1065,6 +1077,10 @@ void JSONTransport::JSONTransportImpl::serializeAST(hadron::ThreadContext* conte
             ++i;
         }
         path.pop_back();
+    } break;
+
+    case hadron::ast::ASTType::kMultiAssign: {
+        assert(false); // TODO
     } break;
     }
 }

@@ -1,26 +1,11 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_TOKEN_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_TOKEN_HPP_
 
-#include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
 
 #include <string_view>
 
 namespace hadron {
-
-enum LiteralType {
-    kNone,
-    kNil,
-    kInteger,
-    kFloat,
-    kBoolean,
-    kChar,
-    kString,
-    kSymbol,
-    kObject,
-    kArray,
-    kBlock,
-};
 
 // Lexer lexes source to produce Tokens, Parser consumes Tokens to produce Parse Tree.
 struct Token {
@@ -37,57 +22,59 @@ struct Token {
                         // other ways to resolve this ambiguity but they will likely require some changes to the
                         // grammar.
         kLiteral = 2,
-        kPrimitive = 3,
+        kString = 3,    // Strings are lexed differently from other literals to allow support for concatenating literal
+                        // strings at compile time, e.g. "line1" "line2" "line3" should end up as one string in the AST.
+        kSymbol = 4,
+        kPrimitive = 5,
 
         // <<< all below could also be binops >>>
-        kPlus = 4,         // so named because it could be an addition or a class extension
-        kMinus = 5,        // Could be unary negation so handled separately
-        kAsterisk = 6,     // so named because it could be a multiply or a class method
-        kAssign = 7,
-        kLessThan = 8,
-        kGreaterThan = 9,
-        kPipe = 10,
-        kReadWriteVar = 11,
-        kLeftArrow = 12,
-        kBinop = 13,  // TODO: rename kGenericBinop, this is some arbitrary collection of the valid binop characters.
-        kKeyword = 14,      // Any identifier with a colon after it.
+        kPlus = 6,         // so named because it could be an addition or a class extension
+        kMinus = 7,        // Could be unary negation so handled separately
+        kAsterisk = 8,     // so named because it could be a multiply or a class method
+        kAssign = 9,
+        kLessThan = 10,
+        kGreaterThan = 11,
+        kPipe = 12,
+        kReadWriteVar = 13,
+        kLeftArrow = 14,
+        kBinop = 15,  // TODO: rename kGenericBinop, this is some arbitrary collection of the valid binop characters.
+        kKeyword = 16,      // Any identifier with a colon after it.
         // <<< all above could also be binops >>>
 
-        kOpenParen = 15,
-        kCloseParen = 16,
-        kOpenCurly = 17,
-        kCloseCurly = 18,
-        kOpenSquare = 19,
-        kCloseSquare =  20,
-        kComma = 21,
-        kSemicolon = 22,
-        kColon = 23,
-        kCaret = 24,
-        kTilde = 25,
-        kHash = 26,
-        kGrave = 27,
-        kVar = 28,
-        kArg = 29,
-        kConst = 30,
-        kClassVar = 31,
-        kIdentifier = 32,
-        kClassName = 33,
-        kDot = 34,
-        kDotDot = 35,
-        kEllipses = 36,
-        kCurryArgument = 37,
+        kOpenParen = 17,
+        kCloseParen = 18,
+        kOpenCurly = 19,
+        kCloseCurly = 20,
+        kOpenSquare = 21,
+        kCloseSquare = 22,
+        kComma = 23,
+        kSemicolon = 24,
+        kColon = 25,
+        kCaret = 26,
+        kTilde = 27,
+        kHash = 28,
+        kGrave = 29,
+        kVar = 30,
+        kArg = 31,
+        kConst = 32,
+        kClassVar = 33,
+        kIdentifier = 34,
+        kClassName = 35,
+        kDot = 36,
+        kDotDot = 37,
+        kEllipses = 38,
+        kCurryArgument = 39,
+        kBeginClosedFunction = 40, // #{
 
         // Control Flow
-        kIf = 38,
-        kWhile = 39
+        kIf = 41,
+        kWhile = 42
     };
 
     Name name;
     std::string_view range;
     Slot value;
-    LiteralType literalType;
     bool couldBeBinop;
-    Hash hash;
     bool escapeString;
     // Both are zero-based.
     struct Location {
@@ -97,38 +84,38 @@ struct Token {
     Location location;
 
     // Method for making any non-literal token.
-    static inline Token make(Name n, std::string_view r, Location loc, bool binop = false, Hash h = 0) {
-        return Token(n, r, Slot::makeNil(), LiteralType::kNone, binop, h, false, loc);
+    static inline Token make(Name n, std::string_view r, Location loc, bool binop = false) {
+        return Token(n, r, Slot::makeNil(), binop, false, loc);
     }
     static inline Token makeIntegerLiteral(int32_t intValue, std::string_view r, Location loc) {
-        return Token(kLiteral, r, Slot::makeInt32(intValue), LiteralType::kInteger, false, 0, false, loc);
+        return Token(kLiteral, r, Slot::makeInt32(intValue), false, false, loc);
     }
     static inline Token makeFloatLiteral(double f, std::string_view r, Location loc) {
-        return Token(kLiteral, r, Slot::makeFloat(f), LiteralType::kFloat, false, 0, false, loc);
+        return Token(kLiteral, r, Slot::makeFloat(f), false, false, loc);
     }
     // Note we don't copy strings or symbols into SC-side String or Symbol objects for now
-    static inline Token makeStringLiteral(std::string_view r, Location loc, bool escape) {
-        return Token(kLiteral, r, Slot::makeNil(), LiteralType::kString, false, 0, escape, loc);
+    static inline Token makeString(std::string_view r, Location loc, bool escape) {
+        return Token(kString, r, Slot::makeNil(), false, escape, loc);
     }
-    static inline Token makeSymbolLiteral(std::string_view r, Location loc, bool escape) {
-        return Token(kLiteral, r, Slot::makeNil(), LiteralType::kSymbol, false, 0, escape, loc);
+    static inline Token makeSymbol(std::string_view r, Location loc, bool escape) {
+        return Token(kSymbol, r, Slot::makeNil(), false, escape, loc);
     }
     static inline Token makeCharLiteral(char c, std::string_view r, Location loc) {
-        return Token(kLiteral, r, Slot::makeChar(c), LiteralType::kChar, false, 0, false, loc);
+        return Token(kLiteral, r, Slot::makeChar(c), false, false, loc);
     }
     static inline Token makeBooleanLiteral(bool b, std::string_view r, Location loc) {
-        return Token(kLiteral, r, Slot::makeBool(b), LiteralType::kBoolean, false, 0, false, loc);
+        return Token(kLiteral, r, Slot::makeBool(b), false, false, loc);
     }
     static inline Token makeNilLiteral(std::string_view r, Location loc) {
-        return Token(kLiteral, r, Slot::makeNil(), LiteralType::kNil, false, 0, false, loc);
+        return Token(kLiteral, r, Slot::makeNil(), false, false, loc);
     }
     static inline Token makeEmpty() {
-        return Token(kEmpty, std::string_view(), Slot::makeNil(), LiteralType::kNone, false, 0, false, Location{0, 0});
+        return Token(kEmpty, std::string_view(), Slot::makeNil(), false, false, Location{0, 0});
     }
 
 private:
-    Token(Name n, std::string_view r, Slot v, LiteralType t, bool binop, Hash h, bool escape, Location l):
-        name(n), range(r), value(v), literalType(t), couldBeBinop(binop), hash(h), escapeString(escape), location(l) {}
+    Token(Name n, std::string_view r, Slot v, bool binop, bool escape, Location l):
+        name(n), range(r), value(v), couldBeBinop(binop), escapeString(escape), location(l) {}
 };
 
 } // namespace hadron

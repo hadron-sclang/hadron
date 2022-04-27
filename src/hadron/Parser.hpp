@@ -17,44 +17,48 @@ class Lexer;
 namespace parse {
 
 enum NodeType {
-    kEmpty = 0, // Represents a valid parse of an empty input buffer.
-    kVarDef = 1,
-    kVarList = 2,
-    kArgList = 3,
-    kMethod = 4,
-    kClassExt = 5,
-    kClass = 6,
-    kReturn = 7,
-    kList = 8,
-    kDictionary = 9,
-    kBlock = 10,
-    kLiteral = 11,
-    kName = 12,
-    kExprSeq = 13,
-    kAssign = 14,
-    kSetter = 15,
-    kKeyValue = 16,
-    kCall = 17,
-    kBinopCall = 18,
-    kPerformList = 19,
-    kNumericSeries = 20,
-    kCurryArgument = 21,
-    kArrayRead = 22,
-    kArrayWrite = 23,
-    kCopySeries = 24,
-    kNew = 25,
-    kSeries = 26,
-    kSeriesIter = 27,
-    kLiteralList = 28,
-    kLiteralDict = 29,
-    kMultiAssignVars = 30,
-    kMultiAssign = 31,
-    kIf = 32,
-    kWhile = 33
+    kArgList,
+    kArray,
+    kArrayRead,
+    kArrayWrite,
+    kAssign,
+    kBinopCall,
+    kBlock,
+    kCall,
+    kClass,
+    kClassExt,
+    kCopySeries,
+    kCurryArgument,
+    kEmpty,
+    kEnvironmentAt,
+    kEnvironmentPut,
+    kEvent,
+    kExprSeq,
+    kIf,
+    kKeyValue,
+    kLiteralDict, // kNewEvent - these are calls and allow curry args, created at runtime
+    kLiteralList, // kNewCollection
+    kMethod,
+    kMultiAssign,
+    kMultiAssignVars,
+    kName,
+    kNew,
+    kNumericSeries,
+    kPerformList,
+    kReturn,
+    kSeries,
+    kSeriesIter,
+    kSetter,
+    kSlot,
+    kString,
+    kSymbol,
+    kValue,
+    kVarDef,
+    kVarList,
+    kWhile
 };
 
 struct Node {
-    Node(NodeType type, size_t index): nodeType(type), tokenIndex(index), tail(this) {}
     Node() = delete;
     virtual ~Node() = default;
     void append(std::unique_ptr<Node> node) {
@@ -66,24 +70,27 @@ struct Node {
     size_t tokenIndex;
     std::unique_ptr<Node> next;
     Node* tail;
+
+protected:
+    Node(NodeType type, size_t index): nodeType(type), tokenIndex(index), tail(this) {}
 };
 
-struct VarDefNode : public Node {
-    VarDefNode(size_t index): Node(NodeType::kVarDef, index) {}
-    virtual ~VarDefNode() = default;
-    bool hasReadAccessor = false;
-    bool hasWriteAccessor = false;
+struct KeyValueNode;
 
-    std::unique_ptr<Node> initialValue;
+// Several Call-type parse nodes have the same member variables so we aggregate them in a base class.
+struct CallBaseNode : public Node {
+    CallBaseNode() = delete;
+    virtual ~CallBaseNode() = default;
+
+    std::unique_ptr<Node> target;
+    std::unique_ptr<Node> arguments;
+    std::unique_ptr<KeyValueNode> keywordArguments;
+
+protected:
+    CallBaseNode(NodeType type, size_t index): Node(type, index) {}
 };
 
-struct VarListNode : public Node {
-    VarListNode(size_t index): Node(NodeType::kVarList, index) {}
-    virtual ~VarListNode() = default;
-
-    // The associated Lexer Token can be used to disambiguate between classvar, var, and const declarations.
-    std::unique_ptr<VarDefNode> definitions;
-};
+struct VarListNode;
 
 struct ArgListNode : public Node {
     ArgListNode(size_t index): Node(NodeType::kArgList, index) {}
@@ -93,163 +100,14 @@ struct ArgListNode : public Node {
     std::optional<size_t> varArgsNameIndex;
 };
 
-struct ExprSeqNode : public Node {
-    ExprSeqNode(size_t index, std::unique_ptr<Node> firstExpr):
-        Node(NodeType::kExprSeq, index), expr(std::move(firstExpr)) {}
-    virtual ~ExprSeqNode() = default;
+struct ExprSeqNode;
 
-    std::unique_ptr<Node> expr;
-};
-
-struct BlockNode : public Node {
-    BlockNode(size_t index): Node(NodeType::kBlock, index) {}
-    virtual ~BlockNode() = default;
-
-    std::unique_ptr<ArgListNode> arguments;
-    std::unique_ptr<VarListNode> variables;
-    std::unique_ptr<ExprSeqNode> body;
-};
-
-struct MethodNode : public Node {
-    MethodNode(size_t index, bool classMethod):
-            Node(NodeType::kMethod, index),
-            isClassMethod(classMethod) {}
-    virtual ~MethodNode() = default;
-
-    bool isClassMethod;
-    std::optional<size_t> primitiveIndex;
-    std::unique_ptr<BlockNode> body;
-};
-
-struct ClassExtNode : public Node {
-    ClassExtNode(size_t index): Node(NodeType::kClassExt, index) {}
-    virtual ~ClassExtNode() = default;
-
-    std::unique_ptr<MethodNode> methods;
-};
-
-struct ClassNode : public Node {
-    ClassNode(size_t index): Node(NodeType::kClass, index) {}
-    virtual ~ClassNode() = default;
-
-    std::optional<size_t> superClassNameIndex;
-    std::optional<size_t> optionalNameIndex;
-
-    std::unique_ptr<VarListNode> variables;
-    std::unique_ptr<MethodNode> methods;
-};
-
-struct ReturnNode : public Node {
-    ReturnNode(size_t index): Node(NodeType::kReturn, index) {}
-    virtual ~ReturnNode() = default;
-
-    // nullptr means default return value.
-    std::unique_ptr<Node> valueExpr;
-};
-
-struct ListNode : public Node {
-    ListNode(size_t index): Node(NodeType::kList, index) {}
-    virtual ~ListNode() = default;
+// An array of elements without classname, e.g. [1, 2, 3], always makes an Array
+struct ArrayNode : public Node {
+    ArrayNode(size_t index): Node(NodeType::kArray, index) {}
+    virtual ~ArrayNode() = default;
 
     std::unique_ptr<ExprSeqNode> elements;
-};
-
-struct DictionaryNode : public Node {
-    DictionaryNode(size_t index): Node(NodeType::kDictionary, index) {}
-    virtual ~DictionaryNode() = default;
-
-    std::unique_ptr<ExprSeqNode> elements;
-};
-
-struct LiteralNode : public Node {
-    LiteralNode(size_t index, LiteralType t, const Slot& v): Node(NodeType::kLiteral, index), type(t), value(v) {}
-    virtual ~LiteralNode() = default;
-
-    LiteralType type;
-    // Due to unary negation of literals, this value may differ from the token value at tokenIndex. This value should be
-    // considered authoritative.
-    Slot value;
-    // If blockLiteral is non-null, this is a blockLiteral and the Slot is ignored.
-    std::unique_ptr<BlockNode> blockLiteral;
-};
-
-struct NameNode : public Node {
-    NameNode(size_t index): Node(NodeType::kName, index) {}
-    virtual ~NameNode() = default;
-
-    bool isGlobal = false;
-};
-
-struct KeyValueNode : public Node {
-    KeyValueNode(size_t index): Node(NodeType::kKeyValue, index) {}
-    virtual ~KeyValueNode() = default;
-
-    std::unique_ptr<Node> key;
-    std::unique_ptr<Node> value;
-};
-
-// target.selector(arguments, keyword: arguments)
-struct CallNode : public Node {
-    CallNode(std::pair<size_t, Hash> sel): Node(NodeType::kCall, sel.first), selector(sel.second) {}
-    virtual ~CallNode() = default;
-
-    Hash selector; // TODO: not useful, deprecate
-    std::unique_ptr<Node> target;
-    std::unique_ptr<Node> arguments;
-    std::unique_ptr<KeyValueNode> keywordArguments;
-};
-
-struct BinopCallNode : public Node {
-    BinopCallNode(size_t index): Node(NodeType::kBinopCall, index) {}
-    virtual ~BinopCallNode() = default;
-
-    std::unique_ptr<Node> leftHand;
-    std::unique_ptr<Node> rightHand;
-    std::unique_ptr<Node> adverb;
-};
-
-// From an = command, assigns value to the identifier in name.
-struct AssignNode : public Node {
-    AssignNode(size_t index): Node(NodeType::kAssign, index) {}
-    virtual ~AssignNode() = default;
-
-    std::unique_ptr<NameNode> name;
-    std::unique_ptr<Node> value;
-};
-
-// target.selector = value, token should point at selector
-struct SetterNode : public Node {
-    SetterNode(size_t index): Node(NodeType::kSetter, index) {}
-    virtual ~SetterNode() = default;
-
-    // The recipient of the assigned value.
-    std::unique_ptr<Node> target;
-    std::unique_ptr<Node> value;
-};
-
-// Below nodes are higher-level syntax constructs that LSC processes into lower-level function calls during parsing.
-// We keep these high-level for first parsing pass.
-struct PerformListNode : public Node {
-    PerformListNode(size_t index): Node(NodeType::kPerformList, index) {}
-    virtual ~PerformListNode() = default;
-
-    std::unique_ptr<Node> target;
-    std::unique_ptr<Node> arguments;
-    std::unique_ptr<KeyValueNode> keywordArguments;
-};
-
-struct NumericSeriesNode : public Node {
-    NumericSeriesNode(size_t index): Node(NodeType::kNumericSeries, index) {}
-    virtual ~NumericSeriesNode() = default;
-
-    std::unique_ptr<Node> start;
-    std::unique_ptr<Node> step;
-    std::unique_ptr<Node> stop;
-};
-
-struct CurryArgumentNode : public Node {
-    CurryArgumentNode(size_t index): Node(NodeType::kCurryArgument, index) {}
-    virtual ~CurryArgumentNode() = default;
 };
 
 struct ArrayReadNode : public Node {
@@ -270,6 +128,77 @@ struct ArrayWriteNode : public Node {
     std::unique_ptr<Node> value;
 };
 
+struct NameNode;
+
+// From an = command, assigns value to the identifier in name.
+struct AssignNode : public Node {
+    AssignNode(size_t index): Node(NodeType::kAssign, index) {}
+    virtual ~AssignNode() = default;
+
+    std::unique_ptr<NameNode> name;
+    std::unique_ptr<Node> value;
+};
+
+struct BinopCallNode : public Node {
+    BinopCallNode(size_t index): Node(NodeType::kBinopCall, index) {}
+    virtual ~BinopCallNode() = default;
+
+    std::unique_ptr<Node> leftHand;
+    std::unique_ptr<Node> rightHand;
+    std::unique_ptr<Node> adverb;
+};
+
+struct BlockNode : public Node {
+    BlockNode(size_t index): Node(NodeType::kBlock, index) {}
+    virtual ~BlockNode() = default;
+
+    // Destructively move everything in this block to a freshly allocated object.
+    std::unique_ptr<BlockNode> moveTo() {
+        auto block = std::make_unique<BlockNode>(tokenIndex);
+        block->next = std::move(next);
+        next = nullptr;
+        block->tail = tail;
+        tail = nullptr;
+        block->arguments = std::move(arguments);
+        arguments = nullptr;
+        block->variables = std::move(variables);
+        variables = nullptr;
+        block->body = std::move(body);
+        body = nullptr;
+        return block;
+    }
+
+    std::unique_ptr<ArgListNode> arguments;
+    std::unique_ptr<VarListNode> variables;
+    std::unique_ptr<ExprSeqNode> body;
+};
+
+// target.selector(arguments, keyword: arguments)
+struct CallNode : public CallBaseNode {
+    CallNode(size_t index): CallBaseNode(NodeType::kCall, index) {}
+    virtual ~CallNode() = default;
+};
+
+struct MethodNode;
+
+struct ClassNode : public Node {
+    ClassNode(size_t index): Node(NodeType::kClass, index) {}
+    virtual ~ClassNode() = default;
+
+    std::optional<size_t> superClassNameIndex;
+    std::optional<size_t> optionalNameIndex;
+
+    std::unique_ptr<VarListNode> variables;
+    std::unique_ptr<MethodNode> methods;
+};
+
+struct ClassExtNode : public Node {
+    ClassExtNode(size_t index): Node(NodeType::kClassExt, index) {}
+    virtual ~ClassExtNode() = default;
+
+    std::unique_ptr<MethodNode> methods;
+};
+
 // Syntax shorthand for subarray copies, e.g. target[1,2..4]
 struct CopySeriesNode : public Node {
     CopySeriesNode(size_t index): Node(NodeType::kCopySeries, index) {}
@@ -277,17 +206,142 @@ struct CopySeriesNode : public Node {
 
     std::unique_ptr<Node> target;
     std::unique_ptr<ExprSeqNode> first;
+    std::unique_ptr<Node> second;
     std::unique_ptr<ExprSeqNode> last;
 };
 
-// Syntax shorthand for a call to the new() method.
-struct NewNode : public Node {
-    NewNode(size_t index): Node(NodeType::kNew, index) {}
-    virtual ~NewNode() = default;
+struct CurryArgumentNode : public Node {
+    CurryArgumentNode(size_t index): Node(NodeType::kCurryArgument, index) {}
+    virtual ~CurryArgumentNode() = default;
+};
 
-    std::unique_ptr<Node> target;
-    std::unique_ptr<Node> arguments;
-    std::unique_ptr<KeyValueNode> keywordArguments;
+struct EmptyNode : public Node {
+    EmptyNode(): Node(NodeType::kEmpty, 0) {}
+    virtual ~EmptyNode() = default;
+};
+
+struct EnvironmentAtNode : public Node {
+    EnvironmentAtNode(size_t index): Node(NodeType::kEnvironmentAt, index) {}
+    virtual ~EnvironmentAtNode() = default;
+};
+
+struct EnvironmentPutNode : public Node {
+    EnvironmentPutNode(size_t index): Node(NodeType::kEnvironmentPut, index) {}
+    virtual ~EnvironmentPutNode() = default;
+
+    std::unique_ptr<Node> value;
+};
+
+  // A keyword/value pair in parens makes an event e.g. (a: 4, b: 5) always makes an Event
+struct EventNode : public Node {
+    EventNode(size_t index): Node(NodeType::kEvent, index) {}
+    virtual ~EventNode() = default;
+
+    // Expected to be in pairs of key: value.
+    std::unique_ptr<ExprSeqNode> elements;
+};
+
+struct ExprSeqNode : public Node {
+    ExprSeqNode(size_t index, std::unique_ptr<Node> firstExpr):
+        Node(NodeType::kExprSeq, index), expr(std::move(firstExpr)) {}
+    virtual ~ExprSeqNode() = default;
+
+    std::unique_ptr<Node> expr;
+};
+
+struct IfNode : public Node {
+    IfNode(size_t index): Node(NodeType::kIf, index) {}
+    virtual ~IfNode() = default;
+
+    std::unique_ptr<ExprSeqNode> condition;
+    std::unique_ptr<BlockNode> trueBlock;
+    // optional else condition.
+    std::unique_ptr<BlockNode> falseBlock;
+};
+
+struct KeyValueNode : public Node {
+    KeyValueNode(size_t index): Node(NodeType::kKeyValue, index) {}
+    virtual ~KeyValueNode() = default;
+
+    std::unique_ptr<Node> key;
+    std::unique_ptr<Node> value;
+};
+
+struct LiteralDictNode : public Node {
+    LiteralDictNode(size_t index): Node(NodeType::kLiteralDict, index) {}
+    virtual ~LiteralDictNode() = default;
+
+    std::unique_ptr<Node> elements;
+};
+
+struct LiteralListNode : public Node {
+    LiteralListNode(size_t index): Node(NodeType::kLiteralList, index) {}
+    virtual ~LiteralListNode() = default;
+
+    std::unique_ptr<NameNode> className;
+    std::unique_ptr<Node> elements;
+};
+
+struct MethodNode : public Node {
+    MethodNode(size_t index, bool classMethod):
+            Node(NodeType::kMethod, index),
+            isClassMethod(classMethod) {}
+    virtual ~MethodNode() = default;
+
+    bool isClassMethod;
+    std::optional<size_t> primitiveIndex;
+    std::unique_ptr<BlockNode> body;
+};
+
+struct MultiAssignVarsNode;
+
+struct MultiAssignNode : public Node {
+    MultiAssignNode(size_t index): Node(NodeType::kMultiAssign, index) {}
+    virtual ~MultiAssignNode() = default;
+
+    std::unique_ptr<MultiAssignVarsNode> targets;
+    std::unique_ptr<Node> value;
+};
+
+struct MultiAssignVarsNode : public Node {
+    MultiAssignVarsNode(size_t index): Node(NodeType::kMultiAssignVars, index) {}
+    virtual ~MultiAssignVarsNode() = default;
+
+    std::unique_ptr<NameNode> names;
+    std::unique_ptr<NameNode> rest;
+};
+
+struct NameNode : public Node {
+    NameNode(size_t index): Node(NodeType::kName, index) {}
+    virtual ~NameNode() = default;
+};
+
+// Syntax shorthand for a call to the new() method.
+struct NewNode : public CallBaseNode {
+    NewNode(size_t index): CallBaseNode(NodeType::kNew, index) {}
+    virtual ~NewNode() = default;
+};
+
+struct NumericSeriesNode : public Node {
+    NumericSeriesNode(size_t index): Node(NodeType::kNumericSeries, index) {}
+    virtual ~NumericSeriesNode() = default;
+
+    std::unique_ptr<Node> start;
+    std::unique_ptr<Node> step;
+    std::unique_ptr<Node> stop;
+};
+
+struct PerformListNode : public CallBaseNode {
+    PerformListNode(size_t index): CallBaseNode(NodeType::kPerformList, index) {}
+    virtual ~PerformListNode() = default;
+};
+
+struct ReturnNode : public Node {
+    ReturnNode(size_t index): Node(NodeType::kReturn, index) {}
+    virtual ~ReturnNode() = default;
+
+    // nullptr means default return value.
+    std::unique_ptr<Node> valueExpr;
 };
 
 // Equivalent to start.series(step, last)
@@ -309,45 +363,59 @@ struct SeriesIterNode : public Node {
     std::unique_ptr<ExprSeqNode> last;
 };
 
-struct LiteralListNode : public Node {
-    LiteralListNode(size_t index): Node(NodeType::kLiteralList, index) {}
-    virtual ~LiteralListNode() = default;
+// target.selector = value, token should point at selector
+struct SetterNode : public Node {
+    SetterNode(size_t index): Node(NodeType::kSetter, index) {}
+    virtual ~SetterNode() = default;
 
-    std::unique_ptr<NameNode> className;
-    std::unique_ptr<Node> elements;
-};
-
-struct LiteralDictNode : public Node {
-    LiteralDictNode(size_t index): Node(NodeType::kLiteralDict, index) {}
-    virtual ~LiteralDictNode() = default;
-
-    std::unique_ptr<Node> elements;
-};
-
-struct MultiAssignVarsNode : public Node {
-    MultiAssignVarsNode(size_t index): Node(NodeType::kMultiAssignVars, index) {}
-    virtual ~MultiAssignVarsNode() = default;
-
-    std::unique_ptr<NameNode> names;
-    std::unique_ptr<NameNode> rest;
-};
-
-struct MultiAssignNode : public Node {
-    MultiAssignNode(size_t index): Node(NodeType::kMultiAssign, index) {}
-    virtual ~MultiAssignNode() = default;
-
-    std::unique_ptr<MultiAssignVarsNode> targets;
+    // The recipient of the assigned value.
+    std::unique_ptr<Node> target;
     std::unique_ptr<Node> value;
 };
 
-struct IfNode : public Node {
-    IfNode(size_t index): Node(NodeType::kIf, index) {}
-    virtual ~IfNode() = default;
+// Holds any literal that can fit in a Slot without memory allocation, so int32, double, bool, char, nil.
+struct SlotNode : public Node {
+    SlotNode(size_t index, const Slot& v): Node(NodeType::kSlot, index), value(v) {}
+    virtual ~SlotNode() = default;
 
-    std::unique_ptr<ExprSeqNode> condition;
-    std::unique_ptr<BlockNode> trueBlock;
-    // optional else condition.
-    std::unique_ptr<BlockNode> falseBlock;
+    // Due to unary negation of literals, this value may differ from the token value at tokenIndex. This value should be
+    // considered authoritative.
+    Slot value;
+};
+
+// StringNode->next may point at additional StringNodes that should be concatenated to this one when lowering to AST.
+struct StringNode : public Node {
+    StringNode(size_t index): Node(NodeType::kString, index) {}
+    virtual ~StringNode() = default;
+};
+
+// References a literal Symbol in the source code.
+struct SymbolNode : public Node {
+    SymbolNode(size_t index): Node(NodeType::kSymbol, index) {}
+    virtual ~SymbolNode() = default;
+};
+
+// Implied evaluation of a function, an implied call to value, like "f.(a, b)"
+struct ValueNode : public CallBaseNode {
+    explicit ValueNode(size_t index): CallBaseNode(NodeType::kValue, index) {}
+    virtual ~ValueNode() = default;
+};
+
+struct VarDefNode : public Node {
+    VarDefNode(size_t index): Node(NodeType::kVarDef, index) {}
+    virtual ~VarDefNode() = default;
+    bool hasReadAccessor = false;
+    bool hasWriteAccessor = false;
+
+    std::unique_ptr<Node> initialValue;
+};
+
+struct VarListNode : public Node {
+    VarListNode(size_t index): Node(NodeType::kVarList, index) {}
+    virtual ~VarListNode() = default;
+
+    // The associated Lexer Token can be used to disambiguate between classvar, var, and const declarations.
+    std::unique_ptr<VarDefNode> definitions;
 };
 
 struct WhileNode : public Node {

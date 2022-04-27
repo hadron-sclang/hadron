@@ -11,8 +11,8 @@
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/internal/FileSystem.hpp"
-#include "hadron/Keywords.hpp"
 #include "hadron/Lexer.hpp"
+#include "hadron/library/Object.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/LinearFrame.hpp"
@@ -192,7 +192,7 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
         metaSuperclassName = library::Symbol::fromView(context, fmt::format("Meta_{}",
                 lexer->tokens()[classNode->superClassNameIndex.value()].range));
     } else {
-        if (classDef.name(context).hash() == kObjectHash) {
+        if (classDef.name(context).hash() == library::ObjectActual::nameHash()) {
             // The superclass of 'Meta_Object' is 'Class'.
             metaSuperclassName = library::Symbol::fromView(context, "Class");
         } else {
@@ -202,7 +202,7 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
     }
 
     // Set up parent object and add this class definition to its subclasses array, if this isn't `Object`.
-    if (classDef.name(context).hash() != kObjectHash) {
+    if (classDef.name(context).hash() != library::ObjectActual::nameHash()) {
         classDef.setSuperclass(superclassName);
         library::Class superclass = findOrInitClass(context, superclassName);
         library::ClassArray subclasses = superclass.subclasses();
@@ -220,7 +220,7 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
     // Extract class and instance variables and constants.
     const parse::VarListNode* varList = classNode->variables.get();
     while (varList) {
-        auto varHash = lexer->tokens()[varList->tokenIndex].hash;
+        auto varType = lexer->tokens()[varList->tokenIndex].name;
         auto nameArray = library::SymbolArray();
         auto valueArray = library::Array();
 
@@ -229,12 +229,11 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
             nameArray = nameArray.add(context, library::Symbol::fromView(context,
                     lexer->tokens()[varDef->tokenIndex].range));
             if (varDef->initialValue) {
-                if (varDef->initialValue->nodeType != parse::NodeType::kLiteral) {
-                    SPDLOG_ERROR("non-literal initial value in class.");
-                    assert(false);
-                }
-                auto literal = reinterpret_cast<const parse::LiteralNode*>(varDef->initialValue.get());
-                valueArray = valueArray.add(context, literal->value);
+                ASTBuilder builder(m_errorReporter);
+                Slot literal = Slot::makeNil();
+                auto wasLiteral = builder.buildLiteral(context, lexer, varDef->initialValue.get(), literal);
+                assert(wasLiteral);
+                valueArray = valueArray.add(context, literal);
             } else {
                 valueArray = valueArray.add(context, Slot::makeNil());
             }
@@ -244,14 +243,14 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
         assert(nameArray.size() == valueArray.size());
 
         // Each line gets its own varList parse node, so append to any existing arrays to preserve previous values.
-        if (varHash == kVarHash) {
+        if (varType == Token::Name::kVar) {
             classDef.setInstVarNames(classDef.instVarNames().addAll(context, nameArray));
             classDef.setIprototype(classDef.iprototype().addAll(context, valueArray));
-        } else if (varHash == kClassVarHash) {
+        } else if (varType == Token::Name::kClassVar) {
             classDef.setClassVarNames(classDef.classVarNames().addAll(context, nameArray));
             classDef.setCprototype(classDef.cprototype().addAll(context, valueArray));
             m_numberOfClassVariables += nameArray.size();
-        } else if (varHash == kConstHash) {
+        } else if (varType == Token::Name::kConst) {
             classDef.setConstNames(classDef.constNames().addAll(context, nameArray));
             classDef.setConstValues(classDef.constValues().addAll(context, valueArray));
         } else {
