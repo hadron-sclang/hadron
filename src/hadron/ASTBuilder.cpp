@@ -2,6 +2,7 @@
 
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Lexer.hpp"
+#include "hadron/library/HadronAST.hpp"
 #include "hadron/library/String.hpp"
 #include "hadron/library/Symbol.hpp"
 #include "hadron/Parser.hpp"

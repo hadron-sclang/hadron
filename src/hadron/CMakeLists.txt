@@ -148,10 +148,26 @@ foreach(CLASS_FILE ${SCLANG_CLASS_FILES})
     list(APPEND SCHEMA_FILES ${SCHEMA_FILE})
 endforeach()
 
+
+list(APPEND HLANG_CLASS_FILES
+    "${HLANG_PATH}/HLang/HadronAST.sc"
+    "${HLANG_PATH}/HLang/HadronFrame.sc"
+)
+
+foreach(CLASS_FILE ${HLANG_CLASS_FILES})
+    string(REGEX REPLACE ".sc$" "" SCHEMA_BASE ${CLASS_FILE})
+    string(REGEX REPLACE ${HLANG_PATH} "" SCHEMA_BASE ${SCHEMA_BASE})
+    set(SCHEMA_FILE ${CMAKE_CURRENT_BINARY_DIR}/schema/${SCHEMA_BASE}Schema.hpp)
+    get_filename_component(SCHEMA_FILE_DIRECTORY ${SCHEMA_FILE} DIRECTORY)
+    file(MAKE_DIRECTORY ${SCHEMA_FILE_DIRECTORY})
+    list(APPEND SCHEMA_FILES ${SCHEMA_FILE})
+endforeach()
+
 add_custom_command(OUTPUT ${SCHEMA_FILES}
     COMMAND schemac --classFiles "${SCLANG_CLASS_FILES}" --libraryPath ${SCLANG_PATH}
+            --hlangFiles "${HLANG_CLASS_FILES}" --hlangPath ${HLANG_PATH}
             --schemaPath ${CMAKE_CURRENT_BINARY_DIR}/schema
-    DEPENDS ${SCLANG_CLASS_FILES} schemac
+    DEPENDS ${SCLANG_CLASS_FILES} ${HLANG_CLASS_FILES} schemac
     VERBATIM
 )
 
@@ -202,6 +218,7 @@ add_library(hadron STATIC
     library/ArrayedCollection.hpp
     library/Collection.hpp
     library/Function.hpp
+    library/HadronAST.hpp
     library/Kernel.hpp
     library/Object.hpp
     library/Schema.hpp
