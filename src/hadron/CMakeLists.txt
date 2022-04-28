@@ -244,7 +244,6 @@ add_library(hadron STATIC
     lir/StoreToPointerLIR.hpp
 
     Arch.hpp
-    AST.hpp
     ASTBuilder.cpp
     ASTBuilder.hpp
     Block.cpp

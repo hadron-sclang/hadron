@@ -41,8 +41,11 @@ HadronMethodReturnAST : HadronAST {
 }
 
 HadronMultiAssignAST : HadronAST {
+    // The value that should evaluate to an Array.
 	var <>arrayValue;
+    // The in-order sequence of names or anonymous targets that receive the individual elements of arrayValue.
 	var <>targetNames;
+    // If true, the last element receives the rest of the array, otherwise false.
 	var <>lastIsRemain;
 }
 

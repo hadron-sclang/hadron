@@ -1,8 +1,8 @@
 #ifndef SRC_HADRON_AST_BUILDER_HPP_
 #define SRC_HADRON_AST_BUILDER_HPP_
 
-#include "hadron/AST.hpp"
 #include "hadron/Slot.hpp"
+#include "hadron/library/HadronAST.hpp"
 
 #include <memory>
 
@@ -34,22 +34,20 @@ public:
     ~ASTBuilder() = default;
 
     // We only build AST from Blocks, leaving the higher-level language constructs (like Classes) behind.
-    std::unique_ptr<ast::BlockAST> buildBlock(ThreadContext* context, const Lexer* lexer,
-            const parse::BlockNode* blockNode);
+    library::BlockAST buildBlock(ThreadContext* context, const Lexer* lexer, const parse::BlockNode* blockNode);
 
     // Node can be a SlotNode, SymbolNode, or one or more StringNodes. Sets value in |literal| and returns true
     // if node was a useful literal, otherwise sets |literal| to nil and returns false.
     bool buildLiteral(ThreadContext* context, const Lexer* lexer, const parse::Node* node, Slot& literal);
 
 private:
-    int32_t appendToSequence(ThreadContext* context, const Lexer* lexer, ast::SequenceAST* sequence,
+    int32_t appendToSequence(ThreadContext* context, const Lexer* lexer, library::Array& sequence,
             const parse::Node* node, int32_t startCurryCount = 0);
-    std::unique_ptr<ast::AST> transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node,
-            int32_t& curryCount);
-    std::unique_ptr<ast::SequenceAST> transformSequence(ThreadContext* context, const Lexer* lexer,
-            const parse::ExprSeqNode* exprSeqNode, int32_t& curryCount);
-    std::unique_ptr<ast::BlockAST> buildPartialBlock(ThreadContext* context, int32_t numberOfArguments);
-    std::unique_ptr<ast::AST> transformCallBase(ThreadContext* context, const Lexer* lexer,
+    library::AST transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node, int32_t& curryCount);
+    library::Array transformSequence(ThreadContext* context, const Lexer* lexer,
+                const parse::ExprSeqNode* exprSeqNode, int32_t& curryCount);
+    library::BlockAST buildPartialBlock(ThreadContext* context, int32_t numberOfArguments);
+    library::AST transformCallBase(ThreadContext* context, const Lexer* lexer,
             const parse::CallBaseNode* callBaseNode, library::Symbol selector, int32_t& curryCount);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;

@@ -26,17 +26,6 @@ public:
     ~AST() {}
 };
 
-class NameAST : public ASTBase<NameAST, schema::HadronNameASTSchema> {
-public:
-    NameAST(): ASTBase<NameAST, schema::HadronNameASTSchema>() {}
-    explicit NameAST(schema::HadronNameASTSchema* instance):
-            ASTBase<NameAST, schema::HadronNameASTSchema>(instance) {}
-    explicit NameAST(Slot instance): ASTBase<NameAST, schema::HadronNameASTSchema>(instance) {}
-    ~NameAST() {}
-
-    Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
-};
-
 class AssignAST : public ASTBase<AssignAST, schema::HadronAssignASTSchema> {
 public:
     AssignAST(): ASTBase<AssignAST, schema::HadronAssignASTSchema>() {}
@@ -45,7 +34,7 @@ public:
     explicit AssignAST(Slot instance): ASTBase<AssignAST, schema::HadronAssignASTSchema>(instance) {}
     ~AssignAST() {}
 
-    NameAST name() const { return NameAST(m_instance->name); }
+    Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
     AST value() const { return AST::wrapUnsafe(m_instance->value); }
 };
 
@@ -57,10 +46,26 @@ public:
     explicit BlockAST(Slot instance): ASTBase<BlockAST, schema::HadronBlockASTSchema>(instance) {}
     ~BlockAST() {}
 
+    static inline BlockAST makeEmptyBlock(ThreadContext* context) {
+        auto blockAST = BlockAST::alloc(context);
+        blockAST.setArgumentNames(SymbolArray::arrayAlloc(context));
+        blockAST.setArgumentDefaults(Array::arrayAlloc(context));
+        blockAST.setHasVarArg(false);
+        blockAST.setStatements(Array::arrayAlloc(context));
+        return blockAST;
+    }
+
     SymbolArray argumentNames() const { return SymbolArray(m_instance->argumentNames); }
+    void setArgumentNames(SymbolArray names) { m_instance->argumentNames = names.slot(); }
+
     Array argumentDefaults() const { return Array(m_instance->argumentDefaults); }
+    void setArgumentDefaults(Array defaults) { m_instance->argumentDefaults = defaults.slot(); }
+
     bool hasVarArg() const { return m_instance->hasVarArg.getBool(); }
+    void setHasVarArg(bool has) { m_instance->hasVarArg = Slot::makeBool(has); }
+
     Array statements() const { return Array(m_instance->statements); }
+    void setStatements(Array s) { m_instance->statements = s.slot(); }
 };
 
 class ConstantAST : public ASTBase<ConstantAST, schema::HadronConstantASTSchema> {
@@ -72,7 +77,14 @@ public:
             ASTBase<ConstantAST, schema::HadronConstantASTSchema>(instance) {}
     ~ConstantAST() {}
 
+    static ConstantAST makeConstant(ThreadContext* context, Slot c) {
+        auto constantAST = ConstantAST::alloc(context);
+        constantAST.setConstant(c);
+        return constantAST;
+    }
+
     Slot constant() const { return m_instance->constant; }
+    void setConstant(Slot c) { m_instance->constant = c; }
 };
 
 class DefineAST : public ASTBase<DefineAST, schema::HadronDefineASTSchema> {
@@ -83,7 +95,7 @@ public:
     explicit DefineAST(Slot instance): ASTBase<DefineAST, schema::HadronDefineASTSchema>(instance) {}
     ~DefineAST() {}
 
-    NameAST name() const { return NameAST(m_instance->name); }
+    Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
     AST value() const { return AST::wrapUnsafe(m_instance->value); }
 };
 
@@ -103,9 +115,22 @@ public:
     explicit IfAST(Slot instance): ASTBase<IfAST, schema::HadronIfASTSchema>(instance) {}
     ~IfAST() {}
 
+    static inline IfAST makeEmptyIf(ThreadContext* context) {
+        auto ifAST = IfAST::alloc(context);
+        ifAST.setCondition(Array::arrayAlloc(context));
+        ifAST.setTrueBlock(BlockAST::makeEmptyBlock(context));
+        ifAST.setFalseBlock(BlockAST::makeEmptyBlock(context));
+        return ifAST;
+    }
+
     Array condition() const { return Array(m_instance->condition); }
+    void setCondition(Array a) { m_instance->condition = a.slot(); }
+
     BlockAST trueBlock() const { return BlockAST(m_instance->trueBlock); }
+    void setTrueBlock(BlockAST b) { m_instance->trueBlock = b.slot(); }
+
     BlockAST falseBlock() const { return BlockAST(m_instance->falseBlock); }
+    void setFalseBlock(BlockAST b) { m_instance->falseBlock = b.slot(); }
 };
 
 class MessageAST : public ASTBase<MessageAST, schema::HadronMessageASTSchema> {
@@ -116,9 +141,22 @@ public:
     explicit MessageAST(Slot instance): ASTBase<MessageAST, schema::HadronMessageASTSchema>(instance) {}
     ~MessageAST() {}
 
+    static inline MessageAST makeEmptyMessage(ThreadContext* context) {
+        auto messageAST = MessageAST::alloc(context);
+        messageAST.setSelector(Symbol());
+        messageAST.setArguments(Array::arrayAlloc(context));
+        messageAST.setKeywordArguments(Array::arrayAlloc(context));
+        return messageAST;
+    }
+
     Symbol selector(ThreadContext* context) const { return Symbol(context, m_instance->selector); }
+    void setSelector(Symbol s) { m_instance->selector = s.slot(); }
+
     Array arguments() const { return Array(m_instance->arguments); }
+    void setArguments(Array a) { m_instance->arguments = a.slot(); }
+
     Array keywordArguments() const { return Array(m_instance->keywordArguments); }
+    void setKeywordArguments(Array a) { m_instance->keywordArguments = a.slot(); }
 };
 
 class MethodReturnAST : public ASTBase<MethodReturnAST, schema::HadronMethodReturnASTSchema> {
@@ -142,6 +180,24 @@ public:
 
     AST arrayValue() const { return AST::wrapUnsafe(m_instance->arrayValue); }
     Array targetNames() const { return Array(m_instance->targetNames); }
+};
+
+class NameAST : public ASTBase<NameAST, schema::HadronNameASTSchema> {
+public:
+    NameAST(): ASTBase<NameAST, schema::HadronNameASTSchema>() {}
+    explicit NameAST(schema::HadronNameASTSchema* instance):
+            ASTBase<NameAST, schema::HadronNameASTSchema>(instance) {}
+    explicit NameAST(Slot instance): ASTBase<NameAST, schema::HadronNameASTSchema>(instance) {}
+    ~NameAST() {}
+
+    static inline NameAST makeName(ThreadContext* context, Symbol n) {
+        auto nameAST = NameAST::alloc(context);
+        nameAST.setName(n);
+        return nameAST;
+    }
+
+    Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
+    void setName(Symbol n) { m_instance->name = n.slot(); }
 };
 
 class WhileAST : public ASTBase<WhileAST, schema::HadronWhileASTSchema> {

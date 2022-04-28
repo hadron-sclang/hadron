@@ -19,14 +19,17 @@ ASTBuilder::ASTBuilder(): m_errorReporter(std::make_shared<ErrorReporter>()) {}
 
 ASTBuilder::ASTBuilder(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporter(errorReporter) {}
 
-std::unique_ptr<ast::BlockAST> ASTBuilder::buildBlock(ThreadContext* context, const Lexer* lexer,
+library::BlockAST ASTBuilder::buildBlock(ThreadContext* context, const Lexer* lexer,
         const parse::BlockNode* blockNode) {
-    auto blockAST = std::make_unique<ast::BlockAST>();
-    auto name = context->symbolTable->thisSymbol();
+    auto blockAST = library::BlockAST::makeEmptyBlock(context);
 
+    auto argumentNames = blockAST.argumentNames();
+    auto name = context->symbolTable->thisSymbol();
     // The *this* pointer is the first argument to every block.
-    blockAST->argumentNames = blockAST->argumentNames.add(context, name);
-    blockAST->argumentDefaults = blockAST->argumentDefaults.add(context, Slot::makeNil());
+    argumentNames = argumentNames.add(context, name);
+
+    auto argumentDefaults = blockAST.argumentDefaults();
+    argumentDefaults = argumentDefaults.add(context, Slot::makeNil());
 
     // Arguments with non-literal inits must be processed in the code as if blocks, after other variable definitions and
     // before the block body.
@@ -43,14 +46,14 @@ std::unique_ptr<ast::BlockAST> ASTBuilder::buildBlock(ThreadContext* context, co
             while (varDef) {
                 assert(varDef->nodeType == parse::NodeType::kVarDef);
                 name = library::Symbol::fromView(context, lexer->tokens()[varDef->tokenIndex].range);
-                blockAST->argumentNames = blockAST->argumentNames.add(context, name);
+                argumentNames = argumentNames.add(context, name);
                 Slot initialValue = Slot::makeNil();
                 if (varDef->initialValue) {
                     if (!buildLiteral(context, lexer, varDef->initialValue.get(), initialValue)) {
                         exprInits.emplace_back(std::make_pair(name, varDef->initialValue.get()));
                     }
                 }
-                blockAST->argumentDefaults = blockAST->argumentDefaults.add(context, initialValue);
+                argumentDefaults = argumentDefaults.add(context, initialValue);
                 varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
             }
             varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
@@ -59,36 +62,45 @@ std::unique_ptr<ast::BlockAST> ASTBuilder::buildBlock(ThreadContext* context, co
         assert(argList->next == nullptr);
 
         if (argList->varArgsNameIndex) {
-            blockAST->hasVarArg = true;
+            blockAST.setHasVarArg(true);
             name = library::Symbol::fromView(context, lexer->tokens()[argList->varArgsNameIndex.value()].range);
-            blockAST->argumentNames = blockAST->argumentNames.add(context, name);
-            blockAST->argumentDefaults = blockAST->argumentDefaults.add(context, Slot::makeNil());
+            argumentNames = argumentNames.add(context, name);
+            argumentDefaults = argumentDefaults.add(context, Slot::makeNil());
         }
     }
 
+    blockAST.setArgumentNames(argumentNames);
+    blockAST.setArgumentDefaults(argumentDefaults);
+
     // We would like to eventually supprt inline variable declarations, so we process variable declarations like
     // ordinary expressions.
-    appendToSequence(context, lexer, blockAST->statements.get(), blockNode->variables.get());
+    auto blockStatements = blockAST.statements();
+    appendToSequence(context, lexer, blockStatements, blockNode->variables.get());
 
     // Process any of the expression argument initializations here.
     for (const auto& init : exprInits) {
-        auto isNil = std::make_unique<ast::MessageAST>();
-        isNil->arguments->sequence.emplace_back(std::make_unique<ast::NameAST>(init.first));
-        isNil->selector = context->symbolTable->isNilSymbol();
+        auto isNilAST = library::MessageAST::makeEmptyMessage(context);
+        isNilAST.setSelector(context->symbolTable->isNilSymbol());
 
-        auto ifAST = std::make_unique<ast::IfAST>();
-        ifAST->condition->sequence.emplace_back(std::move(isNil));
+        auto isNilNameAST = library::NameAST::makeName(context, init.first);
+        isNilAST.setArguments(isNilAST.arguments().add(context, isNilNameAST.slot()));
 
-        ifAST->trueBlock = std::make_unique<ast::BlockAST>();
-        appendToSequence(context, lexer, ifAST->trueBlock->statements.get(), init.second);
+        auto ifAST = library::IfAST::makeEmptyIf(context);
+        ifAST.setCondition(ifAST.condition().add(context, isNilAST.slot()));
 
-        ifAST->falseBlock = std::make_unique<ast::BlockAST>();
-        ifAST->falseBlock->statements->sequence.emplace_back(std::make_unique<ast::ConstantAST>(Slot::makeNil()));
+        auto trueStatements = ifAST.trueBlock().statements();
+        appendToSequence(context, lexer, trueStatements, init.second);
+        ifAST.trueBlock().setStatements(trueStatements);
+
+        // Default value of an empty else block is nil.
+        ifAST.falseBlock().setStatements(ifAST.falseBlock().statements().add(context,
+                library::ConstantAST::makeConstant(context, Slot::makeNil()).slot()));
     }
 
     // Append the expressions inside the parsed blockNode.
-    appendToSequence(context, lexer, blockAST->statements.get(), blockNode->body.get());
+    appendToSequence(context, lexer, blockStatements, blockNode->body.get());
 
+    blockAST.setStatements(blockStatements);
     return blockAST;
 }
 
@@ -142,14 +154,14 @@ bool ASTBuilder::buildLiteral(ThreadContext* context, const Lexer* lexer, const 
     }
 }
 
-int32_t ASTBuilder::appendToSequence(ThreadContext* context, const Lexer* lexer, ast::SequenceAST* sequenceAST,
+int32_t ASTBuilder::appendToSequence(ThreadContext* context, const Lexer* lexer, library::Array& sequence,
         const parse::Node* node, int32_t startCurryCount) {
     int32_t curryCount = startCurryCount;
 
     while (node != nullptr) {
         auto ast = transform(context, lexer, node, curryCount);
 
-        if (ast->astType == ast::ASTType::kSequence) {
+        if (ast.className() == library::Array) {
             auto subSeq = reinterpret_cast<ast::SequenceAST*>(ast.get());
             sequenceAST->sequence.splice(sequenceAST->sequence.end(), subSeq->sequence);
         } else {
