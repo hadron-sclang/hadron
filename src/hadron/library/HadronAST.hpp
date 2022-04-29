@@ -9,6 +9,8 @@
 namespace hadron {
 namespace library {
 
+class AST;
+
 template<typename T, typename S>
 class ASTBase : public Object<T, S> {
 public:
@@ -34,8 +36,18 @@ public:
     explicit AssignAST(Slot instance): ASTBase<AssignAST, schema::HadronAssignASTSchema>(instance) {}
     ~AssignAST() {}
 
+    static inline AssignAST makeAssign(ThreadContext* context) {
+        auto assignAST = AssignAST::alloc(context);
+        assignAST.setName(Symbol());
+        assignAST.setValue(AST());
+        return assignAST;
+    }
+
     Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
+    void setName(Symbol n) { m_instance->name = n.slot(); }
+
     AST value() const { return AST::wrapUnsafe(m_instance->value); }
+    void setValue(AST a) { m_instance->value = a.slot(); }
 };
 
 class SequenceAST : public ASTBase<SequenceAST, schema::HadronSequenceASTSchema> {
@@ -199,8 +211,22 @@ public:
     explicit MultiAssignAST(Slot instance): ASTBase<MultiAssignAST, schema::HadronMultiAssignASTSchema>(instance) {}
     ~MultiAssignAST() {}
 
+    static inline MultiAssignAST makeMultiAssign(ThreadContext* context) {
+        auto multiAssignAST = MultiAssignAST::alloc(context);
+        multiAssignAST.setArrayValue(AST());
+        multiAssignAST.setTargetNames(SequenceAST::makeSequence(context));
+        multiAssignAST.setLastIsRemain(false);
+        return multiAssignAST;
+    }
+
     AST arrayValue() const { return AST::wrapUnsafe(m_instance->arrayValue); }
+    void setArrayValue(AST a) { m_instance->arrayValue = a.slot(); }
+
     SequenceAST targetNames() const { return SequenceAST(m_instance->targetNames); }
+    void setTargetNames(SequenceAST s) { m_instance->targetNames = s.slot(); }
+
+    bool lastIsRemain() const { return m_instance->lastIsRemain.getBool(); }
+    void setLastIsRemain(bool b) { m_instance->lastIsRemain = Slot::makeBool(b); }
 };
 
 class NameAST : public ASTBase<NameAST, schema::HadronNameASTSchema> {

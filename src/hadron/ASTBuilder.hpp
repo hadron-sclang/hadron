@@ -44,7 +44,7 @@ private:
     int32_t appendToSequence(ThreadContext* context, const Lexer* lexer, library::SequenceAST sequence,
             const parse::Node* node, int32_t startCurryCount = 0);
     library::AST transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node, int32_t& curryCount);
-    library::Array transformSequence(ThreadContext* context, const Lexer* lexer,
+    library::SequenceAST transformSequence(ThreadContext* context, const Lexer* lexer,
                 const parse::ExprSeqNode* exprSeqNode, int32_t& curryCount);
     library::BlockAST buildPartialBlock(ThreadContext* context, int32_t numberOfArguments);
     library::AST transformCallBase(ThreadContext* context, const Lexer* lexer,
