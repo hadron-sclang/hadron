@@ -21,7 +21,7 @@ ASTBuilder::ASTBuilder(std::shared_ptr<ErrorReporter> errorReporter): m_errorRep
 
 library::BlockAST ASTBuilder::buildBlock(ThreadContext* context, const Lexer* lexer,
         const parse::BlockNode* blockNode) {
-    auto blockAST = library::BlockAST::makeEmptyBlock(context);
+    auto blockAST = library::BlockAST::makeBlock(context);
 
     auto argumentNames = blockAST.argumentNames();
     auto name = context->symbolTable->thisSymbol();
@@ -79,21 +79,21 @@ library::BlockAST ASTBuilder::buildBlock(ThreadContext* context, const Lexer* le
 
     // Process any of the expression argument initializations here.
     for (const auto& init : exprInits) {
-        auto isNilAST = library::MessageAST::makeEmptyMessage(context);
+        auto isNilAST = library::MessageAST::makeMessage(context);
         isNilAST.setSelector(context->symbolTable->isNilSymbol());
 
         auto isNilNameAST = library::NameAST::makeName(context, init.first);
-        isNilAST.setArguments(isNilAST.arguments().add(context, isNilNameAST.slot()));
+        isNilAST.arguments().addAST(context, library::AST::wrapUnsafe(isNilNameAST.slot()));
 
-        auto ifAST = library::IfAST::makeEmptyIf(context);
-        ifAST.setCondition(ifAST.condition().add(context, isNilAST.slot()));
+        auto ifAST = library::IfAST::makeIf(context);
+        ifAST.condition().addAST(context, library::AST::wrapUnsafe(isNilAST.slot()));
 
         auto trueStatements = ifAST.trueBlock().statements();
         appendToSequence(context, lexer, trueStatements, init.second);
         ifAST.trueBlock().setStatements(trueStatements);
 
         // Default value of an empty else block is nil.
-        ifAST.falseBlock().setStatements(ifAST.falseBlock().statements().add(context,
+        ifAST.falseBlock().statements().addAST(context, library::AST::wrapUnsafe(
                 library::ConstantAST::makeConstant(context, Slot::makeNil()).slot()));
     }
 
@@ -161,11 +161,12 @@ int32_t ASTBuilder::appendToSequence(ThreadContext* context, const Lexer* lexer,
     while (node != nullptr) {
         auto ast = transform(context, lexer, node, curryCount);
 
-        if (ast.className() == library::Array) {
-            auto subSeq = reinterpret_cast<ast::SequenceAST*>(ast.get());
-            sequenceAST->sequence.splice(sequenceAST->sequence.end(), subSeq->sequence);
+        if (ast.className() == library::SequenceAST::nameHash()) {
+            library::SequenceAST sequenceAST(ast.slot());
+            library::Array subSequence(sequenceAST.sequence());
+            sequence = sequence.addAll(context, subSequence);
         } else {
-            sequenceAST->sequence.emplace_back(std::move(ast));
+            sequence = sequence.add(context, ast.slot());
         }
         node = node->next.get();
     }
@@ -173,20 +174,23 @@ int32_t ASTBuilder::appendToSequence(ThreadContext* context, const Lexer* lexer,
     return curryCount;
 }
 
-std::unique_ptr<ast::AST> ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node,
+library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, const parse::Node* node,
         int32_t& curryCount) {
+
     switch(node->nodeType) {
 
     case parse::NodeType::kArgList:
         assert(false); // internal error, not a valid node within a block
-        return std::make_unique<ast::EmptyAST>();
+        return library::AST::wrapUnsafe(library::EmptyAST::alloc(context).slot());
 
     // Transform literal lists into Array.with(elements) call.
     case parse::NodeType::kArray: {
         const auto arrayNode = reinterpret_cast<const parse::ArrayNode*>(node);
-        auto message = std::make_unique<ast::MessageAST>();
-        message->selector = context->symbolTable->withSymbol();
-        message->arguments->sequence.emplace_back(std::make_unique<ast::NameAST>(context->symbolTable->arraySymbol()));
+        auto message = library::MessageAST::::makeMessage(context);
+        message.setSelector(context->symbolTable->withSymbol());
+        auto nameAST = library::NameAST::makeName(context, context->symbolTable->arraySymbol());
+        auto arguments = message.arguments().sequence();
+        arguments = arguments.add(context, nameAST);
         appendToSequence(context, lexer, message->arguments.get(), arrayNode->elements.get());
         return message;
     }

@@ -53,6 +53,10 @@ HadronNameAST : HadronAST {
 	var <>name;
 }
 
+HadronSequenceAST : HadronAST {
+	var <>sequence;
+}
+
 HadronWhileAST : HadronAST {
 	var <>conditionBlock;
 	var <>repeatBlock;

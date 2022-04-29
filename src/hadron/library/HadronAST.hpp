@@ -38,6 +38,27 @@ public:
     AST value() const { return AST::wrapUnsafe(m_instance->value); }
 };
 
+class SequenceAST : public ASTBase<SequenceAST, schema::HadronSequenceASTSchema> {
+public:
+    SequenceAST(): ASTBase<SequenceAST, schema::HadronSequenceASTSchema>() {}
+    explicit SequenceAST(schema::HadronSequenceASTSchema* instance):
+            ASTBase<SequenceAST, schema::HadronSequenceASTSchema>(instance) {}
+    explicit SequenceAST(Slot instance):
+            ASTBase<SequenceAST, schema::HadronSequenceASTSchema>(instance) {}
+    ~SequenceAST() {}
+
+    static inline SequenceAST makeSequence(ThreadContext* context) {
+        auto sequenceAST = SequenceAST::alloc(context);
+        sequenceAST.setSequence(Array::arrayAlloc(context));
+        return sequenceAST;
+    }
+
+    void addAST(ThreadContext* context, AST ast) { setSequence(sequence().add(context, ast.slot())); }
+
+    Array sequence() const { return library::Array(m_instance->sequence); }
+    void setSequence(Array a) { m_instance->sequence = a.slot(); }
+};
+
 class BlockAST : public ASTBase<BlockAST, schema::HadronBlockASTSchema> {
 public:
     BlockAST(): ASTBase<BlockAST, schema::HadronBlockASTSchema>() {}
@@ -46,12 +67,12 @@ public:
     explicit BlockAST(Slot instance): ASTBase<BlockAST, schema::HadronBlockASTSchema>(instance) {}
     ~BlockAST() {}
 
-    static inline BlockAST makeEmptyBlock(ThreadContext* context) {
+    static inline BlockAST makeBlock(ThreadContext* context) {
         auto blockAST = BlockAST::alloc(context);
         blockAST.setArgumentNames(SymbolArray::arrayAlloc(context));
         blockAST.setArgumentDefaults(Array::arrayAlloc(context));
         blockAST.setHasVarArg(false);
-        blockAST.setStatements(Array::arrayAlloc(context));
+        blockAST.setStatements(SequenceAST::makeSequence(context));
         return blockAST;
     }
 
@@ -64,8 +85,8 @@ public:
     bool hasVarArg() const { return m_instance->hasVarArg.getBool(); }
     void setHasVarArg(bool has) { m_instance->hasVarArg = Slot::makeBool(has); }
 
-    Array statements() const { return Array(m_instance->statements); }
-    void setStatements(Array s) { m_instance->statements = s.slot(); }
+    SequenceAST statements() const { return SequenceAST(m_instance->statements); }
+    void setStatements(SequenceAST s) { m_instance->statements = s.slot(); }
 };
 
 class ConstantAST : public ASTBase<ConstantAST, schema::HadronConstantASTSchema> {
@@ -115,16 +136,16 @@ public:
     explicit IfAST(Slot instance): ASTBase<IfAST, schema::HadronIfASTSchema>(instance) {}
     ~IfAST() {}
 
-    static inline IfAST makeEmptyIf(ThreadContext* context) {
+    static inline IfAST makeIf(ThreadContext* context) {
         auto ifAST = IfAST::alloc(context);
-        ifAST.setCondition(Array::arrayAlloc(context));
-        ifAST.setTrueBlock(BlockAST::makeEmptyBlock(context));
-        ifAST.setFalseBlock(BlockAST::makeEmptyBlock(context));
+        ifAST.setCondition(SequenceAST::makeSequence(context));
+        ifAST.setTrueBlock(BlockAST::makeBlock(context));
+        ifAST.setFalseBlock(BlockAST::makeBlock(context));
         return ifAST;
     }
 
-    Array condition() const { return Array(m_instance->condition); }
-    void setCondition(Array a) { m_instance->condition = a.slot(); }
+    SequenceAST condition() const { return SequenceAST(m_instance->condition); }
+    void setCondition(SequenceAST a) { m_instance->condition = a.slot(); }
 
     BlockAST trueBlock() const { return BlockAST(m_instance->trueBlock); }
     void setTrueBlock(BlockAST b) { m_instance->trueBlock = b.slot(); }
@@ -141,22 +162,22 @@ public:
     explicit MessageAST(Slot instance): ASTBase<MessageAST, schema::HadronMessageASTSchema>(instance) {}
     ~MessageAST() {}
 
-    static inline MessageAST makeEmptyMessage(ThreadContext* context) {
+    static inline MessageAST makeMessage(ThreadContext* context) {
         auto messageAST = MessageAST::alloc(context);
         messageAST.setSelector(Symbol());
-        messageAST.setArguments(Array::arrayAlloc(context));
-        messageAST.setKeywordArguments(Array::arrayAlloc(context));
+        messageAST.setArguments(SequenceAST::makeSequence(context));
+        messageAST.setKeywordArguments(SequenceAST::makeSequence(context));
         return messageAST;
     }
 
     Symbol selector(ThreadContext* context) const { return Symbol(context, m_instance->selector); }
     void setSelector(Symbol s) { m_instance->selector = s.slot(); }
 
-    Array arguments() const { return Array(m_instance->arguments); }
-    void setArguments(Array a) { m_instance->arguments = a.slot(); }
+    SequenceAST arguments() const { return SequenceAST(m_instance->arguments); }
+    void setArguments(SequenceAST a) { m_instance->arguments = a.slot(); }
 
-    Array keywordArguments() const { return Array(m_instance->keywordArguments); }
-    void setKeywordArguments(Array a) { m_instance->keywordArguments = a.slot(); }
+    SequenceAST keywordArguments() const { return SequenceAST(m_instance->keywordArguments); }
+    void setKeywordArguments(SequenceAST a) { m_instance->keywordArguments = a.slot(); }
 };
 
 class MethodReturnAST : public ASTBase<MethodReturnAST, schema::HadronMethodReturnASTSchema> {
@@ -179,7 +200,7 @@ public:
     ~MultiAssignAST() {}
 
     AST arrayValue() const { return AST::wrapUnsafe(m_instance->arrayValue); }
-    Array targetNames() const { return Array(m_instance->targetNames); }
+    SequenceAST targetNames() const { return SequenceAST(m_instance->targetNames); }
 };
 
 class NameAST : public ASTBase<NameAST, schema::HadronNameASTSchema> {
