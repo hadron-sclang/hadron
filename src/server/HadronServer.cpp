@@ -1,7 +1,6 @@
 #include "server/HadronServer.hpp"
 
 #include "hadron/Arch.hpp"
-#include "hadron/AST.hpp"
 #include "hadron/ASTBuilder.hpp"
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
@@ -179,7 +178,7 @@ void HadronServer::addCompilationUnit(hadron::library::Method methodDef, std::sh
     if (stopAfter >= DiagnosticsStoppingPoint::kFrame) {
         SPDLOG_TRACE("Compile Diagnostics Block Builder {}", name);
         hadron::BlockBuilder blockBuilder(m_errorReporter);
-        frame = blockBuilder.buildMethod(m_runtime->context(), methodDef, blockAST.get());
+        frame = blockBuilder.buildMethod(m_runtime->context(), methodDef, blockAST);
     }
 
     if (stopAfter >= DiagnosticsStoppingPoint::kHIROptimization) {
@@ -230,7 +229,7 @@ void HadronServer::addCompilationUnit(hadron::library::Method methodDef, std::sh
         assert(finalSize < byteCodeSize);
     }
 
-    units.emplace_back(CompilationUnit{name, lexer, parser, blockNode, std::move(blockAST), std::move(frame),
+    units.emplace_back(CompilationUnit{name, lexer, parser, blockNode, std::move(frame),
             std::move(linearFrame), std::move(byteCode), finalSize});
 }
 

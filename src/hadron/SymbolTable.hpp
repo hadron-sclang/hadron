@@ -46,6 +46,8 @@ public:
     inline library::Symbol isNilSymbol() const { return m_isNil; }
     // 'new'
     inline library::Symbol newSymbol() const { return m_new; }
+    // 'Object'
+    inline library::Symbol objectSymbol() const { return m_Object; }
     // 'performList'
     inline library::Symbol performListSymbol() const { return m_performList; }
     // 'put'
@@ -82,6 +84,7 @@ private:
     library::Symbol m_Interpreter;
     library::Symbol m_isNil;
     library::Symbol m_new;
+    library::Symbol m_Object;
     library::Symbol m_performList;
     library::Symbol m_put;
     library::Symbol m_super;

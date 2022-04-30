@@ -59,5 +59,7 @@ if(NOT DEFINED SCLANG_PATH)
      #        STRING "Path to SCClassLibrary")
 endif()
 
+set(HLANG_PATH "${CMAKE_SOURCE_DIR}/classes" CACHE STRING "Path to the HLang Class Library")
+
 add_subdirectory(third_party)
 add_subdirectory(src)

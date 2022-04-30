@@ -85,14 +85,6 @@ protected:
     S* m_instance;
 };
 
-class ObjectActual : public Object<ObjectActual, schema::ObjectSchema> {
-public:
-    ObjectActual() = delete;
-    ObjectActual(const ObjectActual&) = delete;
-    ObjectActual(const ObjectActual&&) = delete;
-    ~ObjectActual() = delete;
-};
-
 } // namespace library
 } // namespace hadron
 

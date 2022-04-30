@@ -20,7 +20,7 @@ public:
     explicit ArrayedCollection(Slot instance): SequenceableCollection<T, S>(instance) {}
     ~ArrayedCollection() {}
 
-    static T arrayAlloc(ThreadContext* context, int32_t maxSize) {
+    static T arrayAlloc(ThreadContext* context, int32_t maxSize = 0) {
         S* instance = arrayAllocRaw(context, maxSize);
         instance->schema._className = S::kNameHash;
         instance->schema._sizeInBytes = sizeof(S);

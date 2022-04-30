@@ -3,6 +3,7 @@
 
 #include "hadron/Block.hpp"
 #include "hadron/hir/HIR.hpp"
+#include "hadron/library/HadronAST.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Symbol.hpp"
 
@@ -41,27 +42,27 @@ public:
     ~BlockBuilder() = default;
 
     std::unique_ptr<Frame> buildMethod(ThreadContext* context, const library::Method method,
-            const ast::BlockAST* blockAST);
+            const library::BlockAST blockAST);
 
 private:
     std::unique_ptr<Frame> buildFrame(ThreadContext* context, const library::Method method,
-            const ast::BlockAST* blockAST, hir::BlockLiteralHIR* outerBlockHIR);
+            const library::BlockAST blockAST, hir::BlockLiteralHIR* outerBlockHIR);
 
     // Re-uses the containing stack frame but produces a new scope.
     std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, const library::Method method, Scope* parentScope,
-            Block* predecessor, const ast::BlockAST* blockAST);
+            Block* predecessor, const library::BlockAST blockAST);
 
     // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
     // expression value and expression type respectively. While it will process all descendents of |node| it will not
     // iterate to process the |node->next| pointer. Call buildFinalValue() to do that.
     hir::ID buildValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
-            const ast::AST* ast);
+            const library::AST ast);
     hir::ID buildFinalValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
-            const ast::SequenceAST* sequence);
+            const library::SequenceAST sequence);
     hir::ID buildIf(ThreadContext* context, const library::Method method, Block*& currentBlock,
-            const ast::IfAST* ifAST);
+            const library::IfAST ifAST);
     hir::ID buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
-            const ast::WhileAST* whileAST);
+            const library::WhileAST whileAST);
 
     // If |toWrite| is kInvalidID that means this is a read operation. Returns nullptr if name not found.
     hir::HIR* findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite);

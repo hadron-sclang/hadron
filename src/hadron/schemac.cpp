@@ -18,10 +18,6 @@
 #include <unordered_set>
 #include <vector>
 
-DEFINE_string(classFiles, "", "Semicolon-delineated list of input class files to process.");
-DEFINE_string(libraryPath, "", "Base path of the SC class library.");
-DEFINE_string(schemaPath, "", "Base path of output schema files.");
-
 namespace {
 // While we generate a Schema struct for these objects they are not represented by Hadron with pointers, rather their
 // values are packed into the Slot directly. So they are excluded from the Schema class heirarchy.
@@ -47,7 +43,50 @@ struct ClassInfo {
     bool isPrimitiveType;
     std::vector<std::string> variables;
 };
+
+bool processPaths(const std::string& inputFiles, const std::string& basePath, const std::string& schemaBasePath,
+        std::unordered_map<std::string, std::string>& ioFiles) {
+    // Parse semicolon-delinated list of input class files.
+    size_t pathBegin = 0;
+    size_t pathEnd = inputFiles.find_first_of(';');
+    do {
+        fs::path classFile = pathEnd == std::string::npos ? inputFiles.substr(pathBegin) :
+                inputFiles.substr(pathBegin, pathEnd - pathBegin);
+        classFile = fs::absolute(classFile);
+
+        if (!fs::exists(classFile)) {
+            std::cerr << "Class file path: " << classFile.string() << " does not exist.";
+            return false;
+        }
+
+        // The class file must be in a subdirectory of the library path.
+        if (classFile.string().substr(0, basePath.length()) != basePath) {
+            std::cerr << "Class file path: " << classFile.string() << " not in a subdirectory of library path: "
+                    << basePath << std::endl;
+            return false;
+        }
+
+        fs::path schemaPath = schemaBasePath /
+            fs::path(classFile.string().substr(basePath.length())).parent_path().relative_path() /
+            fs::path(classFile.stem().string() + "Schema.hpp");
+
+        ioFiles.emplace(std::make_pair(classFile.string(), schemaPath.string()));
+
+        if (pathEnd == std::string::npos) { break; }
+        pathBegin = pathEnd + 1;
+        pathEnd = inputFiles.find_first_of(';', pathBegin);
+    } while (true);
+
+    return true;
+}
+
 } // namespace
+
+DEFINE_string(classFiles, "", "Semicolon-delineated list of input class files to process.");
+DEFINE_string(libraryPath, "", "Base path of the SC class library.");
+DEFINE_string(hlangFiles, "", "Semicolon-delineated list of input hlang class files to process.");
+DEFINE_string(hlangPath, "", "Path to the HLang class library.");
+DEFINE_string(schemaPath, "", "Base path of output schema files.");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
@@ -59,39 +98,35 @@ int main(int argc, char* argv[]) {
     }
     libraryPath = fs::absolute(libraryPath);
 
+    fs::path hlangPath(FLAGS_hlangPath);
+    if (!fs::exists(hlangPath)) {
+        std::cerr << "HLang library path does not exist: " << hlangPath << std::endl;
+        return -1;
+    }
+    hlangPath = fs::absolute(hlangPath);
+
     fs::path schemaBasePath(FLAGS_schemaPath);
     schemaBasePath = fs::absolute(schemaBasePath);
 
-    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
+    // Map of input file path to output file path.
+    std::unordered_map<std::string, std::string> ioFiles;
 
+    if (!processPaths(FLAGS_classFiles, libraryPath, schemaBasePath, ioFiles)) {
+        return -1;
+    }
+    if (!processPaths(FLAGS_hlangFiles, hlangPath, schemaBasePath, ioFiles)) {
+        return -1;
+    }
+
+    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
     // Map of class names to info.
     std::unordered_map<std::string, ClassInfo> classes;
     // Map of paths to in-order class names to define.
     std::unordered_map<std::string, std::vector<std::string>> classFiles;
 
-    // Parse semicolon-delinated list of input class files.
-    size_t pathBegin = 0;
-    size_t pathEnd = FLAGS_classFiles.find_first_of(';');
-    do {
-        fs::path classFile = pathEnd == std::string::npos ? FLAGS_classFiles.substr(pathBegin) :
-                FLAGS_classFiles.substr(pathBegin, pathEnd - pathBegin);
-        classFile = fs::absolute(classFile);
-
-        if (!fs::exists(classFile)) {
-            std::cerr << "Class file path: " << classFile.string() << " does not exist.";
-            return -1;
-        }
-
-        // The class file must be in a subdirectory of the library path.
-        if (classFile.string().substr(0, libraryPath.string().length()) != libraryPath.string()) {
-            std::cerr << "Class file path: " << classFile.string() << " not in a subdirectory of library path: "
-                    << libraryPath.string() << std::endl;
-            return -1;
-        }
-
-        fs::path schemaPath = schemaBasePath /
-            fs::path(classFile.string().substr(libraryPath.string().length())).parent_path().relative_path() /
-            fs::path(classFile.stem().string() + "Schema.hpp");
+    for (const auto& ioPair : ioFiles) {
+        auto classFile = fs::path(ioPair.first);
+        auto schemaPath = fs::path(ioPair.second);
 
         hadron::SourceFile sourceFile(classFile);
         if (!sourceFile.read(errorReporter)) {
@@ -163,11 +198,7 @@ int main(int argc, char* argv[]) {
         }
 
         classFiles.emplace(std::make_pair(schemaPath, std::move(classNames)));
-
-        if (pathEnd == std::string::npos) { break; }
-        pathBegin = pathEnd + 1;
-        pathEnd = FLAGS_classFiles.find_first_of(';', pathBegin);
-    } while (true);
+    }
 
     // Now that we've parsed all the input files, we should have the complete class heirarchy defined for each input
     // class, and can generate the output files.

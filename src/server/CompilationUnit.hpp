@@ -27,7 +27,6 @@ struct CompilationUnit {
     std::shared_ptr<hadron::Parser> parser;
 
     const hadron::parse::BlockNode* blockNode;
-    std::unique_ptr<hadron::ast::BlockAST> blockAST;
     std::unique_ptr<hadron::Frame> frame;
     std::unique_ptr<hadron::LinearFrame> linearFrame;
     std::unique_ptr<int8_t[]> byteCode;
