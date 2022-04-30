@@ -500,9 +500,9 @@ library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, c
     case parse::NodeType::kReturn: {
         const auto returnNode = reinterpret_cast<const parse::ReturnNode*>(node);
         assert(returnNode->valueExpr);
-        auto methodReturn = std::make_unique<ast::MethodReturnAST>();
-        methodReturn->value = transform(context, lexer, returnNode->valueExpr.get(), curryCount);
-        return methodReturn;
+        auto methodReturn = library::MethodReturnAST::makeMethodReturn(context);
+        methodReturn.setValue(transform(context, lexer, returnNode->valueExpr.get(), curryCount));
+        return library::AST::wrapUnsafe(methodReturn.slot());
     }
 
     case parse::NodeType::kSeries: {
@@ -518,19 +518,19 @@ library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, c
     // target.selector = value transforms to target.selector_(value)
     case parse::NodeType::kSetter: {
         const auto setter = reinterpret_cast<const parse::SetterNode*>(node);
-        auto message = std::make_unique<ast::MessageAST>();
-        auto subCurryCount = appendToSequence(context, lexer, message->arguments.get(), setter->target.get());
-        message->selector = library::Symbol::fromView(context,
-                fmt::format("{}_", lexer->tokens()[setter->tokenIndex].range));
-        subCurryCount = appendToSequence(context, lexer, message->arguments.get(), setter->value.get(), subCurryCount);
+        auto message = library::MessageAST::makeMessage(context);
+        auto subCurryCount = appendToSequence(context, lexer, message.arguments(), setter->target.get());
+        message.setSelector(library::Symbol::fromView(context,
+                fmt::format("{}_", lexer->tokens()[setter->tokenIndex].range)));
+        subCurryCount = appendToSequence(context, lexer, message.arguments(), setter->value.get(), subCurryCount);
 
         if (subCurryCount == 0) {
-            return message;
+            return library::AST::wrapUnsafe(message.slot());
         }
 
         auto block = buildPartialBlock(context, subCurryCount);
-        block->statements->sequence.emplace_back(std::move(message));
-        return block;
+        block.statements().addAST(context, library::AST::wrapUnsafe(message.slot()));
+        return library::AST::wrapUnsafe(block.slot());
     }
 
     case parse::NodeType::kSlot:
@@ -539,7 +539,8 @@ library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, c
         Slot value = Slot::makeNil();
         bool wasLiteral = buildLiteral(context, lexer, node, value);
         assert(wasLiteral);
-        return std::make_unique<ast::ConstantAST>(value);
+        auto constant = library::ConstantAST::makeConstant(context, value);
+        return library::AST::wrapUnsafe(constant.slot());
     }
 
     case parse::NodeType::kValue: {
@@ -549,39 +550,41 @@ library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, c
 
     case parse::NodeType::kVarDef: {
         const auto varDef = reinterpret_cast<const parse::VarDefNode*>(node);
+        auto defineAST = library::DefineAST::makeDefine(context);
+
         auto name = library::Symbol::fromView(context, lexer->tokens()[varDef->tokenIndex].range);
-        auto defineAST = std::make_unique<ast::DefineAST>();
-        defineAST->name = std::make_unique<ast::NameAST>(name);
+        defineAST.setName(name);
+
         if (varDef->initialValue) {
-            defineAST->value = transform(context, lexer, varDef->initialValue.get(), curryCount);
+            defineAST.setValue(transform(context, lexer, varDef->initialValue.get(), curryCount));
         } else {
-            defineAST->value = std::make_unique<ast::ConstantAST>(Slot::makeNil());
+            auto nil = library::ConstantAST::makeConstant(context, Slot::makeNil());
+            defineAST.setValue(library::AST::wrapUnsafe(nil.slot()));
         }
-        return defineAST;
+        return library::AST::wrapUnsafe(defineAST.slot());
     }
 
     case parse::NodeType::kVarList: {
         const auto varList = reinterpret_cast<const parse::VarListNode*>(node);
         assert(varList->definitions);
-        auto seq = std::make_unique<ast::SequenceAST>();
-        appendToSequence(context, lexer, seq.get(), varList->definitions.get());
-        return seq;
+        auto sequenceAST = library::SequenceAST::makeSequence(context);
+        appendToSequence(context, lexer, sequenceAST, varList->definitions.get());
+        return library::AST::wrapUnsafe(sequenceAST.slot());
     }
 
     case parse::NodeType::kWhile: {
         const auto whileNode = reinterpret_cast<const parse::WhileNode*>(node);
-        auto whileAST = std::make_unique<ast::WhileAST>();
-        whileAST->condition = buildBlock(context, lexer, whileNode->blocks.get());
+        auto whileAST = library::WhileAST::makeWhile(context);
+        whileAST.setConditionBlock(buildBlock(context, lexer, whileNode->blocks.get()));
         if (whileNode->blocks->next) {
             assert(whileNode->blocks->next->nodeType == parse::NodeType::kBlock);
             const auto repeatBlock = reinterpret_cast<const parse::BlockNode*>(whileNode->blocks->next.get());
-            whileAST->repeatBlock = buildBlock(context, lexer, repeatBlock);
+            whileAST.setRepeatBlock(buildBlock(context, lexer, repeatBlock));
         } else {
-            whileAST->repeatBlock = std::make_unique<ast::BlockAST>();
-            whileAST->repeatBlock->statements->sequence.emplace_back(std::make_unique<ast::ConstantAST>(
-                    Slot::makeNil()));
+            auto nil = library::ConstantAST::makeConstant(context, Slot::makeNil());
+            whileAST.repeatBlock().statements().addAST(context, library::AST::wrapUnsafe(nil.slot()));
         }
-        return whileAST;
+        return library::AST::wrapUnsafe(whileAST.slot());
     }
     }
 
@@ -590,45 +593,51 @@ library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, c
     return library::AST::wrapUnsafe(library::EmptyAST::alloc(context).slot());
 }
 
-std::unique_ptr<ast::SequenceAST> ASTBuilder::transformSequence(ThreadContext* context, const Lexer* lexer,
+library::SequenceAST ASTBuilder::transformSequence(ThreadContext* context, const Lexer* lexer,
         const parse::ExprSeqNode* exprSeqNode, int32_t& curryCount) {
-    auto sequenceAST = std::make_unique<ast::SequenceAST>();
+    auto sequenceAST = library::SequenceAST::makeSequence(context);
     if (!exprSeqNode || !exprSeqNode->expr) { return sequenceAST; }
-    curryCount = appendToSequence(context, lexer, sequenceAST.get(), exprSeqNode->expr.get(), curryCount);
+    curryCount = appendToSequence(context, lexer, sequenceAST, exprSeqNode->expr.get(), curryCount);
     return sequenceAST;
 }
 
-std::unique_ptr<ast::BlockAST> ASTBuilder::buildPartialBlock(ThreadContext* context, int32_t numberOfArguments) {
-    auto block = std::make_unique<ast::BlockAST>();
+library::BlockAST ASTBuilder::buildPartialBlock(ThreadContext* context, int32_t numberOfArguments) {
+    auto blockAST = library::BlockAST::makeBlock(context);
     assert(numberOfArguments > 0);
+
+    auto argumentNames = blockAST.argumentNames();
+    auto argumentDefaults = blockAST.argumentDefaults();
 
     for (int32_t i = 0; i < numberOfArguments; ++i) {
         auto curryArgName = library::Symbol::fromView(context, fmt::format("_curry{}", i));
-        block->argumentNames = block->argumentNames.add(context, curryArgName);
-        block->argumentDefaults = block->argumentDefaults.add(context, Slot::makeNil());
+        argumentNames = argumentNames.add(context, curryArgName);
+        argumentDefaults = argumentDefaults.add(context, Slot::makeNil());
     }
 
-    return block;
+    blockAST.setArgumentNames(argumentNames);
+    blockAST.setArgumentDefaults(argumentDefaults);
+
+    return blockAST;
 }
 
-std::unique_ptr<ast::AST> ASTBuilder::transformCallBase(ThreadContext* context, const Lexer* lexer,
+library::AST ASTBuilder::transformCallBase(ThreadContext* context, const Lexer* lexer,
         const parse::CallBaseNode* callBaseNode, library::Symbol selector, int32_t& curryCount) {
-    auto message = std::make_unique<ast::MessageAST>();
-    curryCount = appendToSequence(context, lexer, message->arguments.get(), callBaseNode->target.get(), curryCount);
-    message->selector = selector;
+    auto message = library::MessageAST::makeMessage(context);
+    curryCount = appendToSequence(context, lexer, message.arguments(), callBaseNode->target.get(), curryCount);
+    message.setSelector(selector);
 
-    auto subCurryCount = appendToSequence(context, lexer, message->arguments.get(), callBaseNode->arguments.get());
+    auto subCurryCount = appendToSequence(context, lexer, message.arguments(), callBaseNode->arguments.get());
 
-    appendToSequence(context, lexer, message->keywordArguments.get(), callBaseNode->keywordArguments.get());
+    appendToSequence(context, lexer, message.keywordArguments(), callBaseNode->keywordArguments.get());
 
     if (subCurryCount == 0) {
-        return message;
+        return library::AST::wrapUnsafe(message.slot());
     }
 
     // The presence of curried arguments in the call means this is a partial application, define an inline function.
-    auto block = buildPartialBlock(context, subCurryCount);
-    block->statements->sequence.emplace_back(std::move(message));
-    return block;
+    auto blockAST = buildPartialBlock(context, subCurryCount);
+    blockAST.statements().addAST(context, library::AST::wrapUnsafe(message.slot()));
+    return library::AST::wrapUnsafe(blockAST.slot());
 }
 
 } // namespace hadron

@@ -128,8 +128,18 @@ public:
     explicit DefineAST(Slot instance): ASTBase<DefineAST, schema::HadronDefineASTSchema>(instance) {}
     ~DefineAST() {}
 
+    static DefineAST makeDefine(ThreadContext* context) {
+        auto defineAST = DefineAST::alloc(context);
+        defineAST.setName(Symbol());
+        defineAST.setValue(AST());
+        return defineAST;
+    }
+
     Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
+    void setName(Symbol s) { m_instance->name = s.slot(); }
+
     AST value() const { return AST::wrapUnsafe(m_instance->value); }
+    void setValue(AST a) { m_instance->value = a.slot(); }
 };
 
 class EmptyAST : public ASTBase<EmptyAST, schema::HadronEmptyASTSchema> {
@@ -200,7 +210,14 @@ public:
     explicit MethodReturnAST(Slot instance): ASTBase<MethodReturnAST, schema::HadronMethodReturnASTSchema>(instance) {}
     ~MethodReturnAST() {}
 
+    static inline MethodReturnAST makeMethodReturn(ThreadContext* context) {
+        auto methodReturnAST = MethodReturnAST::alloc(context);
+        methodReturnAST.setValue(AST());
+        return methodReturnAST;
+    }
+
     AST value() const { return AST::wrapUnsafe(m_instance->value); }
+    void setValue(AST v) { m_instance->value = v.slot(); }
 };
 
 class MultiAssignAST : public ASTBase<MultiAssignAST, schema::HadronMultiAssignASTSchema> {
@@ -255,8 +272,18 @@ public:
     explicit WhileAST(Slot instance): ASTBase<WhileAST, schema::HadronWhileASTSchema>(instance) {}
     ~WhileAST() {}
 
+    static inline WhileAST makeWhile(ThreadContext* context) {
+        auto whileAST = WhileAST::alloc(context);
+        whileAST.setConditionBlock(BlockAST::makeBlock(context));
+        whileAST.setRepeatBlock(BlockAST::makeBlock(context));
+        return whileAST;
+    }
+
     BlockAST conditionBlock() const { return BlockAST(m_instance->conditionBlock); }
+    void setConditionBlock(BlockAST b) { m_instance->conditionBlock = b.slot(); }
+
     BlockAST repeatBlock() const { return BlockAST(m_instance->repeatBlock); }
+    void setRepeatBlock(BlockAST b) { m_instance->repeatBlock = b.slot(); }
 };
 
 } // namespace library

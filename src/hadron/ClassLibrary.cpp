@@ -1,7 +1,6 @@
 #include "hadron/ClassLibrary.hpp"
 
 #include "hadron/Arch.hpp"
-#include "hadron/AST.hpp"
 #include "hadron/ASTBuilder.hpp"
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
@@ -152,10 +151,10 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                         // Build the AST from the MethodNode block.
                         ASTBuilder astBuilder(m_errorReporter);
                         auto ast = astBuilder.buildBlock(context, lexer.get(), methodNode->body.get());
-                        if (!ast) { return false; }
+                        if (ast.isNil()) { return false; }
 
                         // Attach argument names from AST to the method definition.
-                        method.setArgNames(ast->argumentNames);
+                        method.setArgNames(ast.argumentNames());
 
                         auto methodIter = m_methodASTs.find(methodClassDef.name(context));
                         assert(methodIter != m_methodASTs.end());
@@ -192,7 +191,7 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
         metaSuperclassName = library::Symbol::fromView(context, fmt::format("Meta_{}",
                 lexer->tokens()[classNode->superClassNameIndex.value()].range));
     } else {
-        if (classDef.name(context).hash() == library::ObjectActual::nameHash()) {
+        if (classDef.name(context) == context->symbolTable->objectSymbol()) {
             // The superclass of 'Meta_Object' is 'Class'.
             metaSuperclassName = library::Symbol::fromView(context, "Class");
         } else {
@@ -202,7 +201,7 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
     }
 
     // Set up parent object and add this class definition to its subclasses array, if this isn't `Object`.
-    if (classDef.name(context).hash() != library::ObjectActual::nameHash()) {
+    if (classDef.name(context) != context->symbolTable->objectSymbol()) {
         classDef.setSuperclass(superclassName);
         library::Class superclass = findOrInitClass(context, superclassName);
         library::ClassArray subclasses = superclass.subclasses();
@@ -333,7 +332,7 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         assert(astIter != classASTs->second->end());
 
         BlockBuilder blockBuilder(m_errorReporter);
-        auto frame = blockBuilder.buildMethod(context, method, astIter->second.get());
+        auto frame = blockBuilder.buildMethod(context, method, astIter->second);
         if (!frame) { return false; }
 
         if (context->runInternalDiagnostics) {

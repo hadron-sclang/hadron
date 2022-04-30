@@ -1,6 +1,5 @@
 #include "server/JSONTransport.hpp"
 
-#include "hadron/AST.hpp"
 #include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/Frame.hpp"
@@ -89,8 +88,6 @@ private:
     void handleInitialize(std::optional<lsp::ID> id, const rapidjson::GenericObject<false, rapidjson::Value>& params);
     void serializeParseNode(hadron::ThreadContext* context, const hadron::parse::Node* node,
             rapidjson::Document& document, std::vector<rapidjson::Pointer::Token>& path, int& serial);
-    void serializeAST(hadron::ThreadContext* context, const hadron::ast::AST* ast, rapidjson::Document& document,
-            std::vector<rapidjson::Pointer::Token>& path, int& serial);
     void serializeSlot(hadron::ThreadContext* context, hadron::Slot slot, rapidjson::Value& target,
             rapidjson::Document& document);
     void serializeSymbol(hadron::ThreadContext* context, hadron::library::Symbol symbol, rapidjson::Value& target,
@@ -420,15 +417,6 @@ void JSONTransport::JSONTransportImpl::sendCompilationDiagnostics(hadron::Thread
         serializeParseNode(context, unit.blockNode, document, parsePath, serial);
         // On exit, path should be as we started.
         assert(parsePath.size() == 4);
-
-        serial = 0;
-        std::vector<rapidjson::Pointer::Token> astPath({
-                makeToken("result"),
-                makeToken("compilationUnits"),
-                {index.data(), static_cast<rapidjson::SizeType>(index.size()), static_cast<rapidjson::SizeType>(i)},
-                makeToken("ast") });
-        serializeAST(context, unit.blockAST.get(), document, astPath, serial);
-        assert(astPath.size() == 4);
     }
     sendMessage(document);
 }
@@ -920,171 +908,6 @@ void JSONTransport::JSONTransportImpl::serializeParseNode(hadron::ThreadContext*
     serializeParseNode(context, node->next.get(), document, path, serial);
     path.pop_back();
 }
-
-void JSONTransport::JSONTransportImpl::serializeAST(hadron::ThreadContext* context, const hadron::ast::AST* ast,
-        rapidjson::Document& document, std::vector<rapidjson::Pointer::Token>& path, int& serial) {
-    rapidjson::Value& jsonNode = rapidjson::CreateValueByPointer(document, rapidjson::Pointer(path.data(), path.size()),
-            document.GetAllocator());
-    jsonNode.SetObject();
-    jsonNode.AddMember("serial", rapidjson::Value(serial), document.GetAllocator());
-    ++serial;
-
-    switch(ast->astType) {
-    case hadron::ast::ASTType::kAssign: {
-        const auto assignAST = reinterpret_cast<const hadron::ast::AssignAST*>(ast);
-        jsonNode.AddMember("astType", rapidjson::Value("Assign"), document.GetAllocator());
-        path.emplace_back(makeToken("name"));
-        serializeAST(context, assignAST->name.get(), document, path, serial);
-        path.pop_back();
-        path.emplace_back(makeToken("value"));
-        serializeAST(context, assignAST->value.get(), document, path, serial);
-        path.pop_back();
-    } break;
-
-    case hadron::ast::ASTType::kDefine: {
-        const auto defineAST = reinterpret_cast<const hadron::ast::DefineAST*>(ast);
-        jsonNode.AddMember("astType", rapidjson::Value("Define"), document.GetAllocator());
-        path.emplace_back(makeToken("name"));
-        serializeAST(context, defineAST->name.get(), document, path, serial);
-        path.pop_back();
-        path.emplace_back(makeToken("value"));
-        serializeAST(context, defineAST->value.get(), document, path, serial);
-        path.pop_back();
-    } break;
-
-    case hadron::ast::ASTType::kBlock: {
-        const auto blockAST = reinterpret_cast<const hadron::ast::BlockAST*>(ast);
-        jsonNode.AddMember("astType", rapidjson::Value("Block"), document.GetAllocator());
-
-        rapidjson::Value argumentNames;
-        argumentNames.SetArray();
-        for (int32_t i = 0; i < blockAST->argumentNames.size(); ++i) {
-            rapidjson::Value argName;
-            serializeSymbol(context, blockAST->argumentNames.at(i), argName, document);
-            argumentNames.PushBack(argName, document.GetAllocator());
-        }
-        jsonNode.AddMember("argumentNames", argumentNames, document.GetAllocator());
-
-        rapidjson::Value argumentDefaults;
-        argumentDefaults.SetArray();
-        for (int32_t i = 0; i < blockAST->argumentDefaults.size(); ++i) {
-            rapidjson::Value argDefault;
-            serializeSlot(context, blockAST->argumentDefaults.at(i), argDefault, document);
-            argumentDefaults.PushBack(argDefault, document.GetAllocator());
-        }
-        jsonNode.AddMember("argumentDefaults", argumentDefaults, document.GetAllocator());
-
-        jsonNode.AddMember("hasVarArg", rapidjson::Value(blockAST->hasVarArg), document.GetAllocator());
-
-        path.emplace_back(makeToken("statements"));
-        serializeAST(context, blockAST->statements.get(), document, path, serial);
-        path.pop_back();
-    } break;
-
-    case hadron::ast::ASTType::kConstant: {
-        const auto constAST = reinterpret_cast<const hadron::ast::ConstantAST*>(ast);
-        jsonNode.AddMember("astType", rapidjson::Value("Constant"), document.GetAllocator());
-
-        rapidjson::Value value;
-        serializeSlot(context, constAST->constant, value, document);
-        jsonNode.AddMember("constant", value, document.GetAllocator());
-    } break;
-
-    case hadron::ast::ASTType::kEmpty: {
-        jsonNode.AddMember("astType", rapidjson::Value("Empty"), document.GetAllocator());
-    } break;
-
-    case hadron::ast::ASTType::kIf: {
-        const auto ifAST = reinterpret_cast<const hadron::ast::IfAST*>(ast);
-        jsonNode.AddMember("astType", rapidjson::Value("If"), document.GetAllocator());
-
-        path.emplace_back(makeToken("condition"));
-        serializeAST(context, ifAST->condition.get(), document, path, serial);
-        path.pop_back();
-
-        path.emplace_back(makeToken("trueBlock"));
-        serializeAST(context, ifAST->trueBlock.get(), document, path, serial);
-        path.pop_back();
-
-        path.emplace_back(makeToken("falseBlock"));
-        serializeAST(context, ifAST->falseBlock.get(), document, path, serial);
-        path.pop_back();
-    } break;
-
-    case hadron::ast::ASTType::kWhile: {
-        const auto whileAST = reinterpret_cast<const hadron::ast::WhileAST*>(ast);
-        jsonNode.AddMember("astType", rapidjson::Value("While"), document.GetAllocator());
-
-        path.emplace_back(makeToken("condition"));
-        serializeAST(context, whileAST->condition.get(), document, path, serial);
-        path.pop_back();
-
-        path.emplace_back(makeToken("repeatBlock"));
-        serializeAST(context, whileAST->repeatBlock.get(), document, path, serial);
-        path.pop_back();
-    } break;
-
-    case hadron::ast::ASTType::kMessage: {
-        const auto messageAST = reinterpret_cast<const hadron::ast::MessageAST*>(ast);
-        jsonNode.AddMember("astType", rapidjson::Value("Message"), document.GetAllocator());
-
-        rapidjson::Value selector;
-        serializeSymbol(context, messageAST->selector, selector, document);
-        jsonNode.AddMember("selector", selector, document.GetAllocator());
-
-        path.emplace_back(makeToken("arguments"));
-        serializeAST(context, messageAST->arguments.get(), document, path, serial);
-        path.pop_back();
-
-        path.emplace_back(makeToken("keywordArguments"));
-        serializeAST(context, messageAST->keywordArguments.get(), document, path, serial);
-        path.pop_back();
-    } break;
-
-    case hadron::ast::ASTType::kMethodReturn: {
-        const auto returnAST = reinterpret_cast<const hadron::ast::MethodReturnAST*>(ast);
-        jsonNode.AddMember("astType", rapidjson::Value("MethodReturn"), document.GetAllocator());
-
-        path.emplace_back(makeToken("value"));
-        serializeAST(context, returnAST->value.get(), document, path, serial);
-        path.pop_back();
-    } break;
-
-    case hadron::ast::ASTType::kName: {
-        const auto nameAST = reinterpret_cast<const hadron::ast::NameAST*>(ast);
-        jsonNode.AddMember("astType", rapidjson::Value("Name"), document.GetAllocator());
-
-        rapidjson::Value name;
-        serializeSymbol(context, nameAST->name, name, document);
-        jsonNode.AddMember("name", name, document.GetAllocator());
-    } break;
-
-    case hadron::ast::ASTType::kSequence: {
-        const auto sequenceAST = reinterpret_cast<const hadron::ast::SequenceAST*>(ast);
-        jsonNode.AddMember("astType", rapidjson::Value("Sequence"), document.GetAllocator());
-
-        rapidjson::Value sequence;
-        sequence.SetArray();
-        sequence.Reserve(static_cast<rapidjson::SizeType>(sequenceAST->sequence.size()), document.GetAllocator());
-        path.emplace_back(makeToken("sequence"));
-        int i = 0;
-        for (const auto& seq : sequenceAST->sequence) {
-            auto index = fmt::format("{}", i);
-            path.emplace_back(rapidjson::Pointer::Token{index.data(),
-                    static_cast<rapidjson::SizeType>(index.size()), static_cast<rapidjson::SizeType>(i)});
-            serializeAST(context, seq.get(), document, path, serial);
-            path.pop_back();
-            ++i;
-        }
-        path.pop_back();
-    } break;
-
-    case hadron::ast::ASTType::kMultiAssign: {
-        assert(false); // TODO
-    } break;
-    }
-}
-
 
 void JSONTransport::JSONTransportImpl::serializeSlot(hadron::ThreadContext* context, hadron::Slot slot,
         rapidjson::Value& target, rapidjson::Document& document) {

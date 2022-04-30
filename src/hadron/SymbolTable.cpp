@@ -13,6 +13,7 @@ void SymbolTable::preloadSymbols(ThreadContext* context) {
     m_Interpreter = library::Symbol::fromView(context, "Interpreter");
     m_isNil = library::Symbol::fromView(context, "isNil");
     m_new = library::Symbol::fromView(context, "new");
+    m_Object = library::Symbol::fromView(context, "Object");
     m_performList = library::Symbol::fromView(context, "performList");
     m_put = library::Symbol::fromView(context, "put");
     m_super = library::Symbol::fromView(context, "super");

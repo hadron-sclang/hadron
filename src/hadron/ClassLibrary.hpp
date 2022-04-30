@@ -4,6 +4,7 @@
 #include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/library/Array.hpp"
+#include "hadron/library/HadronAST.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Symbol.hpp"
 
@@ -20,10 +21,6 @@ class Lexer;
 class Parser;
 class SourceFile;
 struct ThreadContext;
-
-namespace ast {
-struct BlockAST;
-};
 
 namespace parse {
 struct ClassNode;
@@ -90,7 +87,7 @@ private:
     int32_t m_numberOfClassVariables;
 
     // Outer map is class name to pointer to inner map. Inner map is method name to AST.
-    using MethodAST = std::unordered_map<library::Symbol, std::unique_ptr<ast::BlockAST>>;
+    using MethodAST = std::unordered_map<library::Symbol, library::BlockAST>;
     std::unordered_map<library::Symbol, std::unique_ptr<MethodAST>> m_methodASTs;
 
     using MethodFrame = std::unordered_map<library::Symbol, std::unique_ptr<Frame>>;
