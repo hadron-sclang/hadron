@@ -51,6 +51,41 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     VERBATIM
 )
 
+
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
+configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
+
+set(HADRON_FRONTEND_FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp"
+
+    internal/FileSystem.cpp
+    internal/FileSystem.hpp
+
+    ErrorReporter.cpp
+    ErrorReporter.hpp
+    Hash.cpp
+    Hash.hpp
+    Lexer.hpp
+    Slot.hpp
+    SourceFile.cpp
+    SourceFile.hpp
+)
+
+#############
+# schemac
+add_executable(schemac
+    ${HADRON_FRONTEND_FILES}
+    schemac.cpp
+)
+
+target_link_libraries(schemac
+    gflags
+    fmt
+    spdlog
+    xxHash::xxhash
+)
+
 if (APPLE)
     # Default installed Bison is 2.x, we need a newer version from homebrew.
     execute_process(
@@ -72,42 +107,6 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
     MAIN_DEPENDENCY Parser.yy
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     VERBATIM
-)
-
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
-configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
-
-set(HADRON_FRONTEND_FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
-    "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
-    "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp"
-
-    internal/FileSystem.cpp
-    internal/FileSystem.hpp
-
-    ErrorReporter.cpp
-    ErrorReporter.hpp
-    Hash.cpp
-    Hash.hpp
-    Lexer.hpp
-    Parser.hpp
-    Slot.hpp
-    SourceFile.cpp
-    SourceFile.hpp
-)
-
-#############
-# schemac
-add_executable(schemac
-    ${HADRON_FRONTEND_FILES}
-    schemac.cpp
-)
-
-target_link_libraries(schemac
-    gflags
-    fmt
-    spdlog
-    xxHash::xxhash
 )
 
 #############
@@ -176,6 +175,7 @@ add_custom_target(schemafiles ALL DEPENDS ${SCHEMA_FILES})
 add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
+    "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
 
     hir/BlockLiteralHIR.cpp
     hir/BlockLiteralHIR.hpp
@@ -277,6 +277,7 @@ add_library(hadron STATIC
     OpcodeIterator.hpp
     Page.cpp
     Page.hpp
+    Parser.hpp
     PrimitiveDispatcher.cpp
     PrimitiveDispatcher.hpp
     RegisterAllocator.cpp

@@ -2,7 +2,6 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Lexer.hpp"
-#include "hadron/Parser.hpp"
 #include "hadron/SourceFile.hpp"
 #include "internal/FileSystem.hpp"
 
@@ -138,19 +137,85 @@ int main(int argc, char* argv[]) {
 
         hadron::Lexer lexer(code, errorReporter);
         if (!lexer.lex() || !errorReporter->ok()) {
-            std::cerr << "schema failed to lex input class file: " << classFile << std::endl;
-            return -1;
-        }
-
-        hadron::Parser parser(&lexer, errorReporter);
-        if (!parser.parseClass() || !errorReporter->ok()) {
-            std::cerr << "schema failed to parse input class file: " << classFile << std::endl;
+            std::cerr << "Failed to lex input class file: " << classFile << std::endl;
             return -1;
         }
 
         // Place an empty vector for appending class names.
         std::vector<std::string> classNames;
 
+        enum State {
+            kOutsideClass,
+            kInClassExtension,
+            kInClass,
+            kMethod
+        };
+        State scannerState = State::kOutsideClass;
+        ClassInfo classInfo;
+        int curlyBraceDepth = 0;
+
+        for (size_t i = 0; i < lexer.tokens().size(); ++i) {
+            const auto& token = lexer.tokens()[i];
+            bool lastToken = (i == lexer.tokens().size() - 1);
+
+            switch (scannerState) {
+
+            case kOutsideClass: {
+                assert(curlyBraceDepth == 0);
+                if (lastToken) {
+                    std::cerr << "Dangling token outside of class" << std::endl;
+                    return -1;
+                }
+
+                // If outside a class the only valid tokens should be class names or a '+' indicating a class extension.
+                if (token.name == hadron::Token::Name::kClassName) {
+                    scannerState = kInClass;
+                    classInfo.className = std::string(token.range);
+                    // Skip over the array value declaration if present.
+                    if (lexer.tokens()[i + 1].name == hadron::Token::Name::kOpenSquare) {
+                        while (i )
+                    }
+
+                } else if (token.name == hadron::Token::Name::kPlus) {
+                    if (lexer.tokens()[i + 1].name != hadron::Token::Name::kClassName) {
+                        std::cerr << "Encountered '+' symbol outside of class, but not followed by class name."
+                                  << std::endl;
+                        return -1;
+                    }
+                    ++i; // skip over the class name, not needed
+                    classInfo.className = "";
+
+                    scannerState = kInClassExtension;
+                } else {
+                    std::cerr << "Unexpected token outside of class definition." << std::endl;
+                    return -1;
+                }
+            } break;
+
+            case kInClassExtension: {
+                // Ignore all the tokens until the closing brace of the class extension.
+                if (token.name == hadron::Token::Name::kOpenParen ||
+                    token.name == hadron::Token::Name::kBeginClosedFunction) {
+                    ++curlyBraceDepth;
+                } else if (token.name == hadron::Token::Name::kCloseCurly) {
+                    --curlyBraceDepth;
+                }
+
+                assert(curlyBraceDepth >= 0);
+                if (curlyBraceDepth == 0) {
+                    scannerState = kOutsideClass;
+                }
+            }
+
+            case kInClass: {
+
+            }
+
+            case kMethod:
+
+            }
+        }
+/*
         const hadron::parse::Node* node = parser.root();
         while (node) {
             if (node->nodeType != hadron::parse::NodeType::kClass) {
@@ -199,7 +264,7 @@ int main(int argc, char* argv[]) {
 
         classFiles.emplace(std::make_pair(schemaPath, std::move(classNames)));
     }
-
+*/
     // Now that we've parsed all the input files, we should have the complete class heirarchy defined for each input
     // class, and can generate the output files.
     for (const auto& pair : classFiles) {
