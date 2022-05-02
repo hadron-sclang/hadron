@@ -158,8 +158,6 @@ int main(int argc, char* argv[]) {
         const auto& tokens = lexer.tokens();
 
         for (size_t i = 0; i < tokens.size(); ++i) {
-//            std::cout << "state: " << scannerState << " depth: " << curlyBraceDepth << " tok: " << tokens[i].range
-//                      << std::endl;
             bool lastToken = (i == tokens.size() - 1);
 
             switch (scannerState) {
@@ -344,53 +342,7 @@ int main(int argc, char* argv[]) {
             } break;
             }
         }
-/*
-        const hadron::parse::Node* node = parser.root();
-        while (node) {
-            if (node->nodeType != hadron::parse::NodeType::kClass) {
-                std::cerr << "No Class root node in parse tree for file: " << classFile << std::endl;
-                return -1;
-            }
-            const hadron::parse::ClassNode* classNode = reinterpret_cast<const hadron::parse::ClassNode*>(node);
 
-            ClassInfo classInfo;
-
-            auto token = lexer.tokens()[classNode->tokenIndex];
-            classInfo.className = std::string(token.range);
-            classNames.emplace_back(classInfo.className);
-
-            if (classInfo.className != "Object") {
-                if (classNode->superClassNameIndex) {
-                    token = lexer.tokens()[classNode->superClassNameIndex.value()];
-                    classInfo.superClassName = std::string(token.range);
-                } else {
-                    classInfo.superClassName = "Object";
-                }
-            }
-
-            classInfo.isPrimitiveType = PrimitiveTypeNames.count(classInfo.className) != 0;
-
-            // Add instance variables to classInfo struct.
-            const hadron::parse::VarListNode* varList = classNode->variables.get();
-            while (varList) {
-                if (lexer.tokens()[varList->tokenIndex].name == hadron::Token::Name::kVar) {
-                    const hadron::parse::VarDefNode* varDef = varList->definitions.get();
-                    while (varDef) {
-                        std::string varName(lexer.tokens()[varDef->tokenIndex].range);
-                        auto subs = keywordSubs.find(varName);
-                        if (subs != keywordSubs.end()) { varName = subs->second; }
-                        classInfo.variables.emplace_back(varName);
-                        varDef = reinterpret_cast<const hadron::parse::VarDefNode*>(varDef->next.get());
-                    }
-                }
-                varList = reinterpret_cast<const hadron::parse::VarListNode*>(varList->next.get());
-            }
-
-            classes.emplace(std::make_pair(classInfo.className, std::move(classInfo)));
-
-            node = classNode->next.get();
-        }
-*/
         classFiles.emplace(std::make_pair(schemaPath, std::move(classNames)));
     }
 
