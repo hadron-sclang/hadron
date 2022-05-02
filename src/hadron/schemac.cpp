@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
             kOutsideClass,
             kInClassExtension,
             kInClass,
-            kMethod
+            kInMethod
         };
         State scannerState = State::kOutsideClass;
         ClassInfo classInfo;
@@ -169,15 +169,45 @@ int main(int argc, char* argv[]) {
 
                 // If outside a class the only valid tokens should be class names or a '+' indicating a class extension.
                 if (token.name == hadron::Token::Name::kClassName) {
-                    scannerState = kInClass;
                     classInfo.className = std::string(token.range);
-                    // Skip over the array value declaration if present.
-                    if (lexer.tokens()[i + 1].name == hadron::Token::Name::kOpenSquare) {
-                        while (i )
+                    ++i;  // Advance past class name.
+
+                    // Skip over the array declaration if present.
+                    if (lexer.tokens()[i].name == hadron::Token::Name::kOpenSquare) {
+                        ++i; // past open square.
+                        if (lexer.tokens()[i].name == hadron::Token::Name::kIdentifier) {
+                            ++i; // skip past optional name if present
+                        }
+                        if (lexer.tokens()[i].name != hadron::Token::Name::kCloseSquare) {
+                            std::cerr << "Encountered open square bracket after class name but no closing bracket."
+                                      << std::endl;
+                            return -1;
+                        }
+                        ++i; // past closing square bracket
                     }
 
+                    // Look for optional superclass name indicator, a colon.
+                    if (lexer.tokens()[i].name == hadron::Token::Name::kColon) {
+                        ++i; // skip past colon
+                        if (lexer.tokens()[i].name != hadron::Token::Name::kClassName) {
+                            std::cerr << "Expecting class name after colon." << std::endl;
+                            return -1;
+                        }
+                        classInfo.superClassName = std::string(lexer.tokens()[i].name);
+                    } else if (classInfo.className.compare("Object") != 0) {
+                        classInfo.superClassName = std::string("Object");
+                    }
+
+                    if (lexer.tokens()[i].name != hadron::Token::Name::kOpenCurly) {
+                        std::cerr << "Expecting opening curly brace after class definition." << std::endl;
+                        return -1;
+                    }
+                    ++i;
+
+                    scannerState = kInClass;
                 } else if (token.name == hadron::Token::Name::kPlus) {
-                    if (lexer.tokens()[i + 1].name != hadron::Token::Name::kClassName) {
+                    ++i; // skip over plus
+                    if (lexer.tokens()[i].name != hadron::Token::Name::kClassName) {
                         std::cerr << "Encountered '+' symbol outside of class, but not followed by class name."
                                   << std::endl;
                         return -1;
@@ -185,6 +215,11 @@ int main(int argc, char* argv[]) {
                     ++i; // skip over the class name, not needed
                     classInfo.className = "";
 
+                    if (lexer.tokens()[i].name != hadron::Token::Name::kOpenCurly) {
+                        std::cerr << "Expecting open curly brace in class extension." << std::endl;
+                        return -1;
+                    }
+                    ++i;
                     scannerState = kInClassExtension;
                 } else {
                     std::cerr << "Unexpected token outside of class definition." << std::endl;
@@ -205,14 +240,67 @@ int main(int argc, char* argv[]) {
                 if (curlyBraceDepth == 0) {
                     scannerState = kOutsideClass;
                 }
-            }
+            } break;
 
             case kInClass: {
+                // Could be a 'var', 'const', 'classvar', '*' (for class methods), 'name', binop
+                if (token.name == hadron::Token::Name::kVar) {
+                    // pattern is an optional r/w/rw tag, identifier name, optional equal sign followed by anything
+                    // up until a comma or semicolon. If a comma we start over, if a semicolon we're done.
+                    do {
+                        ++i; // var or ','
 
-            }
+                        // skip optional rw spec
+                        if (lexer.tokens()[i].name == hadron::Token::Name::kLessThan ||
+                            lexer.tokens()[i].name == hadron::Token::Name::kGreaterThan ||
+                            lexer.tokens()[i].name == hadron::Token::Name::kReadWriteVar) { ++i; }
 
-            case kMethod:
+                        if (lexer.tokens()[i].name != hadron::Token::Name::kIdentifier) {
+                            std::cerr << "Expecting variable name." << std::endl;
+                            return -1;
+                        }
+                        std::string varName(lexer.tokens()[i].range);
+                        auto subs = keywordSubs.find(varName);
+                        if (subs != keywordSubs.end()) { varName = subs->second; }
+                        classInfo.variables.emplace_back(varName);
+                        ++i; // identifier
 
+                        // optional equal sign
+                        if (lexer.tokens()[i].name == hadron::Token::Name::kAssign) {
+                            ++i;
+                            while (lexer.tokens()[i].name != hadron::Token::Name::kComma &&
+                                   lexer.tokens()[i].name != hadron::Token::Name::kSemicolon) { ++i; }
+                        }
+                    } while (lexer.tokens()[i].name == hadron::Token::Name::kComma);
+
+                    // Semicolon.
+                    if (lexer.tokens()[i].name != hadron::Token::Name::kSemicolon) {
+                        std::cerr << "Expecting semicolon at end of var list." << std::endl;
+                        return -1;
+                    }
+
+                    ++i; // semicolon.
+                } else if (token.name == hadron::Token::Name::kConst) {
+                    while (lexer.tokens()[i].name != hadron::Token::kSemicolon) { ++i; }
+                } else if (token.name == hadron::Token::Name::kClassVar) {
+                    while (lexer.tokens()[i].name != hadron::Token::kSemicolon) { ++i; }
+                } else if (token.name == hadron::Token::Name::kAsterisk) {
+
+                } else if (token.name == hadron::Token::Name::kIdentifier || token.couldBeBinop) {
+                    ++i; // pass identifier
+                    if (token.name != hadron::Token::Name::kOpenCurly) {
+                        std::cerr << "Expecting opening curly brace after method identifer." << std::endl;
+                        return -1;
+                    }
+                } else {
+                    std::cerr << "Unexpected token inside class." << std::endl;
+                    return -1;
+                }
+            } break;
+
+            case kInMethod: {
+
+            } break;
             }
         }
 /*
