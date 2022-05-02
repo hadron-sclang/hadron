@@ -141,8 +141,6 @@ int main(int argc, char* argv[]) {
             return -1;
         }
 
-        std::cout << "processing " << classFile << std::endl;
-
         // Place an empty vector for appending class names.
         std::vector<std::string> classNames;
 
