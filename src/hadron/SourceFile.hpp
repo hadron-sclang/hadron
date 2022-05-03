@@ -1,6 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_SOURCE_FILE_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_SOURCE_FILE_HPP_
 
+#include <memory>
 #include <string>
 #include <string_view>
 

@@ -9,6 +9,8 @@
 #include "hadron/library/Symbol.hpp"
 #include "hadron/schema/Common/Collections/ArrayedCollectionSchema.hpp"
 
+#include <cstring>
+
 namespace hadron {
 namespace library {
 

@@ -3,12 +3,16 @@
 #include "fmt/format.h"
 #include "spdlog/spdlog.h"
 
+#if __clang__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wc99-extensions"
+#endif
 extern "C" {
 #include "lightening.h"
 }
+#if __clang__
 #pragma GCC diagnostic pop
+#endif
 
 namespace {
     // We need to save all of the callee-save registers, which is a per-architecture value not exposed by lightening.h

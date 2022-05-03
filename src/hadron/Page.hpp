@@ -2,6 +2,7 @@
 #define SRC_COMPILER_INCLUDE_HADRON_PAGE_HPP_
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 namespace hadron {

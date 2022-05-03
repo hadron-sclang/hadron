@@ -22,7 +22,14 @@ fs::path findBinaryPath() {
     SPDLOG_ERROR("Failed to find path of executable!");
     return fs::path();
 }
-#endif // __APPLE__
+#elif defined(__linux__)
+fs::path findBinaryPath() {
+    auto path = fs::read_symlink("/proc/self/exe");
+    return fs::canonical(path);
+}
+#else
+#error Need to define findBinaryPath() for this operating system.
+#endif
 
 fs::path findSCClassLibrary() {
     auto path = findBinaryPath();
