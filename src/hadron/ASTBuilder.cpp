@@ -83,18 +83,18 @@ library::BlockAST ASTBuilder::buildBlock(ThreadContext* context, const Lexer* le
         isNilAST.setSelector(context->symbolTable->isNilSymbol());
 
         auto isNilNameAST = library::NameAST::makeName(context, init.first);
-        isNilAST.arguments().addAST(context, library::AST::wrapUnsafe(isNilNameAST.slot()));
+        isNilAST.arguments().addAST(context, isNilNameAST.toBase());
 
         auto ifAST = library::IfAST::makeIf(context);
-        ifAST.condition().addAST(context, library::AST::wrapUnsafe(isNilAST.slot()));
+        ifAST.condition().addAST(context, isNilAST.toBase());
 
         auto trueStatements = ifAST.trueBlock().statements();
         appendToSequence(context, lexer, trueStatements, init.second);
         ifAST.trueBlock().setStatements(trueStatements);
 
         // Default value of an empty else block is nil.
-        ifAST.falseBlock().statements().addAST(context, library::AST::wrapUnsafe(
-                library::ConstantAST::makeConstant(context, Slot::makeNil()).slot()));
+        ifAST.falseBlock().statements().addAST(context,
+                library::ConstantAST::makeConstant(context, Slot::makeNil()).toBase());
     }
 
     // Append the expressions inside the parsed blockNode.
@@ -183,7 +183,7 @@ library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, c
 
     case parse::NodeType::kArgList:
         assert(false); // internal error, not a valid node within a block
-        return library::AST::wrapUnsafe(library::EmptyAST::alloc(context).slot());
+        return library::EmptyAST::alloc(context).toBase();
 
     // Transform literal lists into Array.with(elements) call.
     case parse::NodeType::kArray: {
@@ -191,9 +191,9 @@ library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, c
         auto message = library::MessageAST::makeMessage(context);
         message.setSelector(context->symbolTable->withSymbol());
         auto nameAST = library::NameAST::makeName(context, context->symbolTable->arraySymbol());
-        message.arguments().addAST(context, library::AST::wrapUnsafe(nameAST.slot()));
+        message.arguments().addAST(context, nameAST.toBase());
         appendToSequence(context, lexer, message.arguments(), arrayNode->elements.get());
-        return library::AST::wrapUnsafe(message.slot());
+        return message.toBase();
     }
 
     // Transform into a array.at(index) message.
@@ -203,7 +203,7 @@ library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, c
         message.setSelector(context->symbolTable->atSymbol());
         appendToSequence(context, lexer, message.arguments(), readNode->targetArray.get());
         appendToSequence(context, lexer, message.arguments(), readNode->indexArgument.get());
-        return library::AST::wrapUnsafe(message.slot());
+        return message.toBase();
     }
 
     // Transform into a array.put(index, value) message.
@@ -214,7 +214,7 @@ library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, c
         appendToSequence(context, lexer, message.arguments(), writeNode->targetArray.get());
         appendToSequence(context, lexer, message.arguments(), writeNode->indexArgument.get());
         appendToSequence(context, lexer, message.arguments(), writeNode->value.get());
-        return library::AST::wrapUnsafe(message.slot());
+        return message.toBase();
     }
 
     case parse::NodeType::kAssign: {
@@ -225,7 +225,7 @@ library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, c
         assign.setName(name);
         assert(assignNode->value);
         assign.setValue(transform(context, lexer, assignNode->value.get(), curryCount));
-        return library::AST::wrapUnsafe(assign.slot());
+        return assign.toBase();
     }
 
     // Transform to a standard message with two arguments.
@@ -239,7 +239,7 @@ library::AST ASTBuilder::transform(ThreadContext* context, const Lexer* lexer, c
         assert(!binop->adverb); // TODO
 
         if (subCurryCount == 0) {
-            return library::AST::wrapUnsafe(message.slot());
+            return message.toBase();
         }
 
         auto block = buildPartialBlock(context, subCurryCount);

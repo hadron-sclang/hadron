@@ -23,11 +23,6 @@ HadronArgListNode : HadronParseNode {
 	var <>varArgsNameToken; // can be nil (for no varargs) or a HadronLexToken
 }
 
-// A literal Array, for example "[1, 2, 3]"
-HadronArrayNode : HadronParseNode {
-	var <>elements;
-}
-
 // "targetArray[indexArgument]"
 HadronArrayReadNode : HadronParseNode {
 	var <>targetArray;
@@ -71,8 +66,15 @@ HadronClassNode : HadronParseNode {
 	var <>methods;
 }
 
+// +token { methods }
 HadronClassExtensionNode : HadronParseNode {
 	var <>methods;
+}
+
+// A literal Array, for example "[1, 2, 3]"
+HadronCollectionNode : HadronParseNode {
+	var <>className; // Either a HadronNameNode or nil. If nil the default class name is Array.
+	var <>elements;
 }
 
 // "target[first, second .. last]"
@@ -120,9 +122,80 @@ HadronKeyValueNode : HadronParseNode {
 	var <>value;
 }
 
-// A new collection. Unlike HadronArrayNode this can support a class name different than array, and
-// the elements can be arbitary expressions instead of being restricted to literals.
-HadronNewCollectionNode : HadronParseNode {
-	var <>className; // Either a HadronNameNode or nil. If nil the default class name is Array.
-	var <>elements;
+// "token { body }"
+HadronMethodNode : HadronParseNode {
+	var <>isClassMethod;
+	var <>primitiveToken; // either nil or a Token
+	var <>body;
+}
+
+// "#targets = value"
+HadronMultiAssignNode : HadronParseNode {
+	var <>targets; // A HadronMultiAssignVarsNode
+	var <>value;
+}
+
+// "names .. rest"
+HadronMultiAssignVarsNode : HadronParseNode {
+	var <>names; // HadronNameNodes
+	var <>rest; // Can be nil or a HadronNameNode
+}
+
+// "token"
+HadronNameNode : HadronParseNode { }
+
+// "token()"
+HadronNewNode : HadronParseNode { }
+
+// "start, step .. stop"
+HadronNumericSeriesNode : HadronParseNode {
+	var <>start;
+	var <>step;
+	var <>stop;
+}
+
+HadronPerformListNode : HadronParseNode { }
+
+// "^valueExpr"
+HadronReturnNode : HadronParseNode {
+	var <>valueExpr;
+}
+
+// "start.series(step, last)"
+HadronSeriesNode : HadronParseNode {
+	var <>start;
+	var <>step;
+	var <>last;
+}
+
+HadronSeriesIterNode : HadronParseNode {
+	var <>start;
+	var <>step;
+	var <>last;
+}
+
+// "target.token = value"
+HadronSetterNode : HadronParseNode {
+	var <>target;
+	var <>value;
+}
+
+// Holds any literal that fits in a slot with the exception of Strings and Symbols
+HadronSlotNode : HadronParseNode {
+	var <>value;
+}
+
+// "token" - note that SC allows for String concatenation so |next| may contain additional HadronStringNodes
+HadronStringNode : HadronParseNode { }
+
+HadronSymbolNode : HadronParseNode { }
+
+// "token = initialValue"
+HadronVarDefNode : HadronParseNode {
+	var <>initialValue; // can be nil
+}
+
+// token can be "var", "classvar", or "const"
+HadronVarListNode : HadronParseNode {
+	var <>definitions; // 1 or more HadronVarDefNodes
 }

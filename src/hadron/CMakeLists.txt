@@ -151,6 +151,7 @@ endforeach()
 list(APPEND HLANG_CLASS_FILES
     "${HLANG_PATH}/HLang/HadronAST.sc"
     "${HLANG_PATH}/HLang/HadronFrame.sc"
+    "${HLANG_PATH}/HLang/HadronParseNode.sc"
 )
 
 foreach(CLASS_FILE ${HLANG_CLASS_FILES})
@@ -219,6 +220,7 @@ add_library(hadron STATIC
     library/Collection.hpp
     library/Function.hpp
     library/HadronAST.hpp
+    library/HadronParseNode.hpp
     library/Kernel.hpp
     library/Object.hpp
     library/Schema.hpp
