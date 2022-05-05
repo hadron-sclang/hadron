@@ -20,7 +20,7 @@
 namespace {
 // While we generate a Schema struct for these objects they are not represented by Hadron with pointers, rather their
 // values are packed into the Slot directly. So they are excluded from the Schema class heirarchy.
-std::unordered_set<std::string> PrimitiveTypeNames {
+std::unordered_set<std::string> FundamentalTypeNames {
     "Boolean",
     "Char",
     "Float",
@@ -39,7 +39,7 @@ std::unordered_map<std::string, std::string> keywordSubs {
 struct ClassInfo {
     std::string className;
     std::string superClassName;
-    bool isPrimitiveType;
+    bool isFundamentalType;
     std::vector<std::string> variables;
 };
 
@@ -170,6 +170,7 @@ int main(int argc, char* argv[]) {
                 // If outside a class the only valid tokens should be class names or a '+' indicating a class extension.
                 if (tokens[i].name == hadron::Token::Name::kClassName) {
                     classInfo.className = std::string(tokens[i].range);
+                    classInfo.isFundamentalType = FundamentalTypeNames.count(classInfo.className) != 0;
                     classNames.emplace_back(classInfo.className);
 
                     ++i;  // Advance past class name.
@@ -376,7 +377,7 @@ int main(int argc, char* argv[]) {
             outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:012x};\n",
                     hadron::hash(fmt::format("Meta_{}", className)));
 
-            if (classIter->second.isPrimitiveType) {
+            if (classIter->second.isFundamentalType) {
                 outFile << "};" << std::endl << std::endl;
                 continue;
             }
