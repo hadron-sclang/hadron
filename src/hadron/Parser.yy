@@ -1256,6 +1256,7 @@ Parser::Parser(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter):
     m_lexer(lexer),
     m_tokenIndex(0),
     m_sendInterpret(false),
+    m_threadContext(nullptr),
     m_errorReporter(errorReporter) { }
 
 Parser::Parser(std::string_view code):
@@ -1263,18 +1264,19 @@ Parser::Parser(std::string_view code):
     m_lexer(m_ownLexer.get()),
     m_tokenIndex(0),
     m_sendInterpret(false),
+    m_threadContext(nullptr),
     m_errorReporter(m_ownLexer->errorReporter()) { }
 
 Parser::~Parser() {}
 
-bool Parser::parse() {
+bool Parser::parse(ThreadContext* context) {
     m_sendInterpret = true;
-    return innerParse();
+    return innerParse(context);
 }
 
 bool Parser::parseClass() {
     m_sendInterpret = false;
-    return innerParse();
+    return innerParse(context);
 }
 
 void Parser::addRoot(std::unique_ptr<parse::Node> root) {
@@ -1295,7 +1297,9 @@ hadron::Token Parser::token(size_t index) const {
     }
 }
 
-bool Parser::innerParse() {
+bool Parser::innerParse(ThreadContext* context) {
+    m_threadContext = context;
+
     if (m_ownLexer) {
         if (!m_lexer->lex()) {
             return false;
@@ -1312,7 +1316,7 @@ bool Parser::innerParse() {
 
     // Valid parse of empty input buffer, which we represent with an empty node.
     if (!m_root) {
-        m_root = std::make_unique<hadron::parse::EmptyNode>();
+        m_root = library::EmptyNode::alloc(context);
     }
 
     return m_errorReporter->errorCount() == 0;

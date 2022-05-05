@@ -29,6 +29,9 @@ public:
 
     int32_t offset() const { return m_instance->offset.getInt32(); }
     void setOffset(int32_t i) { m_instance->offset = Slot::makeInt32(i); }
+
+    int32_t length() const { return m_instance->length.getInt32(); }
+    void setLength(int32_t i) { m_instance->length = Slot::makeInt32(i); }
 };
 
 template<typename T, typename S, typename B>
@@ -57,6 +60,28 @@ public:
             NodeBase<Node, schema::HadronParseNodeSchema, Node>(instance) {}
     explicit Node(Slot instance): NodeBase<Node, schema::HadronParseNodeSchema, Node>(instance) {}
     ~Node() {}
+};
+
+class KeyValueNode : public NodeBase<KeyValueNode, schema::HadronParseKeyValueNodeSchema, Node>() {
+public:
+};
+
+template<typename T, typename S>
+class CallBaseNode : public NodeBase<T, S, Node> {
+public:
+    CallBaseNode(): NodeBase<T, S, Node>() {}
+    explicit CallBaseNode(S* instance): NodeBase<T, S, Node>(instance) {}
+    explicit CallBaseNode(Slot instance): NodeBase<T, S, Node>(instance) {}
+    ~CallBaseNode() {}
+
+    Node target() const { return Node::wrapUnsafe(m_instance->target); }
+    void setTarget(Node n) { m_instance->target = n.slot(); }
+
+    Node arguments() const { return Node::wrapUnsafe(m_instance->arguments); }
+    void setArguments(Node n) { m_instance->arguments = n.slot(); }
+
+    KeyValueNode keywordArguments() const { return KeyValueNode(m_instance->keywordArguments); }
+    void setKeywordArguments(KeyValueNode n) { m_instance->keywordArguemnts = n.slot(); }
 };
 
 } // namespace library
