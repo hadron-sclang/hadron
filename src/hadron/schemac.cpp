@@ -170,6 +170,7 @@ int main(int argc, char* argv[]) {
                 // If outside a class the only valid tokens should be class names or a '+' indicating a class extension.
                 if (tokens[i].name == hadron::Token::Name::kClassName) {
                     classInfo.className = std::string(tokens[i].range);
+                    classInfo.isPrimitiveType = PrimitiveTypeNames.count(classInfo.className) != 0;
                     classNames.emplace_back(classInfo.className);
 
                     ++i;  // Advance past class name.
