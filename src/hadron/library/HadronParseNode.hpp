@@ -18,9 +18,6 @@ public:
     Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
     void setName(Symbol s) { m_instance->name = s.slot(); }
 
-    Symbol snippet(ThreadContext* context) const { return Symbol(context, m_instance->snippet); }
-    void setSnippet(Symbol s) { m_instance->snippet = s.slot(); }
-
     Slot value() const { return m_instance->value; }
     void setValue(Slot s) { m_instance->value = s; }
 
@@ -29,6 +26,9 @@ public:
 
     int32_t characterNumber() const { return m_instance->characterNumber.getInt32(); }
     void setCharacterNumber(int32_t i) { m_instance->characterNumber = Slot::makeInt32(i); }
+
+    int32_t offset() const { return m_instance->offset.getInt32(); }
+    void setOffset(int32_t i) { m_instance->offset = Slot::makeInt32(i); }
 };
 
 template<typename T, typename S, typename B>

@@ -1,9 +1,10 @@
 HadronLexToken {
 	var <>name; // A Symbol identifying the kind of token this is
-	var <>snippet; // The code snippet represented by this token, a Symbol
 	var <>value; // For literals, the actual computed value of the literal
 	var <>lineNumber; // 1-based line number
 	var <>characterNumber; // 1-based character number on that line
+	var <>offset; // 0-based character offset in input string
+	var <>length; // length of substring in input string
 }
 
 HadronParseNode {
