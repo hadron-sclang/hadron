@@ -43,14 +43,27 @@ public:
     ~NodeBase() {}
 
     B toBase() const {
-        return B::wrapUnsafe(Slot::makePointer(reinterpret_cast<library::Schema*>(m_instance)));
+        const T& t = static_cast<const T&>(*this);
+        return B::wrapUnsafe(Slot::makePointer(reinterpret_cast<library::Schema*>(t.m_instance)));
     }
 
-    Token token() const { return Token(m_instance->token.slot()); }
-    void setToken(Token t) { m_instance->token = t.slot(); }
+    Token token() const {
+        const T& t = static_cast<const T&>(*this);
+        return Token(t.m_instance->token.slot());
+    }
+    void setToken(Token tok) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->token = tok.slot();
+    }
 
-    B next() const { return B::wrapUnsafe(m_instance->next); }
-    void setNext(B b) { m_instance->next = b.slot(); }
+    B next() const {
+        const T& t = static_cast<const T&>(*this);
+        return B::wrapUnsafe(t.m_instance->next);
+    }
+    void setNext(B b) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->next = b.slot();
+    }
 };
 
 class Node : public NodeBase<Node, schema::HadronParseNodeSchema, Node> {
@@ -62,8 +75,20 @@ public:
     ~Node() {}
 };
 
-class KeyValueNode : public NodeBase<KeyValueNode, schema::HadronParseKeyValueNodeSchema, Node>() {
+class KeyValueNode : public NodeBase<KeyValueNode, schema::HadronKeyValueNodeSchema, Node> {
 public:
+    KeyValueNode(): NodeBase<KeyValueNode, schema::HadronKeyValueNodeSchema, Node>() {}
+    explicit KeyValueNode(schema::HadronKeyValueNodeSchema* instance):
+            NodeBase<Node, schema::HadronKeyValueNodeSchema, Node>(instance) {}
+    explicit KeyValueNode(Slot instance):
+            NodeBase<Node, schema::HadronKeyValueNodeSchema, Node>(instance) {}
+    ~KeyValueNode() {}
+
+    Node key() const { return Node::wrapUnsafe(m_instance->key); }
+    void setKey(Node n) { m_instance->key = n.slot(); }
+
+    void value() const { return Node::wrapUnsafe(m_instance->value); }
+    void setValue(Node n) { m_instance->value = n.slot(); }
 };
 
 template<typename T, typename S>
@@ -74,14 +99,103 @@ public:
     explicit CallBaseNode(Slot instance): NodeBase<T, S, Node>(instance) {}
     ~CallBaseNode() {}
 
-    Node target() const { return Node::wrapUnsafe(m_instance->target); }
-    void setTarget(Node n) { m_instance->target = n.slot(); }
+    Node target() const {
+        const T& t = static_cast<const T&>(*this);
+        return Node::wrapUnsafe(t.m_instance->target);
+    }
+    void setTarget(Node n) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->target = n.slot();
+    }
 
-    Node arguments() const { return Node::wrapUnsafe(m_instance->arguments); }
-    void setArguments(Node n) { m_instance->arguments = n.slot(); }
+    Node arguments() const {
+        const T& t = static_cast<const T&>(*this);
+        return Node::wrapUnsafe(t.m_instance->arguments);
+    }
+    void setArguments(Node n) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->arguments = n.slot();
+    }
 
-    KeyValueNode keywordArguments() const { return KeyValueNode(m_instance->keywordArguments); }
-    void setKeywordArguments(KeyValueNode n) { m_instance->keywordArguemnts = n.slot(); }
+    KeyValueNode keywordArguments() const {
+        const T& t = static_cast<const T&>(*this);
+        return KeyValueNode(t.m_instance->keywordArguments);
+    }
+    void setKeywordArguments(KeyValueNode n) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->keywordArguemnts = n.slot();
+     }
+};
+
+class VarDefNode : public NodeBase<VarDefNode, schema::HadronVarDefNodeSchema, Node> {
+public:
+    VarDefNode(): NodeBase<VarDefNode, schema::HadronVarDefNodeSchema, Node>() {}
+    explicit VarDefNode(schema::HadronVarDefNodeSchema* instance):
+            NodeBase<VarDefNode, schema::HadronVarDefNodeSchema, Node>(instance) {}
+    explicit VarDefNode(Slot instance):
+            NodeBase<VarDefNode, schema::HadronVarDefNodeSchema, Node>(instance) {}
+    ~VarDefNode() {}
+
+    Node initialValue() const { return Node::wrapUnsafe(m_instance->initialValue); }
+    void setInitialValue(Node n) { m_instance->initialValue = n.slot(); }
+};
+
+class VarListNode : public NodeBase<VarListNode, schema::HadronVarListNodeSchema, Node> {
+public:
+    VarListNode(): NodeBase<VarListNode, schema::HadronVarListNodeSchema, Node>() {}
+    explicit VarListNode(schema::HadronVarListNodeSchema* instance):
+            NodeBase<VarListNode, schema::HadronVarListNodeSchema, Node>(instance) {}
+    explicit VarListNode(Slot instance):
+            NodeBase<VarListNode, schema::HadronVarListNodeSchema, Node>(instance) {}
+    ~VarListNode() {}
+
+    VarDefNode definitions() const { return VarDefNode(m_instance->definitions); }
+    void setDefinitions(VarDefNode varDef) { m_instance->definitions = varDef.slot(); }
+};
+
+class ArgListNode : public NodeBase<ArgListNode, schema::HadronArgListNodeSchema, Node> {
+public:
+    ArgListNode(): NodeBase<ArgListNode, schema::HadronArgListNodeSchema, Node>() {}
+    explicit ArgListNode(schema::HadronArgListNodeSchema* instance):
+            NodeBase<ArgListNode, schema::HadronArgListNodeSchema, Node>(instance) {}
+    explicit ArgListNode(Slot instance):
+            NodeBase<ArgListNode, schema::HadronArgListNodeSchema, Node>(instance) {}
+    ~ArgListNode() {}
+
+    VarListNode varList() const { return VarListNode(m_instance->varList); }
+    void setVarList(VarListNode v) { m_instance->varList = v.slot(); }
+
+    Token varArgsNameToken() const { return Token(m_instance->varArgsNameToken); }
+    void setVarArgsNameToken(Token tok) { m_instance->varArgsNameToken = tok.slot(); }
+};
+
+class ExprSeqNode : public NodeBase<ExprSeqNode, schema::HadronExprSeqNodeSchema, Node> {
+public:
+    ExprSeqNode(): NodeBase<ExprSeqNode, schema::HadronExprSeqNodeSchema, Node>() {}
+    explicit ExprSeqNode(schema::HadronExprSeqNodeSchema* instance):
+            NodeBase<ExprSeqNode, schema::HadronExprSeqNodeSchema, Node>(instance) {}
+    explicit ExprSeqNode(Slot instance):
+            NodeBase<ExprSeqNode, schema::HadronExprSeqNodeSchema, Node>(instance) {}
+    ~ExprSeqNode() {}
+
+    Node expr() const { return Node::wrapUnsafe(m_instance->expr); }
+    void setExpr(Node n) { m_instance->expr = n.slot(); }
+};
+
+class ArrayReadNode : public NodeBase<ArrayReadNode, schema::HadronArrayReadNodeSchema, Node> {
+public:
+    ArrayReadNode(): NodeBase<ArrayReadNode, schema::HadronArrayReadNodeSchema, Node>() {}
+    explicit ArrayReadNode(schema::HadronArrayReadNodeSchema* instance):
+            NodeBase<ArrayReadNode, schema::HadronArrayReadNodeSchema, Node>(instance) {}
+    explicit ArrayReadNode(Slot instance):
+            NodeBase<ArrayReadNode, schema::HadronArrayReadNodeSchema, Node>(instance) {}
+    ~ArrayReadNode() {}
+
+    Node targetArray() const { return Node::wrapUnsafe(m_instance->targetArray); }
+    void setTargetArray(Node n) { m_instance->targetArray = n.slot(); }
+
+    ExprSeqNode indexArgument() const { return ExprSeqNode(m_instance->indexArgument); }
+    void setIndexArgument(ExprSeqNode exprSeq) { m_instance->indexArgument = exprSeq.slot(); }
 };
 
 } // namespace library

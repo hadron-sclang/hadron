@@ -12,10 +12,10 @@
 %token END 0 "end of file"
 %token INTERPRET
 // Most tokens are just the index in the lexer's tokens() vector.
-%token <size_t> LITERAL FLOAT INTEGER PRIMITIVE PLUS MINUS ASTERISK ASSIGN LESSTHAN GREATERTHAN PIPE READWRITEVAR
-%token <size_t> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA
-%token <size_t> SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT ELLIPSES
-%token <size_t> CURRYARGUMENT IF WHILE STRING SYMBOL BINOP KEYWORD IDENTIFIER CLASSNAME BEGINCLOSEDFUNC
+%token <library::Token> LITERAL FLOAT INTEGER PRIMITIVE PLUS MINUS ASTERISK ASSIGN LESSTHAN GREATERTHAN PIPE
+%token <library::Token> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA READWRITEVAR
+%token <library::Token> SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT ELLIPSES
+%token <library::Token> CURRYARGUMENT IF WHILE STRING SYMBOL BINOP KEYWORD IDENTIFIER CLASSNAME BEGINCLOSEDFUNC
 
 %type <std::unique_ptr<hadron::parse::ArgListNode>> argdecls
 %type <std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode block blocklist1 blocklist optblock
@@ -1104,6 +1104,13 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
     hadron::Token token = hadronParser->token(index);
     hadronParser->next();
 
+    auto scToken = library::Token::alloc(hadronParser->context());
+    scToken.setValue(token.value);
+    scToken.setLineNumber(token.location.lineNumber + 1);
+    scToken.setCharacterNumber(token.location.characterNumber + 1);
+    scToken.setOffset(token.range.data() - hadronParser->lexer()->code().data());
+    scToken.setLength(token.range.size());
+
     switch (token.name) {
     case hadron::Token::Name::kEmpty:
         return yy::parser::make_END(token.location);
@@ -1112,133 +1119,174 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
         return yy::parser::make_INTERPRET(token.location);
 
     case hadron::Token::Name::kLiteral:
+        scToken.setName(library::Symbol::fromView(context, "literal"));
         // We special-case integers and floats to support unary negation.
         if (token.value.isInt32()) {
-            return yy::parser::make_INTEGER(index, token.location);
+            return yy::parser::make_INTEGER(scToken, token.location);
         } else if (token.value.isFloat()) {
-            return  yy::parser::make_FLOAT(index, token.location);
+            return  yy::parser::make_FLOAT(scToken, token.location);
         }
-        return yy::parser::make_LITERAL(index, token.location);
+        return yy::parser::make_LITERAL(scToken, token.location);
 
     case hadron::Token::Name::kString:
-        return yy::parser::make_STRING(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "string"));
+        return yy::parser::make_STRING(scToken, token.location);
 
     case hadron::Token::Name::kSymbol:
-        return yy::parser::make_SYMBOL(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "symbol"));
+        return yy::parser::make_SYMBOL(scToken, token.location);
 
     case hadron::Token::Name::kPrimitive:
-        return yy::parser::make_PRIMITIVE(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "primitive"));
+        return yy::parser::make_PRIMITIVE(scToken, token.location);
 
     case hadron::Token::Name::kPlus:
-        return yy::parser::make_PLUS(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "plus"));
+        return yy::parser::make_PLUS(scToken, token.location);
 
     case hadron::Token::Name::kMinus:
-        return yy::parser::make_MINUS(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "minus"));
+        return yy::parser::make_MINUS(scToken, token.location);
 
     case hadron::Token::Name::kAsterisk:
-        return yy::parser::make_ASTERISK(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "asterisk"));
+        return yy::parser::make_ASTERISK(scToken, token.location);
 
     case hadron::Token::Name::kAssign:
-        return yy::parser::make_ASSIGN(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "assign"));
+        return yy::parser::make_ASSIGN(scToken, token.location);
 
     case hadron::Token::Name::kLessThan:
-        return yy::parser::make_LESSTHAN(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "lessThan"));
+        return yy::parser::make_LESSTHAN(scToken, token.location);
 
     case hadron::Token::Name::kGreaterThan:
-        return yy::parser::make_GREATERTHAN(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "greaterThan"));
+        return yy::parser::make_GREATERTHAN(scToken, token.location);
 
     case hadron::Token::Name::kPipe:
-        return yy::parser::make_PIPE(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "pipe"));
+        return yy::parser::make_PIPE(scToken, token.location);
 
     case hadron::Token::Name::kReadWriteVar:
-        return yy::parser::make_READWRITEVAR(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "readWriteVar"));
+        return yy::parser::make_READWRITEVAR(scToken, token.location);
 
     case hadron::Token::Name::kLeftArrow:
-        return yy::parser::make_LEFTARROW(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "leftArrow"));
+        return yy::parser::make_LEFTARROW(scToken, token.location);
 
     case hadron::Token::Name::kBinop:
-        return yy::parser::make_BINOP(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "binop"));
+        return yy::parser::make_BINOP(scToken, token.location);
 
     case hadron::Token::Name::kKeyword:
-        return yy::parser::make_KEYWORD(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "keyword"));
+        return yy::parser::make_KEYWORD(scToken, token.location);
 
     case hadron::Token::Name::kOpenParen:
-        return yy::parser::make_OPENPAREN(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "openParen"));
+        return yy::parser::make_OPENPAREN(scToken, token.location);
 
     case hadron::Token::Name::kCloseParen:
-        return yy::parser::make_CLOSEPAREN(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "closeParen"));
+        return yy::parser::make_CLOSEPAREN(scToken, token.location);
 
     case hadron::Token::Name::kOpenCurly:
-        return yy::parser::make_OPENCURLY(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "openCurly"));
+        return yy::parser::make_OPENCURLY(scToken, token.location);
 
     case hadron::Token::Name::kCloseCurly:
-        return yy::parser::make_CLOSECURLY(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "closeCurly"));
+        return yy::parser::make_CLOSECURLY(scToken, token.location);
 
     case hadron::Token::Name::kOpenSquare:
-        return yy::parser::make_OPENSQUARE(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "openSquare"));
+        return yy::parser::make_OPENSQUARE(scToken, token.location);
 
     case hadron::Token::Name::kCloseSquare:
-        return yy::parser::make_CLOSESQUARE(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "closeSquare"));
+        return yy::parser::make_CLOSESQUARE(scToken, token.location);
 
     case hadron::Token::Name::kComma:
-        return yy::parser::make_COMMA(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "comma"));
+        return yy::parser::make_COMMA(scToken, token.location);
 
     case hadron::Token::Name::kSemicolon:
-        return yy::parser::make_SEMICOLON(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "semicolon"));
+        return yy::parser::make_SEMICOLON(scToken, token.location);
 
     case hadron::Token::Name::kColon:
-        return yy::parser::make_COLON(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "colon"));
+        return yy::parser::make_COLON(scToken, token.location);
 
     case hadron::Token::Name::kCaret:
-        return yy::parser::make_CARET(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "caret"));
+        return yy::parser::make_CARET(scToken, token.location);
 
     case hadron::Token::Name::kTilde:
-        return yy::parser::make_TILDE(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "tilde"));
+        return yy::parser::make_TILDE(scToken, token.location);
 
     case hadron::Token::Name::kHash:
-        return yy::parser::make_HASH(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "hash"));
+        return yy::parser::make_HASH(scToken, token.location);
 
     case hadron::Token::Name::kGrave:
-        return yy::parser::make_GRAVE(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "grave"));
+        return yy::parser::make_GRAVE(scToken, token.location);
 
     case hadron::Token::Name::kVar:
-        return yy::parser::make_VAR(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "var"));
+        return yy::parser::make_VAR(scToken, token.location);
 
     case hadron::Token::Name::kArg:
-        return yy::parser::make_ARG(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "arg"));
+        return yy::parser::make_ARG(scToken, token.location);
 
     case hadron::Token::Name::kConst:
-        return yy::parser::make_CONST(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "const"));
+        return yy::parser::make_CONST(scToken, token.location);
 
     case hadron::Token::Name::kClassVar:
-        return yy::parser::make_CLASSVAR(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "classvar"));
+        return yy::parser::make_CLASSVAR(scToken, token.location);
 
     case hadron::Token::Name::kIdentifier:
-        return yy::parser::make_IDENTIFIER(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "identifier"));
+        return yy::parser::make_IDENTIFIER(scToken, token.location);
 
     case hadron::Token::Name::kClassName:
-        return yy::parser::make_CLASSNAME(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "className"));
+        return yy::parser::make_CLASSNAME(scToken, token.location);
 
     case hadron::Token::Name::kDot:
-        return yy::parser::make_DOT(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "dot"));
+        return yy::parser::make_DOT(scToken, token.location);
 
     case hadron::Token::Name::kDotDot:
-        return yy::parser::make_DOTDOT(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "dotDot"));
+        return yy::parser::make_DOTDOT(scToken, token.location);
 
     case hadron::Token::Name::kEllipses:
-        return yy::parser::make_ELLIPSES(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "ellipses"));
+        return yy::parser::make_ELLIPSES(scToken, token.location);
 
     case hadron::Token::Name::kCurryArgument:
-        return yy::parser::make_CURRYARGUMENT(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "curryArgument"));
+        return yy::parser::make_CURRYARGUMENT(scToken, token.location);
 
     case hadron::Token::Name::kBeginClosedFunction:
-        return yy::parser::make_BEGINCLOSEDFUNC(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "beginClosedFunction"));
+        return yy::parser::make_BEGINCLOSEDFUNC(scToken, token.location);
 
     case hadron::Token::Name::kIf:
-        return yy::parser::make_IF(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "if"));
+        return yy::parser::make_IF(scToken, token.location);
 
     case hadron::Token::Name::kWhile:
-        return yy::parser::make_WHILE(index, token.location);
+        scToken.setName(library::Symbol::fromView(context, "while"));
+        return yy::parser::make_WHILE(scToken, token.location);
     }
 
     return yy::parser::make_END(token.location);
