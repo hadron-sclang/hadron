@@ -61,7 +61,7 @@ HadronCallNode : HadronCallBaseNode { }
 
 // "token[optionalNameToken] : superClassNameToken { var variables; methods }
 HadronClassNode : HadronParseNode {
-	var <>superClassNameToken; // can be nil
+	var <>superclassNameToken; // can be nil
 	var <>optionalNameToken; // can be nil
 	var <>variables;
 	var <>methods;
@@ -199,4 +199,9 @@ HadronVarDefNode : HadronParseNode {
 // token can be "var", "classvar", or "const"
 HadronVarListNode : HadronParseNode {
 	var <>definitions; // 1 or more HadronVarDefNodes
+}
+
+HadronWhileNode : HadronParseNode {
+	var <>conditionBlock;
+	var <>actionBlock;
 }

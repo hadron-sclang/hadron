@@ -17,19 +17,19 @@
 %token <library::Token> SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT ELLIPSES
 %token <library::Token> CURRYARGUMENT IF WHILE STRING SYMBOL BINOP KEYWORD IDENTIFIER CLASSNAME BEGINCLOSEDFUNC
 
-%type <std::unique_ptr<hadron::parse::ArgListNode>> argdecls
-%type <std::unique_ptr<hadron::parse::BlockNode>> cmdlinecode block blocklist1 blocklist optblock
-%type <std::unique_ptr<hadron::parse::ClassExtNode>> classextension
-%type <std::unique_ptr<hadron::parse::ClassNode>> classdef
-%type <std::unique_ptr<hadron::parse::ExprSeqNode>> dictslotlist1 dictslotdef arrayelems1
-%type <std::unique_ptr<hadron::parse::ExprSeqNode>> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
-%type <std::unique_ptr<hadron::parse::IfNode>> if
-%type <std::unique_ptr<hadron::parse::WhileNode>> while
-%type <std::unique_ptr<hadron::parse::KeyValueNode>> keyarg keyarglist1 optkeyarglist litdictslotdef litdictslotlist1
-%type <std::unique_ptr<hadron::parse::KeyValueNode>> litdictslotlist
-%type <std::unique_ptr<hadron::parse::LiteralDictNode>> dictlit2
-%type <std::unique_ptr<hadron::parse::LiteralListNode>> listlit listlit2
-%type <std::unique_ptr<hadron::parse::MethodNode>> methods methoddef
+%type <library::ArgListNode> argdecls
+%type <library::BlockNode> cmdlinecode block blocklist1 blocklist optblock
+%type <library::ClassExtNode> classextension
+%type <library::ClassNode> classdef
+%type <library::ExprSeqNode> dictslotlist1 dictslotdef arrayelems1
+%type <library::ExprSeqNode> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
+%type <library::IfNode> if
+%type <library::WhileNode>> while
+%type <library::KeyValueNode>> keyarg keyarglist1 optkeyarglist litdictslotdef litdictslotlist1
+%type <library::KeyValueNode>> litdictslotlist
+%type <library::EventNode> dictlit2
+%type <library::CollectionNode> listlit listlit2
+%type <library::MethodNode> methods methoddef
 %type <std::unique_ptr<hadron::parse::MultiAssignVarsNode>> mavars
 %type <std::unique_ptr<hadron::parse::NameNode>> mavarlist
 %type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
