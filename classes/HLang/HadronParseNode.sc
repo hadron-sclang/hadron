@@ -10,6 +10,7 @@ HadronLexToken {
 HadronParseNode {
 	var <>token;
 	var <>next;
+	var tail;
 }
 
 HadronCallBaseNode : HadronParseNode {
@@ -203,5 +204,5 @@ HadronVarListNode : HadronParseNode {
 
 HadronWhileNode : HadronParseNode {
 	var <>conditionBlock;
-	var <>actionBlock;
+	var <>actionBlock; // can be nil
 }

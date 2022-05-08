@@ -42,9 +42,23 @@ public:
     explicit NodeBase(Slot instance): Object<T, S>(instance) {}
     ~NodeBase() {}
 
+    static T make(ThreadContext* context, Token tok) {
+        auto t = T::alloc(context);
+        t.initToNil();
+        t.setToken(tok);
+        t.setTail(t.toBase());
+        return t;
+    }
+
     B toBase() const {
         const T& t = static_cast<const T&>(*this);
         return B::wrapUnsafe(Slot::makePointer(reinterpret_cast<library::Schema*>(t.m_instance)));
+    }
+
+    void append(B node) {
+        T& t = static_cast<T&>(*this);
+        t.tail().setNext(node);
+        t.setTail(tail().next().tail());
     }
 
     Token token() const {
@@ -63,6 +77,15 @@ public:
     void setNext(B b) {
         T& t = static_cast<T&>(*this);
         t.m_instance->next = b.slot();
+    }
+
+    B tail() const {
+        const T& t = static_cast<const T&>(*this);
+        return B::wrapUnsafe(t.m_instance->tail);
+    }
+    void setTail(B b) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->tail = b.slot();
     }
 };
 
@@ -359,7 +382,76 @@ public:
     void setRest(NameNode nameNode) { m_instance->rest = nameNode.slot(); }
 };
 
+class ReturnNode : public NodeBase<ReturnNode, schema::HadronReturnNodeSchema, Node> {
+public:
+    ReturnNode(): NodeBase<ReturnNode, schema::HadronReturnNodeSchema, Node>() {}
+    explicit ReturnNode(schema::HadronReturnNodeSchema* instance):
+            NodeBase<ReturnNode, schema::HadronReturnNodeSchema, Node>(instance) {}
+    explicit ReturnNode(Slot instance):
+            NodeBase<ReturnNode, schema::HadronReturnNodeSchema, Node>(instance) {}
+    ~ReturnNode() {}
 
+    Node valueExpr() const { return Node::wrapUnsafe(m_instance->valueExpr); }
+    void setValueExpr(Node node) { m_instance->valueExpr = node.slot(); }
+};
+
+class SeriesNode : public NodeBase<SeriesNode, schema::HadronSeriesNodeSchema, Node> {
+public:
+    SeriesNode(): NodeBase<SeriesNode, schema::HadronSeriesNodeSchema, Node>() {}
+    explicit SeriesNode(schema::HadronSeriesNodeSchema* instance):
+            NodeBase<SeriesNode, schema::HadronSeriesNodeSchema, Node>(instance) {}
+    explicit SeriesNode(Slot instance):
+            NodeBase<SeriesNode, schema::HadronSeriesNodeSchema, Node>(instance) {}
+    ~SeriesNode() {}
+
+    ExprSeqNode start() const { return ExprSeqNode(m_instance->start); }
+    void setStart(ExprSeqNode exprSeq) { m_instance->start = exprSeq.slot(); }
+
+    ExprSeqNode step() const { return ExprSeqNode(m_instance->step); }
+    void setStep(ExprSeqNode exprSeq) { m_instance->step = exprSeq.slot(); }
+
+    ExprSeqNode last() const { return ExprSeqNode(m_instance->last); }
+    void setLast(ExprSeqNode exprSeq) { m_instance->last = exprSeq.slot(); }
+};
+
+class SeriesIterNode : public NodeBase<SeriesIterNode, schema::HadronSeriesIterNodeSchema, Node> {
+public:
+    SeriesIterNode(): NodeBase<SeriesIterNode, schema::HadronSeriesIterNodeSchema, Node>() {}
+    explicit SeriesIterNode(schema::HadronSeriesIterNodeSchema* instance):
+            NodeBase<SeriesIterNode, schema::HadronSeriesIterNodeSchema, Node>(instance) {}
+    explicit SeriesIterNode(Slot instance):
+            NodeBase<SeriesIterNode, schema::HadronSeriesIterNodeSchema, Node>(instance) {}
+    ~SeriesIterNode() {}
+
+    ExprSeqNode start() const { return ExprSeqNode(m_instance->start); }
+    void setStart(ExprSeqNode exprSeq) { m_instance->start = exprSeq.slot(); }
+
+    ExprSeqNode step() const { return ExprSeqNode(m_instance->step); }
+    void setStep(ExprSeqNode exprSeq) { m_instance->step = exprSeq.slot(); }
+
+    ExprSeqNode last() const { return ExprSeqNode(m_instance->last); }
+    void setLast(ExprSeqNode exprSeq) { m_instance->last = exprSeq.slot(); }
+};
+
+class StringNode : public NodeBase<StringNode, schema::HadronStringNodeSchema, Node> {
+public:
+    StringNode(): NodeBase<StringNode, schema::HadronStringNodeSchema, Node>() {}
+    explicit StringNode(schema::HadronStringNodeSchema* instance):
+            NodeBase<StringNode, schema::HadronStringNodeSchema, Node>(instance) {}
+    explicit StringNode(Slot instance):
+            NodeBase<StringNode, schema::HadronStringNodeSchema, Node>(instance) {}
+    ~StringNode() {}
+};
+
+class SymbolNode : public NodeBase<SymbolNode, schema::HadronSymbolNodeSchema, Node> {
+public:
+    SymbolNode(): NodeBase<SymbolNode, schema::HadronSymbolNodeSchema, Node>() {}
+    explicit SymbolNode(schema::HadronSymbolNodeSchema* instance):
+            NodeBase<SymbolNode, schema::HadronSymbolNodeSchema, Node>(instance) {}
+    explicit SymbolNode(Slot instance):
+            NodeBase<SymbolNode, schema::HadronSymbolNodeSchema, Node>(instance) {}
+    ~SymbolNode() {}
+};
 
 } // namespace library
 } // namespace hadron

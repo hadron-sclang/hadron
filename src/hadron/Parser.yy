@@ -6,7 +6,7 @@
 %define parse.error verbose
 %locations
 %define api.location.type { hadron::Token::Location }
-%param { hadron::Parser* hadronParser }
+%param { hadron::Parser* hadronParser, hadron::ThreadContext* threadContext }
 %skeleton "lalr1.cc"
 
 %token END 0 "end of file"
@@ -24,32 +24,32 @@
 %type <library::ExprSeqNode> dictslotlist1 dictslotdef arrayelems1
 %type <library::ExprSeqNode> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
 %type <library::IfNode> if
-%type <library::WhileNode>> while
-%type <library::KeyValueNode>> keyarg keyarglist1 optkeyarglist litdictslotdef litdictslotlist1
-%type <library::KeyValueNode>> litdictslotlist
+%type <library::WhileNode> while
+%type <library::KeyValueNode> keyarg keyarglist1 optkeyarglist litdictslotdef litdictslotlist1
+%type <library::KeyValueNode> litdictslotlist
 %type <library::EventNode> dictlit2
 %type <library::CollectionNode> listlit listlit2
 %type <library::MethodNode> methods methoddef
-%type <std::unique_ptr<hadron::parse::MultiAssignVarsNode>> mavars
-%type <std::unique_ptr<hadron::parse::NameNode>> mavarlist
-%type <std::unique_ptr<hadron::parse::Node>> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
-%type <std::unique_ptr<hadron::parse::Node>> literallist1 literal listliteral coreliteral classorclassext
-%type <std::unique_ptr<hadron::parse::Node>> classorclassexts
-%type <std::unique_ptr<hadron::parse::ReturnNode>> funretval retval
-%type <std::unique_ptr<hadron::parse::SeriesIterNode>> valrange3
-%type <std::unique_ptr<hadron::parse::SeriesNode>> valrange2
-%type <std::unique_ptr<hadron::parse::VarDefNode>> rwslotdeflist rwslotdef slotdef vardef constdef constdeflist
-%type <std::unique_ptr<hadron::parse::VarDefNode>> vardeflist slotdeflist vardeflist0 slotdeflist0
-%type <std::unique_ptr<hadron::parse::VarListNode>> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
-%type <std::unique_ptr<hadron::parse::StringNode>> string stringlist
+%type <library::MultiAssignVarsNode> mavars
+%type <library::NameNode> mavarlist
+%type <library::Node> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
+%type <library::Node> literallist1 literal listliteral coreliteral classorclassext
+%type <library::Node> classorclassexts
+%type <library::ReturnNode> funretval retval
+%type <library::SeriesIterNode> valrange3
+%type <library::SeriesNode> valrange2
+%type <library::VarDefNode> rwslotdeflist rwslotdef slotdef vardef constdef constdeflist
+%type <library::VarDefNode> vardeflist slotdeflist vardeflist0 slotdeflist0
+%type <library::VarListNode> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
+%type <library::StringNode> string stringlist
 
-%type <std::optional<size_t>> superclass optname
-%type <std::optional<size_t>> primitive
+%type <library::Token> superclass optname
+%type <library::Token> primitive
 %type <std::pair<bool, bool>> rwspec
 %type <bool> rspec
-%type <std::pair<size_t, int32_t>> integer
-%type <std::pair<size_t, double>> float
-%type <size_t> binop binop2
+%type <std::pair<library::Token, int32_t>> integer
+%type <std::pair<library::Token, double>> float
+%type <library::Token> binop binop2
 
 %precedence ASSIGN
 %left BINOP KEYWORD PLUS MINUS ASTERISK LESSTHAN GREATERTHAN PIPE READWRITEVAR LEFTARROW
@@ -72,11 +72,11 @@
 // see linkNextNode() in LSC
 template <typename T>
 T append(T head, T tail) {
-   if (!head) {
+    if (head.isNil()) {
         return tail;
     }
-    if (tail) {
-        head->append(std::move(tail));
+    if (!tail.isNil()) {
+        head.append(tail.toBase());
     }
     return head;
 }
@@ -98,41 +98,40 @@ std::ostream& operator<<(std::ostream& o, const hadron::Token::Location& loc) {
 // If the expression sequence is containing a block literal this will return it, otherwise creates a new Block with the
 // provided ExprSeq as the inner sequence. Used in the 'if' grammar to accept raw expressions in the true and false
 // clauses, in keeping with their roots as message arguments.
-std::unique_ptr<hadron::parse::BlockNode> wrapInnerBlock(std::unique_ptr<hadron::parse::ExprSeqNode>&& exprSeq) {
-    if (exprSeq->expr && exprSeq->expr->nodeType == hadron::parse::kBlock) {
-        auto block = reinterpret_cast<hadron::parse::BlockNode*>(exprSeq->expr.get());
-        return block->moveTo();
+library::BlockNode wrapInnerBlock(hadron::library::ExprSeqNode exprSeq) {
+    if (exprSeq.expr().className() == hadron::library::BlockNode::nameHash()) {
+        return BlockNode(exprSeq.expr().slot());
     }
 
-    auto block = std::make_unique<hadron::parse::BlockNode>(exprSeq->tokenIndex);
-    block->body = std::move(exprSeq);
+    auto block = library::BlockNode::make(context, exprSeq.token());
+    block.setBody(exprSeq);
     return block;
 }
 
-yy::parser::symbol_type yylex(hadron::Parser* hadronParser);
+yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContext* threadContext);
 }
 
 %%
-root    : classorclassexts { hadronParser->addRoot(std::move($classorclassexts)); }
-        | INTERPRET cmdlinecode { hadronParser->addRoot(std::move($cmdlinecode)); }
+root    : classorclassexts { hadronParser->addRoot($classorclassexts); }
+        | INTERPRET cmdlinecode { hadronParser->addRoot($cmdlinecode.toBase()); }
         ;
 
-classorclassexts[target]    : %empty { $target = nullptr; }
+classorclassexts[target]    : %empty { $target = hadron::library::Node(); }
                             | classorclassexts[build] classorclassext {
-                                    $target = append(std::move($build), std::move($classorclassext));
+                                    $target = append($build, $classorclassext);
                                 }
                             ;
 
-classorclassext : classdef { $classorclassext = std::move($classdef); }
-                | classextension { $classorclassext = std::move($classextension); }
+classorclassext : classdef { $classorclassext = $classdef; }
+                | classextension { $classorclassext = $classextension; }
                 ;
 
 classdef    : CLASSNAME superclass OPENCURLY classvardecls methods CLOSECURLY {
-                    auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME);
-                    classDef->superClassNameIndex = $superclass;
-                    classDef->variables = std::move($classvardecls);
-                    classDef->methods = std::move($methods);
-                    $classdef = std::move(classDef);
+                    auto classDef = hadron::library::ClassNode::make(context, $CLASSNAME);
+                    classDef.setSuperclassNameToken($superclass);
+                    classDef.setVariables($classvardecls);
+                    classDef.setMethods($methods);
+                    $classdef = classDef;
                 }
             | CLASSNAME OPENSQUARE optname CLOSESQUARE superclass OPENCURLY classvardecls methods CLOSECURLY {
                     auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME);
@@ -1094,7 +1093,7 @@ stringlist[target]  : string { $target = std::move($string); }
                     ;
 %%
 
-yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
+yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContext* threadContext) {
     if (hadronParser->sendInterpret()) {
         hadronParser->setInterpret(false);
         return yy::parser::make_INTERPRET(hadron::Token::Location{0, 0});
@@ -1104,7 +1103,7 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser) {
     hadron::Token token = hadronParser->token(index);
     hadronParser->next();
 
-    auto scToken = library::Token::alloc(hadronParser->context());
+    auto scToken = library::Token::alloc(threadContext);
     scToken.setValue(token.value);
     scToken.setLineNumber(token.location.lineNumber + 1);
     scToken.setCharacterNumber(token.location.characterNumber + 1);
@@ -1304,7 +1303,6 @@ Parser::Parser(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter):
     m_lexer(lexer),
     m_tokenIndex(0),
     m_sendInterpret(false),
-    m_threadContext(nullptr),
     m_errorReporter(errorReporter) { }
 
 Parser::Parser(std::string_view code):
@@ -1312,7 +1310,6 @@ Parser::Parser(std::string_view code):
     m_lexer(m_ownLexer.get()),
     m_tokenIndex(0),
     m_sendInterpret(false),
-    m_threadContext(nullptr),
     m_errorReporter(m_ownLexer->errorReporter()) { }
 
 Parser::~Parser() {}
@@ -1346,8 +1343,6 @@ hadron::Token Parser::token(size_t index) const {
 }
 
 bool Parser::innerParse(ThreadContext* context) {
-    m_threadContext = context;
-
     if (m_ownLexer) {
         if (!m_lexer->lex()) {
             return false;
@@ -1356,7 +1351,7 @@ bool Parser::innerParse(ThreadContext* context) {
 
     m_root = nullptr;
     m_tokenIndex = 0;
-    yy::parser parser(this);
+    yy::parser parser(this, context);
     auto error = parser.parse();
     if (error != 0) {
         return false;

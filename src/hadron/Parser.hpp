@@ -37,7 +37,6 @@ public:
     void next() { ++m_tokenIndex; }
     bool sendInterpret() const { return m_sendInterpret; }
     void setInterpret(bool i) { m_sendInterpret = i; }
-    ThreadContext* threadContext() const { return m_threadContext; }
 
 private:
     bool innerParse(ThreadContext* context);
@@ -46,7 +45,6 @@ private:
     Lexer* m_lexer;
     size_t m_tokenIndex;
     bool m_sendInterpret;
-    ThreadContext* m_threadContext;
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     library::Node m_root;
