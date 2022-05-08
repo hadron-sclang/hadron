@@ -115,12 +115,12 @@ public:
 };
 
 template<typename T, typename S>
-class CallBaseNode : public NodeBase<T, S, Node> {
+class CallNodeBase : public NodeBase<T, S, Node> {
 public:
-    CallBaseNode(): NodeBase<T, S, Node>() {}
-    explicit CallBaseNode(S* instance): NodeBase<T, S, Node>(instance) {}
-    explicit CallBaseNode(Slot instance): NodeBase<T, S, Node>(instance) {}
-    ~CallBaseNode() {}
+    CallNodeBase(): NodeBase<T, S, Node>() {}
+    explicit CallNodeBase(S* instance): NodeBase<T, S, Node>(instance) {}
+    explicit CallNodeBase(Slot instance): NodeBase<T, S, Node>(instance) {}
+    ~CallNodeBase() {}
 
     Node target() const {
         const T& t = static_cast<const T&>(*this);
@@ -359,10 +359,10 @@ public:
             NodeBase<CollectionNode, schema::HadronCollectionNodeSchema, Node>(instance) {}
     ~CollectionNode() {}
 
-    NameNode className() const { NameNode(m_instance->className); }
+    NameNode className() const { return NameNode(m_instance->className); }
     void setClassName(NameNode nameNode) { m_instance->className = nameNode.slot(); }
 
-    Node elements() const { Node::wrapUnsafe(m_instance->elements); }
+    Node elements() const { return Node::wrapUnsafe(m_instance->elements); }
     void setElements(Node node) { m_instance->elements = node.slot(); }
 };
 
@@ -451,6 +451,36 @@ public:
     explicit SymbolNode(Slot instance):
             NodeBase<SymbolNode, schema::HadronSymbolNodeSchema, Node>(instance) {}
     ~SymbolNode() {}
+};
+
+class PerformListNode : public CallNodeBase<PerformListNode, schema::HadronPerformListNodeSchema> {
+public:
+    PerformListNode(): CallNodeBase<PerformListNode, schema::HadronPerformListNodeSchema>() {}
+    explicit PerformListNode(schema::HadronPerformListNodeSchema* instance):
+            CallNodeBase<PerformListNode, schema::HadronPerformListNodeSchema>(instance) {}
+    explicit PerformListNode(Slot instance):
+            CallNodeBase<PerformListNode, schema::HadronPerformListNodeSchema>(instance) {}
+    ~PerformListNode() {}
+};
+
+class CallNode : public CallNodeBase<CallNode, schema::HadronCallNodeSchema> {
+public:
+    CallNode(): CallNodeBase<CallNode, schema::HadronCallNodeSchema>() {}
+    explicit CallNode(schema::HadronCallNodeSchema* instance):
+            CallNodeBase<CallNode, schema::HadronCallNodeSchema>(instance) {}
+    explicit CallNode(Slot instance):
+            CallNodeBase<CallNode, schema::HadronCallNodeSchema>(instance) {}
+    ~CallNode() {}
+};
+
+class NewNode : public CallNodeBase<NewNode, schema::HadronNewNodeSchema> {
+public:
+    NewNode(): CallNodeBase<NewNode, schema::HadronNewNodeSchema>() {}
+    explicit NewNode(schema::HadronNewNodeSchema* instance):
+            CallNodeBase<NewNode, schema::HadronNewNodeSchema>(instance) {}
+    explicit NewNode(Slot instance):
+            CallNodeBase<NewNode, schema::HadronNewNodeSchema>(instance) {}
+    ~NewNode() {}
 };
 
 } // namespace library

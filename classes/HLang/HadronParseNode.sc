@@ -13,7 +13,7 @@ HadronParseNode {
 	var tail;
 }
 
-HadronCallBaseNode : HadronParseNode {
+HadronCallNodeBase : HadronParseNode {
 	var <>target;
 	var <>arguments;
 	var <>keywordArguments;
@@ -58,7 +58,7 @@ HadronBlockNode : HadronParseNode {
 }
 
 // "target.selector(arguments, keywordArguments)"
-HadronCallNode : HadronCallBaseNode { }
+HadronCallNode : HadronCallNodeBase { }
 
 // "token[optionalNameToken] : superClassNameToken { var variables; methods }
 HadronClassNode : HadronParseNode {
@@ -147,7 +147,7 @@ HadronMultiAssignVarsNode : HadronParseNode {
 HadronNameNode : HadronParseNode { }
 
 // "token()"
-HadronNewNode : HadronParseNode { }
+HadronNewNode : HadronCallBaseNode { }
 
 // "start, step .. stop"
 HadronNumericSeriesNode : HadronParseNode {
@@ -191,6 +191,8 @@ HadronSlotNode : HadronParseNode {
 HadronStringNode : HadronParseNode { }
 
 HadronSymbolNode : HadronParseNode { }
+
+HadronValueNode : 
 
 // "token = initialValue"
 HadronVarDefNode : HadronParseNode {

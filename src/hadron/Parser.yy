@@ -6,50 +6,52 @@
 %define parse.error verbose
 %locations
 %define api.location.type { hadron::Token::Location }
-%param { hadron::Parser* hadronParser, hadron::ThreadContext* threadContext }
+%param { hadron::Parser* hadronParser }
+%param { hadron::ThreadContext* threadContext }
 %skeleton "lalr1.cc"
 
 %token END 0 "end of file"
 %token INTERPRET
 // Most tokens are just the index in the lexer's tokens() vector.
-%token <library::Token> LITERAL FLOAT INTEGER PRIMITIVE PLUS MINUS ASTERISK ASSIGN LESSTHAN GREATERTHAN PIPE
-%token <library::Token> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA READWRITEVAR
-%token <library::Token> SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT ELLIPSES
-%token <library::Token> CURRYARGUMENT IF WHILE STRING SYMBOL BINOP KEYWORD IDENTIFIER CLASSNAME BEGINCLOSEDFUNC
+%token <hadron::library::Token> LITERAL FLOAT INTEGER PRIMITIVE PLUS MINUS ASTERISK ASSIGN LESSTHAN GREATERTHAN PIPE
+%token <hadron::library::Token> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA
+%token <hadron::library::Token> READWRITEVAR SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT
+%token <hadron::library::Token> ELLIPSES CURRYARGUMENT IF WHILE STRING SYMBOL BINOP KEYWORD IDENTIFIER CLASSNAME
+%token <hadron::library::Token> BEGINCLOSEDFUNC
 
-%type <library::ArgListNode> argdecls
-%type <library::BlockNode> cmdlinecode block blocklist1 blocklist optblock
-%type <library::ClassExtNode> classextension
-%type <library::ClassNode> classdef
-%type <library::ExprSeqNode> dictslotlist1 dictslotdef arrayelems1
-%type <library::ExprSeqNode> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
-%type <library::IfNode> if
-%type <library::WhileNode> while
-%type <library::KeyValueNode> keyarg keyarglist1 optkeyarglist litdictslotdef litdictslotlist1
-%type <library::KeyValueNode> litdictslotlist
-%type <library::EventNode> dictlit2
-%type <library::CollectionNode> listlit listlit2
-%type <library::MethodNode> methods methoddef
-%type <library::MultiAssignVarsNode> mavars
-%type <library::NameNode> mavarlist
-%type <library::Node> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
-%type <library::Node> literallist1 literal listliteral coreliteral classorclassext
-%type <library::Node> classorclassexts
-%type <library::ReturnNode> funretval retval
-%type <library::SeriesIterNode> valrange3
-%type <library::SeriesNode> valrange2
-%type <library::VarDefNode> rwslotdeflist rwslotdef slotdef vardef constdef constdeflist
-%type <library::VarDefNode> vardeflist slotdeflist vardeflist0 slotdeflist0
-%type <library::VarListNode> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
-%type <library::StringNode> string stringlist
+%type <hadron::library::ArgListNode> argdecls
+%type <hadron::library::BlockNode> cmdlinecode block blocklist1 blocklist optblock
+%type <hadron::library::ClassExtNode> classextension
+%type <hadron::library::ClassNode> classdef
+%type <hadron::library::ExprSeqNode> dictslotlist1 dictslotdef arrayelems1
+%type <hadron::library::ExprSeqNode> exprseq methbody funcbody arglist1 arglistv1 dictslotlist arrayelems
+%type <hadron::library::IfNode> if
+%type <hadron::library::WhileNode> while
+%type <hadron::library::KeyValueNode> keyarg keyarglist1 optkeyarglist litdictslotdef litdictslotlist1
+%type <hadron::library::KeyValueNode> litdictslotlist
+%type <hadron::library::EventNode> dictlit2
+%type <hadron::library::CollectionNode> listlit listlit2
+%type <hadron::library::MethodNode> methods methoddef
+%type <hadron::library::MultiAssignVarsNode> mavars
+%type <hadron::library::NameNode> mavarlist
+%type <hadron::library::Node> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
+%type <hadron::library::Node> literallist1 literal listliteral coreliteral classorclassext
+%type <hadron::library::Node> classorclassexts
+%type <hadron::library::ReturnNode> funretval retval
+%type <hadron::library::SeriesIterNode> valrange3
+%type <hadron::library::SeriesNode> valrange2
+%type <hadron::library::VarDefNode> rwslotdeflist rwslotdef slotdef vardef constdef constdeflist
+%type <hadron::library::VarDefNode> vardeflist slotdeflist vardeflist0 slotdeflist0
+%type <hadron::library::VarListNode> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
+%type <hadron::library::StringNode> string stringlist
 
-%type <library::Token> superclass optname
-%type <library::Token> primitive
+%type <hadron::library::Token> superclass optname
+%type <hadron::library::Token> primitive
 %type <std::pair<bool, bool>> rwspec
 %type <bool> rspec
-%type <std::pair<library::Token, int32_t>> integer
-%type <std::pair<library::Token, double>> float
-%type <library::Token> binop binop2
+%type <std::pair<hadron::library::Token, int32_t>> integer
+%type <std::pair<hadron::library::Token, double>> float
+%type <hadron::library::Token> binop binop2
 
 %precedence ASSIGN
 %left BINOP KEYWORD PLUS MINUS ASTERISK LESSTHAN GREATERTHAN PIPE READWRITEVAR LEFTARROW
@@ -62,6 +64,7 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Lexer.hpp"
+#include "hadron/ThreadContext.hpp"
 #include "hadron/Token.hpp"
 
 #include "fmt/format.h"
@@ -72,10 +75,10 @@
 // see linkNextNode() in LSC
 template <typename T>
 T append(T head, T tail) {
-    if (head.isNil()) {
+    if (!head) {
         return tail;
     }
-    if (!tail.isNil()) {
+    if (tail) {
         head.append(tail.toBase());
     }
     return head;
@@ -98,12 +101,12 @@ std::ostream& operator<<(std::ostream& o, const hadron::Token::Location& loc) {
 // If the expression sequence is containing a block literal this will return it, otherwise creates a new Block with the
 // provided ExprSeq as the inner sequence. Used in the 'if' grammar to accept raw expressions in the true and false
 // clauses, in keeping with their roots as message arguments.
-library::BlockNode wrapInnerBlock(hadron::library::ExprSeqNode exprSeq) {
+hadron::library::BlockNode wrapInnerBlock(hadron::ThreadContext* threadContext, hadron::library::ExprSeqNode exprSeq) {
     if (exprSeq.expr().className() == hadron::library::BlockNode::nameHash()) {
-        return BlockNode(exprSeq.expr().slot());
+        return hadron::library::BlockNode(exprSeq.expr().slot());
     }
 
-    auto block = library::BlockNode::make(context, exprSeq.token());
+    auto block = hadron::library::BlockNode::make(threadContext, exprSeq.token());
     block.setBody(exprSeq);
     return block;
 }
@@ -122,104 +125,112 @@ classorclassexts[target]    : %empty { $target = hadron::library::Node(); }
                                 }
                             ;
 
-classorclassext : classdef { $classorclassext = $classdef; }
-                | classextension { $classorclassext = $classextension; }
+classorclassext : classdef { $classorclassext = $classdef.toBase(); }
+                | classextension { $classorclassext = $classextension.toBase(); }
                 ;
 
 classdef    : CLASSNAME superclass OPENCURLY classvardecls methods CLOSECURLY {
-                    auto classDef = hadron::library::ClassNode::make(context, $CLASSNAME);
+                    auto classDef = hadron::library::ClassNode::make(threadContext, $CLASSNAME);
                     classDef.setSuperclassNameToken($superclass);
                     classDef.setVariables($classvardecls);
                     classDef.setMethods($methods);
                     $classdef = classDef;
                 }
             | CLASSNAME OPENSQUARE optname CLOSESQUARE superclass OPENCURLY classvardecls methods CLOSECURLY {
-                    auto classDef = std::make_unique<hadron::parse::ClassNode>($CLASSNAME);
-                    classDef->superClassNameIndex = $superclass;
-                    classDef->optionalNameIndex = $optname;
-                    classDef->variables = std::move($classvardecls);
-                    classDef->methods = std::move($methods);
-                    $classdef = std::move(classDef);
+                    auto classDef = hadron::library::ClassNode::make(threadContext, $CLASSNAME);
+                    classDef.setSuperclassNameToken($superclass);
+                    classDef.setOptionalNameToken($optname);
+                    classDef.setVariables($classvardecls);
+                    classDef.setMethods($methods);
+                    $classdef = classDef;
                 }
             ;
 
 classextension  : PLUS CLASSNAME OPENCURLY methods CLOSECURLY {
-                        auto classExt = std::make_unique<hadron::parse::ClassExtNode>($CLASSNAME);
-                        classExt->methods = std::move($methods);
-                        $classextension = std::move(classExt);
+                        auto classExt = hadron::library::ClassExtNode::make(threadContext, $CLASSNAME);
+                        classExt.setMethods($methods);
+                        $classextension = classExt;
                     }
                 ;
 
-optname : %empty { $optname = std::nullopt; }
+optname : %empty { $optname = hadron::library::Token(); }
         | IDENTIFIER { $optname = $IDENTIFIER; }
         ;
 
-superclass  : %empty { $superclass = std::nullopt; }
+superclass  : %empty { $superclass = hadron::library::Token(); }
             | COLON CLASSNAME { $superclass = $CLASSNAME; }
             ;
 
-classvardecls[target]   : %empty { $target = nullptr; }
+classvardecls[target]   : %empty { $target = hadron::library::VarListNode(); }
                         | classvardecls[build] classvardecl {
-                               $target = append(std::move($build), std::move($classvardecl));
+                               $target = append($build, $classvardecl);
                             }
                         ;
 
 classvardecl    : CLASSVAR rwslotdeflist SEMICOLON {
-                        auto varList = std::make_unique<hadron::parse::VarListNode>($CLASSVAR);
-                        varList->definitions = std::move($rwslotdeflist);
-                        $classvardecl = std::move(varList);
+                        auto varList = hadron::library::VarListNode::make(threadContext, $CLASSVAR);
+                        varList.setDefinitions($rwslotdeflist);
+                        $classvardecl = varList;
                     }
                 | VAR rwslotdeflist SEMICOLON {
-                        auto varList = std::make_unique<hadron::parse::VarListNode>($VAR);
-                        varList->definitions = std::move($rwslotdeflist);
-                        $classvardecl = std::move(varList);
+                        auto varList = hadron::library::VarListNode::make(threadContext, $VAR);
+                        varList.setDefinitions($rwslotdeflist);
+                        $classvardecl = varList;
                     }
                 | CONST constdeflist SEMICOLON {
-                        auto varList = std::make_unique<hadron::parse::VarListNode>($CONST);
-                        varList->definitions = std::move($constdeflist);
-                        $classvardecl = std::move(varList);
+                        auto varList = hadron::library::VarListNode::make(threadContext, $CONST);
+                        varList.setDefinitions($constdeflist);
+                        $classvardecl = varList;
                     }
                 ;
 
-methods[target] : %empty { $target = nullptr; }
-                | methods[build] methoddef { $target = append(std::move($build), std::move($methoddef)); }
+methods[target] : %empty { $target = hadron::library::MethodNode(); }
+                | methods[build] methoddef { $target = append($build, $methoddef); }
                 ;
 
 methoddef   : IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = std::make_unique<hadron::parse::MethodNode>($IDENTIFIER, false);
-                    method->primitiveIndex = $primitive;
-                    method->body = std::make_unique<hadron::parse::BlockNode>($OPENCURLY);
-                    method->body->arguments = std::move($argdecls);
-                    method->body->variables = std::move($funcvardecls);
-                    method->body->body = std::move($methbody);
-                    $methoddef = std::move(method);
+                    auto method = hadron::library::MethodNode::make(threadContext, $IDENTIFIER);
+                    method.setIsClassMethod(false);
+                    method.setPrimitiveToken($primitive);
+                    auto block = hadron::library::BlockNode::make(threadContext, $OPENCURLY);
+                    block.setArguments($argdecls);
+                    block.setVariables($funcvardecls);
+                    block.setBody($methbody);
+                    method.setBody(block);
+                    $methoddef = method;
                 }
             | ASTERISK IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = std::make_unique<hadron::parse::MethodNode>($IDENTIFIER, true);
-                    method->primitiveIndex = $primitive;
-                    method->body = std::make_unique<hadron::parse::BlockNode>($OPENCURLY);
-                    method->body->arguments = std::move($argdecls);
-                    method->body->variables = std::move($funcvardecls);
-                    method->body->body = std::move($methbody);
-                    $methoddef = std::move(method);
+                    auto method = hadron::library::MethodNode::make(threadContext, $IDENTIFIER);
+                    method.setIsClassMethod(true);
+                    method.setPrimitiveToken($primitive);
+                    auto block = hadron::library::BlockNode::make(threadContext, $OPENCURLY);
+                    block.setArguments($argdecls);
+                    block.setVariables($funcvardecls);
+                    block.setBody($methbody);
+                    method.setBody(block);
+                    $methoddef = method;
                 }
             | binop OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = std::make_unique<hadron::parse::MethodNode>($binop, false);
-                    method->primitiveIndex = $primitive;
-                    method->body = std::make_unique<hadron::parse::BlockNode>($OPENCURLY);
-                    method->body->arguments = std::move($argdecls);
-                    method->body->variables = std::move($funcvardecls);
-                    method->body->body = std::move($methbody);
-                    $methoddef = std::move(method);
+                    auto method = hadron::library::MethodNode::make(threadContext, $binop);
+                    method.setIsClassMethod(false);
+                    method.setPrimitiveToken($primitive);
+                    auto block = hadron::library::BlockNode::make(threadContext, $OPENCURLY);
+                    block.setArguments($argdecls);
+                    block.setVariables($funcvardecls);
+                    block.setBody($methbody);
+                    method.setBody(block);
+                    $methoddef = method;
                 }
             | ASTERISK binop OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = std::make_unique<hadron::parse::MethodNode>($binop, true);
-                    method->primitiveIndex = $primitive;
-                    method->body = std::make_unique<hadron::parse::BlockNode>($OPENCURLY);
-                    method->body->arguments = std::move($argdecls);
-                    method->body->variables = std::move($funcvardecls);
-                    method->body->body = std::move($methbody);
-                    $methoddef = std::move(method);
+                    auto method = hadron::library::MethodNode::make(threadContext, $binop);
+                    method.setIsClassMethod(true);
+                    method.setPrimitiveToken($primitive);
+                    auto block = hadron::library::BlockNode::make(threadContext, $OPENCURLY);
+                    block.setArguments($argdecls);
+                    block.setVariables($funcvardecls);
+                    block.setBody($methbody);
+                    method.setBody(block);
+                    $methoddef = method;
                 }
             ;
 
@@ -235,39 +246,39 @@ optequal    : %empty
             | ASSIGN
             ;
 
-optblock    : %empty { $optblock = nullptr; }
-            | block { $optblock = std::move($block); }
+optblock    : %empty { $optblock = hadron::library::BlockNode(); }
+            | block { $optblock = $block; }
             ;
 
 funcbody    : funretval {
                     if ($funretval) {
-                        auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($funretval->tokenIndex,
-                            std::move($funretval));
-                        $funcbody = std::move(exprSeq);
+                        auto exprSeq = hadron::library::ExprSeqNode::make(threadContext, $funretval.token());
+                        exprSeq.setExpr($funretval.toBase());
+                        $funcbody = exprSeq;
                     } else {
-                        $funcbody = nullptr;
+                        $funcbody = hadron::library::ExprSeqNode();
                     }
                 }
             | exprseq funretval {
                     if ($funretval) {
-                        $exprseq->expr->append(std::move($funretval));
+                        $exprseq.expr().append($funretval.toBase());
                     }
-                    $funcbody = std::move($exprseq);
+                    $funcbody = $exprseq;
                 }
             ;
 
 
 cmdlinecode : OPENPAREN funcvardecls1 funcbody CLOSEPAREN {
-                    auto block = std::make_unique<hadron::parse::BlockNode>($OPENPAREN);
-                    block->variables = std::move($funcvardecls1);
-                    block->body = std::move($funcbody);
-                    $cmdlinecode = std::move(block);
+                    auto block = hadron::library::BlockNode::make(threadContext, $OPENPAREN);
+                    block.setVariables($funcvardecls1);
+                    block.setBody($funcbody);
+                    $cmdlinecode = block;
                 }
             | funcvardecls1 funcbody {
-                    auto block = std::make_unique<hadron::parse::BlockNode>($funcvardecls1->tokenIndex);
-                    block->variables = std::move($funcvardecls1);
-                    block->body = std::move($funcbody);
-                    $cmdlinecode = std::move(block);
+                    auto block = hadron::library::BlockNode::make(threadContext, $funcvardecls1.token());
+                    block.setVariables($funcvardecls1);
+                    block.setBody($funcbody);
+                    $cmdlinecode = block;
                 }
             | funcbody {
                     // To keep the grammar unambiguous we require variable declarations in the first cmdlinecode
@@ -279,18 +290,16 @@ cmdlinecode : OPENPAREN funcvardecls1 funcbody CLOSEPAREN {
                     // also an ExprSeqNode, matching against the expr1 rule. We remove the redundant ExprSeqNode
                     // here.
                     if ($funcbody) {
-                        auto block = std::make_unique<hadron::parse::BlockNode>($funcbody->tokenIndex);
-                        if ($funcbody->expr && $funcbody->expr->nodeType == hadron::parse::NodeType::kExprSeq) {
-                            hadron::parse::ExprSeqNode* exprSeq = reinterpret_cast<hadron::parse::ExprSeqNode*>(
-                                $funcbody->expr.get());
-                            block->body = std::make_unique<hadron::parse::ExprSeqNode>($funcbody->tokenIndex,
-                                std::move(exprSeq->expr));
+                        auto block = hadron::library::BlockNode::make(threadContext, $funcbody.token());
+                        if ($funcbody.expr().className() == hadron::library::ExprSeqNode::nameHash()) {
+                            auto exprSeq = hadron::library::ExprSeqNode($funcbody.expr().slot());
+                            block.setBody(exprSeq);
                         } else {
-                            block->body = std::move($funcbody);
+                            block.setBody($funcbody);
                         }
-                        $cmdlinecode = std::move(block);
+                        $cmdlinecode = block;
                     } else {
-                        $cmdlinecode = nullptr;
+                        $cmdlinecode = hadron::library::BlockNode();
                     }
                 }
             ;
@@ -298,123 +307,121 @@ cmdlinecode : OPENPAREN funcvardecls1 funcbody CLOSEPAREN {
 // TODO: why not merge with funcbody?
 methbody    : retval {
                     if ($retval) {
-                        auto exprSeq = std::make_unique<hadron::parse::ExprSeqNode>($retval->tokenIndex,
-                            std::move($retval));
-                        $methbody = std::move(exprSeq);
+                        auto exprSeq = hadron::library::ExprSeqNode::make(threadContext, $retval.token());
+                        exprSeq.setExpr($retval.toBase());
+                        $methbody = exprSeq;
                     } else {
-                        $methbody = nullptr;
+                        $methbody = hadron::library::ExprSeqNode();
                     }
                 }
             | exprseq retval {
                     if ($retval) {
-                        $exprseq->expr->append(std::move($retval));
+                        $exprseq.expr().append($retval.toBase());
                     }
-                    $methbody = std::move($exprseq);
+                    $methbody = $exprseq;
                 }
             ;
 
-primitive   : %empty { $primitive = std::nullopt; }
+primitive   : %empty { $primitive = hadron::library::Token(); }
             | PRIMITIVE optsemi { $primitive = $PRIMITIVE; }
             ;
 
-retval  : %empty { $retval = nullptr; }
+retval  : %empty { $retval = hadron::library::ReturnNode(); }
         | CARET expr optsemi {
-                auto ret = std::make_unique<hadron::parse::ReturnNode>($CARET);
-                ret->valueExpr = std::move($expr);
-                $retval = std::move(ret);
+                auto ret = hadron::library::ReturnNode::make(threadContext, $CARET);
+                ret.setValueExpr($expr);
+                $retval = ret;
             }
         ;
 
-funretval   : %empty { $funretval = nullptr; }
+funretval   : %empty { $funretval = hadron::library::ReturnNode(); }
             | CARET expr optsemi {
-                    auto ret = std::make_unique<hadron::parse::ReturnNode>($CARET);
-                    ret->valueExpr = std::move($expr);
-                    $funretval = std::move(ret);
+                    auto ret = hadron::library::ReturnNode::make(threadContext, $CARET);
+                    ret.setValueExpr($expr);
+                    $funretval = ret;
                 }
             ;
 
-blocklist1[target]  : block { $target = std::move($block); }
-                    | blocklist1[build] block { $target = append(std::move($build), std::move($block)); }
+blocklist1[target]  : block { $target = $block; }
+                    | blocklist1[build] block { $target = append($build, $block); }
                     ;
 
-blocklist   : %empty { $blocklist = nullptr; }
-            | blocklist1 { $blocklist = std::move($blocklist1); }
+blocklist   : %empty { $blocklist = hadron::library::BlockNode(); }
+            | blocklist1 { $blocklist = $blocklist1; }
             ;
 
 msgsend : IDENTIFIER blocklist1 {
-                auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
-                call->arguments = std::move($blocklist1);
-                $msgsend = std::move(call);
+                auto call = hadron::library::CallNode::make(threadContext, $IDENTIFIER);
+                call.setArguments($blocklist1.toBase());
+                $msgsend = call.toBase();
             }
         | OPENPAREN binop2 CLOSEPAREN blocklist1 {
-                auto call = std::make_unique<hadron::parse::CallNode>($binop2);
-                call->arguments = std::move($blocklist1);
-                $msgsend = std::move(call);
+                auto call = hadron::library::CallNode::make(threadContext, $binop2);
+                call.setArguments($blocklist1.toBase());
+                $msgsend = call.toBase();
             }
         | IDENTIFIER OPENPAREN CLOSEPAREN blocklist1 {
-                auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
-                call->arguments = std::move($blocklist1);
-                $msgsend = std::move(call);
+                auto call = hadron::library::CallNode::make(threadContext, $IDENTIFIER);
+                call.setArguments($blocklist1.toBase());
+                $msgsend = call.toBase();
             }
         | IDENTIFIER OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
-                auto call = std::make_unique<hadron::parse::CallNode>($IDENTIFIER);
-                call->arguments = append<std::unique_ptr<hadron::parse::Node>>(std::move($arglist1),
-                    std::move($blocklist));
-                call->keywordArguments = std::move($optkeyarglist);
-                $msgsend = std::move(call);
+                auto call = hadron::library::CallNode::make(threadContext, $IDENTIFIER);
+                call.setArguments(append<hadron::library::Node>($arglist1.toBase(), $blocklist.toBase()));
+                call.setKeywordArguments($optkeyarglist);
+                $msgsend = call.toBase();
             }
         | IDENTIFIER OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
                 // TODO - differentiate between this and superPerformList()
-                auto performList = std::make_unique<hadron::parse::PerformListNode>($OPENPAREN);
-                performList->target = std::make_unique<hadron::parse::NameNode>($IDENTIFIER);
-                performList->arguments = std::move($arglistv1);
-                performList->keywordArguments = std::move($optkeyarglist);
-                $msgsend = std::move(performList);
+                auto performList = hadron::library::PerformListNode::make(threadContext, $OPENPAREN);
+                performList.setTarget(hadron::library::NameNode::make(threadContext, $IDENTIFIER).toBase());
+                performList.setArguments($arglistv1.toBase());
+                performList.setKeywordArguments($optkeyarglist);
+                $msgsend = performList.toBase();
             }
         | CLASSNAME OPENSQUARE arrayelems CLOSESQUARE {
                 // This is shorthand for Classname.new() followed by (args.add)
-                auto newList = std::make_unique<hadron::parse::LiteralListNode>($OPENSQUARE);
-                newList->className = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
-                newList->elements = std::move($arrayelems);
-                $msgsend = std::move(newList);
+                auto collection = hadron::library::CollectionNode::make(threadContext, $OPENSQUARE);
+                collection.setClassName(hadron::library::NameNode::make(threadContext, $CLASSNAME));
+                collection.setElements($arrayelems.toBase());
+                $msgsend = collection.toBase();
             }
         | CLASSNAME blocklist1 {
                 // This is shorthand for Classname.new {args}
-                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME);
-                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
-                newCall->arguments = std::move($blocklist1);
-                $msgsend = std::move(newCall);
+                auto newCall = hadron::library::NewNode::make(threadContext, $CLASSNAME);
+                newCall.setTarget(hadron::library::NameNode::make(threadContext, $CLASSNAME).toBase());
+                newCall.setArguments($blocklist1.toBase());
+                $msgsend = newCall.toBase();
             }
         | CLASSNAME OPENPAREN CLOSEPAREN blocklist {
                 // This is shorthand for Classname.new() {args}
-                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME);
-                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
-                newCall->arguments = std::move($blocklist);
-                $msgsend = std::move(newCall);
+                auto newCall = hadron::library::NewNode::make(threadContext, $CLASSNAME);
+                newCall.setTarget(hadron::library::NameNode::make(threadContext, $CLASSNAME).toBase());
+                newCall.setArguments($blocklist.toBase());
+                $msgsend = newCall.toBase();
             }
         | CLASSNAME OPENPAREN keyarglist1 optcomma CLOSEPAREN blocklist {
                 // This is shorthand for Classname.new(foo: bazz) {args}
-                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME);
-                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
-                newCall->arguments = std::move($blocklist);
-                newCall->keywordArguments = std::move($keyarglist1);
-                $msgsend = std::move(newCall);
+                auto newCall = hadron::library::NewNode::make(threadContext, $CLASSNAME);
+                newCall.setTarget(hadron::library::NameNode::make(threadContext, $CLASSNAME).toBase());
+                newCall.setArguments($blocklist.toBase());
+                newCall.setKeywordArguments($keyarglist1);
+                $msgsend = newCall.toBase();
             }
         | CLASSNAME OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
                 // This is shorthand for Classname.new(arg, foo: bazz) {args}
-                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME);
-                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
-                newCall->arguments = append<std::unique_ptr<hadron::parse::Node>>(std::move($arglist1),
-                        std::move($blocklist));
-                newCall->keywordArguments = std::move($optkeyarglist);
-                $msgsend = std::move(newCall);
+                auto newCall = hadron::library::NewNode::make(threadContext, $CLASSNAME);
+                newCall.setTarget(hadron::library::NameNode::make(threadContext, $CLASSNAME).toBase());
+                newCall.setArguments(append<hadron::library::Node>($arglist1.toBase(), $blocklist.toBase()));
+                newCall.setKeywordArguments($optkeyarglist);
+                $msgsend = newCall.toBase();
             }
         | CLASSNAME OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
-                auto newCall = std::make_unique<hadron::parse::NewNode>($CLASSNAME);
-                newCall->target = std::make_unique<hadron::parse::NameNode>($CLASSNAME);
-                newCall->arguments = std::move($arglistv1);
-                newCall->keywordArguments = std::move($optkeyarglist);
-                $msgsend = std::move(newCall);
+                auto newCall = hadron::library::NewNode::make(threadContext, $CLASSNAME);
+                newCall.setTarget(hadron::library::NameNode::make(threadContext, $CLASSNAME).toBase());
+                newCall.setArguments($arglistv1.toBase());
+                newCall.setKeywordArguments($optkeyarglist);
+                $msgsend = newCall.toBase();
             }
         | expr DOT OPENPAREN CLOSEPAREN blocklist {
                 auto value = std::make_unique<hadron::parse::ValueNode>($DOT);
@@ -1118,7 +1125,7 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContex
         return yy::parser::make_INTERPRET(token.location);
 
     case hadron::Token::Name::kLiteral:
-        scToken.setName(library::Symbol::fromView(context, "literal"));
+        scToken.setName(library::Symbol::fromView(threadContext, "literal"));
         // We special-case integers and floats to support unary negation.
         if (token.value.isInt32()) {
             return yy::parser::make_INTEGER(scToken, token.location);
@@ -1128,163 +1135,163 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContex
         return yy::parser::make_LITERAL(scToken, token.location);
 
     case hadron::Token::Name::kString:
-        scToken.setName(library::Symbol::fromView(context, "string"));
+        scToken.setName(library::Symbol::fromView(threadContext, "string"));
         return yy::parser::make_STRING(scToken, token.location);
 
     case hadron::Token::Name::kSymbol:
-        scToken.setName(library::Symbol::fromView(context, "symbol"));
+        scToken.setName(library::Symbol::fromView(threadContext, "symbol"));
         return yy::parser::make_SYMBOL(scToken, token.location);
 
     case hadron::Token::Name::kPrimitive:
-        scToken.setName(library::Symbol::fromView(context, "primitive"));
+        scToken.setName(library::Symbol::fromView(threadContext, "primitive"));
         return yy::parser::make_PRIMITIVE(scToken, token.location);
 
     case hadron::Token::Name::kPlus:
-        scToken.setName(library::Symbol::fromView(context, "plus"));
+        scToken.setName(library::Symbol::fromView(threadContext, "plus"));
         return yy::parser::make_PLUS(scToken, token.location);
 
     case hadron::Token::Name::kMinus:
-        scToken.setName(library::Symbol::fromView(context, "minus"));
+        scToken.setName(library::Symbol::fromView(threadContext, "minus"));
         return yy::parser::make_MINUS(scToken, token.location);
 
     case hadron::Token::Name::kAsterisk:
-        scToken.setName(library::Symbol::fromView(context, "asterisk"));
+        scToken.setName(library::Symbol::fromView(threadContext, "asterisk"));
         return yy::parser::make_ASTERISK(scToken, token.location);
 
     case hadron::Token::Name::kAssign:
-        scToken.setName(library::Symbol::fromView(context, "assign"));
+        scToken.setName(library::Symbol::fromView(threadContext, "assign"));
         return yy::parser::make_ASSIGN(scToken, token.location);
 
     case hadron::Token::Name::kLessThan:
-        scToken.setName(library::Symbol::fromView(context, "lessThan"));
+        scToken.setName(library::Symbol::fromView(threadContext, "lessThan"));
         return yy::parser::make_LESSTHAN(scToken, token.location);
 
     case hadron::Token::Name::kGreaterThan:
-        scToken.setName(library::Symbol::fromView(context, "greaterThan"));
+        scToken.setName(library::Symbol::fromView(threadContext, "greaterThan"));
         return yy::parser::make_GREATERTHAN(scToken, token.location);
 
     case hadron::Token::Name::kPipe:
-        scToken.setName(library::Symbol::fromView(context, "pipe"));
+        scToken.setName(library::Symbol::fromView(threadContext, "pipe"));
         return yy::parser::make_PIPE(scToken, token.location);
 
     case hadron::Token::Name::kReadWriteVar:
-        scToken.setName(library::Symbol::fromView(context, "readWriteVar"));
+        scToken.setName(library::Symbol::fromView(threadContext, "readWriteVar"));
         return yy::parser::make_READWRITEVAR(scToken, token.location);
 
     case hadron::Token::Name::kLeftArrow:
-        scToken.setName(library::Symbol::fromView(context, "leftArrow"));
+        scToken.setName(library::Symbol::fromView(threadContext, "leftArrow"));
         return yy::parser::make_LEFTARROW(scToken, token.location);
 
     case hadron::Token::Name::kBinop:
-        scToken.setName(library::Symbol::fromView(context, "binop"));
+        scToken.setName(library::Symbol::fromView(threadContext, "binop"));
         return yy::parser::make_BINOP(scToken, token.location);
 
     case hadron::Token::Name::kKeyword:
-        scToken.setName(library::Symbol::fromView(context, "keyword"));
+        scToken.setName(library::Symbol::fromView(threadContext, "keyword"));
         return yy::parser::make_KEYWORD(scToken, token.location);
 
     case hadron::Token::Name::kOpenParen:
-        scToken.setName(library::Symbol::fromView(context, "openParen"));
+        scToken.setName(library::Symbol::fromView(threadContext, "openParen"));
         return yy::parser::make_OPENPAREN(scToken, token.location);
 
     case hadron::Token::Name::kCloseParen:
-        scToken.setName(library::Symbol::fromView(context, "closeParen"));
+        scToken.setName(library::Symbol::fromView(threadContext, "closeParen"));
         return yy::parser::make_CLOSEPAREN(scToken, token.location);
 
     case hadron::Token::Name::kOpenCurly:
-        scToken.setName(library::Symbol::fromView(context, "openCurly"));
+        scToken.setName(library::Symbol::fromView(threadContext, "openCurly"));
         return yy::parser::make_OPENCURLY(scToken, token.location);
 
     case hadron::Token::Name::kCloseCurly:
-        scToken.setName(library::Symbol::fromView(context, "closeCurly"));
+        scToken.setName(library::Symbol::fromView(threadContext, "closeCurly"));
         return yy::parser::make_CLOSECURLY(scToken, token.location);
 
     case hadron::Token::Name::kOpenSquare:
-        scToken.setName(library::Symbol::fromView(context, "openSquare"));
+        scToken.setName(library::Symbol::fromView(threadContext, "openSquare"));
         return yy::parser::make_OPENSQUARE(scToken, token.location);
 
     case hadron::Token::Name::kCloseSquare:
-        scToken.setName(library::Symbol::fromView(context, "closeSquare"));
+        scToken.setName(library::Symbol::fromView(threadContext, "closeSquare"));
         return yy::parser::make_CLOSESQUARE(scToken, token.location);
 
     case hadron::Token::Name::kComma:
-        scToken.setName(library::Symbol::fromView(context, "comma"));
+        scToken.setName(library::Symbol::fromView(threadContext, "comma"));
         return yy::parser::make_COMMA(scToken, token.location);
 
     case hadron::Token::Name::kSemicolon:
-        scToken.setName(library::Symbol::fromView(context, "semicolon"));
+        scToken.setName(library::Symbol::fromView(threadContext, "semicolon"));
         return yy::parser::make_SEMICOLON(scToken, token.location);
 
     case hadron::Token::Name::kColon:
-        scToken.setName(library::Symbol::fromView(context, "colon"));
+        scToken.setName(library::Symbol::fromView(threadContext, "colon"));
         return yy::parser::make_COLON(scToken, token.location);
 
     case hadron::Token::Name::kCaret:
-        scToken.setName(library::Symbol::fromView(context, "caret"));
+        scToken.setName(library::Symbol::fromView(threadContext, "caret"));
         return yy::parser::make_CARET(scToken, token.location);
 
     case hadron::Token::Name::kTilde:
-        scToken.setName(library::Symbol::fromView(context, "tilde"));
+        scToken.setName(library::Symbol::fromView(threadContext, "tilde"));
         return yy::parser::make_TILDE(scToken, token.location);
 
     case hadron::Token::Name::kHash:
-        scToken.setName(library::Symbol::fromView(context, "hash"));
+        scToken.setName(library::Symbol::fromView(threadContext, "hash"));
         return yy::parser::make_HASH(scToken, token.location);
 
     case hadron::Token::Name::kGrave:
-        scToken.setName(library::Symbol::fromView(context, "grave"));
+        scToken.setName(library::Symbol::fromView(threadContext, "grave"));
         return yy::parser::make_GRAVE(scToken, token.location);
 
     case hadron::Token::Name::kVar:
-        scToken.setName(library::Symbol::fromView(context, "var"));
+        scToken.setName(library::Symbol::fromView(threadContext, "var"));
         return yy::parser::make_VAR(scToken, token.location);
 
     case hadron::Token::Name::kArg:
-        scToken.setName(library::Symbol::fromView(context, "arg"));
+        scToken.setName(library::Symbol::fromView(threadContext, "arg"));
         return yy::parser::make_ARG(scToken, token.location);
 
     case hadron::Token::Name::kConst:
-        scToken.setName(library::Symbol::fromView(context, "const"));
+        scToken.setName(library::Symbol::fromView(threadContext, "const"));
         return yy::parser::make_CONST(scToken, token.location);
 
     case hadron::Token::Name::kClassVar:
-        scToken.setName(library::Symbol::fromView(context, "classvar"));
+        scToken.setName(library::Symbol::fromView(threadContext, "classvar"));
         return yy::parser::make_CLASSVAR(scToken, token.location);
 
     case hadron::Token::Name::kIdentifier:
-        scToken.setName(library::Symbol::fromView(context, "identifier"));
+        scToken.setName(library::Symbol::fromView(threadContext, "identifier"));
         return yy::parser::make_IDENTIFIER(scToken, token.location);
 
     case hadron::Token::Name::kClassName:
-        scToken.setName(library::Symbol::fromView(context, "className"));
+        scToken.setName(library::Symbol::fromView(threadContext, "className"));
         return yy::parser::make_CLASSNAME(scToken, token.location);
 
     case hadron::Token::Name::kDot:
-        scToken.setName(library::Symbol::fromView(context, "dot"));
+        scToken.setName(library::Symbol::fromView(threadContext, "dot"));
         return yy::parser::make_DOT(scToken, token.location);
 
     case hadron::Token::Name::kDotDot:
-        scToken.setName(library::Symbol::fromView(context, "dotDot"));
+        scToken.setName(library::Symbol::fromView(threadContext, "dotDot"));
         return yy::parser::make_DOTDOT(scToken, token.location);
 
     case hadron::Token::Name::kEllipses:
-        scToken.setName(library::Symbol::fromView(context, "ellipses"));
+        scToken.setName(library::Symbol::fromView(threadContext, "ellipses"));
         return yy::parser::make_ELLIPSES(scToken, token.location);
 
     case hadron::Token::Name::kCurryArgument:
-        scToken.setName(library::Symbol::fromView(context, "curryArgument"));
+        scToken.setName(library::Symbol::fromView(threadContext, "curryArgument"));
         return yy::parser::make_CURRYARGUMENT(scToken, token.location);
 
     case hadron::Token::Name::kBeginClosedFunction:
-        scToken.setName(library::Symbol::fromView(context, "beginClosedFunction"));
+        scToken.setName(library::Symbol::fromView(threadContext, "beginClosedFunction"));
         return yy::parser::make_BEGINCLOSEDFUNC(scToken, token.location);
 
     case hadron::Token::Name::kIf:
-        scToken.setName(library::Symbol::fromView(context, "if"));
+        scToken.setName(library::Symbol::fromView(threadContext, "if"));
         return yy::parser::make_IF(scToken, token.location);
 
     case hadron::Token::Name::kWhile:
-        scToken.setName(library::Symbol::fromView(context, "while"));
+        scToken.setName(library::Symbol::fromView(threadContext, "while"));
         return yy::parser::make_WHILE(scToken, token.location);
     }
 
