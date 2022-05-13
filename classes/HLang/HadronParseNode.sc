@@ -147,7 +147,7 @@ HadronMultiAssignVarsNode : HadronParseNode {
 HadronNameNode : HadronParseNode { }
 
 // "token()"
-HadronNewNode : HadronCallBaseNode { }
+HadronNewNode : HadronCallNodeBase { }
 
 // "start, step .. stop"
 HadronNumericSeriesNode : HadronParseNode {
@@ -156,7 +156,7 @@ HadronNumericSeriesNode : HadronParseNode {
 	var <>stop;
 }
 
-HadronPerformListNode : HadronParseNode { }
+HadronPerformListNode : HadronCallNodeBase { }
 
 // "^valueExpr"
 HadronReturnNode : HadronParseNode {
@@ -192,11 +192,13 @@ HadronStringNode : HadronParseNode { }
 
 HadronSymbolNode : HadronParseNode { }
 
-HadronValueNode : 
+HadronValueNode : HadronCallNodeBase { }
 
 // "token = initialValue"
 HadronVarDefNode : HadronParseNode {
 	var <>initialValue; // can be nil
+	var <>hasReadAccessor;
+	var <>hasWriteAccessor;
 }
 
 // token can be "var", "classvar", or "const"
