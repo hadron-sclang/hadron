@@ -64,6 +64,7 @@
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Lexer.hpp"
+#include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "hadron/Token.hpp"
 
@@ -1138,6 +1139,8 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContex
     scToken.setCharacterNumber(token.location.characterNumber + 1);
     scToken.setOffset(token.range.data() - hadronParser->lexer()->code().data());
     scToken.setLength(token.range.size());
+    scToken.setSnippet(hadron::library::Symbol::fromView(threadContext, token.range));
+    scToken.setHasEscapeCharacters(token.escapeString);
 
     switch (token.name) {
     case hadron::Token::Name::kEmpty:
@@ -1265,7 +1268,7 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContex
         return yy::parser::make_GRAVE(scToken, token.location);
 
     case hadron::Token::Name::kVar:
-        scToken.setName(hadron::library::Symbol::fromView(threadContext, "var"));
+        scToken.setName(threadContext->symbolTable->varSymbol());
         return yy::parser::make_VAR(scToken, token.location);
 
     case hadron::Token::Name::kArg:
@@ -1273,11 +1276,11 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContex
         return yy::parser::make_ARG(scToken, token.location);
 
     case hadron::Token::Name::kConst:
-        scToken.setName(hadron::library::Symbol::fromView(threadContext, "const"));
+        scToken.setName(threadContext->symbolTable->constSymbol());
         return yy::parser::make_CONST(scToken, token.location);
 
     case hadron::Token::Name::kClassVar:
-        scToken.setName(hadron::library::Symbol::fromView(threadContext, "classvar"));
+        scToken.setName(threadContext->symbolTable->classvarSymbol());
         return yy::parser::make_CLASSVAR(scToken, token.location);
 
     case hadron::Token::Name::kIdentifier:

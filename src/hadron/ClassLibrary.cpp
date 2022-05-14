@@ -79,60 +79,59 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
             if (!lexer->lex()) { return false; }
 
             auto parser = std::make_unique<Parser>(lexer.get(), m_errorReporter);
-            if (!parser->parseClass()) { return false; }
+            if (!parser->parseClass(context)) { return false; }
 
             auto filename = library::Symbol::fromView(context, path.string());
-            const parse::Node* node = parser->root();
+            library::Node node = parser->root();
             while (node) {
-                if (node->nodeType != parse::NodeType::kClass && node->nodeType != parse::NodeType::kClassExt) {
+                if (node.className() != library::ClassNode::nameHash() &&
+                    node.className() != library::ClassExtNode::nameHash()) {
                     SPDLOG_ERROR("Expecting either Class or Class Extensions only at top level in class file {}",
                             path.c_str());
                     return false;
                 }
 
-                library::Symbol className = library::Symbol::fromView(context, lexer->tokens()[node->tokenIndex].range);
+                library::Symbol className = node.token().snippet(context);
                 library::Class classDef = findOrInitClass(context, className);
 
                 library::Symbol metaClassName = library::Symbol::fromView(context, fmt::format("Meta_{}",
-                        lexer->tokens()[node->tokenIndex].range));
+                        className.view(context)));
                 library::Class metaClassDef = findOrInitClass(context, metaClassName);
 
-                const parse::MethodNode* methodNode = nullptr;
+                auto methodNode = library::MethodNode();
 
-                if (node->nodeType == parse::NodeType::kClass) {
-                    const auto classNode = reinterpret_cast<const parse::ClassNode*>(node);
+                if (node.className() == library::ClassNode::nameHash()) {
+                    const auto classNode = library::ClassNode(node.slot());
 
-                    int32_t charPos = lexer->tokens()[classNode->tokenIndex].range.data() - sourceFile->code();
+                    int32_t charPos = classNode.token().offset();
                     classDef.setFilenameSymbol(filename);
                     classDef.setCharPos(charPos);
                     metaClassDef.setFilenameSymbol(filename);
                     metaClassDef.setCharPos(charPos);
 
-                    if (!scanClass(context, classDef, metaClassDef, classNode, lexer.get())) {
+                    if (!scanClass(context, classDef, metaClassDef, classNode)) {
                         return false;
                     }
 
-                    methodNode = classNode->methods.get();
+                    methodNode = classNode.methods();
                 } else {
-                    assert(node->nodeType == parse::NodeType::kClassExt);
-                    const auto classExtNode = reinterpret_cast<const parse::ClassExtNode*>(node);
-                    methodNode = classExtNode->methods.get();
+                    assert(node.className() == library::ClassExtNode::nameHash());
+                    const auto classExtNode = library::ClassExtNode(node.slot());
+                    methodNode = classExtNode.methods();
                 }
 
                 while (methodNode) {
-                    assert(methodNode->nodeType == parse::NodeType::kMethod);
                     library::Method method = library::Method::alloc(context);
                     method.initToNil();
 
-                    library::Class methodClassDef = methodNode->isClassMethod ? metaClassDef : classDef;
+                    library::Class methodClassDef = methodNode.isClassMethod() ? metaClassDef : classDef;
                     method.setOwnerClass(methodClassDef);
 
                     library::MethodArray methodArray = methodClassDef.methods();
                     methodArray = methodArray.typedAdd(context, method);
                     methodClassDef.setMethods(methodArray);
 
-                    library::Symbol methodName = library::Symbol::fromView(context,
-                            lexer->tokens()[methodNode->tokenIndex].range);
+                    library::Symbol methodName = methodNode.token().snippet(context);
                     method.setName(methodName);
 
                     // We keep a reference to the Interpreter compile context, for quick access later.
@@ -141,16 +140,15 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                         m_interpreterContext = method;
                     }
 
-                    if (methodNode->primitiveIndex) {
-                        library::Symbol primitiveName = library::Symbol::fromView(context,
-                            lexer->tokens()[*methodNode->primitiveIndex].range);
+                    if (methodNode.primitiveToken()) {
+                        library::Symbol primitiveName = methodNode.primitiveToken().snippet(context);
                         method.setPrimitiveName(primitiveName);
                     } else {
                         SPDLOG_INFO("Building AST for {}:{}", methodClassDef.name(context).view(context),
                                 methodName.view(context));
                         // Build the AST from the MethodNode block.
                         ASTBuilder astBuilder(m_errorReporter);
-                        auto ast = astBuilder.buildBlock(context, lexer.get(), methodNode->body.get());
+                        auto ast = astBuilder.buildBlock(context, methodNode.body());
                         if (ast.isNil()) { return false; }
 
                         // Attach argument names from AST to the method definition.
@@ -163,13 +161,12 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
 
                     method.setFilenameSymbol(filename);
 
-                    int32_t charPos = lexer->tokens()[methodNode->tokenIndex].range.data() - sourceFile->code();
-                    method.setCharPos(charPos);
+                    method.setCharPos(methodNode.token().offset());
 
-                    methodNode = reinterpret_cast<const parse::MethodNode*>(methodNode->next.get());
+                    methodNode = library::MethodNode(methodNode.next().slot());
                 }
 
-                node = node->next.get();
+                node = node.next();
             }
         }
     }
@@ -178,18 +175,16 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
 }
 
 bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, library::Class metaClassDef,
-        const parse::ClassNode* classNode, const Lexer* lexer) {
+        const library::ClassNode classNode) {
 
     SPDLOG_INFO("Scanning Class: {}", classDef.name(context).view(context));
 
     library::Symbol superclassName;
     library::Symbol metaSuperclassName;
 
-    if (classNode->superClassNameIndex) {
-        superclassName = library::Symbol::fromView(context,
-                lexer->tokens()[classNode->superClassNameIndex.value()].range);
-        metaSuperclassName = library::Symbol::fromView(context, fmt::format("Meta_{}",
-                lexer->tokens()[classNode->superClassNameIndex.value()].range));
+    if (classNode.superclassNameToken()) {
+        superclassName = classNode.superclassNameToken().snippet(context);
+        metaSuperclassName = library::Symbol::fromView(context, fmt::format("Meta_{}", superclassName.view(context)));
     } else {
         if (classDef.name(context) == context->symbolTable->objectSymbol()) {
             // The superclass of 'Meta_Object' is 'Class'.
@@ -217,39 +212,38 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
     metaSuperclass.setSubclasses(metaSubclasses);
 
     // Extract class and instance variables and constants.
-    const parse::VarListNode* varList = classNode->variables.get();
+    library::VarListNode varList = classNode.variables();
     while (varList) {
-        auto varType = lexer->tokens()[varList->tokenIndex].name;
+        auto varType = varList.token().name(context);
         auto nameArray = library::SymbolArray();
         auto valueArray = library::Array();
 
-        const parse::VarDefNode* varDef = varList->definitions.get();
+        library::VarDefNode varDef = varList.definitions();
         while (varDef) {
-            nameArray = nameArray.add(context, library::Symbol::fromView(context,
-                    lexer->tokens()[varDef->tokenIndex].range));
-            if (varDef->initialValue) {
+            nameArray = nameArray.add(context, varDef.token().snippet(context));
+            if (varDef.initialValue()) {
                 ASTBuilder builder(m_errorReporter);
                 Slot literal = Slot::makeNil();
-                auto wasLiteral = builder.buildLiteral(context, lexer, varDef->initialValue.get(), literal);
+                auto wasLiteral = builder.buildLiteral(context, varDef.initialValue(), literal);
                 assert(wasLiteral);
                 valueArray = valueArray.add(context, literal);
             } else {
                 valueArray = valueArray.add(context, Slot::makeNil());
             }
-            varDef = reinterpret_cast<const parse::VarDefNode*>(varDef->next.get());
+            varDef = library::VarDefNode(varDef.next().slot());
         }
 
         assert(nameArray.size() == valueArray.size());
 
         // Each line gets its own varList parse node, so append to any existing arrays to preserve previous values.
-        if (varType == Token::Name::kVar) {
+        if (varType == context->symbolTable->varSymbol()) {
             classDef.setInstVarNames(classDef.instVarNames().addAll(context, nameArray));
             classDef.setIprototype(classDef.iprototype().addAll(context, valueArray));
-        } else if (varType == Token::Name::kClassVar) {
+        } else if (varType == context->symbolTable->classvarSymbol()) {
             classDef.setClassVarNames(classDef.classVarNames().addAll(context, nameArray));
             classDef.setCprototype(classDef.cprototype().addAll(context, valueArray));
             m_numberOfClassVariables += nameArray.size();
-        } else if (varType == Token::Name::kConst) {
+        } else if (varType == context->symbolTable->constSymbol()) {
             classDef.setConstNames(classDef.constNames().addAll(context, nameArray));
             classDef.setConstValues(classDef.constValues().addAll(context, valueArray));
         } else {
@@ -257,7 +251,7 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
             assert(false);
         }
 
-        varList = reinterpret_cast<const parse::VarListNode*>(varList->next.get());
+        varList = library::VarListNode(varList.next().slot());
     }
 
     return true;

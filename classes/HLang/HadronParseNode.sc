@@ -5,18 +5,14 @@ HadronLexToken {
 	var <>characterNumber; // 1-based character number on that line
 	var <>offset; // 0-based character offset in input string
 	var <>length; // length of substring in input string
+	var <>snippet; // The actual excerpted code as a Symbol
+	var <>hasEscapeCharacters; // For string and symbol tokens, a boolean indicating if the token has escape characters.
 }
 
 HadronParseNode {
 	var <>token;
 	var <>next;
 	var tail;
-}
-
-HadronCallNodeBase : HadronParseNode {
-	var <>target;
-	var <>arguments;
-	var <>keywordArguments;
 }
 
 // Alphabetical list of nodes returned by the parse tree.
@@ -58,7 +54,11 @@ HadronBlockNode : HadronParseNode {
 }
 
 // "target.selector(arguments, keywordArguments)"
-HadronCallNode : HadronCallNodeBase { }
+HadronCallNode : HadronParseNode {
+	var <>target;
+	var <>arguments;
+	var <>keywordArguments;
+}
 
 // "token[optionalNameToken] : superClassNameToken { var variables; methods }
 HadronClassNode : HadronParseNode {
@@ -147,7 +147,7 @@ HadronMultiAssignVarsNode : HadronParseNode {
 HadronNameNode : HadronParseNode { }
 
 // "token()"
-HadronNewNode : HadronCallNodeBase { }
+HadronNewNode : HadronCallNode { }
 
 // "start, step .. stop"
 HadronNumericSeriesNode : HadronParseNode {
@@ -156,7 +156,7 @@ HadronNumericSeriesNode : HadronParseNode {
 	var <>stop;
 }
 
-HadronPerformListNode : HadronCallNodeBase { }
+HadronPerformListNode : HadronCallNode { }
 
 // "^valueExpr"
 HadronReturnNode : HadronParseNode {
@@ -192,7 +192,7 @@ HadronStringNode : HadronParseNode { }
 
 HadronSymbolNode : HadronParseNode { }
 
-HadronValueNode : HadronCallNodeBase { }
+HadronValueNode : HadronCallNode { }
 
 // "token = initialValue"
 HadronVarDefNode : HadronParseNode {

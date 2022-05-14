@@ -5,6 +5,7 @@
 #include "hadron/Slot.hpp"
 #include "hadron/library/Array.hpp"
 #include "hadron/library/HadronAST.hpp"
+#include "hadron/library/HadronParseNode.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Symbol.hpp"
 
@@ -17,15 +18,9 @@ namespace hadron {
 
 class ErrorReporter;
 struct Frame;
-class Lexer;
 class Parser;
 class SourceFile;
 struct ThreadContext;
-
-namespace parse {
-struct ClassNode;
-struct MethodNode;
-} // namespace parse
 
 class ClassLibrary {
 public:
@@ -53,7 +48,7 @@ private:
     // Scans the provided class directories, builds class inheritance structure. First pass of library compilation.
     bool scanFiles(ThreadContext* context);
     bool scanClass(ThreadContext* context, library::Class classDef, library::Class metaClassDef,
-            const parse::ClassNode* classNode, const Lexer* lexer);
+            const library::ClassNode classNode);
     // Either create a new Class object with the provided name, or return the existing one.
     library::Class findOrInitClass(ThreadContext* context, library::Symbol className);
 

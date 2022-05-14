@@ -32,6 +32,12 @@ public:
 
     int32_t length() const { return m_instance->length.getInt32(); }
     void setLength(int32_t i) { m_instance->length = Slot::makeInt32(i); }
+
+    Symbol snippet(ThreadContext* context) const { return Symbol(context, m_instance->snippet); }
+    void setSnippet(Symbol s) { m_instance->snippet = s.slot(); }
+
+    bool hasEscapeCharacters() const { return m_instance->hasEscapeCharacters.getBool(); }
+    void setHasEscapeCharacters(bool b) { m_instance->hasEscapeCharacters = Slot::makeBool(b); }
 };
 
 template<typename T, typename S, typename B>
