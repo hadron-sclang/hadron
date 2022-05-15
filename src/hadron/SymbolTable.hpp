@@ -32,6 +32,10 @@ public:
     inline library::Symbol arraySymbol() const { return m_Array; }
     // 'at'
     inline library::Symbol atSymbol() const { return m_at; }
+    // 'classvar'
+    inline library::Symbol classvarSymbol() const { return m_classvar; }
+    // 'const'
+    inline library::Symbol constSymbol() const { return m_const; }
     // 'copySeries'
     inline library::Symbol copySeriesSymbol() const { return m_copySeries; }
     // 'currentEnvironment'
@@ -68,6 +72,8 @@ public:
     inline library::Symbol thisThreadSymbol() const { return m_thisThread; }
     // 'value'
     inline library::Symbol valueSymbol() const { return m_value; }
+    // 'var'
+    inline library::Symbol varSymbol() const { return m_var; }
     // 'with'
     inline library::Symbol withSymbol() const { return m_with; }
 
@@ -77,6 +83,8 @@ private:
     library::Symbol m_add;
     library::Symbol m_Array;
     library::Symbol m_at;
+    library::Symbol m_classvar;
+    library::Symbol m_const;
     library::Symbol m_copySeries;
     library::Symbol m_currentEnvironment;
     library::Symbol m_Event;
@@ -95,6 +103,7 @@ private:
     library::Symbol m_thisProcess;
     library::Symbol m_thisThread;
     library::Symbol m_value;
+    library::Symbol m_var;
     library::Symbol m_with;
 };
 

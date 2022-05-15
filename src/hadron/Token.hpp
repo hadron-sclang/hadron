@@ -13,7 +13,6 @@ struct Token {
     ~Token() = default;
 
     enum Name {
-        // ** Modifying these number values? Please make sure to update server/JSONTransport.cpp too!
         kEmpty = 0,     // represents no token
         kInterpret = 1, // The LSC grammar is ambiguous as written without the insertion of a special token informing
                         // the parser that the input text is interpreted code. Without this the grammar cannot determine

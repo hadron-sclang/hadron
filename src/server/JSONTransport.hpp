@@ -2,7 +2,6 @@
 #define SRC_SERVER_JSON_TRANSPORT_HPP_
 
 #include "hadron/Token.hpp"
-#include "server/CompilationUnit.hpp"
 #include "server/LSPTypes.hpp"
 
 #include <memory>
@@ -55,9 +54,6 @@ public:
     // Responses from the server for LSP messages
     void sendInitializeResult(std::optional<lsp::ID> id);
     void sendSemanticTokens(const std::vector<hadron::Token>& tokens);
-
-    void sendCompilationDiagnostics(hadron::ThreadContext* context, lsp::ID id,
-            const std::vector<CompilationUnit>& compilationUnits);
 
 private:
     // pIMPL pattern to keep JSON headers from leaking into rest of server namespace.

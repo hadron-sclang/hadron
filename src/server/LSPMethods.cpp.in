@@ -29,7 +29,6 @@ exit,                               server::lsp::Method::kExit
 $/logTrace,                         server::lsp::Method::kLogTrace
 $/setTrace,                         server::lsp::Method::kSetTrace
 textDocument/semanticTokens/full,   server::lsp::Method::kSemanticTokensFull
-hadron/compilationDiagnostics,      server::lsp::Method::kHadronCompilationDiagnostics
 %%
 
 } // namespace

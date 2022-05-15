@@ -6,6 +6,8 @@ void SymbolTable::preloadSymbols(ThreadContext* context) {
     m_add = library::Symbol::fromView(context, "add");
     m_Array = library::Symbol::fromView(context, "Array");
     m_at = library::Symbol::fromView(context, "at");
+    m_classvar = library::Symbol::fromView(context, "classvar");
+    m_const = library::Symbol::fromView(context, "const");
     m_copySeries = library::Symbol::fromView(context, "copySeries");
     m_currentEnvironment = library::Symbol::fromView(context, "currentEnvironment");
     m_Event = library::Symbol::fromView(context, "Event");
@@ -24,6 +26,7 @@ void SymbolTable::preloadSymbols(ThreadContext* context) {
     m_thisProcess = library::Symbol::fromView(context, "thisProcess");
     m_thisThread = library::Symbol::fromView(context, "thisThread");
     m_value = library::Symbol::fromView(context, "value");
+    m_var = library::Symbol::fromView(context, "var");
     m_with = library::Symbol::fromView(context, "with");
 }
 

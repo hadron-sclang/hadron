@@ -15,9 +15,6 @@ enum Method {
     kLogTrace,
     kSetTrace,
     kSemanticTokensFull,
-
-    // Hadron-specific extensions in the 'hadron/' method namespace
-    kHadronCompilationDiagnostics
 };
 
 Method getMethodNamed(const char* name, size_t length);
