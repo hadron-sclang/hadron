@@ -66,7 +66,11 @@ public:
     }
     static inline T wrapUnsafe(Slot schema) {
         T wrapper;
-        wrapper.m_instance = reinterpret_cast<S*>(schema.getPointer());
+        if (schema.isNil()) {
+            wrapper.m_instance = nullptr;
+        } else {
+            wrapper.m_instance = reinterpret_cast<S*>(schema.getPointer());
+        }
         return wrapper;
     }
 

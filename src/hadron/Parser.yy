@@ -875,7 +875,7 @@ slotdeflist[target] : slotdef { $target = $slotdef; }
                     | slotdeflist[build] optcomma slotdef { $target = append($build, $slotdef); }
                     ;
 
-slotdef : IDENTIFIER { $slotdef = hadron::library::VarDefNode(); }
+slotdef : IDENTIFIER { $slotdef = hadron::library::VarDefNode::make(threadContext, $IDENTIFIER); }
         | IDENTIFIER optequal literal {
                 auto varDef = hadron::library::VarDefNode::make(threadContext, $IDENTIFIER);
                 varDef.setInitialValue($literal);
@@ -896,7 +896,7 @@ vardeflist[target]  : vardef { $target = $vardef; }
                     | vardeflist[build] COMMA vardef { $target = append($build, $vardef); }
                     ;
 
-vardef  : IDENTIFIER { $vardef = hadron::library::VarDefNode(); }
+vardef  : IDENTIFIER { $vardef = hadron::library::VarDefNode::make(threadContext, $IDENTIFIER); }
         | IDENTIFIER ASSIGN expr {
                 auto varDef = hadron::library::VarDefNode::make(threadContext, $IDENTIFIER);
                 varDef.setInitialValue($expr);
