@@ -42,10 +42,12 @@ public:
 
     // TODO: could these be constexpr? And rename to fromFloat(), 'make' is confusing.
     static inline Slot makeFloat(double d) { return Slot(d); }
-    static inline Slot makeNil() { return Slot(kPointerTag); }
+    static inline Slot makeNil() { return Slot(kObjectPointerTag); }
     static inline Slot makeInt32(int32_t i) { return Slot(kInt32Tag | (static_cast<uint64_t>(i) & (~kTagMask))); }
     static inline Slot makeBool(bool b) { return Slot(kBooleanTag | (b ? 1ull : 0ull)); }
-    static inline Slot makePointer(library::Schema* p) { return Slot(kPointerTag | reinterpret_cast<uint64_t>(p)); }
+    static inline Slot makePointer(library::Schema* p) {
+        return Slot(kObjectPointerTag | reinterpret_cast<uint64_t>(p));
+    }
     static inline Slot makeHash(Hash h) { return Slot(kHashTag | (h & (~kTagMask))); }
     static inline Slot makeChar(char c) { return Slot(kCharTag | c); }
     static inline Slot makeRawPointer(int8_t* p) { return Slot(kRawPointerTag | reinterpret_cast<uint64_t>(p)); }
@@ -63,8 +65,8 @@ public:
             return TypeFlags::kIntegerFlag;
         case kBooleanTag:
             return TypeFlags::kBooleanFlag;
-        case kPointerTag:
-            return m_bits == kPointerTag ? TypeFlags::kNilFlag : TypeFlags::kObjectFlag;
+        case kObjectPointerTag:
+            return m_bits == kObjectPointerTag ? TypeFlags::kNilFlag : TypeFlags::kObjectFlag;
         case kHashTag:
             return TypeFlags::kSymbolFlag;
         case kCharTag:
@@ -78,10 +80,12 @@ public:
     }
 
     inline bool isFloat() const { return m_bits < kMaxDouble; }
-    inline bool isNil() const { return m_bits == kPointerTag; }
+    inline bool isNil() const { return m_bits == kObjectPointerTag; }
     inline bool isInt32() const { return (m_bits & kTagMask) == kInt32Tag; }
     inline bool isBool() const { return (m_bits & kTagMask) == kBooleanTag; }
-    inline bool isPointer() const { return ((m_bits & kTagMask) == kPointerTag) && (m_bits != kPointerTag); }
+    inline bool isPointer() const {
+        return ((m_bits & kTagMask) == kObjectPointerTag) && (m_bits != kObjectPointerTag);
+    }
     inline bool isHash() const { return (m_bits & kTagMask) == kHashTag; }
     inline bool isChar() const { return (m_bits & kTagMask) == kCharTag; }
     inline bool isRawPointer() const { return (m_bits & kTagMask) == kRawPointerTag; }
@@ -107,14 +111,15 @@ public:
     // Maximum double (quiet NaN with sign bit set without payload):
     //                     seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm
     // 0xfff8000000000000: 11111111|11111000|00000000|00000000|00000000|00000000|00000000|00000000
-    static constexpr uint64_t kMaxDouble     = 0xfff8000000000000;
-    static constexpr uint64_t kInt32Tag      = kMaxDouble;
-    static constexpr uint64_t kBooleanTag    = 0xfff9000000000000;
-    static constexpr uint64_t kPointerTag    = 0xfffa000000000000;  // pointer to library::Schema
-    static constexpr uint64_t kHashTag       = 0xfffb000000000000;
-    static constexpr uint64_t kCharTag       = 0xfffc000000000000;
-    static constexpr uint64_t kRawPointerTag = 0xfffd000000000000;  // raw pointer not subject to garbage collection
-    static constexpr uint64_t kTagMask       = 0xffff000000000000;
+    static constexpr uint64_t kMaxDouble            = 0xfff8000000000000;
+    static constexpr uint64_t kInt32Tag             = kMaxDouble;
+    static constexpr uint64_t kBooleanTag           = 0xfff9000000000000;
+    static constexpr uint64_t kObjectPointerTag     = 0xfffa000000000000;  // pointer to library::Schema based object
+    static constexpr uint64_t kHashTag              = 0xfffb000000000000;
+    static constexpr uint64_t kCharTag              = 0xfffc000000000000;
+    static constexpr uint64_t kRawPointerTag        = 0xfffd000000000000;  // not pointing at an object header
+    static constexpr uint64_t kForwardingPointerTag = 0xfffe000000000000;  // permanently moved, update to new value
+    static constexpr uint64_t kTagMask              = 0xffff000000000000;
 
     // For debugging, normal access should use the get*() methods.
     inline uint64_t asBits() const { return m_bits; }
