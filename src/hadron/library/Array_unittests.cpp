@@ -72,6 +72,15 @@ TEST_CASE_FIXTURE(ArrayTestFixture, "Array") {
 
         REQUIRE_EQ(array.className(), library::Array::nameHash());
     }
+
+    SUBCASE("newClear") {
+        auto array = library::Array::newClear(context(), 25);
+        REQUIRE_EQ(array.size(), 25);
+        for (int32_t i = 0; i < 25; ++i) {
+            CHECK(array.at(i).isNil());
+        }
+    }
+
 }
 
 } // namespace hadron

@@ -219,6 +219,7 @@ add_library(hadron STATIC
     library/Array.hpp
     library/ArrayedCollection.hpp
     library/Collection.hpp
+    library/Dictionary.hpp
     library/Function.hpp
     library/HadronAST.hpp
     library/HadronFrame.hpp
@@ -228,6 +229,7 @@ add_library(hadron STATIC
     library/Object.hpp
     library/Schema.hpp
     library/SequenceableCollection.hpp
+    library/Set.hpp
     library/Stream.hpp
     library/String.hpp
     library/String.cpp
@@ -311,6 +313,7 @@ set(HADRON_COMPILER_UNITTESTS
 
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Array_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/ArrayedCollection_unittests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/library/Dictionary_unittests.cpp
 
     PARENT_SCOPE
 )

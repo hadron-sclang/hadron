@@ -33,7 +33,7 @@ public:
     static Symbol fromString(ThreadContext* context, library::String s);
 
     inline bool isNil() const { return m_slot.isNil(); }
-    inline Hash hash() const { return m_slot.getHash(); }
+    inline Hash hash() const { return m_slot.getSymbolHash(); }
     inline Slot slot() const { return m_slot; }
     std::string_view view(ThreadContext* context) const;
 
@@ -43,7 +43,7 @@ public:
     inline bool operator!=(const Symbol& s) const { return m_slot != s.m_slot; }
 
 private:
-    Symbol(Hash h): m_slot(Slot::makeHash(h)) {}
+    Symbol(Hash h): m_slot(Slot::makeSymbolHash(h)) {}
     Slot m_slot;
 };
 

@@ -1,6 +1,8 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_SLOT_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_SLOT_HPP_
 
+#include "hadron/Hash.hpp"
+
 #include <functional>
 #include <cassert>
 #include <cstddef>
@@ -32,8 +34,6 @@ enum TypeFlags : std::int32_t {
     kAllFlags       = 0xff
 };
 
-using Hash = uint64_t;
-
 class Slot {
 public:
     Slot(const Slot& s) { m_bits = s.m_bits; }
@@ -48,12 +48,13 @@ public:
     static inline Slot makePointer(library::Schema* p) {
         return Slot(kObjectPointerTag | reinterpret_cast<uint64_t>(p));
     }
-    static inline Slot makeHash(Hash h) { return Slot(kHashTag | (h & (~kTagMask))); }
+    static inline Slot makeSymbolHash(Hash h) { return Slot(kSymbolTag | (static_cast<uint64_t>(h) & (~kTagMask))); }
     static inline Slot makeChar(char c) { return Slot(kCharTag | c); }
     static inline Slot makeRawPointer(int8_t* p) { return Slot(kRawPointerTag | reinterpret_cast<uint64_t>(p)); }
 
     inline bool operator==(const Slot& s) const { return m_bits == s.m_bits; }
     inline bool operator!=(const Slot& s) const { return m_bits != s.m_bits; }
+    explicit inline operator bool() const { return !isNil(); }
 
     TypeFlags getType() const {
         if (m_bits < kMaxDouble) {
@@ -67,7 +68,7 @@ public:
             return TypeFlags::kBooleanFlag;
         case kObjectPointerTag:
             return m_bits == kObjectPointerTag ? TypeFlags::kNilFlag : TypeFlags::kObjectFlag;
-        case kHashTag:
+        case kSymbolTag:
             return TypeFlags::kSymbolFlag;
         case kCharTag:
             return TypeFlags::kCharFlag;
@@ -86,7 +87,7 @@ public:
     inline bool isPointer() const {
         return ((m_bits & kTagMask) == kObjectPointerTag) && (m_bits != kObjectPointerTag);
     }
-    inline bool isHash() const { return (m_bits & kTagMask) == kHashTag; }
+    inline bool isSymbolHash() const { return (m_bits & kTagMask) == kSymbolTag; }
     inline bool isChar() const { return (m_bits & kTagMask) == kCharTag; }
     inline bool isRawPointer() const { return (m_bits & kTagMask) == kRawPointerTag; }
 
@@ -101,7 +102,7 @@ public:
         assert(isPointer());
         return reinterpret_cast<library::Schema*>(m_bits & (~kTagMask));
     }
-    inline uint64_t getHash() const { assert(isHash()); return m_bits & (~kTagMask); }
+    inline Hash getSymbolHash() const { assert(isSymbolHash()); return static_cast<Hash>(m_bits & (~kTagMask)); }
     inline char getChar() const { assert(isChar()); return m_bits & (~kTagMask); }
     inline int8_t* getRawPointer() const {
         assert(isRawPointer());
@@ -115,7 +116,7 @@ public:
     static constexpr uint64_t kInt32Tag             = kMaxDouble;
     static constexpr uint64_t kBooleanTag           = 0xfff9000000000000;
     static constexpr uint64_t kObjectPointerTag     = 0xfffa000000000000;  // pointer to library::Schema based object
-    static constexpr uint64_t kHashTag              = 0xfffb000000000000;
+    static constexpr uint64_t kSymbolTag            = 0xfffb000000000000;
     static constexpr uint64_t kCharTag              = 0xfffc000000000000;
     static constexpr uint64_t kRawPointerTag        = 0xfffd000000000000;  // not pointing at an object header
     static constexpr uint64_t kForwardingPointerTag = 0xfffe000000000000;  // permanently moved, update to new value
@@ -123,6 +124,13 @@ public:
 
     // For debugging, normal access should use the get*() methods.
     inline uint64_t asBits() const { return m_bits; }
+
+    // Identity hash of objects is only true when the pointers are identical, so for all types contained in a slot a
+    // hash of the pointer value.
+    inline Hash identityHash(Hash seed = 0) const {
+        if (isSymbolHash() && seed == 0) { return getSymbolHash(); }
+        return hash(reinterpret_cast<const char*>(this), sizeof(Slot), seed);
+    }
 
 private:
     explicit Slot(double floatValue) { m_bits = *(reinterpret_cast<uint64_t*>(&floatValue)); }
