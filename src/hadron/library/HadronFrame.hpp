@@ -17,6 +17,17 @@ public:
     explicit Frame(Slot instance): Object<Frame, schema::HadronFrameSchema>(instance) {}
     ~Frame() {}
 
+    static Frame makeFrame(ThreadContext* context, BlockLiteralHIR outerBlock, Method method) {
+        auto frame = Frame::alloc(context);
+        frame.initToNil();
+        frame.setOuterBlockHIR(outerBlock);
+        frame.setMethod(method);
+        frame.setHasVarArgs(false);
+        frame.setRootScope(Scope::makeRootScope(context, frame));
+        frame.setNumberOfBlocks(0);
+        return frame;
+    }
+
     BlockLiteralHIR outerBlockHIR() const { return BlockLiteralHIR(m_instance->outerBlockHIR); }
     void setOuterBlockHIR(BlockLiteralHIR b) { m_instance->outerBlockHIR = b.slot(); }
 

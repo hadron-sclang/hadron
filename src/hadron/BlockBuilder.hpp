@@ -1,35 +1,20 @@
 #ifndef SRC_HADRON_BLOCK_BUILDER_HPP_
 #define SRC_HADRON_BLOCK_BUILDER_HPP_
 
-#include "hadron/Block.hpp"
-#include "hadron/hir/HIR.hpp"
 #include "hadron/library/HadronAST.hpp"
+#include "hadron/library/HadronBlock.hpp"
+#include "hadron/library/HadronFrame.hpp"
+#include "hadron/library/HadronHIR.hpp"
+#include "hadron/library/HadronScope.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Symbol.hpp"
 
 #include <memory>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace hadron {
 
-class Block;
 class ErrorReporter;
-struct Frame;
-struct Scope;
 struct ThreadContext;
-
-namespace ast {
-struct AST;
-struct BlockAST;
-struct IfAST;
-struct SequenceAST;
-struct WhileAST;
-}
-
-namespace hir {
-struct BlockLiteralHIR;
-}
 
 // Goes from AST to a Control Flow Graph of Blocks of HIR code in SSA form.
 //
@@ -41,31 +26,27 @@ public:
     BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter);
     ~BlockBuilder() = default;
 
-    std::unique_ptr<Frame> buildMethod(ThreadContext* context, const library::Method method,
-            const library::BlockAST blockAST);
+    library::Frame buildMethod(ThreadContext* context, const library::Method method, const library::BlockAST blockAST);
 
 private:
-    std::unique_ptr<Frame> buildFrame(ThreadContext* context, const library::Method method,
-            const library::BlockAST blockAST, hir::BlockLiteralHIR* outerBlockHIR);
+    library::Frame buildFrame(ThreadContext* context, const library::Method method,
+            const library::BlockAST blockAST, library::BlockLiteralHIR outerBlockHIR);
 
     // Re-uses the containing stack frame but produces a new scope.
-    std::unique_ptr<Scope> buildInlineBlock(ThreadContext* context, const library::Method method, Scope* parentScope,
-            Block* predecessor, const library::BlockAST blockAST);
+    library::Scope buildInlineBlock(ThreadContext* context, const library::Method method, library::Scope parentScope,
+            library::Block predecessor, const library::BlockAST blockAST);
 
-    // Take the expression sequence in |node|, build SSA form out of it, return pair of value numbers associated with
-    // expression value and expression type respectively. While it will process all descendents of |node| it will not
-    // iterate to process the |node->next| pointer. Call buildFinalValue() to do that.
-    hir::ID buildValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
+    library::HIRId buildValue(ThreadContext* context, const library::Method method, library::Block& currentBlock,
             const library::AST ast);
-    hir::ID buildFinalValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
+    library::HIRId buildFinalValue(ThreadContext* context, const library::Method method, library::Block& currentBlock,
             const library::SequenceAST sequence);
-    hir::ID buildIf(ThreadContext* context, const library::Method method, Block*& currentBlock,
+    library::HIRId buildIf(ThreadContext* context, const library::Method method, library::Block& currentBlock,
             const library::IfAST ifAST);
-    hir::ID buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
+    library::HIRId buildWhile(ThreadContext* context, const library::Method method, library::Block& currentBlock,
             const library::WhileAST whileAST);
 
-    // If |toWrite| is kInvalidID that means this is a read operation. Returns nullptr if name not found.
-    hir::HIR* findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite);
+    // If |toWrite| is nil that means this is a read operation. Returns nil if name not found.
+    library::HIR findName(ThreadContext* context, library::Symbol name, library::Block block, library::HIRId toWrite);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
 };

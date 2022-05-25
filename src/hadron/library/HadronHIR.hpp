@@ -3,6 +3,7 @@
 
 #include "hadron/library/Array.hpp"
 #include "hadron/library/HadronFrame.hpp"
+#include "hadron/library/Integer.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Object.hpp"
 #include "hadron/library/Set.hpp"
@@ -11,6 +12,10 @@
 
 namespace hadron {
 namespace library {
+
+// HIR uses plain Integers as unique identifiers for values. We use the HIRId alias to help clarify when we are
+// referring to HIRId values instead of some other Integer identifier.
+using HIRId = Integer;
 
 template<typename T, typename S, typename B>
 class HIRBase : public Object<T, S> {
@@ -25,13 +30,13 @@ public:
         return B::wrapUnsafe(Slot::makePointer(reinterpret_cast<library::Schema*>(t.m_instance)));
     }
 
-    int32_t id() const {
+    HIRId id() const {
         const T& t = static_cast<const T&>(*this);
-        return t.m_instance->id.getInt32();
+        return HIRId(t.m_instance->id);
     }
-    void setId(int32_t i) {
+    void setId(HIRId i) {
         T& t = static_cast<T&>(*this);
-        t.m_instance->id = Slot::makeInt32(i);
+        t.m_instance->id = i.slot();
     }
 
     TypeFlags typeFlags() const {

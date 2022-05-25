@@ -3,11 +3,15 @@
 
 #include "hadron/Slot.hpp"
 
+namespace hadron {
+namespace library {
+
+// Wraps a Slot containing either an int32_t or nil.
 class Integer {
 public:
     Integer(): m_slot(Slot::makeNil()) {}
     Integer(int32_t i): m_slot(Slot::makeInt32(i)) {}
-    Integer(Slot i): m_slot(i) { assert(i.isInt32()); }
+    Integer(Slot i): m_slot(i) { assert(i.isNil() || i.isInt32()); }
     ~Integer() {}
 
     Integer& operator=(const Integer& i) { m_slot = i.m_slot; return *this; }
@@ -24,5 +28,8 @@ public:
 private:
     Slot m_slot;
 };
+
+} // namespace library
+} // namespace hadron
 
 #endif // SRC_HADRON_LIBRARY_INTEGER_HPP_

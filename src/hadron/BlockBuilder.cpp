@@ -2,28 +2,8 @@
 
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/ErrorReporter.hpp"
-#include "hadron/Frame.hpp"
 #include "hadron/Heap.hpp"
-#include "hadron/hir/BlockLiteralHIR.hpp"
-#include "hadron/hir/BranchHIR.hpp"
-#include "hadron/hir/BranchIfTrueHIR.hpp"
-#include "hadron/hir/ConstantHIR.hpp"
-#include "hadron/hir/HIR.hpp"
-#include "hadron/hir/LoadOuterFrameHIR.hpp"
-#include "hadron/hir/MessageHIR.hpp"
-#include "hadron/hir/MethodReturnHIR.hpp"
-#include "hadron/hir/PhiHIR.hpp"
-#include "hadron/hir/ReadFromClassHIR.hpp"
-#include "hadron/hir/ReadFromContextHIR.hpp"
-#include "hadron/hir/ReadFromFrameHIR.hpp"
-#include "hadron/hir/ReadFromThisHIR.hpp"
-#include "hadron/hir/RouteToSuperclassHIR.hpp"
-#include "hadron/hir/StoreReturnHIR.hpp"
-#include "hadron/hir/WriteToClassHIR.hpp"
-#include "hadron/hir/WriteToFrameHIR.hpp"
-#include "hadron/hir/WriteToThisHIR.hpp"
 #include "hadron/LinearFrame.hpp"
-#include "hadron/Scope.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
@@ -40,16 +20,16 @@ namespace hadron {
 BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
     m_errorReporter(errorReporter) { }
 
-std::unique_ptr<Frame> BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
+library::Frame BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
         const library::BlockAST blockAST) {
-    return buildFrame(context, method, blockAST, nullptr);
+    return buildFrame(context, method, blockAST, library::BlockLiteralHIR());
 }
 
-std::unique_ptr<Frame> BlockBuilder::buildFrame(ThreadContext* context, const library::Method method,
-    const library::BlockAST blockAST, hir::BlockLiteralHIR* outerBlockHIR) {
+library::Frame BlockBuilder::buildFrame(ThreadContext* context, const library::Method method,
+    const library::BlockAST blockAST, library::BlockLiteralHIR outerBlockHIR) {
     // Build outer frame, root scope, and entry block.
-    auto frame = std::make_unique<Frame>(context, outerBlockHIR, method);
-    auto scope = frame->rootScope.get();
+    auto frame = library::Frame::makeFrame(context, outerBlockHIR, method);
+    auto scope = frame.rootScope();
 
     // Add arguments to the prototype frame.
     frame->prototypeFrame = frame->prototypeFrame.addAll(context, blockAST.argumentDefaults());

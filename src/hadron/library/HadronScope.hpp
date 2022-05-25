@@ -18,14 +18,35 @@ public:
     explicit Scope(Slot instance): Object<Scope, schema::HadronScopeSchema>(instance) {}
     ~Scope() {}
 
+    static Scope makeRootScope(ThreadContext* context, Frame owningFrame) {
+        auto scope = Scope::alloc(context);
+        scope.initToNil();
+        scope.setFrame(owningFrame);
+        scope.setFrameIndex(0);
+        return scope;
+    }
+
+    static Scope makeSubScope(ThreadContext* context, Scope parentScope) {
+        auto scope = Scope::alloc(context);
+        scope.initToNil();
+        scope.setFrame(parentScope.frame());
+        scope.setParent(parentScope);
+        scope.setFrameIndex(0);
+        return scope;
+    }
+
     Frame frame() const { return Frame(m_instance->frame); }
     void setFrame(Frame f) { m_instance->frame = f.slot(); }
 
     Scope parent() const { return Scope(m_instance->parent); }
     void setParent(Scope p) { m_instance->parent = p.slot(); }
 
+/*
     TypedArray<Block> blocks() const { return TypedArray<Block>(m_instance->blocks); }
     void setBlocks(TypedArray<Block> a) { m_instance->blocks = a.slot(); }
+*/
+    Array blocks() const { return Array(m_instance->blocks); }
+    void setBlocks(Array a) { m_instance->blocks = a.slot(); }
 
     TypedArray<Scope> subScopes() const { return TypedArray<Scope>(m_instance->subScopes); }
     void setSubScopes(TypedArray<Scope> a) { m_instance->subScopes = a.slot(); }

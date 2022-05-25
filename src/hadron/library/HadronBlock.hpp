@@ -2,7 +2,6 @@
 #define SRC_HADRON_LIBRARY_HADRON_BLOCK_HPP_
 
 #include "hadron/library/Dictionary.hpp"
-#include "hadron/library/HadronBlock.hpp"
 #include "hadron/library/HadronFrame.hpp"
 #include "hadron/library/HadronHIR.hpp"
 #include "hadron/library/HadronScope.hpp"
