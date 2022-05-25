@@ -78,9 +78,26 @@ public:
         array().put(index, item);
     }
 
-    bool contains(Slot item) {
+    bool contains(Slot item) const {
         auto index = array().atIdentityHash(item);
         return !array().at(index).isNil();
+    }
+};
+
+template<typename V>
+class TypedIdentSet : public IdentitySet {
+public:
+    TypedIdentSet(): IdentitySet() {}
+    explicit TypedIdentSet(schema::IdentitySetSchema* instance): IdentitySet(instance) {}
+    explicit TypedIdentSet(Slot instance): IdentitySet(instance) {}
+    ~TypedIdentSet() {}
+
+    void typedAdd(ThreadContext* context, V item) {
+        add(context, item.slot());
+    }
+
+    bool typedContains(V item) const {
+        return contains(item.slot());
     }
 };
 

@@ -41,6 +41,7 @@ public:
 
     inline bool operator==(const Symbol& s) const { return m_slot == s.m_slot; }
     inline bool operator!=(const Symbol& s) const { return m_slot != s.m_slot; }
+    explicit inline operator bool() const { return !isNil(); }
 
 private:
     Symbol(Hash h): m_slot(Slot::makeSymbolHash(h)) {}

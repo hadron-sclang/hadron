@@ -64,8 +64,9 @@ template<typename T>
 class TypedArray : public Array {
 public:
     TypedArray(): Array() {}
-    TypedArray(schema::ArraySchema* instance): Array(instance) {}
-    TypedArray(Slot instance): Array(instance) {}
+    explicit TypedArray(schema::ArraySchema* instance): Array(instance) {}
+    explicit TypedArray(Slot instance): Array(instance) {}
+    ~TypedArray() {}
 
     static TypedArray<T> typedArrayAlloc(ThreadContext* context, int32_t maxSize) {
         Array a = arrayAlloc(context, maxSize);

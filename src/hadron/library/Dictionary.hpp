@@ -76,6 +76,24 @@ public:
     }
 };
 
+template<typename K, typename V>
+class TypedIdentDict : public IdentityDictionary {
+public:
+    TypedIdentDict(): IdentityDictionary() {}
+    explicit TypedIdentDict(schema::IdentityDictionarySchema* instance): IdentityDictionary(instance) {}
+    explicit TypedIdentDict(Slot instance): IdentityDictionary(instance) {}
+    ~TypedIdentDict() {}
+
+    void typedPut(ThreadContext* context, K key, V value) {
+        put(context, key.slot(), value.slot());
+    }
+
+    V typedGet(K key) {
+        return V(get(key.slot()));
+    }
+};
+
+
 } // namespace library
 } // namespace hadron
 

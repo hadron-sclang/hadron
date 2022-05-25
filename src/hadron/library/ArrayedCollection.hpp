@@ -161,6 +161,15 @@ public:
     }
 };
 
+class Int32Array : public RawArray<Int32Array, schema::Int32ArraySchema, int32_t> {
+public:
+    Int32Array(): RawArray<Int32Array, schema::Int32ArraySchema, int32_t>() {}
+    explicit Int32Array(schema::Int32ArraySchema* instance):
+            RawArray<Int32Array, schema::Int32ArraySchema, int32_t>(instance) {}
+    explicit Int32Array(Slot instance): RawArray<Int32Array, schema::Int32ArraySchema, int32_t>(instance) {}
+    ~Int32Array() {}
+};
+
 class SymbolArray : public RawArray<SymbolArray, schema::SymbolArraySchema, Symbol> {
 public:
     SymbolArray(): RawArray<SymbolArray, schema::SymbolArraySchema, Symbol>() {}
