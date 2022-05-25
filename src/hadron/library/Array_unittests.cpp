@@ -1,27 +1,12 @@
 #include "hadron/library/Array.hpp"
 
-#include "hadron/ErrorReporter.hpp"
-#include "hadron/Runtime.hpp"
-#include "hadron/ThreadContext.hpp"
+#include "hadron/library/LibraryTestFixture.hpp"
 
 #include "doctest/doctest.h"
 
 namespace hadron {
 
-class ArrayTestFixture {
-public:
-    ArrayTestFixture():
-        m_errorReporter(std::make_shared<ErrorReporter>()),
-        m_runtime(std::make_unique<Runtime>(m_errorReporter)) {}
-    virtual ~ArrayTestFixture() = default;
-protected:
-    ThreadContext* context() { return m_runtime->context(); }
-private:
-    std::shared_ptr<ErrorReporter> m_errorReporter;
-    std::unique_ptr<Runtime> m_runtime;
-};
-
-TEST_CASE_FIXTURE(ArrayTestFixture, "Array") {
+TEST_CASE_FIXTURE(LibraryTestFixture, "Array") {
     SUBCASE("add") {
         auto array = library::Array();
 

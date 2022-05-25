@@ -1,28 +1,13 @@
 #include "hadron/library/Dictionary.hpp"
 
-#include "hadron/ErrorReporter.hpp"
+#include "hadron/library/LibraryTestFixture.hpp"
 #include "hadron/library/Symbol.hpp"
-#include "hadron/Runtime.hpp"
-#include "hadron/ThreadContext.hpp"
 
 #include "doctest/doctest.h"
 
 namespace hadron {
 
-class DictionaryTestFixture {
-public:
-    DictionaryTestFixture():
-        m_errorReporter(std::make_shared<ErrorReporter>()),
-        m_runtime(std::make_unique<Runtime>(m_errorReporter)) {}
-    virtual ~DictionaryTestFixture() = default;
-protected:
-    ThreadContext* context() { return m_runtime->context(); }
-private:
-    std::shared_ptr<ErrorReporter> m_errorReporter;
-    std::unique_ptr<Runtime> m_runtime;
-};
-
-TEST_CASE_FIXTURE(DictionaryTestFixture, "IdentityDictionary") {
+TEST_CASE_FIXTURE(LibraryTestFixture, "IdentityDictionary") {
     SUBCASE("base case") {
         auto dict = library::IdentityDictionary::makeIdentityDictionary(context());
         CHECK_EQ(dict.size(), 0);
@@ -42,7 +27,7 @@ TEST_CASE_FIXTURE(DictionaryTestFixture, "IdentityDictionary") {
         CHECK(dict.get(library::Symbol::fromView(context(), "d").slot()).isNil());
     }
 
-    SUBCASE("force resize") {
+    SUBCASE("put resize") {
         auto dict = library::IdentityDictionary::makeIdentityDictionary(context());
         for (int32_t i = 0; i < 128; ++i) {
             dict.put(context(), Slot::makeInt32(i), Slot::makeInt32(i * 2));

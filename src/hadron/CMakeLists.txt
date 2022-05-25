@@ -314,6 +314,8 @@ set(HADRON_COMPILER_UNITTESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Array_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/ArrayedCollection_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Dictionary_unittests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/library/LibraryTestFixture.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/library/Set_unittests.cpp
 
     PARENT_SCOPE
 )

@@ -49,10 +49,10 @@ public:
         return set;
     }
 
-    // add(), remove(), and scanFor() are not implemented as primitives in the SuperCollider library code. These C++
-    // implementations mimic the implementation in Set and IdentitySet. If making substantive changes to behavior in
-    // either implementation the other must change to reflect the new behavior. TODO: consider a new implementation of
-    // HadronSet, HadronIdentitySet, HadronIdentityDictionary.
+    // add() is not implemented as a primitive in the SuperCollider library code. This C++ implementation mimic the
+    // implementation in Set. If making substantive changes to behavior in either implementation the other must change /
+    // to reflect the new behavior. TODO: consider a new implementation of HadronSet, HadronIdentitySet,
+    // HadronIdentityDictionary.
     void add(ThreadContext* context, Slot item) {
         assert(item);
 
@@ -78,8 +78,9 @@ public:
         array().put(index, item);
     }
 
-    int scanFor(Slot item) const {
-        return array().atIdentityHash(item);
+    bool contains(Slot item) {
+        auto index = array().atIdentityHash(item);
+        return !array().at(index).isNil();
     }
 };
 
