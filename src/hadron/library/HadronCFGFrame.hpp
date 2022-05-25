@@ -1,24 +1,25 @@
-#ifndef SRC_HADRON_LIBRARY_HADRON_FRAME_HPP_
-#define SRC_HADRON_LIBRARY_HADRON_FRAME_HPP_
+#ifndef SRC_HADRON_LIBRARY_HADRON_CFGFRAME_HPP_
+#define SRC_HADRON_LIBRARY_HADRON_CFGFRAME_HPP_
 
-#include "hadron/library/Object.hpp"
+#include "hadron/library/HadronCFGScope.hpp"
 #include "hadron/library/HadronHIR.hpp"
-#include "hadron/library/HadronScope.hpp"
 #include "hadron/library/Kernel.hpp"
-#include "hadron/schema/HLang/HadronFrameSchema.hpp"
+#include "hadron/library/Object.hpp"
+#include "hadron/schema/HLang/HadronCFGFrameSchema.hpp"
 
 namespace hadron {
 namespace library {
 
-class Frame : public Object<Frame, schema::HadronFrameSchema> {
+class CFGFrame : public Object<CFGFrame, schema::HadronCFGFrameSchema> {
 public:
-    Frame(): Object<Frame, schema::HadronFrameSchema>() {}
-    explicit Frame(schema::HadronFrameSchema* instance): Object<Frame, schema::HadronFrameSchema>(instance) {}
-    explicit Frame(Slot instance): Object<Frame, schema::HadronFrameSchema>(instance) {}
-    ~Frame() {}
+    CFGFrame(): Object<CFGFrame, schema::HadronCFGFrameSchema>() {}
+    explicit CFGFrame(schema::HadronCFGFrameSchema* instance):
+            Object<CFGFrame, schema::HadronCFGFrameSchema>(instance) {}
+    explicit CFGFrame(Slot instance): Object<CFGFrame, schema::HadronCFGFrameSchema>(instance) {}
+    ~CFGFrame() {}
 
-    static Frame makeFrame(ThreadContext* context, BlockLiteralHIR outerBlock, Method method) {
-        auto frame = Frame::alloc(context);
+    static CFGFrame makeCFGFrame(ThreadContext* context, BlockLiteralHIR outerBlock, Method method) {
+        auto frame = CFGFrame::alloc(context);
         frame.initToNil();
         frame.setOuterBlockHIR(outerBlock);
         frame.setMethod(method);
@@ -62,4 +63,4 @@ public:
 } // namespace library
 } // namespace hadron
 
-#endif // SRC_HADRON_LIBRARY_HADRON_FRAME_HPP_
+#endif // SRC_HADRON_LIBRARY_HADRON_CFGFRAME_HPP_

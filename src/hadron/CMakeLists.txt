@@ -150,11 +150,11 @@ endforeach()
 
 list(APPEND HLANG_CLASS_FILES
     "${HLANG_PATH}/HLang/HadronAST.sc"
-    "${HLANG_PATH}/HLang/HadronBlock.sc"
-    "${HLANG_PATH}/HLang/HadronFrame.sc"
+    "${HLANG_PATH}/HLang/HadronCFGBlock.sc"
+    "${HLANG_PATH}/HLang/HadronCFGFrame.sc"
+    "${HLANG_PATH}/HLang/HadronCFGScope.sc"
     "${HLANG_PATH}/HLang/HadronHIR.sc"
     "${HLANG_PATH}/HLang/HadronParseNode.sc"
-    "${HLANG_PATH}/HLang/HadronScope.sc"
 )
 
 foreach(CLASS_FILE ${HLANG_CLASS_FILES})
@@ -224,11 +224,11 @@ add_library(hadron STATIC
     library/Dictionary.hpp
     library/Function.hpp
     library/HadronAST.hpp
-    library/HadronBlock.hpp
-    library/HadronFrame.hpp
+    library/HadronCFGBlock.hpp
+    library/HadronCFGFrame.hpp
+    library/HadronCFGScope.hpp
     library/HadronHIR.hpp
     library/HadronParseNode.hpp
-    library/HadronScope.hpp
     library/Integer.hpp
     library/Kernel.hpp
     library/Object.hpp
@@ -236,8 +236,8 @@ add_library(hadron STATIC
     library/SequenceableCollection.hpp
     library/Set.hpp
     library/Stream.hpp
-    library/String.hpp
     library/String.cpp
+    library/String.hpp
     library/Symbol.cpp
     library/Symbol.hpp
     library/Thread.hpp

@@ -1,4 +1,4 @@
-HadronBlock {
+HadronCFGBlock {
 	var <>scope;
 	var <>frame;
 	var <>id;

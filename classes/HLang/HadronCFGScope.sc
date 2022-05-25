@@ -1,4 +1,4 @@
-HadronScope {
+HadronCFGScope {
 	var <>frame;
 	var <>parent;
 	var <>blocks;
