@@ -26,7 +26,7 @@ public:
             Dictionary<IdentityDictionary, schema::IdentityDictionarySchema>(instance) {}
     ~IdentityDictionary() {}
 
-    static IdentityDictionary makeIdentityDictionary(ThreadContext* context, int32_t capacity = 7) {
+    static IdentityDictionary makeIdentityDictionary(ThreadContext* context, int32_t capacity = 4) {
         auto dict = IdentityDictionary::alloc(context);
         // Array should be 3 / 2 the size of the number of keys, times 2 elements in the array per key/value pair means
         // we triple the size of the array to support |capacity| elements.
@@ -57,7 +57,7 @@ public:
             setArray(newDict.array());
         }
 
-        auto index = indexForKey(key);
+        auto index = array().atIdentityHashInPairs(key);
         auto existingKey = array().at(index);
         if (existingKey) {
             assert(existingKey.identityHash() == key.identityHash());
@@ -71,24 +71,8 @@ public:
     Slot get(Slot key) {
         // keys cannot be nil.
         assert(key);
-        auto index = indexForKey(key);
+        auto index = array().atIdentityHashInPairs(key);
         return array().at(index + 1);
-    }
-
-private:
-    // The index in the array where an element with the same identityHash of |key| is, or the first nil element probed.
-    int32_t indexForKey(Slot key) {
-        auto hash = key.identityHash();
-        // Keys are always at even indexes followed by their value pair at odd, so mask off the least significant bit to
-        // compute even index.
-        auto index = (hash % array().size()) & (~1);
-        auto element = array().at(index);
-        while (element && element.identityHash() != hash) {
-            index = (index + 2) % array().size();
-            element = array().at(index);
-        }
-
-        return index;
     }
 };
 

@@ -35,6 +35,54 @@ public:
     }
 };
 
+class IdentitySet : public Set<IdentitySet, schema::IdentitySetSchema> {
+public:
+    IdentitySet(): Set<IdentitySet, schema::IdentitySetSchema>() {}
+    explicit IdentitySet(schema::IdentitySetSchema* instance): Set<IdentitySet, schema::IdentitySetSchema>(instance) {}
+    explicit IdentitySet(Slot instance): Set<IdentitySet, schema::IdentitySetSchema>(instance) {}
+    ~IdentitySet() {}
+
+    static IdentitySet makeIdentitySet(ThreadContext* context, int32_t capacity = 4) {
+        auto set = IdentitySet::alloc(context);
+        set.setArray(Array::newClear(context, (capacity * 3) / 2));
+        set.setSize(0);
+        return set;
+    }
+
+    // add(), remove(), and scanFor() are not implemented as primitives in the SuperCollider library code. These C++
+    // implementations mimic the implementation in Set and IdentitySet. If making substantive changes to behavior in
+    // either implementation the other must change to reflect the new behavior. TODO: consider a new implementation of
+    // HadronSet, HadronIdentitySet, HadronIdentityDictionary.
+    void add(ThreadContext* context, Slot item) {
+        assert(item);
+
+        if ((size() * 3) / 2 >= array().size()) {
+            auto newSet = IdentitySet::makeIdentitySet(context, size() * 2);
+            for (int32_t i = 0; i < array().size(); ++i) {
+                auto element = array().at(i);
+                if (element) {
+                    newSet.add(context, element);
+                }
+            }
+
+            setArray(newSet.array());
+        }
+
+        auto index = array().atIdentityHash(item);
+        auto existingElement = array().at(index);
+        if (existingElement) {
+            assert(existingElement.identityHash() == item.identityHash());
+        } else {
+            setSize(size() + 1);
+        }
+        array().put(index, item);
+    }
+
+    int scanFor(Slot item) const {
+        return array().atIdentityHash(item);
+    }
+};
+
 } // namespace library
 } // namespace hadron
 
