@@ -92,6 +92,8 @@ public:
     explicit TypedIdentSet(Slot instance): IdentitySet(instance) {}
     ~TypedIdentSet() {}
 
+    TypedArray<V> typedArray() const { return TypedArray<V>(array().slot()); }
+
     void typedAdd(ThreadContext* context, V item) {
         add(context, item.slot());
     }

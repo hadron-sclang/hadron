@@ -222,7 +222,9 @@ add_library(hadron STATIC
     library/Dictionary.hpp
     library/Function.hpp
     library/HadronAST.hpp
+    library/HadronCFG.cpp
     library/HadronCFG.hpp
+    library/HadronHIR.cpp
     library/HadronHIR.hpp
     library/HadronParseNode.hpp
     library/Integer.hpp

@@ -29,6 +29,11 @@ private:
     Slot m_slot;
 };
 
+// HIR uses plain Integers as unique identifiers for values. We use the HIRId alias to help clarify when we are
+// referring to HIRId values instead of some other Integer identifier.
+using HIRId = Integer;
+using BlockId = Integer;
+
 } // namespace library
 } // namespace hadron
 

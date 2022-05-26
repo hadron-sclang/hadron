@@ -51,7 +51,8 @@ HadronCFGBlock {
 	var <>successors;
 	var <>phis;
 	var <>statements;
-	var <>prependExitIndex;
+	// Branch and return statements executed after any HIR in statements.
+	var <>exitStatements;
 	var <>hasMethodReturn;
 	var <>finalValue;
 	var <>constantValues;

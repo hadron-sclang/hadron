@@ -224,13 +224,23 @@ public:
     }
 };
 
-template<typename T, typename FrameT, typename ScopeT>
+template<typename T, typename FrameT, typename ScopeT, typename PhiHIRT, typename HIRT>
 class CFGBlockT : public Object<T, schema::HadronCFGBlockSchema> {
 public:
     CFGBlockT(): Object<T, schema::HadronCFGBlockSchema>() {}
     explicit CFGBlockT(schema::HadronCFGBlockSchema* instance): Object<T, schema::HadronCFGBlockSchema>(instance) {}
     explicit CFGBlockT(Slot instance): Object<T, schema::HadronCFGBlockSchema>(instance) {}
     ~CFGBlockT() {}
+
+    static T makeCFGBlock(ThreadContext* context, ScopeT scope, int32_t blockId) {
+        auto block = T::alloc(context);
+        block.initToNil();
+        block.setScope(scope);
+        block.setFrame(scope.frame());
+        block.setId(blockId);
+        block.setHasMethodReturn(false);
+        return block;
+    }
 
     ScopeT scope() const {
         const T& t = static_cast<const T&>(*this);
@@ -277,6 +287,51 @@ public:
         t.m_instance->successors = a.slot();
     }
 
+    TypedArray<PhiHIRT> phis() const {
+        const T& t = static_cast<const T&>(*this);
+        return TypedArray<PhiHIRT>(t.m_instance->phis);
+    }
+    void setPhis(TypedArray<PhiHIRT> a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->phis = a.slot();
+    }
+
+    TypedArray<HIRT> statements() const {
+        const T& t = static_cast<const T&>(*this);
+        return TypedArray<HIRT>(t.m_instance->statements);
+    }
+    void setStatements(TypedArray<HIRT> a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->statements = a.slot();
+    }
+
+    TypedArray<HIRT> exitStatements() const {
+        const T& t = static_cast<const T&>(*this);
+        return TypedArray<HIRT>(t.m_instance->exitStatements);
+    }
+    void setExitStatements(TypedArray<HIRT> a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->exitStatements = a.slot();
+    }
+
+    bool hasMethodReturn() const {
+        const T& t = static_cast<const T&>(*this);
+        return t.m_instance->hasMethodReturn.getBool();
+    }
+    void setHasMethodReturn(bool b) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->hasMethodReturn = Slot::makeBool(b);
+    }
+
+    HIRId finalValue() const {
+        const T& t = static_cast<const T&>(*this);
+        return HIRId(t.m_instance->finalValue);
+    }
+    void setFinalValue(HIRId id) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->finalValue = id.slot();
+    }
+
     TypedIdentDict<Slot, Integer> constantValues() const {
         const T& t = static_cast<const T&>(*this);
         return TypedIdentDict<Slot, Integer>(t.m_instance->constantValues);
@@ -298,7 +353,13 @@ public:
 
 class CFGFrame;
 class CFGBlock;
-class CFGScope : public CFGScopeT<CFGScope, CFGFrame, CFGBlock> {};
+class CFGScope : public CFGScopeT<CFGScope, CFGFrame, CFGBlock> {
+public:
+    CFGScope(): CFGScopeT<CFGScope, CFGFrame, CFGBlock>() {}
+    explicit CFGScope(schema::HadronCFGScopeSchema* instance): CFGScopeT<CFGScope, CFGFrame, CFGBlock>(instance) {}
+    explicit CFGScope(Slot instance): CFGScopeT<CFGScope, CFGFrame, CFGBlock>(instance) {}
+    ~CFGScope() {}
+};
 
 class HIR;
 class BlockLiteralHIR;
@@ -311,7 +372,18 @@ public:
     ~CFGFrame() {}
 };
 
-class CFGBlock : public CFGBlockT<CFGBlock, CFGFrame, CFGScope> {};
+class PhiHIR;
+class CFGBlock : public CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR> {
+public:
+    CFGBlock(): CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>() {}
+    explicit CFGBlock(schema::HadronCFGBlockSchema* instance):
+            CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>(instance) {}
+    explicit CFGBlock(Slot instance): CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>(instance) {}
+    ~CFGBlock() {}
+
+    // Adds hir to |statements| or |exitStatements|, returns assigned id.
+    HIRId append(ThreadContext* context, HIR hir);
+};
 
 } // namespace library
 } // namespace hadron

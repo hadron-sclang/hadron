@@ -32,22 +32,23 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
     auto scope = frame.rootScope();
 
     // Add arguments to the prototype frame.
-    frame->prototypeFrame = frame->prototypeFrame.addAll(context, blockAST.argumentDefaults());
+    frame.setPrototypeFrame(frame.prototypeFrame().addAll(context, blockAST.argumentDefaults()));
 
     // Include the arguments in the root scope value names set.
     for (int32_t i = 0; i < blockAST.argumentNames().size(); ++i) {
-        scope->valueIndices.emplace(std::make_pair(blockAST.argumentNames().at(i), frame->prototypeFrame.size()));
-        frame->prototypeFrame = frame->prototypeFrame.add(context, blockAST.argumentDefaults().at(i));
+        scope.valueIndices().typedPut(context, blockAST.argumentNames().at(i), frame.prototypeFrame().size());
+        frame.setPrototypeFrame(frame.prototypeFrame().add(context, blockAST.argumentDefaults().at(i)));
     }
 
-    scope->blocks.emplace_back(std::make_unique<Block>(scope, frame->numberOfBlocks));
-    ++frame->numberOfBlocks;
-    auto currentBlock = scope->blocks.front().get();
+    scope.setBlocks(scope.blocks().typedAdd(context,
+            library::CFGBlock::makeCFGBlock(context, scope, frame.numberOfBlocks())));
+    frame.setNumberOfBlocks(frame.numberOfBlocks() + 1);
+    auto currentBlock = scope.blocks().typedAt(0);
 
     buildFinalValue(context, method, currentBlock, blockAST.statements());
 
     // We append a return statement in the final block, if one wasn't already provided.
-    if (!currentBlock->hasMethodReturn()) {
+    if (!currentBlock.hasMethodReturn()) {
         currentBlock->append(std::make_unique<hir::MethodReturnHIR>());
     }
 
