@@ -150,9 +150,7 @@ endforeach()
 
 list(APPEND HLANG_CLASS_FILES
     "${HLANG_PATH}/HLang/HadronAST.sc"
-    "${HLANG_PATH}/HLang/HadronCFGBlock.sc"
-    "${HLANG_PATH}/HLang/HadronCFGFrame.sc"
-    "${HLANG_PATH}/HLang/HadronCFGScope.sc"
+    "${HLANG_PATH}/HLang/HadronCFG.sc"
     "${HLANG_PATH}/HLang/HadronHIR.sc"
     "${HLANG_PATH}/HLang/HadronParseNode.sc"
 )
@@ -224,9 +222,7 @@ add_library(hadron STATIC
     library/Dictionary.hpp
     library/Function.hpp
     library/HadronAST.hpp
-    library/HadronCFGBlock.hpp
-    library/HadronCFGFrame.hpp
-    library/HadronCFGScope.hpp
+    library/HadronCFG.hpp
     library/HadronHIR.hpp
     library/HadronParseNode.hpp
     library/Integer.hpp

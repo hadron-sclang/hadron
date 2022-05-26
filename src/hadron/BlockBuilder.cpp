@@ -20,15 +20,15 @@ namespace hadron {
 BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
     m_errorReporter(errorReporter) { }
 
-library::Frame BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
+library::CFGFrame BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
         const library::BlockAST blockAST) {
     return buildFrame(context, method, blockAST, library::BlockLiteralHIR());
 }
 
-library::Frame BlockBuilder::buildFrame(ThreadContext* context, const library::Method method,
+library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library::Method method,
     const library::BlockAST blockAST, library::BlockLiteralHIR outerBlockHIR) {
     // Build outer frame, root scope, and entry block.
-    auto frame = library::Frame::makeFrame(context, outerBlockHIR, method);
+    auto frame = library::CFGFrame::makeCFGFrame(context, outerBlockHIR, method);
     auto scope = frame.rootScope();
 
     // Add arguments to the prototype frame.

@@ -2,7 +2,7 @@
 #define SRC_HADRON_LIBRARY_HADRON_HIR_HPP_
 
 #include "hadron/library/Array.hpp"
-#include "hadron/library/HadronCFGFrame.hpp"
+#include "hadron/library/HadronCFG.hpp"
 #include "hadron/library/Integer.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Object.hpp"
@@ -85,7 +85,7 @@ public:
             HIRBase<BlockLiteralHIR, schema::HadronBlockLiteralHIRSchema, HIR>(instance) {}
     ~BlockLiteralHIR() {}
 
-    CFGFrame frame() const { return Frame(m_instance->frame); }
+    CFGFrame frame() const { return CFGFrame(m_instance->frame); }
     void setFrame(CFGFrame f) { m_instance->frame = f.slot(); }
 
     FunctionDef functionDef() const { return FunctionDef(m_instance->functionDef); }

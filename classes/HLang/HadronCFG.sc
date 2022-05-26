@@ -1,3 +1,12 @@
+HadronCFGScope {
+	var <>frame;
+	var <>parent;
+	var <>blocks;
+	var <>subScopes;
+	var <>frameIndex;
+	var <>valueIndices;
+}
+
 HadronCFGFrame {
 	// Function literals can capture values from outside frames, so we include a pointer to the InlineBlockHIR in the
     // containing frame to support search of those frames for those values.
@@ -32,4 +41,19 @@ HadronCFGFrame {
 
     // Counter used as a serial number to uniquely identify blocks.
 	var <>numberOfBlocks;
+}
+
+HadronCFGBlock {
+	var <>scope;
+	var <>frame;
+	var <>id;
+	var <>predecessors;
+	var <>successors;
+	var <>phis;
+	var <>statements;
+	var <>prependExitIndex;
+	var <>hasMethodReturn;
+	var <>finalValue;
+	var <>constantValues;
+	var <>constantIds;
 }

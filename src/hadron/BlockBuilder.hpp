@@ -2,9 +2,7 @@
 #define SRC_HADRON_BLOCK_BUILDER_HPP_
 
 #include "hadron/library/HadronAST.hpp"
-#include "hadron/library/HadronCFGBlock.hpp"
-#include "hadron/library/HadronCFGFrame.hpp"
-#include "hadron/library/HadronCFGScope.hpp"
+#include "hadron/library/HadronCFG.hpp"
 #include "hadron/library/HadronHIR.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Symbol.hpp"
