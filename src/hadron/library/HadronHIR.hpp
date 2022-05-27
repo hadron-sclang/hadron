@@ -116,6 +116,12 @@ public:
     explicit BranchHIR(Slot instance): HIRBase<BranchHIR, schema::HadronBranchHIRSchema, HIR>(instance) {}
     ~BranchHIR() {}
 
+    static BranchHIR makeBranchHIR(ThreadContext* context) {
+        auto branchHIR = BranchHIR::alloc(context);
+        branchHIR.initToNil();
+        return branchHIR;
+    }
+
     BlockId blockId() const { return BlockId(m_instance->blockId); }
     void setBlockId(BlockId i) { m_instance->blockId = i.slot(); }
 };
@@ -128,6 +134,13 @@ public:
     explicit BranchIfTrueHIR(Slot instance):
             HIRBase<BranchIfTrueHIR, schema::HadronBranchIfTrueHIRSchema, HIR>(instance) {}
     ~BranchIfTrueHIR() {}
+
+    static BranchIfTrueHIR makeBranchIfTrueHIR(ThreadContext* context, HIRId conditionId) {
+        auto branchIfTrueHIR = BranchIfTrueHIR::alloc(context);
+        branchIfTrueHIR.initToNil();
+        branchIfTrueHIR.setCondition(conditionId);
+        return branchIfTrueHIR;
+    }
 
     HIRId condition() const { return HIRId(m_instance->condition); }
     void setCondition(HIRId i) { m_instance->condition = i.slot(); }
@@ -225,6 +238,11 @@ public:
     explicit PhiHIR(schema::HadronPhiHIRSchema* instance): HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR>(instance) {}
     explicit PhiHIR(Slot instance): HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR>(instance) {}
     ~PhiHIR() {}
+
+    void addInput(HIR input);
+    // A phi is *trivial* if it has only one distinct input value that is not self-referential. If this phi is trivial,
+    // return the trivial value. Otherwise return a nil value.
+    HIRId getTrivialValue() const;
 
     Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
     void setName(Symbol n) { m_instance->name = n.slot(); }
@@ -331,7 +349,7 @@ public:
     static StoreReturnHIR makeStoreReturnHIR(ThreadContext* context, HIRId retVal) {
         auto storeReturnHIR = StoreReturnHIR::alloc(context);
         storeReturnHIR.initToNil();
-        storeReturnHIR.reads().typedAdd(retVal);
+        storeReturnHIR.reads().typedAdd(context, retVal);
         storeReturnHIR.setReturnValue(retVal);
         return storeReturnHIR;
     }

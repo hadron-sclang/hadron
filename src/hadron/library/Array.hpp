@@ -74,14 +74,16 @@ public:
     }
 
     T typedAt(int32_t index) const { return T(at(index)); }
+    T typedFirst() const { return T(first()); }
+    T typedLast() const { return T(last()); }
 
     TypedArray<T>& typedAdd(ThreadContext* context, T element) {
-        add(context, Slot::makePointer(reinterpret_cast<library::Schema*>(element.instance())));
+        add(context, element.slot());
         return *this;
     }
 
     Slot typedIndexOf(T item) const {
-        return indexOf(Slot::makePointer(item.instance()));
+        return indexOf(item.slot());
     }
 };
 

@@ -43,7 +43,7 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
     scope.setBlocks(scope.blocks().typedAdd(context,
             library::CFGBlock::makeCFGBlock(context, scope, frame.numberOfBlocks())));
     frame.setNumberOfBlocks(frame.numberOfBlocks() + 1);
-    auto currentBlock = scope.blocks().typedAt(0);
+    auto currentBlock = scope.blocks().typedFirst();
 
     buildFinalValue(context, method, currentBlock, blockAST.statements());
 
@@ -204,133 +204,133 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::M
         auto sequence = multiAssignAST.targetNames().sequence();
         for (int32_t i = 0; i < sequence.size(); ++i) {
             auto nameAST = library::NameAST(sequence.at(i));
-            auto message = std::make_unique<hir::MessageHIR>();
+            auto message = library::MessageHIR::makeMessageHIR(context);
 
             if (multiAssignAST.lastIsRemain() && (i == (sequence.size() - 1))) {
-                message->selector = context->symbolTable->copySeriesSymbol();
+                message.setSelector(context->symbolTable->copySeriesSymbol());
             } else {
-                message->selector = context->symbolTable->atSymbol();
+                message.setSelector(context->symbolTable->atSymbol());
             }
 
-            message->arguments.emplace_back(nodeValue);
+            message.addArgument(context, nodeValue);
 
-            auto indexValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeInt32(i)));
-            message->arguments.emplace_back(indexValue);
+            auto indexValue = currentBlock.append(context,
+                    library::ConstantHIR::makeConstantHIR(context, Slot::makeInt32(i)).toBase());
+            message.addArgument(context, indexValue);
 
-            auto messageValue = currentBlock->append(std::move(message));
+            auto messageValue = currentBlock.append(context, message.toBase());
             auto assign = findName(context, nameAST.name(context), currentBlock, messageValue);
             assert(assign);
         }
     } break;
     }
 
-    assert(nodeValue != hir::kInvalidID);
+    assert(nodeValue);
     return nodeValue;
 }
 
-hir::ID BlockBuilder::buildFinalValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
-        const library::SequenceAST sequenceAST) {
-    auto finalValue = hir::kInvalidID;
+library::HIRId BlockBuilder::buildFinalValue(ThreadContext* context, const library::Method method,
+        library::CFGBlock& currentBlock, const library::SequenceAST sequenceAST) {
+    auto finalValue = library::HIRId();
 
     if (sequenceAST.sequence().size()) {
         for (int32_t i = 0; i < sequenceAST.sequence().size(); ++i) {
             auto ast = library::AST::wrapUnsafe(sequenceAST.sequence().at(i));
             finalValue = buildValue(context, method, currentBlock, ast);
-            currentBlock->setFinalValue(finalValue);
+            currentBlock.setFinalValue(finalValue);
 
             // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
-            if (currentBlock->hasMethodReturn()) { break; }
+            if (currentBlock.hasMethodReturn()) { break; }
         }
     } else {
-        finalValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
-        currentBlock->setFinalValue(finalValue);
+        finalValue = currentBlock.append(context,
+                library::ConstantHIR::makeConstantHIR(context, Slot::makeNil()).toBase());
+        currentBlock.setFinalValue(finalValue);
     }
 
-    assert(finalValue != hir::kInvalidID);
+    assert(finalValue);
     return finalValue;
 }
 
-hir::ID BlockBuilder::buildIf(ThreadContext* context, library::Method method, Block*& currentBlock,
+library::HIRId BlockBuilder::buildIf(ThreadContext* context, library::Method method, library::CFGBlock& currentBlock,
         const library::IfAST ifAST) {
-    hir::ID nodeValue;
     // Compute final value of the condition.
     auto condition = buildFinalValue(context, method, currentBlock, ifAST.condition());
 
     // Add branch to the true block if the condition is true.
-    auto trueBranchOwning = std::make_unique<hir::BranchIfTrueHIR>(condition);
-    auto trueBranch = trueBranchOwning.get();
-    currentBlock->append(std::move(trueBranchOwning));
+    auto trueBranch = library::BranchIfTrueHIR::makeBranchIfTrueHIR(context, condition);
+    currentBlock.append(context, trueBranch.toBase());
 
     // Insert absolute branch to the false block.
-    auto falseBranchOwning = std::make_unique<hir::BranchHIR>();
-    hir::BranchHIR* falseBranch = falseBranchOwning.get();
-    currentBlock->append(std::move(falseBranchOwning));
+    auto falseBranch = library::BranchHIR::makeBranchHIR(context);
+    currentBlock.append(context, falseBranch.toBase());
 
     // Preserve the current block and frame for insertion of the new subframes as children.
-    Scope* parentScope = currentBlock->scope();
-    Block* conditionBlock = currentBlock;
+    auto parentScope = currentBlock.scope();
+    library::CFGBlock conditionBlock = currentBlock;
 
     // Build the true condition block.
-    auto trueScopeOwning = buildInlineBlock(context, method, parentScope, conditionBlock, ifAST.trueBlock());
-    Scope* trueScope = trueScopeOwning.get();
-    parentScope->subScopes.emplace_back(std::move(trueScopeOwning));
-    trueBranch->blockId = trueScope->blocks.front()->id();
-    conditionBlock->successors().emplace_back(trueScope->blocks.front().get());
+    auto trueScope = buildInlineBlock(context, method, parentScope, conditionBlock, ifAST.trueBlock());
+    parentScope.setSubScopes(parentScope.subScopes().typedAdd(context, trueScope));
+    trueBranch.setBlockId(trueScope.blocks().typedFirst().id());
+    conditionBlock.setSuccessors(conditionBlock.successors().typedAdd(context, trueScope.blocks().typedFirst()));
 
     // Build the false condition block.
-    auto falseScopeOwning = buildInlineBlock(context, method, parentScope, conditionBlock, ifAST.falseBlock());
-    Scope* falseScope = falseScopeOwning.get();
-    parentScope->subScopes.emplace_back(std::move(falseScopeOwning));
-    falseBranch->blockId = falseScope->blocks.front()->id();
-    conditionBlock->successors().emplace_back(falseScope->blocks.front().get());
+    auto falseScope = buildInlineBlock(context, method, parentScope, conditionBlock, ifAST.falseBlock());
+    parentScope.setSubScopes(parentScope.subScopes().typedAdd(context, falseScope));
+    falseBranch.setBlockId(falseScope.blocks().typedFirst().id());
+    conditionBlock.setSuccessors(conditionBlock.successors().typedAdd(context, falseScope.blocks().typedFirst()));
 
     // If both conditions return there's no need for a continution block, and building values in this scope is done.
-    if (falseScope->blocks.back()->hasMethodReturn() && trueScope->blocks.back()->hasMethodReturn()) {
-        conditionBlock->setHasMethodReturn(true);
+    if (falseScope.blocks().typedLast().hasMethodReturn() && trueScope.blocks().typedLast().hasMethodReturn()) {
+        conditionBlock.setHasMethodReturn(true);
         currentBlock = conditionBlock;
-        return conditionBlock->finalValue();
+        return conditionBlock.finalValue();
     }
 
     // Create a new block in the parent frame for code after the if statement.
-    auto continueBlock = std::make_unique<Block>(parentScope, parentScope->frame->numberOfBlocks);
-    ++parentScope->frame->numberOfBlocks;
-    currentBlock = continueBlock.get();
-    parentScope->blocks.emplace_back(std::move(continueBlock));
+    auto continueBlock = library::CFGBlock::makeCFGBlock(context, parentScope, parentScope.frame().numberOfBlocks());
+    parentScope.frame().setNumberOfBlocks(parentScope.frame().numberOfBlocks() + 1);
+    currentBlock = continueBlock;
+    parentScope.setBlocks(parentScope.blocks().typedAdd(context, continueBlock));
+
+    library::HIRId nodeValue = library::HIRId();
 
     // Wire trueScope exit block to the continue block here, if the true block doesn't return.
-    if (!trueScope->blocks.back()->hasMethodReturn()) {
-        auto exitTrueBranch = std::make_unique<hir::BranchHIR>();
-        exitTrueBranch->blockId = currentBlock->id();
-        trueScope->blocks.back()->append(std::move(exitTrueBranch));
-        trueScope->blocks.back()->successors().emplace_back(currentBlock);
-        currentBlock->predecessors().emplace_back(trueScope->blocks.back().get());
-        nodeValue = trueScope->blocks.back()->finalValue();
-        assert(nodeValue != hir::kInvalidID);
-        assert(currentBlock->frame()->values[nodeValue]);
+    if (!trueScope.blocks().typedLast().hasMethodReturn()) {
+        auto exitTrueBranch = library::BranchHIR::makeBranchHIR(context);
+        exitTrueBranch.setBlockId(currentBlock.id());
+        auto lastBlock = trueScope.blocks().typedLast();
+        lastBlock.append(context, exitTrueBranch.toBase());
+        lastBlock.setSuccessors(lastBlock.successors().typedAdd(context, currentBlock));
+        currentBlock.setPredecessors(currentBlock.predecessors().typedAdd(context, lastBlock));
+        nodeValue = lastBlock.finalValue();
+        assert(nodeValue);
     }
 
     // Wire falseFrame exit block to the continue block here.
-    if (!falseScope->blocks.back()->hasMethodReturn()) {
-        auto exitFalseBranch = std::make_unique<hir::BranchHIR>();
-        exitFalseBranch->blockId = currentBlock->id();
-        falseScope->blocks.back()->append(std::move(exitFalseBranch));
-        falseScope->blocks.back()->successors().emplace_back(currentBlock);
-        currentBlock->predecessors().emplace_back(falseScope->blocks.back().get());
-        nodeValue = falseScope->blocks.back()->finalValue();
-        assert(nodeValue != hir::kInvalidID);
-        assert(currentBlock->frame()->values[nodeValue]);
+    if (!falseScope.blocks().typedLast().hasMethodReturn()) {
+        auto exitFalseBranch = library::BranchHIR::makeBranchHIR(context);
+        exitFalseBranch.setBlockId(currentBlock.id());
+        auto lastBlock = falseScope.blocks().typedLast();
+        lastBlock.append(context, exitFalseBranch.toBase());
+        lastBlock.setSuccessors(lastBlock.successors().typedAdd(context, currentBlock));
+        currentBlock.setPredecessors(currentBlock.predecessors().typedAdd(context, lastBlock));
+        nodeValue = lastBlock.finalValue();
+        assert(nodeValue);
     }
 
     // Add a Phi with the final value of both the false and true blocks here, and which serves as the value of the
     // if statement overall.
-    if ((!falseScope->blocks.back()->hasMethodReturn()) && (!trueScope->blocks.back()->hasMethodReturn())) {
-        auto valuePhi = std::make_unique<hir::PhiHIR>();
+    if ((!falseScope.blocks().typedLast().hasMethodReturn()) && (!trueScope.blocks().typedLast().hasMethodReturn())) {
+        auto valuePhi = // std::make_unique<hir::PhiHIR>();
         valuePhi->owningBlock = currentBlock;
         valuePhi->addInput(currentBlock->frame()->values[trueScope->blocks.back()->finalValue()]);
         valuePhi->addInput(currentBlock->frame()->values[falseScope->blocks.back()->finalValue()]);
         nodeValue = valuePhi->proposeValue(static_cast<hir::ID>(currentBlock->frame()->values.size()));
         currentBlock->frame()->values.emplace_back(valuePhi.get());
         currentBlock->phis().emplace_back(std::move(valuePhi));
+        assert(nodeValue);
     }
 
     return nodeValue;
