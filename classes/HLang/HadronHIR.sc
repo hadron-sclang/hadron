@@ -31,7 +31,7 @@ HadronLoadOuterFrameHIR : HadronHIR {
 HadronMessageHIR : HadronHIR {
 	var <>selector;
 	var <>arguments;
-	var <>keywordArgumens;
+	var <>keywordArguments;
 }
 
 HadronMethodReturnHIR : HadronHIR { }

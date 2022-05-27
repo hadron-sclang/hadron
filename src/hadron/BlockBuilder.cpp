@@ -49,103 +49,102 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
 
     // We append a return statement in the final block, if one wasn't already provided.
     if (!currentBlock.hasMethodReturn()) {
-        currentBlock->append(std::make_unique<hir::MethodReturnHIR>());
+        currentBlock.append(context, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
     }
 
     return frame;
 }
 
-std::unique_ptr<Scope> BlockBuilder::buildInlineBlock(ThreadContext* context, const library::Method method,
-        Scope* parentScope, Block* predecessor, const library::BlockAST blockAST) {
-    auto scope = std::make_unique<Scope>(parentScope);
-    scope->blocks.emplace_back(std::make_unique<Block>(scope.get(), scope->frame->numberOfBlocks));
-    ++scope->frame->numberOfBlocks;
-    auto block = scope->blocks.front().get();
-    block->predecessors().emplace_back(predecessor);
+library::CFGScope BlockBuilder::buildInlineBlock(ThreadContext* context, const library::Method method,
+        library::CFGScope parentScope, library::CFGBlock predecessor, const library::BlockAST blockAST) {
+    auto scope = library::CFGScope::makeSubCFGScope(context, parentScope);
+    auto block = library::CFGBlock::makeCFGBlock(context, scope, scope.frame().numberOfBlocks());
+    block.setPredecessors(block.predecessors().typedAdd(context, predecessor));
+    scope.frame().setNumberOfBlocks(scope.frame().numberOfBlocks() + 1);
+    scope.setBlocks(scope.blocks().typedAdd(context, block));
 
     // For now we can't handle inline blocks with arguments (other than "this")
     assert(blockAST.argumentNames().size() <= 1);
 
-    Block* currentBlock = block;
+    auto currentBlock = block;
     buildFinalValue(context, method, currentBlock, blockAST.statements());
 
     return scope;
 }
 
-hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method method, Block*& currentBlock,
-        const library::AST ast) {
-    hir::ID nodeValue = hir::kInvalidID;
+library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::Method method,
+        library::CFGBlock& currentBlock, const library::AST ast) {
+    auto nodeValue = library::HIRId();
 
     switch(ast.className()) {
     case library::EmptyAST::nameHash():
-        nodeValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
-        assert(nodeValue != hir::kInvalidID);
+        nodeValue = currentBlock.append(context,
+                library::ConstantHIR::makeConstantHIR(context, Slot::makeNil()).toBase());
+        assert(nodeValue);
         break;
 
     case library::SequenceAST::nameHash(): {
         auto sequenceAST = library::SequenceAST(ast.slot());
         nodeValue = buildFinalValue(context, method, currentBlock, sequenceAST);
-        assert(nodeValue != hir::kInvalidID);
+        assert(nodeValue);
     } break;
 
     // Blocks encountered here are are block literals, and are candidates for inlining.
     case library::BlockAST::nameHash(): {
         auto blockAST = library::BlockAST(ast.slot());
-        auto blockHIR = std::make_unique<hir::BlockLiteralHIR>();
-        auto& blockRef = currentBlock->frame()->innerBlocks.emplace_back(blockHIR.get());
-        nodeValue = currentBlock->append(std::move(blockHIR));
-        blockRef->frame = buildFrame(context, method, blockAST, blockRef);
-        assert(nodeValue != hir::kInvalidID);
+        auto blockHIR = library::BlockLiteralHIR::makeBlockLiteralHIR(context);
+        currentBlock.frame().setInnerBlocks(currentBlock.frame().innerBlocks().typedAdd(context, blockHIR));
+        nodeValue = currentBlock.append(context, blockHIR.toBase());
+        blockHIR.setFrame(buildFrame(context, method, blockAST, blockHIR));
+        assert(nodeValue);
     } break;
 
     case library::IfAST::nameHash(): {
         auto ifAST = library::IfAST(ast.slot());
         nodeValue = buildIf(context, method, currentBlock, ifAST);
-        assert(nodeValue != hir::kInvalidID);
+        assert(nodeValue);
     } break;
 
     case library::WhileAST::nameHash(): {
         auto whileAST = library::WhileAST(ast.slot());
         nodeValue = buildWhile(context, method, currentBlock, whileAST);
-        assert(nodeValue != hir::kInvalidID);
+        assert(nodeValue);
     } break;
 
     case library::MessageAST::nameHash(): {
         auto messageAST = library::MessageAST(ast.slot());
 
-        auto messageHIR = std::make_unique<hir::MessageHIR>();
-        messageHIR->selector = messageAST.selector(context);
+        auto messageHIR = library::MessageHIR::makeMessageHIR(context);
+        messageHIR.setSelector(messageAST.selector(context));
 
         // Build arguments.
-        messageHIR->arguments.reserve(messageAST.arguments().sequence().size());
         for (int32_t i = 0; i < messageAST.arguments().sequence().size(); ++i) {
             auto argAST = library::AST::wrapUnsafe(messageAST.arguments().sequence().at(i));
-            messageHIR->addArgument(buildValue(context, method, currentBlock, argAST));
+            messageHIR.addArgument(context, buildValue(context, method, currentBlock, argAST));
         }
 
         // Build keyword argument pairs.
-        messageHIR->keywordArguments.reserve(messageAST.keywordArguments().sequence().size());
         for (int32_t i = 0; i < messageAST.keywordArguments().sequence().size(); ++i) {
             auto argAST = library::AST::wrapUnsafe(messageAST.keywordArguments().sequence().at(i));
-            messageHIR->addKeywordArgument(buildValue(context, method, currentBlock, argAST));
+            messageHIR.addKeywordArgument(context, buildValue(context, method, currentBlock, argAST));
         }
 
-        nodeValue = currentBlock->append(std::move(messageHIR));
-        assert(nodeValue != hir::kInvalidID);
+        nodeValue = currentBlock.append(context, messageHIR.toBase());
+        assert(nodeValue);
     } break;
 
     case library::NameAST::nameHash(): {
         auto nameAST = library::NameAST(ast.slot());
-        auto findHIR = findName(context, nameAST.name(context), currentBlock, hir::kInvalidID);
+        auto findHIR = findName(context, nameAST.name(context), currentBlock, library::HIRId());
         assert(findHIR);
-        assert(findHIR->id != hir::kInvalidID);
-        nodeValue = findHIR->id;
+        assert(findHIR.id());
+        nodeValue = findHIR.id();
     } break;
 
     case library::AssignAST::nameHash(): {
         auto assignAST = library::AssignAST(ast.slot());
         nodeValue = buildValue(context, method, currentBlock, assignAST.value());
-        assert(nodeValue != hir::kInvalidID);
+        assert(nodeValue);
 
         auto assign = findName(context, assignAST.name(context), currentBlock, nodeValue);
         assert(assign);
@@ -155,41 +154,44 @@ hir::ID BlockBuilder::buildValue(ThreadContext* context, const library::Method m
         auto defineAST = library::DefineAST(ast.slot());
 
         // Add the name to variable index tracking.
-        currentBlock->frame()->variableNames = currentBlock->frame()->variableNames.add(context,
-                defineAST.name(context));
-        currentBlock->scope()->valueIndices.emplace(std::make_pair(defineAST.name(context),
-                currentBlock->frame()->prototypeFrame.size()));
+        currentBlock.frame().setVariableNames(currentBlock.frame().variableNames().add(context,
+                defineAST.name(context)));
+        currentBlock.scope().valueIndices().typedPut(context, defineAST.name(context),
+                currentBlock.frame().prototypeFrame().size());
 
         // Simple constant definitions don't need to be saved, rather we add the value to initial values array.
         if (defineAST.value().className() == library::ConstantAST::nameHash()) {
             auto constAST = library::ConstantAST(defineAST.value().slot());
-            currentBlock->frame()->prototypeFrame = currentBlock->frame()->prototypeFrame.add(context,
-                    constAST.constant());
+            currentBlock.frame().setPrototypeFrame(currentBlock.frame().prototypeFrame().add(context,
+                    constAST.constant()));
 
-            nodeValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(constAST.constant()));
+            nodeValue = currentBlock.append(context,
+                    library::ConstantHIR::makeConstantHIR(context, constAST.constant()).toBase());
         } else {
             // Complex value, assign nil as the prototype value, then create a write statement here to that offset.
-            currentBlock->frame()->prototypeFrame = currentBlock->frame()->prototypeFrame.add(context, Slot::makeNil());
+            currentBlock.frame().setPrototypeFrame(currentBlock.frame().prototypeFrame().add(context, Slot::makeNil()));
 
             nodeValue = buildValue(context, method, currentBlock, defineAST.value());
             auto assign = findName(context, defineAST.name(context), currentBlock, nodeValue);
             assert(assign);
         }
+        assert(nodeValue);
     } break;
 
     case library::ConstantAST::nameHash(): {
         auto constAST = library::ConstantAST(ast.slot());
-        nodeValue = currentBlock->append(std::make_unique<hir::ConstantHIR>(constAST.constant()));
-        assert(nodeValue != hir::kInvalidID);
+        nodeValue = currentBlock.append(context, library::ConstantHIR::makeConstantHIR(context,
+                constAST.constant()).toBase());
+        assert(nodeValue);
     } break;
 
     case library::MethodReturnAST::nameHash(): {
         auto retAST = library::MethodReturnAST(ast.slot());
         nodeValue = buildValue(context, method, currentBlock, retAST.value());
-        assert(nodeValue != hir::kInvalidID);
+        assert(nodeValue);
 
-        currentBlock->append(std::make_unique<hir::StoreReturnHIR>(nodeValue));
-        currentBlock->append(std::make_unique<hir::MethodReturnHIR>());
+        currentBlock.append(context, library::StoreReturnHIR::makeStoreReturnHIR(context, nodeValue).toBase());
+        currentBlock.append(context, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
     } break;
 
     case library::MultiAssignAST::nameHash(): {

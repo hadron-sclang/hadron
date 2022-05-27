@@ -108,6 +108,7 @@ public:
         assert(isRawPointer());
         return reinterpret_cast<int8_t*>(m_bits & (~kTagMask));
     }
+    inline Slot slot() const { return *this; }
 
     // Maximum double (quiet NaN with sign bit set without payload):
     //                     seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm

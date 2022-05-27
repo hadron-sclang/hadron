@@ -11,27 +11,27 @@ namespace hadron {
 namespace library {
 
 /*
-Dependency graph of the various CFG objects and HIR:
-
-      /-----------------\
-      |                 |
-      v                 |
- +----------+      +----------+
- | CFGScope |----->| CFGFrame |
- +----------+      +----------+
-      |  ^          ^  |  ^
-      |  |          |  |  |
-      |  | /--------/  |  |
-      v  | |           v  |
- +----------+      +-------+
- | CFGBlock |----->| HIR   |
- +----------+      +-------+
-      ^               |
-      |               |
-      \---------------/
-
-Using the CRTP prevents easy forward declaration of classes, making cyclical dependencies like this difficult to
-resolve. The answer must be more templates!
+ * Dependency graph of the various CFG objects and HIR:
+ *
+ *      /-----------------\
+ *      |                 |
+ *      v                 |
+ *  +----------+      +----------+
+ *  | CFGScope |----->| CFGFrame |
+ *  +----------+      +----------+
+ *       |  ^          ^  |  ^
+ *       |  |          |  |  |
+ *       |  | /--------/  |  |
+ *       v  | |           v  |
+ *  +----------+      +-------+
+ *  | CFGBlock |----->| HIR   |
+ *  +----------+      +-------+
+ *       ^               |
+ *       |               |
+ *       \---------------/
+ *
+ * Using the CRTP prevents easy forward declaration of classes, making cyclical dependencies like this difficult to
+ * resolve. The answer must be more templates!
  */
 
 template<typename T, typename FrameT, typename BlockT>
@@ -50,7 +50,7 @@ public:
         return scope;
     }
 
-    static T makeSubCFGScope(ThreadContext* context, CFGScopeT parentScope) {
+    static T makeSubCFGScope(ThreadContext* context, T parentScope) {
         auto scope = T::alloc(context);
         scope.initToNil();
         scope.setFrame(parentScope.frame());

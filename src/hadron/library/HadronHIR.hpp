@@ -57,11 +57,19 @@ public:
         const T& t = static_cast<const T&>(*this);
         return TypedIdentSet<B>(t.m_instance->consumers);
     }
-    void setConsumers(TypedIdenSet<B> c) {
+    void setConsumers(TypedIdentSet<B> c) {
         T& t = static_cast<T&>(*this);
         t.m_instance->consumers = c.slot();
     }
 
+    CFGBlock owningBlock() const {
+        const T& t = static_cast<const T&>(*this);
+        return CFGBlock(t.m_instance->owningBlock);
+    }
+    void setOwningBlock(CFGBlock b) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->owningBlock = b.slot();
+    }
 };
 
 class HIR : public HIRBase<HIR, schema::HadronHIRSchema, HIR> {
@@ -136,6 +144,13 @@ public:
     explicit ConstantHIR(Slot instance): HIRBase<ConstantHIR, schema::HadronConstantHIRSchema, HIR>(instance) {}
     ~ConstantHIR() {}
 
+    static ConstantHIR makeConstantHIR(ThreadContext* context, Slot constantValue) {
+        auto constantHIR = ConstantHIR::alloc(context);
+        constantHIR.initToNil();
+        constantHIR.setConstant(constantValue);
+        return constantHIR;
+    }
+
     Slot constant() const { return m_instance->constant; }
     void setConstant(Slot c) { m_instance->constant = c; }
 };
@@ -157,9 +172,25 @@ class MessageHIR : public HIRBase<MessageHIR, schema::HadronMessageHIRSchema, HI
 public:
     MessageHIR(): HIRBase<MessageHIR, schema::HadronMessageHIRSchema, HIR>() {}
     explicit MessageHIR(schema::HadronMessageHIRSchema* instance):
-            HIRBase<MessageHIR, schema::HadronMessasgeHIRSchema, HIR>(instance) {}
+            HIRBase<MessageHIR, schema::HadronMessageHIRSchema, HIR>(instance) {}
     explicit MessageHIR(Slot instance): HIRBase<MessageHIR, schema::HadronMessageHIRSchema, HIR>(instance) {}
     ~MessageHIR() {}
+
+    static MessageHIR makeMessageHIR(ThreadContext* context) {
+        auto messageHIR = MessageHIR::alloc(context);
+        messageHIR.initToNil();
+        return messageHIR;
+    }
+ 
+    void addArgument(ThreadContext* context, HIRId arg) {
+        reads().typedAdd(context, arg);
+        setArguments(arguments().typedAdd(context, arg));
+    }
+
+    void addKeywordArgument(ThreadContext* context, HIRId arg) {
+        reads().typedAdd(context, arg);
+        setKeywordArguments(keywordArguments().typedAdd(context, arg));
+    }
 
     Symbol selector(ThreadContext* context) const { return Symbol(context, m_instance->selector); }
     void setSelector(Symbol s) { m_instance->selector = s.slot(); }
@@ -179,6 +210,13 @@ public:
     explicit MethodReturnHIR(Slot instance):
             HIRBase<MethodReturnHIR, schema::HadronMethodReturnHIRSchema, HIR>(instance) {}
     ~MethodReturnHIR() {}
+
+    static MethodReturnHIR makeMethodReturnHIR(ThreadContext* context) {
+        auto methodReturnHIR = MethodReturnHIR::alloc(context);
+        methodReturnHIR.initToNil();
+        methodReturnHIR.setTypeFlags(TypeFlags::kNoFlags);
+        return methodReturnHIR;
+    }
 };
 
 class PhiHIR : public HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR> {
@@ -199,9 +237,9 @@ class ReadFromClassHIR : public HIRBase<ReadFromClassHIR, schema::HadronReadFrom
 public:
     ReadFromClassHIR(): HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR>() {}
     explicit ReadFromClassHIR(schema::HadronReadFromClassHIRSchema* instance):
-            HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIR, HIR>(instance) {}
+            HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR>(instance) {}
     explicit ReadFromClassHIR(Slot instance):
-            HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIR, HIR>(instance) {}
+            HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR>(instance) {}
     ~ReadFromClassHIR() {}
 
     HIRId classVariableArray() const { return HIRId(m_instance->classVariableArray); }
@@ -289,6 +327,14 @@ public:
     explicit StoreReturnHIR(Slot instance):
             HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR>(instance) {}
     ~StoreReturnHIR() {}
+
+    static StoreReturnHIR makeStoreReturnHIR(ThreadContext* context, HIRId retVal) {
+        auto storeReturnHIR = StoreReturnHIR::alloc(context);
+        storeReturnHIR.initToNil();
+        storeReturnHIR.reads().typedAdd(retVal);
+        storeReturnHIR.setReturnValue(retVal);
+        return storeReturnHIR;
+    }
 
     HIRId returnValue() const { return HIRId(m_instance->returnValue); }
     void setReturnValue(HIRId i) { m_instance->returnValue = i.slot(); }

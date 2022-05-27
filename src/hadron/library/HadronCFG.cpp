@@ -42,8 +42,8 @@ HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
     // Adding a new constant, update the constants map and set.
     if (hir.className() == ConstantHIR::nameHash()) {
         auto constantHIR = ConstantHIR(hir.slot());
-        constantValues.typedPut(context, constantHIR.constant(), id);
-        constantIds.typedAdd(context, id);
+        constantValues().typedPut(context, constantHIR.constant(), id);
+        constantIds().typedAdd(context, id);
     } else if (hir.className() == MethodReturnHIR::nameHash()) {
         setHasMethodReturn(true);
         addToExitStatements = true;
