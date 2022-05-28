@@ -323,143 +323,146 @@ library::HIRId BlockBuilder::buildIf(ThreadContext* context, library::Method met
     // Add a Phi with the final value of both the false and true blocks here, and which serves as the value of the
     // if statement overall.
     if ((!falseScope.blocks().typedLast().hasMethodReturn()) && (!trueScope.blocks().typedLast().hasMethodReturn())) {
-        auto valuePhi = // std::make_unique<hir::PhiHIR>();
-        valuePhi->owningBlock = currentBlock;
-        valuePhi->addInput(currentBlock->frame()->values[trueScope->blocks.back()->finalValue()]);
-        valuePhi->addInput(currentBlock->frame()->values[falseScope->blocks.back()->finalValue()]);
-        nodeValue = valuePhi->proposeValue(static_cast<hir::ID>(currentBlock->frame()->values.size()));
-        currentBlock->frame()->values.emplace_back(valuePhi.get());
-        currentBlock->phis().emplace_back(std::move(valuePhi));
+        auto valuePhi = library::PhiHIR::makePhiHIR(context);
+        nodeValue = currentBlock.append(context, valuePhi.toBase());
+        valuePhi.addInput(context, currentBlock.frame().values().typedAt(
+                trueScope.blocks().typedLast().finalValue().int32()));
+        valuePhi.addInput(context, currentBlock.frame().values().typedAt(
+                falseScope.blocks().typedLast().finalValue().int32()));
         assert(nodeValue);
     }
 
     return nodeValue;
 }
 
-hir::ID BlockBuilder::buildWhile(ThreadContext* context, const library::Method method, Block*& currentBlock,
-        const library::WhileAST whileAST) {
-    Scope* parentScope = currentBlock->scope();
+library::HIRId BlockBuilder::buildWhile(ThreadContext* context, const library::Method method,
+        library::CFGBlock& currentBlock, const library::WhileAST whileAST) {
+    auto parentScope = currentBlock.scope();
 
     // Build condition block. Note this block is unsealed.
-    auto conditionScopeOwning = buildInlineBlock(context, method, parentScope, currentBlock, whileAST.conditionBlock());
-    Scope* conditionScope = conditionScopeOwning.get();
-    parentScope->subScopes.emplace_back(std::move(conditionScopeOwning));
+    auto conditionScope = buildInlineBlock(context, method, parentScope, currentBlock, whileAST.conditionBlock());
+    parentScope.setSubScopes(parentScope.subScopes().typedAdd(context, conditionScope));
 
     // Predecessor block branches to condition block.
-    currentBlock->successors().emplace_back(conditionScope->blocks.front().get());
-    auto predBranch = std::make_unique<hir::BranchHIR>();
-    predBranch->blockId = conditionScope->blocks.front()->id();
-    currentBlock->append(std::move(predBranch));
-    Block* conditionExitBlock = conditionScope->blocks.back().get();
+    currentBlock.setSuccessors(currentBlock.successors().typedAdd(context, conditionScope.blocks().typedFirst()));
+    auto predBranch = library::BranchHIR::makeBranchHIR(context);
+    predBranch.setBlockId(conditionScope.blocks().typedFirst().id());
+    currentBlock.append(context, predBranch.toBase());
+    auto conditionExitBlock = conditionScope.blocks().typedLast();
 
     // Build repeat block.
-    auto repeatScopeOwning = buildInlineBlock(context, method, parentScope, conditionExitBlock,
-            whileAST.repeatBlock());
-    Scope* repeatScope = repeatScopeOwning.get();
-    parentScope->subScopes.emplace_back(std::move(repeatScopeOwning));
-    Block* repeatExitBlock = repeatScope->blocks.back().get();
+    auto repeatScope = buildInlineBlock(context, method, parentScope, conditionExitBlock, whileAST.repeatBlock());
+    parentScope.setSubScopes(parentScope.subScopes().typedAdd(context, repeatScope));
+    auto repeatExitBlock = repeatScope.blocks().typedLast();
 
     // Repeat block branches to condition block.
-    repeatExitBlock->successors().emplace_back(conditionScope->blocks.front().get());
-    conditionScope->blocks.front()->predecessors().emplace_back(repeatExitBlock);
-    auto repeatBranch = std::make_unique<hir::BranchHIR>();
-    repeatBranch->blockId = conditionScope->blocks.front()->id();
-    repeatExitBlock->append(std::move(repeatBranch));
+    auto conditionEntryBlock = conditionScope.blocks().typedFirst();
+    repeatExitBlock.setSuccessors(repeatExitBlock.successors().typedAdd(context, conditionEntryBlock));
+    conditionEntryBlock.setPredecessors(conditionEntryBlock.predecessors().typedAdd(context, repeatExitBlock));
+    auto repeatBranch = library::BranchHIR::makeBranchHIR(context);
+    repeatBranch.setBlockId(conditionEntryBlock.id());
+    repeatExitBlock.append(context, repeatBranch.toBase());
 
     // Condition block conditionally jumps to loop block if true.
-    conditionExitBlock->successors().emplace_back(repeatScope->blocks.front().get());
-    auto trueBranch = std::make_unique<hir::BranchIfTrueHIR>(conditionExitBlock->finalValue());
-    trueBranch->blockId = repeatScope->blocks.front()->id();
-    conditionExitBlock->append(std::move(trueBranch));
+    conditionExitBlock.setSuccessors(conditionExitBlock.successors().typedAdd(context,
+            repeatScope.blocks().typedFirst()));
+    auto trueBranch = library::BranchIfTrueHIR::makeBranchIfTrueHIR(context, conditionExitBlock.finalValue());
+    trueBranch.setBlockId(repeatScope.blocks().typedFirst().id());
+    conditionExitBlock.append(context, trueBranch.toBase());
 
     // Build continuation block.
-    auto continueBlock = std::make_unique<Block>(parentScope, parentScope->frame->numberOfBlocks);
-    ++parentScope->frame->numberOfBlocks;
-    currentBlock = continueBlock.get();
-    parentScope->blocks.emplace_back(std::move(continueBlock));
+    auto continueBlock = library::CFGBlock::makeCFGBlock(context, parentScope, parentScope.frame().numberOfBlocks());
+    parentScope.frame().setNumberOfBlocks(parentScope.frame().numberOfBlocks() + 1);
+    parentScope.setBlocks(parentScope.blocks().typedAdd(context, continueBlock));
 
     // Condition block unconditionally jumps to continuation block.
-    conditionExitBlock->successors().emplace_back(currentBlock);
-    currentBlock->predecessors().emplace_back(conditionExitBlock);
-    auto exitBranch = std::make_unique<hir::BranchHIR>();
-    exitBranch->blockId = currentBlock->id();
-    conditionExitBlock->append(std::move(exitBranch));
+    conditionExitBlock.setSuccessors(conditionExitBlock.successors().typedAdd(context, continueBlock));
+    continueBlock.setPredecessors(continueBlock.predecessors().typedAdd(context, conditionExitBlock));
+    auto exitBranch = library::BranchHIR::makeBranchHIR(context);
+    exitBranch.setBlockId(currentBlock.id());
+    conditionExitBlock.append(context, exitBranch.toBase());
 
+    currentBlock = continueBlock;
     // Inlined while loops in LSC always have a value of nil. Since Hadron inlines all while loops, we do the same.
-    return currentBlock->append(std::make_unique<hir::ConstantHIR>(Slot::makeNil()));
+    return currentBlock.append(context, library::ConstantHIR::makeConstantHIR(context, Slot::makeNil()).toBase());
 }
 
-hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, Block* block, hir::ID toWrite) {
+library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name, library::CFGBlock block,
+        library::HIRId toWrite) {
     // If this symbol defines a class name look it up in the class library and provide it as a constant.
     if (name.isClassName(context)) {
         // Class names are read-only.
-        if (toWrite != hir::kInvalidID) { return nullptr; }
+        assert(!toWrite);
         auto classDef = context->classLibrary->findClassNamed(name);
         if (classDef.isNil()) {
             SPDLOG_CRITICAL("failed to find class named: {}", name.view(context));
             assert(false);
         }
-        auto constant = std::make_unique<hir::ConstantHIR>(classDef.slot());
-        auto id = block->append(std::move(constant));
-        return block->frame()->values[id];
+        auto constant = library::ConstantHIR::makeConstantHIR(context, classDef.slot());
+        auto id = block.append(context, constant.toBase());
+        return block.frame().values().typedAt(id.int32());
     }
 
     // Search through local values in scope.
-    Block* searchBlock = block;
+    auto searchBlock = block;
     size_t nestedFramesCount = 0;
 
     do {
-        Scope* scope = searchBlock->scope();
+        auto scope = searchBlock.scope();
 
-        while (scope != nullptr) {
-            auto iter = scope->valueIndices.find(name);
-            if (iter != scope->valueIndices.end()) {
+        while (scope) {
+            auto index = scope.valueIndices().typedGet(name);
+            if (index) {
                 // Match found, load any and all needed nested frames.
-                auto frameId = hir::kInvalidID;
+                auto frameId = library::HIRId();
                 for (size_t i = 0; i < nestedFramesCount; ++i) {
-                    frameId = block->append(std::make_unique<hir::LoadOuterFrameHIR>(frameId));
+                    frameId = block.append(context, library::LoadOuterFrameHIR::makeOuterFrameHIR(context,
+                            frameId).toBase());
                 }
 
-                if (toWrite == hir::kInvalidID) {
-                    auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(iter->second, frameId, name);
-                    auto hir = readFromFrame.get();
-                    block->append(std::move(readFromFrame));
+                if (!toWrite) {
+                    auto readFromFrame = library::ReadFromFrameHIR::makeReadFromFrameHIR(context, index.int32(),
+                            frameId, name);
+                    auto hir = readFromFrame.toBase();
+                    block.append(context, hir);
                     return hir;
                 }
-                auto writeToFrame = std::make_unique<hir::WriteToFrameHIR>(iter->second, frameId, name, toWrite);
-                auto hir = writeToFrame.get();
-                block->append(std::move(writeToFrame));
+                auto writeToFrame = library::WriteToFrameHIR::makeWriteToFrameHIR(context, index.int32(), frameId,
+                        name, toWrite);
+                auto hir = writeToFrame.toBase();
+                block.append(context, hir);
                 return hir;
             }
-            scope = scope->parent;
+            scope = scope.parent();
         }
 
-        if (!searchBlock->frame()->outerBlockHIR) {
+        if (!searchBlock.frame().outerBlockHIR()) {
             break;
         }
 
         ++nestedFramesCount;
-        searchBlock = searchBlock->frame()->outerBlockHIR->owningBlock;
+        searchBlock = searchBlock.frame().outerBlockHIR().owningBlock();
     } while (true);
 
     // Search instance variables next.
-    library::Class classDef = block->frame()->method.ownerClass();
+    library::Class classDef = block.frame().method().ownerClass();
     auto instVarIndex = classDef.instVarNames().indexOf(name);
     if (instVarIndex.isInt32()) {
         // Go find the this pointer.
-        auto thisHir = findName(context, context->symbolTable->thisSymbol(), block, hir::kInvalidID);
-        assert(thisHir);
-        assert(thisHir->id != hir::kInvalidID);
-        if (toWrite == hir::kInvalidID) {
-            auto readFromThis = std::make_unique<hir::ReadFromThisHIR>(thisHir->id, instVarIndex.getInt32(), name);
-            auto hir = readFromThis.get();
-            block->append(std::move(readFromThis));
+        auto thisHIR = findName(context, context->symbolTable->thisSymbol(), block, library::HIRId());
+        assert(thisHIR);
+        assert(thisHIR.id());
+        if (!toWrite) {
+            auto readFromThis = library::ReadFromThisHIR::makeReadFromThisHIR(context, thisHIR.id(),
+                    instVarIndex.getInt32(), name);
+            auto hir = readFromThis.toBase();
+            block.append(context, hir);
             return hir;
         }
-        auto writeToThis = std::make_unique<hir::WriteToThisHIR>(thisHir->id, instVarIndex.getInt32(), name,
-            toWrite);
-        auto hir = writeToThis.get();
-        block->append(std::move(writeToThis));
+        auto writeToThis = library::WriteToThisHIR::makeWriteToThisHIR(context, thisHIR.id(), instVarIndex.getInt32(),
+                name, toWrite);
+        auto hir = writeToThis.toBase();
+        block.append(context, hir);
         return hir;
     }
 
@@ -479,20 +482,20 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
     while (!classVarDef.isNil()) {
         auto classVarOffset = classVarDef.classVarNames().indexOf(name);
         if (classVarOffset.isInt32()) {
-            // TODO: probably better to load this from ThreadContext at runtime.
-            auto classArray = block->append(std::make_unique<hir::ConstantHIR>(
-                    context->classLibrary->classVariables().slot()));
-            if (toWrite == hir::kInvalidID) {
-                auto readFromClass = std::make_unique<hir::ReadFromClassHIR>(classArray, classVarOffset.getInt32(),
-                        name);
-                auto hir = readFromClass.get();
-                block->append(std::move(readFromClass));
+            auto classArrayHIR = library::ReadFromContextHIR::makeReadFromContextHIR(context, offsetof(ThreadContext,
+                    classVariablesArray), library::Symbol::fromView(context, "_classVariablesArray"));
+            auto classArrayId = block.append(context, classArrayHIR.toBase());
+            if (!toWrite) {
+                auto readFromClass = library::ReadFromClassHIR::makeReadFromClassHIR(context, classArrayId,
+                        classVarOffset.getInt32(), name);
+                auto hir = readFromClass.toBase();
+                block.append(context, hir);
                 return hir;
             }
-            auto writeToClass = std::make_unique<hir::WriteToClassHIR>(classArray, classVarOffset.getInt32(),
-                    name, toWrite);
-            auto hir = writeToClass.get();
-            block->append(std::move(writeToClass));
+            auto writeToClass = library::WriteToClassHIR::makeWriteToClassHIR(context, classArrayId, classVarOffset.
+                    getInt32(), name, toWrite);
+            auto hir = writeToClass.toBase();
+            block.append(context, hir);
             return hir;
         }
 
@@ -505,11 +508,12 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
         auto constIndex = classConstDef.constNames().indexOf(name);
         if (constIndex.isInt32()) {
             // Constants are read-only.
-            if (toWrite != hir::kInvalidID) { return nullptr; }
-            auto constant = std::make_unique<hir::ConstantHIR>(classConstDef.constValues().at(constIndex.getInt32()));
-            auto id = block->append(std::move(constant));
-            assert(id != hir::kInvalidID);
-            return block->frame()->values[id];
+            assert(!toWrite);
+            auto constant = library::ConstantHIR::makeConstantHIR(context,
+                    classConstDef.constValues().at(constIndex.getInt32()));
+            auto id = block.append(context, constant.toBase());
+            assert(id);
+            return block.frame().values().typedAt(id.int32());
         }
 
         classConstDef = context->classLibrary->findClassNamed(classConstDef.superclass(context));
@@ -518,42 +522,46 @@ hir::HIR* BlockBuilder::findName(ThreadContext* context, library::Symbol name, B
     // Check for special names.
     if (name == context->symbolTable->superSymbol()) {
         auto thisRead = findName(context, context->symbolTable->thisSymbol(), block, hir::kInvalidID);
+        // super is read-only.
+        assert(!toWrite);
         assert(thisRead);
-        assert(thisRead->id != hir::kInvalidID);
-        auto super = std::make_unique<hir::RouteToSuperclassHIR>(thisRead->id);
-        auto hir = super.get();
-        block->append(std::move(super));
+        assert(thisRead.id());
+        auto super = library::RouteToSuperclassHIR::makeRouteToSuperclassHIR(context, thisRead.id());
+        auto hir = super.toBase();
+        block.append(context, hir);
         return hir;
     }
 
     if (name == context->symbolTable->thisMethodSymbol()) {
-        auto readFromFrame = std::make_unique<hir::ReadFromFrameHIR>(
-                static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method)) / kSlotSize,
-                hir::kInvalidID,
+        assert(!toWrite); // thisMethod is read-only.
+        auto readFromFrame = library::ReadFromFrameHIR::makeReadFromFrameHIR(context,
+                static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method)) / kSlotSize, library::HIRId(),
                 context->symbolTable->thisMethodSymbol());
-        auto hir = readFromFrame.get();
-        block->append(std::move(readFromFrame));
+        auto hir = readFromFrame.toBase();
+        block.append(context, hir);
         return hir;
     }
 
     if (name == context->symbolTable->thisProcessSymbol()) {
-        auto readFromContext = std::make_unique<hir::ReadFromContextHIR>(offsetof(ThreadContext, thisProcess),
-            context->symbolTable->thisProcessSymbol());
-        auto hir = readFromContext.get();
-        block->append(std::move(readFromContext));
+        assert(!toWrite); // thisProcess is read-only.
+        auto readFromContext = library::ReadFromContextHIR::makeReadFromContextHIR(context, offsetof(ThreadContext,
+                thisProcess), context->symbolTable->thisProcessSymbol());
+        auto hir = readFromContext.toBase();
+        block.append(context, hir);
         return hir;
     }
 
     if (name == context->symbolTable->thisThreadSymbol()) {
-        auto readFromContext = std::make_unique<hir::ReadFromContextHIR>(offsetof(ThreadContext, thisThread),
-            context->symbolTable->thisThreadSymbol());
-        auto hir = readFromContext.get();
-        block->append(std::move(readFromContext));
+        assert(!toWrite); // thisThread is read-only
+        auto readFromContext = library::ReadFromContextHIR::makeReadFromContextHIR(context, offsetof(ThreadContext,
+                thisThread), context->symbolTable->thisThreadSymbol());
+        auto hir = readFromContext.toBase();
+        block.append(context, hir);
         return hir;
     }
 
     SPDLOG_CRITICAL("failed to find name: {}", name.view(context));
-    return nullptr;
+    return library::HIR();
 }
 
 

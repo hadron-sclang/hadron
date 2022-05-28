@@ -6,8 +6,6 @@ namespace hadron {
 namespace library {
 
 HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
-    assert(hir.className() != PhiHIR::nameHash());
-
     // Re-use constants with the same values.
     if (hir.className() == ConstantHIR::nameHash()) {
         // We're possibly skipping dependency updates for this constant, so ensure that constants never have value
@@ -37,6 +35,12 @@ HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
         }
     }
 
+    if (hir.className() == PhiHIR::nameHash()) {
+        auto phiHIR = PhiHIR(hir.slot());
+        setPhis(phis().typedAdd(context, phiHIR));
+        return id;
+    }
+
     bool addToExitStatements = false;
 
     // Adding a new constant, update the constants map and set.
@@ -57,7 +61,7 @@ HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
         setStatements(statements().typedAdd(context, hir));
     }
 
-    return HIRId();
+    return id;
 }
 
 } // namespace library

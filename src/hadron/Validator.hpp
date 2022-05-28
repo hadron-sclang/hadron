@@ -1,8 +1,6 @@
 #ifndef SRC_HADRON_VALIDATOR_HPP_
 #define SRC_HADRON_VALIDATOR_HPP_
 
-#include "hadron/Block.hpp"
-#include "hadron/hir/HIR.hpp"
 #include "hadron/library/ArrayedCollection.hpp"
 #include "hadron/lir/LIR.hpp"
 

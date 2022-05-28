@@ -139,6 +139,7 @@ public:
         auto branchIfTrueHIR = BranchIfTrueHIR::alloc(context);
         branchIfTrueHIR.initToNil();
         branchIfTrueHIR.setCondition(conditionId);
+        branchIfTrueHIR.reads().typedAdd(context, conditionId);
         return branchIfTrueHIR;
     }
 
@@ -176,6 +177,14 @@ public:
     explicit LoadOuterFrameHIR(Slot instance):
             HIRBase<LoadOuterFrameHIR, schema::HadronLoadOuterFrameHIRSchema, HIR>(instance) {}
     ~LoadOuterFrameHIR() {}
+
+    static LoadOuterFrameHIR makeOuterFrameHIR(ThreadContext* context, HIRId inner) {
+        auto loadOuterFrameHIR = LoadOuterFrameHIR::alloc(context);
+        loadOuterFrameHIR.initToNil();
+        loadOuterFrameHIR.setInnerContext(inner);
+        loadOuterFrameHIR.reads().typedAdd(context, inner);
+        return loadOuterFrameHIR;
+    }
 
     HIRId innerContext() const { return HIRId(m_instance->innerContext); }
     void setInnerContext(HIRId i) { m_instance->innerContext = i.slot(); }
@@ -239,7 +248,15 @@ public:
     explicit PhiHIR(Slot instance): HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR>(instance) {}
     ~PhiHIR() {}
 
-    void addInput(HIR input);
+    static PhiHIR makePhiHIR(ThreadContext* context) {
+        auto phiHIR = PhiHIR::alloc(context);
+        phiHIR.initToNil();
+        phiHIR.setTypeFlags(TypeFlags::kNoFlags);
+        phiHIR.setIsSelfReferential(false);
+        return phiHIR;
+    }
+
+    void addInput(ThreadContext* context, HIR input);
     // A phi is *trivial* if it has only one distinct input value that is not self-referential. If this phi is trivial,
     // return the trivial value. Otherwise return a nil value.
     HIRId getTrivialValue() const;
@@ -249,6 +266,9 @@ public:
 
     TypedArray<Integer> inputs() const { return TypedArray<Integer>(m_instance->inputs); }
     void setInputs(TypedArray<Integer> a) { m_instance->inputs = a.slot(); }
+
+    bool isSelfReferential() const { return m_instance->isSelfReferential.getBool(); }
+    void setIsSelfReferential(bool b) { m_instance->isSelfReferential = Slot::makeBool(b); }
 };
 
 class ReadFromClassHIR : public HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR> {
@@ -259,6 +279,16 @@ public:
     explicit ReadFromClassHIR(Slot instance):
             HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR>(instance) {}
     ~ReadFromClassHIR() {}
+
+    static ReadFromClassHIR makeReadFromClassHIR(ThreadContext* context, HIRId classArray, int32_t index, Symbol name) {
+        auto readFromClassHIR = ReadFromClassHIR::alloc(context);
+        readFromClassHIR.initToNil();
+        readFromClassHIR.setClassVariableArray(classArray);
+        readFromClassHIR.reads().typedAdd(context, classArray);
+        readFromClassHIR.setArrayIndex(index);
+        readFromClassHIR.setValueName(name);
+        return readFromClassHIR;
+    }
 
     HIRId classVariableArray() const { return HIRId(m_instance->classVariableArray); }
     void setClassVariableArray(HIRId i) { m_instance->classVariableArray = i.slot(); }
@@ -279,6 +309,14 @@ public:
             HIRBase<ReadFromContextHIR, schema::HadronReadFromContextHIRSchema, HIR>(instance) {}
     ~ReadFromContextHIR() {}
 
+    static ReadFromContextHIR makeReadFromContextHIR(ThreadContext* context, int32_t off, Symbol name) {
+        auto readFromContextHIR = ReadFromContextHIR::alloc(context);
+        readFromContextHIR.initToNil();
+        readFromContextHIR.setOffset(off);
+        readFromContextHIR.setValueName(name);
+        return readFromContextHIR;
+    }
+
     int32_t offset() const { return m_instance->offset.getInt32(); }
     void setOffset(int32_t i) { m_instance->offset = Slot::makeInt32(i); }
 
@@ -294,6 +332,18 @@ public:
     explicit ReadFromFrameHIR(Slot instance):
             HIRBase<ReadFromFrameHIR, schema::HadronReadFromFrameHIRSchema, HIR>(instance) {}
     ~ReadFromFrameHIR() {}
+
+    // If |framePointer| is nil this will use the current active frame pointer.
+    static ReadFromFrameHIR makeReadFromFrameHIR(ThreadContext* context, int32_t index, HIRId framePointer,
+            Symbol name) {
+        auto readFromFrameHIR = ReadFromFrameHIR::alloc(context);
+        readFromFrameHIR.initToNil();
+        readFromFrameHIR.setFrameIndex(index);
+        readFromFrameHIR.setFrameId(framePointer);
+        if (framePointer) { readFromFrameHIR.reads().typedAdd(context, framePointer); }
+        readFromFrameHIR.setValueName(name);
+        return readFromFrameHIR;
+    }
 
     int32_t frameIndex() const { return m_instance->frameIndex.getInt32(); }
     void setFrameIndex(int32_t i) { m_instance->frameIndex = Slot::makeInt32(i); }
@@ -314,6 +364,18 @@ public:
             HIRBase<ReadFromThisHIR, schema::HadronReadFromThisHIRSchema, HIR>(instance) {}
     ~ReadFromThisHIR() {}
 
+    // TODO: lots of redundant naming here, maybe move the make* methods outside of the classes? They aren't accessing
+    // anything private..
+    static ReadFromThisHIR makeReadFromThisHIR(ThreadContext* context, HIRId tID, int32_t index, Symbol name) {
+        auto readFromThisHIR = ReadFromThisHIR::alloc(context);
+        readFromThisHIR.initToNil();
+        readFromThisHIR.setThisId(tID);
+        readFromThisHIR.reads().typedAdd(context, tID);
+        readFromThisHIR.setIndex(index);
+        readFromThisHIR.setValueName(name);
+        return readFromThisHIR;
+    }
+
     HIRId thisId() const { return HIRId(m_instance->thisId); }
     void setThisId(HIRId i) { m_instance->thisId = i.slot(); }
 
@@ -332,6 +394,14 @@ public:
     explicit RouteToSuperclassHIR(Slot instance):
             HIRBase<RouteToSuperclassHIR, schema::HadronRouteToSuperclassHIRSchema, HIR>(instance) {}
     ~RouteToSuperclassHIR() {}
+
+    static RouteToSuperclassHIR makeRouteToSuperclassHIR(ThreadContext* context, HIRId tId) {
+        auto routeToSuperclassHIR = RouteToSuperclassHIR::alloc(context);
+        routeToSuperclassHIR.initToNil();
+        routeToSuperclassHIR.setThisId(tId);
+        routeToSuperclassHIR.reads().typedAdd(context, tId);
+        return routeToSuperclassHIR;
+    }
 
     HIRId thisId() const { return HIRId(m_instance->thisId); }
     void setThisId(HIRId i) { m_instance->thisId = i.slot(); }
@@ -367,6 +437,19 @@ public:
             HIRBase<WriteToClassHIR, schema::HadronWriteToClassHIRSchema, HIR>(instance) {}
     ~WriteToClassHIR() {}
 
+    static WriteToClassHIR makeWriteToClassHIR(ThreadContext* context, HIRId classArray, int32_t index, Symbol name,
+            HIRId v) {
+        auto writeToClassHIR = WriteToClassHIR::alloc(context);
+        writeToClassHIR.initToNil();
+        writeToClassHIR.setClassVariableArray(classArray);
+        writeToClassHIR.reads().typedAdd(context, classArray);
+        writeToClassHIR.setArrayIndex(index);
+        writeToClassHIR.setValueName(name);
+        writeToClassHIR.setToWrite(v);
+        writeToClassHIR.reads().typedAdd(context, v);
+        return writeToClassHIR;
+    }
+
     HIRId classVariableArray() const { return HIRId(m_instance->classVariableArray); }
     void setClassVariableArray(HIRId i) { m_instance->classVariableArray = i.slot(); }
 
@@ -389,6 +472,19 @@ public:
             HIRBase<WriteToFrameHIR, schema::HadronWriteToFrameHIRSchema, HIR>(instance) {}
     ~WriteToFrameHIR() {}
 
+    static WriteToFrameHIR makeWriteToFrameHIR(ThreadContext* context, int32_t index, HIRId framePointer, Symbol name,
+            HIRId v) {
+        auto writeToFrameHIR = WriteToFrameHIR::alloc(context);
+        writeToFrameHIR.initToNil();
+        writeToFrameHIR.setFrameIndex(index);
+        writeToFrameHIR.setFrameId(framePointer);
+        writeToFrameHIR.reads().typedAdd(context, framePointer);
+        writeToFrameHIR.setValueName(name);
+        writeToFrameHIR.setToWrite(v);
+        writeToFrameHIR.reads().typedAdd(context, v);
+        return writeToFrameHIR;
+    }
+
     int32_t frameIndex() const { return m_instance->frameIndex.getInt32(); }
     void setFrameIndex(int32_t i) { m_instance->frameIndex = Slot::makeInt32(i); }
 
@@ -410,6 +506,18 @@ public:
     explicit WriteToThisHIR(Slot instance):
             HIRBase<WriteToThisHIR, schema::HadronWriteToThisHIRSchema, HIR>(instance) {}
     ~WriteToThisHIR() {}
+
+    static WriteToThisHIR makeWriteToThisHIR(ThreadContext* context, HIRId tID, int32_t idx, Symbol name, HIRId v) {
+        auto writeToThisHIR = WriteToThisHIR::alloc(context);
+        writeToThisHIR.initToNil();
+        writeToThisHIR.setThisId(tID);
+        writeToThisHIR.reads().typedAdd(context, tID);
+        writeToThisHIR.setIndex(idx);
+        writeToThisHIR.setValueName(name);
+        writeToThisHIR.setToWrite(v);
+        writeToThisHIR.reads().typedAdd(context, v);
+        return writeToThisHIR;
+    }
 
     HIRId thisId() const { return HIRId(m_instance->thisId); }
     void setThisId(HIRId i) { m_instance->thisId = i.slot(); }

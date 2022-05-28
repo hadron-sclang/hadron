@@ -82,6 +82,20 @@ public:
         auto index = array().atIdentityHash(item);
         return !array().at(index).isNil();
     }
+
+    // Returns the item next to |i| in the unordered array, or nil if that was the last item. If |i| is nil, returns
+    // the *first* item in the array, or nil in an empty IdentitySet.
+    Slot next(Slot i) const {
+        int32_t index = i ? array().atIdentityHash(i) + 1 : 0;
+        auto element = Slot::makeNil();
+
+        while (!element && index < array().size()) {
+            element = array().at(index);
+            ++index;
+        }
+
+        return element;
+    }
 };
 
 template<typename V>
@@ -100,6 +114,10 @@ public:
 
     bool typedContains(V item) const {
         return contains(item.slot());
+    }
+
+    V typedNext(V i) const {
+        return V(next(i.slot()));
     }
 };
 

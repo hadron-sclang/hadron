@@ -179,42 +179,6 @@ add_library(hadron STATIC
     ${SCHEMA_FILES}
     "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
 
-    hir/BlockLiteralHIR.cpp
-    hir/BlockLiteralHIR.hpp
-    hir/BranchHIR.cpp
-    hir/BranchHIR.hpp
-    hir/BranchIfTrueHIR.cpp
-    hir/BranchIfTrueHIR.hpp
-    hir/ConstantHIR.cpp
-    hir/ConstantHIR.hpp
-    hir/HIR.hpp
-    hir/LoadOuterFrameHIR.cpp
-    hir/LoadOuterFrameHIR.hpp
-    hir/MessageHIR.cpp
-    hir/MessageHIR.hpp
-    hir/MethodReturnHIR.cpp
-    hir/MethodReturnHIR.hpp
-    hir/PhiHIR.cpp
-    hir/PhiHIR.hpp
-    hir/ReadFromClassHIR.cpp
-    hir/ReadFromClassHIR.hpp
-    hir/ReadFromContextHIR.cpp
-    hir/ReadFromContextHIR.hpp
-    hir/ReadFromFrameHIR.cpp
-    hir/ReadFromFrameHIR.hpp
-    hir/ReadFromThisHIR.cpp
-    hir/ReadFromThisHIR.hpp
-    hir/RouteToSuperclassHIR.cpp
-    hir/RouteToSuperclassHIR.hpp
-    hir/StoreReturnHIR.cpp
-    hir/StoreReturnHIR.hpp
-    hir/WriteToClassHIR.cpp
-    hir/WriteToClassHIR.hpp
-    hir/WriteToFrameHIR.cpp
-    hir/WriteToFrameHIR.hpp
-    hir/WriteToThisHIR.cpp
-    hir/WriteToThisHIR.hpp
-
     library/AbstractFunction.hpp
     library/Array.hpp
     library/ArrayedCollection.hpp
@@ -256,8 +220,6 @@ add_library(hadron STATIC
     Arch.hpp
     ASTBuilder.cpp
     ASTBuilder.hpp
-    Block.cpp
-    Block.hpp
     BlockBuilder.cpp
     BlockBuilder.hpp
     BlockSerializer.cpp
@@ -266,8 +228,6 @@ add_library(hadron STATIC
     ClassLibrary.hpp
     Emitter.cpp
     Emitter.hpp
-    Frame.cpp
-    Frame.hpp
     Heap.cpp
     Heap.hpp
     JIT.hpp
@@ -296,12 +256,9 @@ add_library(hadron STATIC
     Resolver.hpp
     Runtime.cpp
     Runtime.hpp
-    Scope.hpp
     SymbolTable.cpp
     SymbolTable.hpp
     ThreadContext.hpp
-    Validator.cpp
-    Validator.hpp
     VirtualJIT.cpp
     VirtualJIT.hpp
 )

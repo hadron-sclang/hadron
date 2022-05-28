@@ -8,6 +8,7 @@
 
 namespace hadron {
 namespace schema {
+struct ArraySchema;
 struct ProcessSchema;
 struct ThreadSchema;
 }
@@ -48,10 +49,11 @@ struct ThreadContext {
     // always wrap them in their corresponding library objects when using them from the C++ side.
     schema::ProcessSchema* thisProcess;
     schema::ThreadSchema* thisThread;
-
-    // If true, Hadron will run internal diagnostics during every compilation step.
-    bool runInternalDiagnostics = true;
+    schema::ArraySchema* classVariablesArray;
 };
+
+// ThreadContext is accessed by machine code, so needs a simple layout in memory.
+static_assert(std::is_standard_layout<ThreadContext>::value);
 
 } // namespace hadron
 

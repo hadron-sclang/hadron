@@ -1,6 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_BLOCK_SERIALIZER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_BLOCK_SERIALIZER_HPP_
 
+#include "hadron/library/HadronCFG.hpp"
 #include "hadron/lir/LIR.hpp"
 
 #include <list>
@@ -9,8 +10,6 @@
 
 namespace hadron {
 
-class Block;
-struct Frame;
 struct LinearFrame;
 
 // Serializes a Frame containing a control flow graph of blocks and HIR instructions into a single LinearFrame struct

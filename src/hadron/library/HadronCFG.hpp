@@ -68,9 +68,9 @@ public:
         t.m_instance->frame = f.slot();
     }
 
-    CFGScopeT parent() const {
+    T parent() const {
         const T& t = static_cast<const T&>(*this);
-        return CFGScopeT(t.m_instance->parent);
+        return T(t.m_instance->parent);
     }
     void setParent(CFGScopeT p) {
         T& t = static_cast<T&>(*this);
@@ -86,11 +86,11 @@ public:
         t.m_instance->blocks = a.slot();
     }
 
-    TypedArray<CFGScopeT> subScopes() const {
+    TypedArray<T> subScopes() const {
         const T& t = static_cast<const T&>(*this);
-        return TypedArray<CFGScopeT>(t.m_instance->subScopes);
+        return TypedArray<T>(t.m_instance->subScopes);
     }
-    void setSubScopes(TypedArray<CFGScopeT> a) {
+    void setSubScopes(TypedArray<T> a) {
         T& t = static_cast<T&>(*this);
         t.m_instance->subScopes = a.slot();
     }
@@ -128,7 +128,7 @@ public:
         frame.setOuterBlockHIR(outerBlock);
         frame.setMethod(method);
         frame.setHasVarArgs(false);
-        frame.setRootScope(ScopeT::makeRootScope(context, frame));
+        frame.setRootScope(ScopeT::makeRootCFGScope(context, frame));
         frame.setNumberOfBlocks(0);
         return frame;
     }
