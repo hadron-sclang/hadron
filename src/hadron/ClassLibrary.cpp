@@ -39,7 +39,7 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
     if (!resetLibrary(context)) { return false; }
     if (!scanFiles(context)) { return false; }
     if (!finalizeHeirarchy(context)) { return false; }
-    if (!materializeFrames(context)) { return false; }
+//    if (!materializeFrames(context)) { return false; }
     return cleanUp();
 }
 
