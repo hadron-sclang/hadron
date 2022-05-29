@@ -3,8 +3,7 @@
 #include "hadron/Arch.hpp"
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
-#include "hadron/Frame.hpp"
-#include "hadron/hir/BlockLiteralHIR.hpp"
+#include "hadron/library/HadronHIR.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LinearFrame.hpp"
 #include "hadron/RegisterAllocator.hpp"
@@ -15,19 +14,20 @@
 namespace hadron {
 
 // static
-library::Int8Array Materializer::materialize(ThreadContext* context, Frame* frame) {
+library::Int8Array Materializer::materialize(ThreadContext* context, library::CFGFrame frame) {
     // Compile any inner blocks first.
-    for (const auto innerBlock : frame->innerBlocks) {
+    for (int32_t i = 0; i < frame.innerBlocks().size(); ++i) {
+        auto innerBlock = frame.innerBlocks().typedAt(i);
         auto functionDef = library::FunctionDef::alloc(context);
-        auto innerByteCode = Materializer::materialize(context, innerBlock->frame.get());
+        auto innerByteCode = Materializer::materialize(context, innerBlock.frame());
         functionDef.setCode(innerByteCode);
-        functionDef.setSelectors(innerBlock->frame->selectors);
-        functionDef.setPrototypeFrame(innerBlock->frame->prototypeFrame);
+        functionDef.setSelectors(innerBlock.frame().selectors());
+        functionDef.setPrototypeFrame(innerBlock.frame().prototypeFrame());
 
         // TODO: argNames, varNames?
 
-        innerBlock->functionDef = functionDef;
-        frame->selectors = frame->selectors.typedAdd(context, functionDef);
+        innerBlock.setFunctionDef(functionDef);
+        frame.setSelectors(frame.selectors().typedAdd(context, functionDef));
     }
 
     BlockSerializer serializer;

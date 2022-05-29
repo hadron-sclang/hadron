@@ -1,6 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_BLOCK_SERIALIZER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_BLOCK_SERIALIZER_HPP_
 
+#include "hadron/library/HadronCFG.hpp"
 #include "hadron/lir/LIR.hpp"
 
 #include <list>
@@ -9,8 +10,6 @@
 
 namespace hadron {
 
-class Block;
-struct Frame;
 struct LinearFrame;
 
 // Serializes a Frame containing a control flow graph of blocks and HIR instructions into a single LinearFrame struct
@@ -22,12 +21,13 @@ public:
     ~BlockSerializer() = default;
 
     // Produce a single LinearFrame with blocks serialized in the required order.
-    std::unique_ptr<LinearFrame> serialize(const Frame* frame);
+    std::unique_ptr<LinearFrame> serialize(const library::CFGFrame frame);
 
 private:
 
     // Does the recursive postorder traversal of the blocks and saves the output in |blockOrder|.
-    void orderBlocks(Block* block, std::vector<Block*>& blockPointers, std::vector<lir::LabelID>& blockOrder);
+    void orderBlocks(library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
+            std::vector<lir::LabelID>& blockOrder);
 };
 
 } // namespace hadron

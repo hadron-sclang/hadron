@@ -354,7 +354,7 @@ int main(int argc, char* argv[]) {
             return -1;
         }
 
-        auto includeGuard = fmt::format("SRC_HADRON_SCHEMA_{:012X}", hadron::hash(pair.first));
+        auto includeGuard = fmt::format("SRC_HADRON_SCHEMA_{:08X}", hadron::hash(pair.first));
         outFile << "#ifndef " << includeGuard << std::endl;
         outFile << "#define " << includeGuard << std::endl << std::endl;
 
@@ -373,8 +373,8 @@ int main(int argc, char* argv[]) {
 
             outFile << "// ========== " << className << std::endl;
             outFile << fmt::format("struct {}Schema {{\n", className);
-            outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:012x};\n", hadron::hash(className));
-            outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:012x};\n",
+            outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:08x};\n", hadron::hash(className));
+            outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:08x};\n",
                     hadron::hash(fmt::format("Meta_{}", className)));
 
             if (classIter->second.isFundamentalType) {

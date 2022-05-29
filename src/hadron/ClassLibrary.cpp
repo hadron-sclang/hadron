@@ -2,11 +2,9 @@
 
 #include "hadron/Arch.hpp"
 #include "hadron/ASTBuilder.hpp"
-#include "hadron/Block.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/Emitter.hpp"
 #include "hadron/ErrorReporter.hpp"
-#include "hadron/Frame.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/internal/FileSystem.hpp"
@@ -22,7 +20,6 @@
 #include "hadron/SourceFile.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
-#include "hadron/Validator.hpp"
 
 #include "spdlog/spdlog.h"
 
@@ -329,10 +326,6 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         auto frame = blockBuilder.buildMethod(context, method, astIter->second);
         if (!frame) { return false; }
 
-        if (context->runInternalDiagnostics) {
-            if (!Validator::validateFrame(frame.get())) { return false; }
-        }
-
         // TODO: Here's where we could extract some message signatures and compute dependencies, to decide on final
         // ordering of compilation of methods to support inlining.
 
@@ -375,7 +368,7 @@ bool ClassLibrary::materializeFrames(ThreadContext* context) {
 
             SPDLOG_INFO("materializing frame for {}:{}", className.view(context), methodName.view(context));
 
-            auto bytecode = Materializer::materialize(context, frameIter->second.get());
+            auto bytecode = Materializer::materialize(context, frameIter->second);
             method.setCode(bytecode);
         }
     }

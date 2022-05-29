@@ -1,7 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_LINEAR_FRAME_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_LINEAR_FRAME_HPP_
 
-#include "hadron/hir/HIR.hpp"
+#include "hadron/library/HadronHIR.hpp"
 #include "hadron/LifetimeInterval.hpp"
 #include "hadron/lir/LIR.hpp"
 
@@ -35,13 +35,13 @@ struct LinearFrame {
     // copy cycles.
     size_t numberOfSpillSlots = 1;
 
-    std::unordered_map<hir::ID, lir::VReg> hirToRegMap;
+    std::unordered_map<int32_t, lir::VReg> hirToRegMap;
 
     // Convenience function, returns associated VReg in LIR or kInvalidVReg if no hir value found.
-    lir::VReg hirToReg(hir::ID hirId);
+    lir::VReg hirToReg(library::HIRId hirId);
 
     // If hirId is valid then we add to the mapping. Returns the assigned VReg or kInvalidVReg if no value assigned.
-    lir::VReg append(hir::ID hirId, std::unique_ptr<lir::LIR> lir);
+    lir::VReg append(library::HIRId hirId, std::unique_ptr<lir::LIR> lir);
 };
 
 } // namespace hadron

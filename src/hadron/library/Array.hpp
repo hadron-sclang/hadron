@@ -27,29 +27,63 @@ public:
         }
         return array;
     }
+
+
+    // Supports IdentitySet, searches the array for an element with identityHash matching |key|, or the index of the
+    // empty element if no matching element found.
+    int32_t atIdentityHash(Slot key) const {
+        auto hash = key.identityHash();
+        auto index = (hash % size());
+        auto element = at(index);
+        while (element && element.identityHash() != hash) {
+            index = (index + 1) % size();
+            element = at(index);
+        }
+
+        return index;
+    }
+
+    // Supports IdentityDictionary, searches the array assuming the elements are in key/value pairs. Returns the index
+    // of the element with identityHash matching |key|, or the index of the empty element if no matching element found.
+    int32_t atIdentityHashInPairs(Slot key) const {
+        auto hash = key.identityHash();
+        // Keys are always at even indexes followed by their value pair at odd, so mask off the least significant bit to
+        // compute even index.
+        auto index = (hash % size()) & (~1);
+        auto element = at(index);
+        while (element && element.identityHash() != hash) {
+            index = (index + 2) % size();
+            element = at(index);
+        }
+
+        return index;
+    }
 };
 
 template<typename T>
 class TypedArray : public Array {
 public:
     TypedArray(): Array() {}
-    TypedArray(schema::ArraySchema* instance): Array(instance) {}
-    TypedArray(Slot instance): Array(instance) {}
+    explicit TypedArray(schema::ArraySchema* instance): Array(instance) {}
+    explicit TypedArray(Slot instance): Array(instance) {}
+    ~TypedArray() {}
 
     static TypedArray<T> typedArrayAlloc(ThreadContext* context, int32_t maxSize) {
         Array a = arrayAlloc(context, maxSize);
         return TypedArray<T>(a.instance());
     }
 
-    T typedAt(int32_t index) const { return T(at(index)); }
+    T typedAt(int32_t index) const { return T::wrapUnsafe(at(index)); }
+    T typedFirst() const { return T::wrapUnsafe(first()); }
+    T typedLast() const { return T::wrapUnsafe(last()); }
 
     TypedArray<T>& typedAdd(ThreadContext* context, T element) {
-        add(context, Slot::makePointer(reinterpret_cast<library::Schema*>(element.instance())));
+        add(context, element.slot());
         return *this;
     }
 
     Slot typedIndexOf(T item) const {
-        return indexOf(Slot::makePointer(item.instance()));
+        return indexOf(item.slot());
     }
 };
 

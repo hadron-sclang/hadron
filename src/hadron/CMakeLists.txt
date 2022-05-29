@@ -150,7 +150,8 @@ endforeach()
 
 list(APPEND HLANG_CLASS_FILES
     "${HLANG_PATH}/HLang/HadronAST.sc"
-    "${HLANG_PATH}/HLang/HadronFrame.sc"
+    "${HLANG_PATH}/HLang/HadronCFG.sc"
+    "${HLANG_PATH}/HLang/HadronHIR.sc"
     "${HLANG_PATH}/HLang/HadronParseNode.sc"
 )
 
@@ -178,56 +179,27 @@ add_library(hadron STATIC
     ${SCHEMA_FILES}
     "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
 
-    hir/BlockLiteralHIR.cpp
-    hir/BlockLiteralHIR.hpp
-    hir/BranchHIR.cpp
-    hir/BranchHIR.hpp
-    hir/BranchIfTrueHIR.cpp
-    hir/BranchIfTrueHIR.hpp
-    hir/ConstantHIR.cpp
-    hir/ConstantHIR.hpp
-    hir/HIR.hpp
-    hir/LoadOuterFrameHIR.cpp
-    hir/LoadOuterFrameHIR.hpp
-    hir/MessageHIR.cpp
-    hir/MessageHIR.hpp
-    hir/MethodReturnHIR.cpp
-    hir/MethodReturnHIR.hpp
-    hir/PhiHIR.cpp
-    hir/PhiHIR.hpp
-    hir/ReadFromClassHIR.cpp
-    hir/ReadFromClassHIR.hpp
-    hir/ReadFromContextHIR.cpp
-    hir/ReadFromContextHIR.hpp
-    hir/ReadFromFrameHIR.cpp
-    hir/ReadFromFrameHIR.hpp
-    hir/ReadFromThisHIR.cpp
-    hir/ReadFromThisHIR.hpp
-    hir/RouteToSuperclassHIR.cpp
-    hir/RouteToSuperclassHIR.hpp
-    hir/StoreReturnHIR.cpp
-    hir/StoreReturnHIR.hpp
-    hir/WriteToClassHIR.cpp
-    hir/WriteToClassHIR.hpp
-    hir/WriteToFrameHIR.cpp
-    hir/WriteToFrameHIR.hpp
-    hir/WriteToThisHIR.cpp
-    hir/WriteToThisHIR.hpp
-
     library/AbstractFunction.hpp
     library/Array.hpp
     library/ArrayedCollection.hpp
     library/Collection.hpp
+    library/Dictionary.hpp
     library/Function.hpp
     library/HadronAST.hpp
+    library/HadronCFG.cpp
+    library/HadronCFG.hpp
+    library/HadronHIR.cpp
+    library/HadronHIR.hpp
     library/HadronParseNode.hpp
+    library/Integer.hpp
     library/Kernel.hpp
     library/Object.hpp
     library/Schema.hpp
     library/SequenceableCollection.hpp
+    library/Set.hpp
     library/Stream.hpp
-    library/String.hpp
     library/String.cpp
+    library/String.hpp
     library/Symbol.cpp
     library/Symbol.hpp
     library/Thread.hpp
@@ -248,8 +220,6 @@ add_library(hadron STATIC
     Arch.hpp
     ASTBuilder.cpp
     ASTBuilder.hpp
-    Block.cpp
-    Block.hpp
     BlockBuilder.cpp
     BlockBuilder.hpp
     BlockSerializer.cpp
@@ -258,8 +228,6 @@ add_library(hadron STATIC
     ClassLibrary.hpp
     Emitter.cpp
     Emitter.hpp
-    Frame.cpp
-    Frame.hpp
     Heap.cpp
     Heap.hpp
     JIT.hpp
@@ -288,12 +256,9 @@ add_library(hadron STATIC
     Resolver.hpp
     Runtime.cpp
     Runtime.hpp
-    Scope.hpp
     SymbolTable.cpp
     SymbolTable.hpp
     ThreadContext.hpp
-    Validator.cpp
-    Validator.hpp
     VirtualJIT.cpp
     VirtualJIT.hpp
 )
@@ -308,6 +273,9 @@ set(HADRON_COMPILER_UNITTESTS
 
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Array_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/ArrayedCollection_unittests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/library/Dictionary_unittests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/library/LibraryTestFixture.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/library/Set_unittests.cpp
 
     PARENT_SCOPE
 )

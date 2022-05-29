@@ -55,8 +55,16 @@ public:
     }
 
     E at(int32_t index) const {
-        assert(index < size());
+        assert(0 <= index && index < size());
         return *(start() + index);
+    }
+
+    E first() const {
+        return at(0);
+    }
+
+    E last() const {
+        return at(size() - 1);
     }
 
     void put(int32_t index, E value) {
@@ -159,6 +167,15 @@ public:
         instance->schema._sizeInBytes = size;
         return Int8Array(instance);
     }
+};
+
+class Int32Array : public RawArray<Int32Array, schema::Int32ArraySchema, int32_t> {
+public:
+    Int32Array(): RawArray<Int32Array, schema::Int32ArraySchema, int32_t>() {}
+    explicit Int32Array(schema::Int32ArraySchema* instance):
+            RawArray<Int32Array, schema::Int32ArraySchema, int32_t>(instance) {}
+    explicit Int32Array(Slot instance): RawArray<Int32Array, schema::Int32ArraySchema, int32_t>(instance) {}
+    ~Int32Array() {}
 };
 
 class SymbolArray : public RawArray<SymbolArray, schema::SymbolArraySchema, Symbol> {

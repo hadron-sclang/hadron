@@ -5,6 +5,8 @@
 #include "hadron/Slot.hpp"
 #include "hadron/library/Array.hpp"
 #include "hadron/library/HadronAST.hpp"
+#include "hadron/library/HadronCFG.hpp"
+#include "hadron/library/HadronHIR.hpp"
 #include "hadron/library/HadronParseNode.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Symbol.hpp"
@@ -17,7 +19,6 @@
 namespace hadron {
 
 class ErrorReporter;
-struct Frame;
 class Parser;
 class SourceFile;
 struct ThreadContext;
@@ -85,7 +86,7 @@ private:
     using MethodAST = std::unordered_map<library::Symbol, library::BlockAST>;
     std::unordered_map<library::Symbol, std::unique_ptr<MethodAST>> m_methodASTs;
 
-    using MethodFrame = std::unordered_map<library::Symbol, std::unique_ptr<Frame>>;
+    using MethodFrame = std::unordered_map<library::Symbol, library::CFGFrame>;
     std::unordered_map<library::Symbol, std::unique_ptr<MethodFrame>> m_methodFrames;
 };
 

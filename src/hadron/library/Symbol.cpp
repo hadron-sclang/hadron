@@ -7,7 +7,7 @@ namespace hadron {
 namespace library {
 
 Symbol::Symbol(ThreadContext* context, Slot s): m_slot(s) {
-    assert(s.isNil() || context->symbolTable->isDefined(s.getHash()));
+    assert(s.isNil() || context->symbolTable->isDefined(s.getSymbolHash()));
 }
 
 // static
