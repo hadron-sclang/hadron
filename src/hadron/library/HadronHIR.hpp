@@ -70,6 +70,16 @@ public:
         T& t = static_cast<T&>(*this);
         t.m_instance->owningBlock = b.slot();
     }
+
+protected:
+    void initBase(ThreadContext* context, TypeFlags flags) {
+        T& t = static_cast<T&>(*this);
+        t.initToNil();
+        t.setTypeFlags(flags);
+        t.setReads(TypedIdentSet<HIRId>::makeTypedIdentSet(context));
+        t.setConsumers(TypedIdentSet<B>::makeTypedIdentSet(context));
+    }
+
 };
 
 class HIR : public HIRBase<HIR, schema::HadronHIRSchema, HIR> {
@@ -96,8 +106,7 @@ public:
 
     static BlockLiteralHIR makeBlockLiteralHIR(ThreadContext* context) {
         auto blockLiteralHIR = BlockLiteralHIR::alloc(context);
-        blockLiteralHIR.initToNil();
-        blockLiteralHIR.setTypeFlags(TypeFlags::kObjectFlag);
+        blockLiteralHIR.initBase(context, TypeFlags::kObjectFlag);
         return blockLiteralHIR;
     }
 
@@ -118,7 +127,7 @@ public:
 
     static BranchHIR makeBranchHIR(ThreadContext* context) {
         auto branchHIR = BranchHIR::alloc(context);
-        branchHIR.initToNil();
+        branchHIR.initBase(context, TypeFlags::kNoFlags);
         return branchHIR;
     }
 
@@ -137,7 +146,7 @@ public:
 
     static BranchIfTrueHIR makeBranchIfTrueHIR(ThreadContext* context, HIRId conditionId) {
         auto branchIfTrueHIR = BranchIfTrueHIR::alloc(context);
-        branchIfTrueHIR.initToNil();
+        branchIfTrueHIR.initBase(context, TypeFlags::kNoFlags);
         branchIfTrueHIR.setCondition(conditionId);
         branchIfTrueHIR.reads().typedAdd(context, conditionId);
         return branchIfTrueHIR;
@@ -160,7 +169,7 @@ public:
 
     static ConstantHIR makeConstantHIR(ThreadContext* context, Slot constantValue) {
         auto constantHIR = ConstantHIR::alloc(context);
-        constantHIR.initToNil();
+        constantHIR.initBase(context, constantValue.getType());
         constantHIR.setConstant(constantValue);
         return constantHIR;
     }
@@ -180,9 +189,11 @@ public:
 
     static LoadOuterFrameHIR makeOuterFrameHIR(ThreadContext* context, HIRId inner) {
         auto loadOuterFrameHIR = LoadOuterFrameHIR::alloc(context);
-        loadOuterFrameHIR.initToNil();
-        loadOuterFrameHIR.setInnerContext(inner);
-        loadOuterFrameHIR.reads().typedAdd(context, inner);
+        loadOuterFrameHIR.initBase(context, TypeFlags::kObjectFlag);
+        if (inner) {
+            loadOuterFrameHIR.setInnerContext(inner);
+            loadOuterFrameHIR.reads().typedAdd(context, inner);
+        }
         return loadOuterFrameHIR;
     }
 
@@ -200,7 +211,7 @@ public:
 
     static MessageHIR makeMessageHIR(ThreadContext* context) {
         auto messageHIR = MessageHIR::alloc(context);
-        messageHIR.initToNil();
+        messageHIR.initBase(context, TypeFlags::kAllFlags);
         return messageHIR;
     }
  
@@ -235,8 +246,7 @@ public:
 
     static MethodReturnHIR makeMethodReturnHIR(ThreadContext* context) {
         auto methodReturnHIR = MethodReturnHIR::alloc(context);
-        methodReturnHIR.initToNil();
-        methodReturnHIR.setTypeFlags(TypeFlags::kNoFlags);
+        methodReturnHIR.initBase(context, TypeFlags::kNoFlags);
         return methodReturnHIR;
     }
 };
@@ -250,8 +260,7 @@ public:
 
     static PhiHIR makePhiHIR(ThreadContext* context) {
         auto phiHIR = PhiHIR::alloc(context);
-        phiHIR.initToNil();
-        phiHIR.setTypeFlags(TypeFlags::kNoFlags);
+        phiHIR.initBase(context, TypeFlags::kNoFlags);
         phiHIR.setIsSelfReferential(false);
         return phiHIR;
     }
@@ -282,7 +291,7 @@ public:
 
     static ReadFromClassHIR makeReadFromClassHIR(ThreadContext* context, HIRId classArray, int32_t index, Symbol name) {
         auto readFromClassHIR = ReadFromClassHIR::alloc(context);
-        readFromClassHIR.initToNil();
+        readFromClassHIR.initBase(context, TypeFlags::kAllFlags);
         readFromClassHIR.setClassVariableArray(classArray);
         readFromClassHIR.reads().typedAdd(context, classArray);
         readFromClassHIR.setArrayIndex(index);
@@ -311,7 +320,7 @@ public:
 
     static ReadFromContextHIR makeReadFromContextHIR(ThreadContext* context, int32_t off, Symbol name) {
         auto readFromContextHIR = ReadFromContextHIR::alloc(context);
-        readFromContextHIR.initToNil();
+        readFromContextHIR.initBase(context, TypeFlags::kAllFlags);
         readFromContextHIR.setOffset(off);
         readFromContextHIR.setValueName(name);
         return readFromContextHIR;
@@ -337,10 +346,12 @@ public:
     static ReadFromFrameHIR makeReadFromFrameHIR(ThreadContext* context, int32_t index, HIRId framePointer,
             Symbol name) {
         auto readFromFrameHIR = ReadFromFrameHIR::alloc(context);
-        readFromFrameHIR.initToNil();
+        readFromFrameHIR.initBase(context, TypeFlags::kAllFlags);
         readFromFrameHIR.setFrameIndex(index);
-        readFromFrameHIR.setFrameId(framePointer);
-        if (framePointer) { readFromFrameHIR.reads().typedAdd(context, framePointer); }
+        if (framePointer) {
+            readFromFrameHIR.setFrameId(framePointer);
+            readFromFrameHIR.reads().typedAdd(context, framePointer);
+        }
         readFromFrameHIR.setValueName(name);
         return readFromFrameHIR;
     }
@@ -368,7 +379,7 @@ public:
     // anything private..
     static ReadFromThisHIR makeReadFromThisHIR(ThreadContext* context, HIRId tID, int32_t index, Symbol name) {
         auto readFromThisHIR = ReadFromThisHIR::alloc(context);
-        readFromThisHIR.initToNil();
+        readFromThisHIR.initBase(context, TypeFlags::kAllFlags);
         readFromThisHIR.setThisId(tID);
         readFromThisHIR.reads().typedAdd(context, tID);
         readFromThisHIR.setIndex(index);
@@ -397,7 +408,7 @@ public:
 
     static RouteToSuperclassHIR makeRouteToSuperclassHIR(ThreadContext* context, HIRId tId) {
         auto routeToSuperclassHIR = RouteToSuperclassHIR::alloc(context);
-        routeToSuperclassHIR.initToNil();
+        routeToSuperclassHIR.initBase(context, TypeFlags::kAllFlags);
         routeToSuperclassHIR.setThisId(tId);
         routeToSuperclassHIR.reads().typedAdd(context, tId);
         return routeToSuperclassHIR;
@@ -418,7 +429,7 @@ public:
 
     static StoreReturnHIR makeStoreReturnHIR(ThreadContext* context, HIRId retVal) {
         auto storeReturnHIR = StoreReturnHIR::alloc(context);
-        storeReturnHIR.initToNil();
+        storeReturnHIR.initBase(context, TypeFlags::kNoFlags);
         storeReturnHIR.reads().typedAdd(context, retVal);
         storeReturnHIR.setReturnValue(retVal);
         return storeReturnHIR;
@@ -440,7 +451,7 @@ public:
     static WriteToClassHIR makeWriteToClassHIR(ThreadContext* context, HIRId classArray, int32_t index, Symbol name,
             HIRId v) {
         auto writeToClassHIR = WriteToClassHIR::alloc(context);
-        writeToClassHIR.initToNil();
+        writeToClassHIR.initBase(context, TypeFlags::kNoFlags);
         writeToClassHIR.setClassVariableArray(classArray);
         writeToClassHIR.reads().typedAdd(context, classArray);
         writeToClassHIR.setArrayIndex(index);
@@ -475,10 +486,12 @@ public:
     static WriteToFrameHIR makeWriteToFrameHIR(ThreadContext* context, int32_t index, HIRId framePointer, Symbol name,
             HIRId v) {
         auto writeToFrameHIR = WriteToFrameHIR::alloc(context);
-        writeToFrameHIR.initToNil();
+        writeToFrameHIR.initBase(context, TypeFlags::kNoFlags);
         writeToFrameHIR.setFrameIndex(index);
-        writeToFrameHIR.setFrameId(framePointer);
-        writeToFrameHIR.reads().typedAdd(context, framePointer);
+        if (framePointer) {
+            writeToFrameHIR.setFrameId(framePointer);
+            writeToFrameHIR.reads().typedAdd(context, framePointer);
+        }
         writeToFrameHIR.setValueName(name);
         writeToFrameHIR.setToWrite(v);
         writeToFrameHIR.reads().typedAdd(context, v);
@@ -509,7 +522,7 @@ public:
 
     static WriteToThisHIR makeWriteToThisHIR(ThreadContext* context, HIRId tID, int32_t idx, Symbol name, HIRId v) {
         auto writeToThisHIR = WriteToThisHIR::alloc(context);
-        writeToThisHIR.initToNil();
+        writeToThisHIR.initBase(context, TypeFlags::kNoFlags);
         writeToThisHIR.setThisId(tID);
         writeToThisHIR.reads().typedAdd(context, tID);
         writeToThisHIR.setIndex(idx);

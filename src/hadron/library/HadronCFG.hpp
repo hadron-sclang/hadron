@@ -47,6 +47,7 @@ public:
         scope.initToNil();
         scope.setFrame(owningFrame);
         scope.setFrameIndex(0);
+        scope.setValueIndices(TypedIdentDict<Symbol, Integer>::makeTypedIdentDict(context));
         return scope;
     }
 
@@ -56,6 +57,7 @@ public:
         scope.setFrame(parentScope.frame());
         scope.setParent(parentScope);
         scope.setFrameIndex(0);
+        scope.setValueIndices(TypedIdentDict<Symbol, Integer>::makeTypedIdentDict(context));
         return scope;
     }
 
@@ -239,6 +241,8 @@ public:
         block.setFrame(scope.frame());
         block.setId(blockId);
         block.setHasMethodReturn(false);
+        block.setConstantValues(TypedIdentDict<Slot, HIRId>::makeTypedIdentDict(context));
+        block.setConstantIds(TypedIdentSet<Integer>::makeTypedIdentSet(context));
         return block;
     }
 
@@ -332,13 +336,22 @@ public:
         t.m_instance->finalValue = id.slot();
     }
 
-    TypedIdentDict<Slot, Integer> constantValues() const {
+    TypedIdentDict<Slot, HIRId> constantValues() const {
         const T& t = static_cast<const T&>(*this);
-        return TypedIdentDict<Slot, Integer>(t.m_instance->constantValues);
+        return TypedIdentDict<Slot, HIRId>(t.m_instance->constantValues);
     }
     void setConstantValues(TypedIdentDict<Slot, Integer> tid) {
         T& t = static_cast<T&>(*this);
         t.m_instance->constantValues = tid.slot();
+    }
+
+    HIRId nilConstantValue() const {
+        const T& t = static_cast<const T&>(*this);
+        return HIRId(t.m_instance->nilConstantValue);
+    }
+    void setNilConstantValue(HIRId i) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->nilConstantValue = i.slot();
     }
 
     TypedIdentSet<Integer> constantIds() const {

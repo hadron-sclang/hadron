@@ -84,12 +84,16 @@ public:
     explicit TypedIdentDict(Slot instance): IdentityDictionary(instance) {}
     ~TypedIdentDict() {}
 
+    static TypedIdentDict<K, V> makeTypedIdentDict(ThreadContext* context, int32_t capacity = 4) {
+        return TypedIdentDict<K, V>(IdentityDictionary::makeIdentityDictionary(context, capacity).slot());
+    }
+
     void typedPut(ThreadContext* context, K key, V value) {
         put(context, key.slot(), value.slot());
     }
 
     V typedGet(K key) {
-        return V(get(key.slot()));
+        return V::wrapUnsafe(get(key.slot()));
     }
 };
 

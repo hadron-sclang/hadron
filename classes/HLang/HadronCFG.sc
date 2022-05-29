@@ -56,5 +56,6 @@ HadronCFGBlock {
 	var <>hasMethodReturn;
 	var <>finalValue;
 	var <>constantValues;
+	var <>nilConstantValue;
 	var <>constantIds;
 }

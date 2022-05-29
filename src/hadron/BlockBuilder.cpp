@@ -198,7 +198,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::M
         auto multiAssignAST = library::MultiAssignAST(ast.slot());
         // Final value of multiAssign statements is the array-like type returned by the expression.
         nodeValue = buildValue(context, method, currentBlock, multiAssignAST.arrayValue());
-        assert(nodeValue != hir::kInvalidID);
+        assert(nodeValue);
 
         // Each assignment is now translated into a name = nodeValue.at(i) message call.
         auto sequence = multiAssignAST.targetNames().sequence();
@@ -521,7 +521,7 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
 
     // Check for special names.
     if (name == context->symbolTable->superSymbol()) {
-        auto thisRead = findName(context, context->symbolTable->thisSymbol(), block, hir::kInvalidID);
+        auto thisRead = findName(context, context->symbolTable->thisSymbol(), block, library::HIRId());
         // super is read-only.
         assert(!toWrite);
         assert(thisRead);

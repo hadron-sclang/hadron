@@ -12,8 +12,13 @@ HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
         // dependencies.
         assert(hir.reads().size() == 0);
         auto constantHIR = ConstantHIR(hir.slot());
-        auto constantId = constantValues().typedGet(constantHIR.constant());
-        if (constantId) { return constantId; }
+        // We can't use nil as a key in the constantValues() dictionary, so we save any nil constant value separately.
+        if (constantHIR.constant()) {
+            auto constantId = constantValues().typedGet(constantHIR.constant());
+            if (constantId) { return constantId; }
+        } else {
+            if (nilConstantValue()) { return nilConstantValue(); }
+        }
     }
 
     auto id = HIRId(frame().values().size());
@@ -46,8 +51,12 @@ HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
     // Adding a new constant, update the constants map and set.
     if (hir.className() == ConstantHIR::nameHash()) {
         auto constantHIR = ConstantHIR(hir.slot());
-        constantValues().typedPut(context, constantHIR.constant(), id);
-        constantIds().typedAdd(context, id);
+        if (constantHIR.constant()) {
+            constantValues().typedPut(context, constantHIR.constant(), id);
+            constantIds().typedAdd(context, id);
+        } else {
+            setNilConstantValue(id);
+        }
     } else if (hir.className() == MethodReturnHIR::nameHash()) {
         setHasMethodReturn(true);
         addToExitStatements = true;

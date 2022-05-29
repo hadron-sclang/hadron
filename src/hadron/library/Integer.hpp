@@ -14,6 +14,8 @@ public:
     Integer(Slot i): m_slot(i) { assert(i.isNil() || i.isInt32()); }
     ~Integer() {}
 
+    static inline Integer wrapUnsafe(Slot s) { return Integer(s); }
+
     Integer& operator=(const Integer& i) { m_slot = i.m_slot; return *this; }
 
     inline bool isNil() const { return m_slot.isNil(); }

@@ -21,12 +21,13 @@ public:
     ~BlockSerializer() = default;
 
     // Produce a single LinearFrame with blocks serialized in the required order.
-    std::unique_ptr<LinearFrame> serialize(const Frame* frame);
+    std::unique_ptr<LinearFrame> serialize(const library::CFGFrame frame);
 
 private:
 
     // Does the recursive postorder traversal of the blocks and saves the output in |blockOrder|.
-    void orderBlocks(Block* block, std::vector<Block*>& blockPointers, std::vector<lir::LabelID>& blockOrder);
+    void orderBlocks(library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
+            std::vector<lir::LabelID>& blockOrder);
 };
 
 } // namespace hadron

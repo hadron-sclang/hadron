@@ -18,17 +18,22 @@ public:
 
     Array array() const {
         const T& t = static_cast<const T&>(*this);
+        if (t.m_instance == nullptr) { return Array(); }
         return Array(t.m_instance->array);
     }
+
+    int32_t size() const {
+        const T& t = static_cast<const T&>(*this);
+        if (t.m_instance == nullptr) { return 0; }
+        return t.m_instance->size.getInt32();
+    }
+
+protected:
     void setArray(Array a) {
         T& t = static_cast<T&>(*this);
         t.m_instance->array = a.slot();
     }
 
-    int32_t size() const {
-        const T& t = static_cast<const T&>(*this);
-        return t.m_instance->size.getInt32();
-    }
     void setSize(int32_t s) {
         T& t = static_cast<T&>(*this);
         t.m_instance->size = Slot::makeInt32(s);
@@ -106,6 +111,10 @@ public:
     explicit TypedIdentSet(Slot instance): IdentitySet(instance) {}
     ~TypedIdentSet() {}
 
+    static TypedIdentSet<V> makeTypedIdentSet(ThreadContext* context, int32_t capacity = 4) {
+        return TypedIdentSet<V>(IdentitySet::makeIdentitySet(context, capacity).slot());
+    }
+
     TypedArray<V> typedArray() const { return TypedArray<V>(array().slot()); }
 
     void typedAdd(ThreadContext* context, V item) {
@@ -117,7 +126,7 @@ public:
     }
 
     V typedNext(V i) const {
-        return V(next(i.slot()));
+        return V::wrapUnsafe(next(i.slot()));
     }
 };
 

@@ -368,7 +368,7 @@ bool ClassLibrary::materializeFrames(ThreadContext* context) {
 
             SPDLOG_INFO("materializing frame for {}:{}", className.view(context), methodName.view(context));
 
-            auto bytecode = Materializer::materialize(context, frameIter->second.get());
+            auto bytecode = Materializer::materialize(context, frameIter->second);
             method.setCode(bytecode);
         }
     }

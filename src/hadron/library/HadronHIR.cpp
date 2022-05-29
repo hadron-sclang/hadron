@@ -4,10 +4,32 @@ namespace hadron {
 namespace library {
 
 HIRId HIR::proposeId(HIRId proposedId) {
+    assert(proposedId && proposedId.int32() >= 0);
+
     switch (className()) {
     case BlockLiteralHIR::nameHash():
+    case ConstantHIR::nameHash():
+    case LoadOuterFrameHIR::nameHash():
+    case MessageHIR::nameHash():
+    case PhiHIR::nameHash():
+    case ReadFromClassHIR::nameHash():
+    case ReadFromContextHIR::nameHash():
+    case ReadFromFrameHIR::nameHash():
+    case ReadFromThisHIR::nameHash():
+    case RouteToSuperclassHIR::nameHash():
         setId(proposedId);
         return proposedId;
+
+    // Read-only HIR doesn't accept a value.
+    case BranchHIR::nameHash():
+    case BranchIfTrueHIR::nameHash():
+    case MethodReturnHIR::nameHash():
+    case StoreReturnHIR::nameHash():
+    case WriteToClassHIR::nameHash():
+    case WriteToFrameHIR::nameHash():
+    case WriteToThisHIR::nameHash():
+        setId(HIRId());
+        return HIRId();
     }
 
     // Likely missing a type from the switch statement above.

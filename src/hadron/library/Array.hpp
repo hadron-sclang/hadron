@@ -73,9 +73,9 @@ public:
         return TypedArray<T>(a.instance());
     }
 
-    T typedAt(int32_t index) const { return T(at(index)); }
-    T typedFirst() const { return T(first()); }
-    T typedLast() const { return T(last()); }
+    T typedAt(int32_t index) const { return T::wrapUnsafe(at(index)); }
+    T typedFirst() const { return T::wrapUnsafe(first()); }
+    T typedLast() const { return T::wrapUnsafe(last()); }
 
     TypedArray<T>& typedAdd(ThreadContext* context, T element) {
         add(context, element.slot());
