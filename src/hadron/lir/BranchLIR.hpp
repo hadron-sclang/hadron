@@ -1,7 +1,6 @@
 #ifndef SRC_HADRON_LIR_BRANCH_LIR_HPP_
 #define SRC_HADRON_LIR_BRANCH_LIR_HPP_
 
-#include "hadron/Block.hpp"
 #include "hadron/lir/LIR.hpp"
 
 namespace hadron {
