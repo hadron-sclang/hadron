@@ -226,6 +226,8 @@ add_library(hadron STATIC
     BlockSerializer.hpp
     ClassLibrary.cpp
     ClassLibrary.hpp
+    DumpSlotJSON.cpp
+    DumpSlotJSON.hpp
     Emitter.cpp
     Emitter.hpp
     Heap.cpp
@@ -305,6 +307,7 @@ target_link_libraries(hadron PUBLIC
 
 target_include_directories(hadron PUBLIC
     include
+    ${RAPIDJSON_INCLUDE_DIR}
 )
 
 add_dependencies(hadron

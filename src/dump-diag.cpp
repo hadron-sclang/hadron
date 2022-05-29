@@ -13,8 +13,9 @@
 #include <iostream>
 #include <memory>
 
-DEFINE_string(sourceFile, "", "Path to the source code file to process");
-DEFINE_bool(dumpParseTree, true, "Dump the parse tree for the input file");
+DEFINE_string(sourceFile, "", "Path to the source code file to process.");
+DEFINE_bool(dumpClassArray, true, "Dump the compiled class library data structures.")
+DEFINE_bool(dumpParseTree, false, "Dump the parse tree for the input file.");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
@@ -25,6 +26,11 @@ int main(int argc, char* argv[]) {
     hadron::Runtime runtime(errorReporter);
     if (!runtime.initInterpreter()) {
         return -1;
+    }
+
+    if (FLAGS_dumpClassArray) {
+        
+
     }
 
     fs::path sourcePath(FLAGS_sourceFile);
@@ -44,7 +50,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (FLAGS_dumpParseTree) {
-        
+
     }
 
     return 0;
