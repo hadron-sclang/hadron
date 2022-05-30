@@ -226,8 +226,6 @@ add_library(hadron STATIC
     BlockSerializer.hpp
     ClassLibrary.cpp
     ClassLibrary.hpp
-    DumpSlotJSON.cpp
-    DumpSlotJSON.hpp
     Emitter.cpp
     Emitter.hpp
     Heap.cpp
@@ -258,6 +256,8 @@ add_library(hadron STATIC
     Resolver.hpp
     Runtime.cpp
     Runtime.hpp
+    SlotDumpJSON.cpp
+    SlotDumpJSON.hpp
     SymbolTable.cpp
     SymbolTable.hpp
     ThreadContext.hpp

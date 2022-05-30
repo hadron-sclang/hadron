@@ -14,7 +14,7 @@
 #include <memory>
 
 DEFINE_string(sourceFile, "", "Path to the source code file to process.");
-DEFINE_bool(dumpClassArray, true, "Dump the compiled class library data structures.")
+DEFINE_bool(dumpClassArray, true, "Dump the compiled class library data structures.");
 DEFINE_bool(dumpParseTree, false, "Dump the parse tree for the input file.");
 
 int main(int argc, char* argv[]) {
