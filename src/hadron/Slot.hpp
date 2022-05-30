@@ -48,7 +48,7 @@ public:
     static inline Slot makePointer(library::Schema* p) {
         return Slot(kObjectPointerTag | reinterpret_cast<uint64_t>(p));
     }
-    static inline Slot makeSymbolHash(Hash h) { return Slot(kSymbolTag | (static_cast<uint64_t>(h) & (~kTagMask))); }
+    static inline Slot makeSymbol(Hash h) { return Slot(kSymbolTag | (static_cast<uint64_t>(h) & (~kTagMask))); }
     static inline Slot makeChar(char c) { return Slot(kCharTag | c); }
     static inline Slot makeRawPointer(int8_t* p) { return Slot(kRawPointerTag | reinterpret_cast<uint64_t>(p)); }
 

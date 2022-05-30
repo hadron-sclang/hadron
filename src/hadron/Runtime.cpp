@@ -43,6 +43,7 @@ bool Runtime::compileClassLibrary() {
     auto classLibPath = findSCClassLibrary();
     SPDLOG_INFO("Starting Class Library compilation for files at {}", classLibPath.c_str());
     m_threadContext->classLibrary->addClassDirectory(classLibPath);
+    m_threadContext->classLibrary->addClassDirectory(findHLangClassLibrary());
     return m_threadContext->classLibrary->compileLibrary(m_threadContext.get());
 }
 

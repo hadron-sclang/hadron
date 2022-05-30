@@ -44,7 +44,7 @@ bool ClassLibrary::compileLibrary(ThreadContext* context) {
 }
 
 library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
-    if (name.isNil()) { return library::Class(); }
+    if (!name) { return library::Class(); }
     auto classIter = m_classMap.find(name);
     if (classIter == m_classMap.end()) { return library::Class(); }
     return classIter->second;

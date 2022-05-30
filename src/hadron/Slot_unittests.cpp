@@ -147,11 +147,11 @@ TEST_CASE("Slot hash serialization") {
     SUBCASE("hash") {
         const char* testInput = "test input string";
         const char* otherTestInput = "should have a different hash";
-        Slot h = Slot::makeSymbolHash(hash(testInput));
+        Slot h = Slot::makeSymbol(hash(testInput));
         REQUIRE(h.isSymbolHash());
         CHECK_EQ(h.getSymbolHash(), hash(testInput));
         CHECK_NE(h.getSymbolHash(), hash(otherTestInput));
-        Slot h2 = Slot::makeSymbolHash(hash(testInput));
+        Slot h2 = Slot::makeSymbol(hash(testInput));
         REQUIRE(h2.isSymbolHash());
         CHECK_EQ(h, h2);
     }

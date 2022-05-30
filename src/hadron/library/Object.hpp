@@ -89,6 +89,14 @@ protected:
     S* m_instance;
 };
 
+class ObjectBase : public Object<ObjectBase, schema::ObjectSchema> {
+public:
+    ObjectBase(): Object<ObjectBase, schema::ObjectSchema>() {}
+    explicit ObjectBase(schema::ObjectSchema* instance): Object<ObjectBase, schema::ObjectSchema>(instance) {}
+    explicit ObjectBase(Slot instance): Object<ObjectBase, schema::ObjectSchema>(instance) {}
+    ~ObjectBase() {}
+};
+
 } // namespace library
 } // namespace hadron
 

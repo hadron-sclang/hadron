@@ -1,4 +1,5 @@
 // dump-diag, utility to print compilation diagnostics to stdout in JSON.
+#include "hadron/SlotDumpJSON.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/internal/FileSystem.hpp"
 #include "hadron/Lexer.hpp"
@@ -29,7 +30,6 @@ int main(int argc, char* argv[]) {
     }
 
     if (FLAGS_dumpClassArray) {
-        
 
     }
 
@@ -50,7 +50,9 @@ int main(int argc, char* argv[]) {
     }
 
     if (FLAGS_dumpParseTree) {
-
+        auto dump = hadron::SlotDumpJSON();
+        dump.dump(runtime.context(), parser->root().slot());
+        std::cout << dump.json();
     }
 
     return 0;

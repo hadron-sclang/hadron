@@ -14,7 +14,7 @@ struct ThreadContext;
 class SlotDumpJSON {
 public:
     SlotDumpJSON();
-    ~SlotDumpJSON() = default;
+    ~SlotDumpJSON();
 
     void dump(ThreadContext* context, Slot slot);
 
