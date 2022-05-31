@@ -37,6 +37,7 @@ void ClassLibrary::addClassDirectory(const std::string& path) {
 
 bool ClassLibrary::compileLibrary(ThreadContext* context) {
     if (!resetLibrary(context)) { return false; }
+    bootstrapLibrary(context);
     if (!scanFiles(context)) { return false; }
     if (!finalizeHeirarchy(context)) { return false; }
 //    if (!materializeFrames(context)) { return false; }
@@ -238,7 +239,9 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
 
         // Each line gets its own varList parse node, so append to any existing arrays to preserve previous values.
         if (varType == context->symbolTable->varSymbol()) {
-            classDef.setInstVarNames(classDef.instVarNames().addAll(context, nameArray));
+            if (!m_bootstrapClasses.count(classDef.name(context))) {
+                classDef.setInstVarNames(classDef.instVarNames().addAll(context, nameArray));
+            }
             classDef.setIprototype(classDef.iprototype().addAll(context, valueArray));
         } else if (varType == context->symbolTable->classvarSymbol()) {
             classDef.setClassVarNames(classDef.classVarNames().addAll(context, nameArray));
@@ -339,10 +342,12 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
     for (int32_t i = 0; i < classDef.subclasses().size(); ++i) {
         auto subclass = classDef.subclasses().typedAt(i);
 
-        subclass.setInstVarNames(
-                classDef.instVarNames()
-                    .copy(context, classDef.instVarNames().size() + subclass.instVarNames().size())
-                    .addAll(context, subclass.instVarNames()));
+        if (!m_bootstrapClasses.count(subclass.name(context))) {
+            subclass.setInstVarNames(
+                    classDef.instVarNames()
+                        .copy(context, classDef.instVarNames().size() + subclass.instVarNames().size())
+                        .addAll(context, subclass.instVarNames()));
+        }
 
         subclass.setIprototype(
                 classDef.iprototype()

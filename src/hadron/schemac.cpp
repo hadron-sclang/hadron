@@ -351,7 +351,8 @@ int main(int argc, char* argv[]) {
         std::cerr << "Schema failed to create the bootstrap output file: " << FLAGS_bootstrapPath << std::endl;
         return -1;
     }
-    bootstrapFile << "    library::Class classDef;\n"
+    bootstrapFile << "    library::Symbol className;\n"
+                     "    library::Class classDef;\n"
                      "    library::SymbolArray instVarNames;\n";
 
     // Now that we've parsed all the input files, we should have the complete class heirarchy defined for each input
@@ -392,9 +393,9 @@ int main(int argc, char* argv[]) {
             }
 
             bootstrapFile << "\n    // ========== " << className
-                    << fmt::format("\n    m_bootstrapClasses.emplace(library::Symbol::fromView(context, \"{}\"));\n", 
-                            className)
-                    << "    classDef = library::Class::alloc(context).initToNil();\n"
+                    << fmt::format("\n    className = library::Symbol::fromView(context, \"{}\");\n", className)
+                    << "    m_bootstrapClasses.emplace(className);"
+                    << "    classDef = findOrInitClass(context, className);\n"
                     << "    instVarNames = library::SymbolArray::arrayAlloc(context);\n";
 
             std::stack<std::unordered_map<std::string, ClassInfo>::iterator> lineage;

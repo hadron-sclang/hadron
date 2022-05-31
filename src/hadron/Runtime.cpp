@@ -35,7 +35,7 @@ Runtime::~Runtime() {}
 bool Runtime::initInterpreter() {
     if (!buildThreadContext()) return false;
     if (!buildTrampolines()) return false;
-    if (!compileClassLibrary()) return false;
+    m_threadContext->classLibrary->bootstrapLibrary(m_threadContext.get());
     return true;
 }
 
