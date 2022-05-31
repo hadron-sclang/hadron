@@ -164,10 +164,11 @@ foreach(CLASS_FILE ${HLANG_CLASS_FILES})
     list(APPEND SCHEMA_FILES ${SCHEMA_FILE})
 endforeach()
 
-add_custom_command(OUTPUT ${SCHEMA_FILES}
+add_custom_command(OUTPUT ${SCHEMA_FILES} ${CMAKE_CURRENT_BINARY_DIR}/ClassLibraryBootstrap.cpp
     COMMAND schemac --classFiles "${SCLANG_CLASS_FILES}" --libraryPath ${SCLANG_PATH}
             --hlangFiles "${HLANG_CLASS_FILES}" --hlangPath ${HLANG_PATH}
             --schemaPath ${CMAKE_CURRENT_BINARY_DIR}/schema
+            --bootstrapPath ${CMAKE_CURRENT_BINARY_DIR}/ClassLibraryBootstrap.cpp
     DEPENDS ${SCLANG_CLASS_FILES} ${HLANG_CLASS_FILES} schemac
     VERBATIM
 )

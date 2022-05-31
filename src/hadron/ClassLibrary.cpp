@@ -61,6 +61,10 @@ bool ClassLibrary::resetLibrary(ThreadContext* context) {
     return true;
 }
 
+void ClassLibrary::bootstrapLibrary(ThreadContext* context) {
+    #include "hadron/ClassLibraryBootstrap.cpp"
+}
+
 bool ClassLibrary::scanFiles(ThreadContext* context) {
     for (const auto& classLibPath : m_libraryPaths) {
         for (auto& entry : fs::recursive_directory_iterator(classLibPath)) {

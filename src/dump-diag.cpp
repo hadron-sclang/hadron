@@ -1,11 +1,12 @@
 // dump-diag, utility to print compilation diagnostics to stdout in JSON.
-#include "hadron/SlotDumpJSON.hpp"
+#include "hadron/ClassLibrary.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/internal/FileSystem.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/library/HadronParseNode.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Runtime.hpp"
+#include "hadron/SlotDumpJSON.hpp"
 #include "hadron/SourceFile.hpp"
 
 #include "gflags/gflags.h"
@@ -15,7 +16,7 @@
 #include <memory>
 
 DEFINE_string(sourceFile, "", "Path to the source code file to process.");
-DEFINE_bool(dumpClassArray, true, "Dump the compiled class library data structures.");
+DEFINE_bool(dumpClassArray, false, "Dump the compiled class library data structures.");
 DEFINE_bool(dumpParseTree, false, "Dump the parse tree for the input file.");
 
 int main(int argc, char* argv[]) {
@@ -30,7 +31,9 @@ int main(int argc, char* argv[]) {
     }
 
     if (FLAGS_dumpClassArray) {
-
+        auto dump = hadron::SlotDumpJSON();
+        dump.dump(runtime.context(), runtime.context()->classLibrary->classArray().slot());
+        std::cout << dump.json() << std::endl;
     }
 
     fs::path sourcePath(FLAGS_sourceFile);
@@ -52,7 +55,7 @@ int main(int argc, char* argv[]) {
     if (FLAGS_dumpParseTree) {
         auto dump = hadron::SlotDumpJSON();
         dump.dump(runtime.context(), parser->root().slot());
-        std::cout << dump.json();
+        std::cout << dump.json() << std::endl;
     }
 
     return 0;

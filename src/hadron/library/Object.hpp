@@ -43,12 +43,13 @@ public:
     ~Object() {}
 
     // Optional initialization, sets all members to nil.
-    void initToNil() {
-        if (!m_instance) { assert(false); return; }
+    T initToNil() {
+        if (!m_instance) { assert(false); return T(); }
         Slot* s = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(m_instance) + sizeof(Schema));
         for (size_t i = 0; i < (m_instance->schema._sizeInBytes - sizeof(Schema)) / kSlotSize; ++i) {
             s[i] = Slot::makeNil();
         }
+        return T(m_instance);
     }
 
     static inline T alloc(ThreadContext* context, int32_t extraSlots = 0) {

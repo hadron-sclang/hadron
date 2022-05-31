@@ -86,6 +86,7 @@ DEFINE_string(libraryPath, "", "Base path of the SC class library.");
 DEFINE_string(hlangFiles, "", "Semicolon-delineated list of input hlang class files to process.");
 DEFINE_string(hlangPath, "", "Path to the HLang class library.");
 DEFINE_string(schemaPath, "", "Base path of output schema files.");
+DEFINE_string(bootstrapPath, "", "Path to the class library bootstrap code output file.");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
@@ -345,6 +346,14 @@ int main(int argc, char* argv[]) {
         classFiles.emplace(std::make_pair(schemaPath, std::move(classNames)));
     }
 
+    std::ofstream bootstrapFile(FLAGS_bootstrapPath);
+    if (!bootstrapFile) {
+        std::cerr << "Schema failed to create the bootstrap output file: " << FLAGS_bootstrapPath << std::endl;
+        return -1;
+    }
+    bootstrapFile << "    library::Class classDef;\n"
+                     "    library::SymbolArray instVarNames;\n";
+
     // Now that we've parsed all the input files, we should have the complete class heirarchy defined for each input
     // class, and can generate the output files.
     for (const auto& pair : classFiles) {
@@ -382,6 +391,12 @@ int main(int argc, char* argv[]) {
                 continue;
             }
 
+            bootstrapFile << "\n    // ========== " << className
+                    << fmt::format("\n    m_bootstrapClasses.emplace(library::Symbol::fromView(context, \"{}\"));\n", 
+                            className)
+                    << "    classDef = library::Class::alloc(context).initToNil();\n"
+                    << "    instVarNames = library::SymbolArray::arrayAlloc(context);\n";
+
             std::stack<std::unordered_map<std::string, ClassInfo>::iterator> lineage;
             auto lineageIter = classIter;
             lineage.emplace(lineageIter);
@@ -401,15 +416,22 @@ int main(int argc, char* argv[]) {
             while (lineage.size()) {
                 lineageIter = lineage.top();
                 lineage.pop();
-                outFile << "    // " << lineageIter->second.className << std::endl;
+                auto classHeader = fmt::format("    // {}\n", lineageIter->second.className);
+                outFile << classHeader;
+                bootstrapFile << classHeader;
                 for (const auto& varName : lineageIter->second.variables) {
                     outFile << "    Slot " << varName << ";" << std::endl;
+                    bootstrapFile <<
+                            fmt::format("    instVarNames = instVarNames.add(context, library::Symbol::fromView("
+                                    "context, \"{}\"));\n", varName);
                 }
             }
 
             outFile << "};" << std::endl << std::endl;
             outFile << "static_assert(std::is_standard_layout<" << className << "Schema>::value);"
                     << std::endl << std::endl;
+
+            bootstrapFile << "    classDef.setInstVarNames(instVarNames);\n";
         }
 
         outFile << "} // namespace schema" << std::endl;

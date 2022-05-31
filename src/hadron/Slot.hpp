@@ -145,7 +145,6 @@ static_assert(std::is_standard_layout<Slot>::value);
 // Making this a signed integer makes for easier pointer arithmetic.
 static constexpr int32_t kSlotSize = static_cast<int32_t>(sizeof(Slot));
 
-
 } // namespace hadron
 
 namespace std {

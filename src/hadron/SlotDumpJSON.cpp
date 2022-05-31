@@ -136,7 +136,27 @@ private:
                 arrayElements.PushBack(element, alloc);
             }
             value.AddMember("_elements", arrayElements, alloc);
-
+            return;
+        } else if (slotObject.className() == library::Int8Array::nameHash()) {
+            rapidjson::Value arrayElements;
+            arrayElements.SetArray();
+            auto array = library::Int8Array(slot);
+            for (int32_t i = 0; i < array.size(); ++i) {
+                arrayElements.PushBack(array.at(i), alloc);
+            }
+            value.AddMember("_elements", arrayElements, alloc);
+            return;
+        } else if (slotObject.className() == library::SymbolArray::nameHash()) {
+            rapidjson::Value arrayElements;
+            arrayElements.SetArray();
+            auto array = library::SymbolArray(slot);
+            for (int32_t i = 0; i < array.size(); ++i) {
+                auto symbol = array.at(i);
+                rapidjson::Value symbolValue;
+                symbolValue.SetString(symbol.view(context).data(), alloc);
+                arrayElements.PushBack(symbolValue, alloc);
+            }
+            value.AddMember("_elements", arrayElements, alloc);
             return;
         }
 

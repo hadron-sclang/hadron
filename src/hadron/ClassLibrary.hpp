@@ -48,6 +48,8 @@ private:
     // Call to delete any existing class libary compilation structures and start fresh.
     bool resetLibrary(ThreadContext* context);
 
+    void bootstrapLibrary(ThreadContext* context);
+
     // Scans the provided class directories, builds class inheritance structure. First pass of library compilation.
     bool scanFiles(ThreadContext* context);
     bool scanClass(ThreadContext* context, library::Class classDef, library::Class metaClassDef,
@@ -90,6 +92,9 @@ private:
 
     using MethodFrame = std::unordered_map<library::Symbol, library::CFGFrame>;
     std::unordered_map<library::Symbol, std::unique_ptr<MethodFrame>> m_methodFrames;
+
+    // Set of class names that are bootstrapped from schema generation, before class library compilation.
+    std::unordered_set<library::Symbol> m_bootstrapClasses;
 };
 
 } // namespace hadron
