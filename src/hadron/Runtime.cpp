@@ -35,7 +35,7 @@ Runtime::~Runtime() {}
 bool Runtime::initInterpreter() {
     if (!buildThreadContext()) return false;
     if (!buildTrampolines()) return false;
-    if (!compileClassLibrary()) return false;
+    m_threadContext->classLibrary->bootstrapLibrary(m_threadContext.get());
     return true;
 }
 
@@ -43,6 +43,7 @@ bool Runtime::compileClassLibrary() {
     auto classLibPath = findSCClassLibrary();
     SPDLOG_INFO("Starting Class Library compilation for files at {}", classLibPath.c_str());
     m_threadContext->classLibrary->addClassDirectory(classLibPath);
+    m_threadContext->classLibrary->addClassDirectory(findHLangClassLibrary());
     return m_threadContext->classLibrary->compileLibrary(m_threadContext.get());
 }
 

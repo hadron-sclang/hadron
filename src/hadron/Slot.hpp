@@ -48,7 +48,7 @@ public:
     static inline Slot makePointer(library::Schema* p) {
         return Slot(kObjectPointerTag | reinterpret_cast<uint64_t>(p));
     }
-    static inline Slot makeSymbolHash(Hash h) { return Slot(kSymbolTag | (static_cast<uint64_t>(h) & (~kTagMask))); }
+    static inline Slot makeSymbol(Hash h) { return Slot(kSymbolTag | (static_cast<uint64_t>(h) & (~kTagMask))); }
     static inline Slot makeChar(char c) { return Slot(kCharTag | c); }
     static inline Slot makeRawPointer(int8_t* p) { return Slot(kRawPointerTag | reinterpret_cast<uint64_t>(p)); }
 
@@ -145,14 +145,14 @@ static_assert(std::is_standard_layout<Slot>::value);
 // Making this a signed integer makes for easier pointer arithmetic.
 static constexpr int32_t kSlotSize = static_cast<int32_t>(sizeof(Slot));
 
-
 } // namespace hadron
 
 namespace std {
 template<>
 struct hash<hadron::Slot> {
     size_t operator()(const hadron::Slot& s) const {
-        return static_cast<size_t>(s.asBits());
+        auto hash = s.identityHash();
+        return (static_cast<size_t>(hash) << 32) | s.identityHash(hash);
     }
 };
 } // namespace std

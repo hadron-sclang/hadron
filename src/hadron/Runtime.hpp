@@ -16,7 +16,7 @@ public:
     explicit Runtime(std::shared_ptr<ErrorReporter> errorReporter);
     ~Runtime();
 
-    // Finalize members in ThreadContext, compiles the class library, initializes language globals needed for the
+    // Finalize members in ThreadContext, bootstraps class library, initializes language globals needed for the
     // Interpreter.
     bool initInterpreter();
 

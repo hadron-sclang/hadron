@@ -29,6 +29,11 @@ public:
     explicit ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter);
     ~ClassLibrary() = default;
 
+    // Load some minimal information from the classes parsed by schemac during compile time. This allows for fast
+    // loading of the interpreter with some information already provided, without parsing the class library. It also
+    // allows the interpreter to partially function if the class library compilation is broken.
+    void bootstrapLibrary(ThreadContext* context);
+
     // Adds a directory to the list of directories to scan for library classes.
     void addClassDirectory(const std::string& path);
 
@@ -41,6 +46,8 @@ public:
     library::Method interpreterContext() const { return m_interpreterContext; }
 
     library::Array classVariables() const { return m_classVariables; }
+
+    library::Array classArray() const { return m_classArray; }
 
 private:
     // Call to delete any existing class libary compilation structures and start fresh.
@@ -88,6 +95,9 @@ private:
 
     using MethodFrame = std::unordered_map<library::Symbol, library::CFGFrame>;
     std::unordered_map<library::Symbol, std::unique_ptr<MethodFrame>> m_methodFrames;
+
+    // Set of class names that are bootstrapped from schema generation, before class library compilation.
+    std::unordered_set<library::Symbol> m_bootstrapClasses;
 };
 
 } // namespace hadron

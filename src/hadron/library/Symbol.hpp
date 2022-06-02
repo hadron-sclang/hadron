@@ -44,7 +44,7 @@ public:
     explicit inline operator bool() const { return !isNil(); }
 
 private:
-    Symbol(Hash h): m_slot(Slot::makeSymbolHash(h)) {}
+    Symbol(Hash h): m_slot(Slot::makeSymbol(h)) {}
     Slot m_slot;
 };
 

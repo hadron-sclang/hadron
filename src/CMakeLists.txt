@@ -31,6 +31,17 @@ add_custom_target(run_unittests ALL
 )
 
 #############
+# dump-diag
+add_executable(dump-diag
+    dump-diag.cpp
+)
+
+target_link_libraries(dump-diag
+    gflags
+    hadron
+)
+
+#############
 # hlang
 add_executable(hlang
     hlang.cpp

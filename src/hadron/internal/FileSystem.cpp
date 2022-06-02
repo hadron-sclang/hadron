@@ -35,4 +35,13 @@ fs::path findSCClassLibrary() {
     return path;
 }
 
+fs::path findHLangClassLibrary() {
+    auto path = findBinaryPath();
+    path += "/../../classes/HLang";
+    path = fs::canonical(path);
+    assert(fs::exists(path));
+    assert(fs::is_directory(path));
+    return path;
+}
+
 } // namespace hadron

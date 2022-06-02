@@ -19,6 +19,7 @@ namespace hadron {
 // Return an absolute path to the running binary. OS-specific code.
 fs::path findBinaryPath();
 fs::path findSCClassLibrary();
+fs::path findHLangClassLibrary();
 
 } // namespace hadron
 

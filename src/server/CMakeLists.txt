@@ -30,10 +30,6 @@ target_link_libraries(server
     hadron
 )
 
-target_include_directories(server PUBLIC
-    ${RAPIDJSON_INCLUDE_DIR}
-)
-
 target_compile_options(server PUBLIC
     -g
     -Wall
