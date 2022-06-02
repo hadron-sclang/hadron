@@ -224,6 +224,16 @@ TEST_CASE("Lexer Floating Point") {
         CHECK(lexer.tokens()[2].range.data() == code + 5);
         CHECK(lexer.tokens()[2].range.size() == 8);
     }
+    SUBCASE("float scientific notation") {
+        const char* code = "1e0 10.2e7 4e-1 1000.1e-3";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 4);
+        CHECK(lexer.tokens()[0].value.getFloat() == 1e0);
+        CHECK(lexer.tokens()[1].value.getFloat() == 10.2e7);
+        CHECK(lexer.tokens()[2].value.getFloat() == 4e-1);
+        CHECK(lexer.tokens()[3].value.getFloat() == 1000.1e-3);
+    }
 }
 
 TEST_CASE("Lexer Hexadecimal Integers") {

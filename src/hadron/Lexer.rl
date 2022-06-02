@@ -31,6 +31,11 @@
             double value = strtod(ts, nullptr);
             m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
+        # Float scientific notation
+        digit+ ('.' digit+)? 'e' '-'? digit+ {
+            double value = strtod(ts, nullptr);
+            m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
+        };
 
         ###################
         # string literals #
@@ -294,7 +299,9 @@ Lexer::Lexer(std::string_view code):
 }
 
 Lexer::Lexer(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter):
-    m_code(code), m_errorReporter(errorReporter) {}
+    m_code(code), m_errorReporter(errorReporter) {
+        m_errorReporter->setCode(m_code.data());
+    }
 
 bool Lexer::lex() {
     // Ragel-required state variables.
