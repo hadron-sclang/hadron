@@ -18,11 +18,16 @@
 DEFINE_string(sourceFile, "", "Path to the source code file to process.");
 DEFINE_bool(dumpClassArray, false, "Dump the compiled class library data structures.");
 DEFINE_bool(dumpParseTree, false, "Dump the parse tree for the input file.");
+DEFINE_bool(doesItParse, false, "Print YES if the file parsed successfully");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
 
-    spdlog::default_logger()->set_level(spdlog::level::warn);
+    if (FLAGS_doesItParse) {
+        spdlog::default_logger()->set_level(spdlog::level::critical);
+    } else {
+        spdlog::default_logger()->set_level(spdlog::level::warn);
+    }
 
     auto errorReporter = std::make_shared<hadron::ErrorReporter>();
     hadron::Runtime runtime(errorReporter);
@@ -43,13 +48,32 @@ int main(int argc, char* argv[]) {
     if (!sourceFile->read(errorReporter)) { return -1; }
 
     auto lexer = std::make_unique<hadron::Lexer>(sourceFile->codeView(), errorReporter);
-    if(!lexer->lex()) { return -1; }
+    bool lexResult = lexer->lex();
+    if (FLAGS_doesItParse) {
+        if (!lexResult) {
+            std::cout << "NO, IT DOESN'T EVEN LEX: " << sourcePath << std::endl;
+            return 0;
+        }
+    } else if (!lexResult) { return -1; }
 
     auto parser = std::make_unique<hadron::Parser>(lexer.get(), errorReporter);
+    bool parseResult;
     if (isClassFile) {
-        if (!parser->parseClass(runtime.context())) { return -1; }
+        parseResult = parser->parseClass(runtime.context());
     } else {
-        if (!parser->parse(runtime.context())) { return -1; }
+        parseResult = parser->parse(runtime.context());
+    }
+
+    if (FLAGS_doesItParse) {
+        if (parseResult) {
+            std::cout << "YES" << std::endl;
+        }
+        else {
+            std::cout << "NO: " << sourcePath << std::endl;
+        }
+        return 0;
+    } else {
+        if (!parseResult) { return -1; }
     }
 
     if (FLAGS_dumpParseTree) {
