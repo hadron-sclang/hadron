@@ -192,6 +192,7 @@ HadronStringNode : HadronParseNode { }
 
 HadronSymbolNode : HadronParseNode { }
 
+// Implied call to .value()
 HadronValueNode : HadronCallNode { }
 
 // "token = initialValue"

@@ -373,7 +373,18 @@ msgsend : IDENTIFIER blocklist1 {
             }
         | IDENTIFIER OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
                 auto call = hadron::library::CallNode::make(threadContext, $IDENTIFIER);
-                call.setArguments(append<hadron::library::Node>($arglist1.toBase(), $blocklist.toBase()));
+                call.setArguments(append($arglist1.toBase(), $blocklist.toBase()));
+                call.setKeywordArguments($optkeyarglist);
+                $msgsend = call.toBase();
+            }
+        | OPENPAREN binop2 CLOSEPAREN OPENPAREN CLOSEPAREN blocklist1 {
+                auto call = hadron::library::CallNode::make(threadContext, $binop2);
+                call.setArguments($blocklist1);
+                $msgsend = call.toBase();
+            }
+        | OPENPAREN binop2 CLOSEPAREN OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
+                auto call = hadron::library::CallNode::make(threadContext, $binop2);
+                call.setArguments(append($arglist1.toBase(), $blocklist.toBase()));
                 call.setKeywordArguments($optkeyarglist);
                 $msgsend = call.toBase();
             }
@@ -381,6 +392,13 @@ msgsend : IDENTIFIER blocklist1 {
                 // TODO - differentiate between this and superPerformList()
                 auto performList = hadron::library::PerformListNode::make(threadContext, $OPENPAREN);
                 performList.setTarget(hadron::library::NameNode::make(threadContext, $IDENTIFIER).toBase());
+                performList.setArguments($arglistv1.toBase());
+                performList.setKeywordArguments($optkeyarglist);
+                $msgsend = performList.toBase();
+            }
+        | OPENPAREN[first] binop2 CLOSEPAREN OPENPAREN[second] arglistv1 optkeyarglist CLOSEPAREN {
+                auto performList = hadron::library::PerformListNode::make(threadContext, $first);
+                performList.setTarget(hadron::library::NameNode::make(threadContext, $binop2).toBase());
                 performList.setArguments($arglistv1.toBase());
                 performList.setKeywordArguments($optkeyarglist);
                 $msgsend = performList.toBase();
@@ -423,10 +441,11 @@ msgsend : IDENTIFIER blocklist1 {
                 $msgsend = newCall.toBase();
             }
         | CLASSNAME OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
+                auto performList = hadron::library::PerformListNode::make(threadContext, $OPENPAREN);
                 auto newCall = hadron::library::NewNode::make(threadContext, $CLASSNAME);
                 newCall.setTarget(hadron::library::NameNode::make(threadContext, $CLASSNAME).toBase());
-                newCall.setArguments($arglistv1.toBase());
-                newCall.setKeywordArguments($optkeyarglist);
+                performList.setArguments(append(newCall.toBase(), $arglistv1.toBase()));
+                performList.setKeywordArguments($optkeyarglist);
                 $msgsend = newCall.toBase();
             }
         | expr DOT OPENPAREN CLOSEPAREN blocklist {
@@ -455,6 +474,14 @@ msgsend : IDENTIFIER blocklist1 {
                 value.setArguments(append<hadron::library::Node>($arglist1.toBase(), $blocklist.toBase()));
                 value.setKeywordArguments($optkeyarglist);
                 $msgsend = value.toBase();
+            }
+        | expr DOT OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
+                auto performList = hadron::library::PerformListNode::make(threadContext, $OPENPAREN);
+                auto valueCall = hadron::library::ValueNode::make(threadContext, $DOT);
+                valueCall.setTarget($expr);
+                performList.setArguments(append(valueCall.toBase(), $arglistv1.toBase()));
+                performList.setKeywordArguments($optkeyarglist);
+                $msgsend = performList.toBase();
             }
         | expr DOT IDENTIFIER OPENPAREN CLOSEPAREN blocklist {
                 auto call = hadron::library::CallNode::make(threadContext, $IDENTIFIER);
