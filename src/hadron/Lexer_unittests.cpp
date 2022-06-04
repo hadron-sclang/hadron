@@ -434,6 +434,11 @@ TEST_CASE("Lexer Strings") {
         Lexer lexer("\"abc");
         CHECK(!lexer.lex());
     }
+    SUBCASE("vexing lex causing confusion of strings and symbols") {
+        const char* code = "var result = \"abc\\\\\" +/+ \"\\\\def\";";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+    }
 }
 
 TEST_CASE("Lexer Symbols") {

@@ -41,7 +41,7 @@
         # string literals #
         ###################
         # Double-quoted string.
-        '"' (('\\' any %hasEscape) | (extend - '"'))* '"' {
+        '"' (('\\' any %hasEscape) | (extend - ('"' | '\\')))* '"' {
             m_tokens.emplace_back(Token::makeString(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
                     hasEscapeChars));
             hasEscapeChars = false;
@@ -51,7 +51,7 @@
         # symbols #
         ###########
         # Single-quoted symbol.
-        '\'' (('\\' any %hasEscape) | (extend - '\''))* '\'' {
+        '\'' (('\\' any %hasEscape) | (extend - ('\'' | '\\')))* '\'' {
             m_tokens.emplace_back(Token::makeSymbol(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
                     hasEscapeChars));
             hasEscapeChars = false;
