@@ -32,7 +32,7 @@
             m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
         # Float scientific notation
-        digit+ ('.' digit+)? 'e' '-'? digit+ {
+        digit+ ('.' digit+)? 'e' ('-' | '+')? digit+ {
             double value = strtod(ts, nullptr);
             m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
