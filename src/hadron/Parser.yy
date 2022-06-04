@@ -17,7 +17,7 @@
 %token <hadron::library::Token> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA
 %token <hadron::library::Token> READWRITEVAR SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT
 %token <hadron::library::Token> ELLIPSES CURRYARGUMENT IF WHILE STRING SYMBOL BINOP KEYWORD IDENTIFIER CLASSNAME
-%token <hadron::library::Token> BEGINCLOSEDFUNC
+%token <hadron::library::Token> BEGINCLOSEDFUNC PI
 
 %type <hadron::library::ArgListNode> argdecls
 %type <hadron::library::BlockNode> cmdlinecode block blockliteral optblock
@@ -51,7 +51,7 @@
 %type <std::pair<bool, bool>> rwspec
 %type <bool> rspec
 %type <std::pair<hadron::library::Token, int32_t>> integer
-%type <std::pair<hadron::library::Token, double>> float
+%type <std::pair<hadron::library::Token, double>> floatr float
 %type <hadron::library::Token> binop binop2
 
 %precedence ASSIGN
@@ -68,6 +68,8 @@
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "hadron/Token.hpp"
+
+#include <cmath>
 
 #include "fmt/format.h"
 #include "spdlog/spdlog.h"
@@ -1183,8 +1185,15 @@ integer : INTEGER { $integer = std::make_pair($INTEGER, $INTEGER.value().getInt3
         | MINUS INTEGER %prec MINUS { $integer = std::make_pair($INTEGER, -$INTEGER.value().getInt32()); }
         ;
 
-float   : FLOAT { $float = std::make_pair($FLOAT, $FLOAT.value().getFloat()); }
-        | MINUS FLOAT %prec MINUS { $float = std::make_pair($FLOAT, -$FLOAT.value().getFloat()); }
+floatr  : FLOAT { $floatr = std::make_pair($FLOAT, $FLOAT.value().getFloat()); }
+        | MINUS FLOAT %prec MINUS { $floatr = std::make_pair($FLOAT, -$FLOAT.value().getFloat()); }
+        ;
+
+float   : floatr { $float = $floatr; }
+        | floatr PI { $float = std::make_pair($floatr.first, $floatr.second * M_PI); }
+        | integer PI { $float = std::make_pair($integer.first, static_cast<double>($integer.second) * M_PI); }
+        | PI { $float = std::make_pair($PI, M_PI); }
+        | MINUS PI { $float = std::make_pair($PI, -M_PI); }
         ;
 
 binop   : BINOP { $binop = $BINOP; }
@@ -1244,6 +1253,10 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContex
             return  yy::parser::make_FLOAT(scToken, token.location);
         }
         return yy::parser::make_LITERAL(scToken, token.location);
+
+    case hadron::Token::Name::kPi:
+        scToken.setName(hadron::library::Symbol::fromView(threadContext, "pi"));
+        return yy::parser::make_PI(scToken, token.location);
 
     case hadron::Token::Name::kString:
         scToken.setName(hadron::library::Symbol::fromView(threadContext, "string"));

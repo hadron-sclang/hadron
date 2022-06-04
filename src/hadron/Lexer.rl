@@ -208,7 +208,7 @@
             m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, 3), getLocation(ts)));
         };
         'pi' {
-            m_tokens.emplace_back(Token::makeFloatLiteral(M_PI, std::string_view(ts, 2), getLocation(ts)));
+            m_tokens.emplace_back(Token::makePi(std::string_view(ts, 2), getLocation(ts)));
         };
 
         ###############
@@ -286,7 +286,6 @@
 #include "spdlog/spdlog.h"
 
 #include <array>
-#include <cmath>
 #include <cstddef>
 #include <limits>
 #include <stdint.h>

@@ -21,53 +21,54 @@ struct Token {
                         // other ways to resolve this ambiguity but they will likely require some changes to the
                         // grammar.
         kLiteral = 2,
-        kString = 3,    // Strings are lexed differently from other literals to allow support for concatenating literal
+        kPi = 3,
+        kString = 4,    // Strings are lexed differently from other literals to allow support for concatenating literal
                         // strings at compile time, e.g. "line1" "line2" "line3" should end up as one string in the AST.
-        kSymbol = 4,
-        kPrimitive = 5,
+        kSymbol = 5,
+        kPrimitive = 6,
 
         // <<< all below could also be binops >>>
-        kPlus = 6,         // so named because it could be an addition or a class extension
-        kMinus = 7,        // Could be unary negation so handled separately
-        kAsterisk = 8,     // so named because it could be a multiply or a class method
-        kAssign = 9,
-        kLessThan = 10,
-        kGreaterThan = 11,
-        kPipe = 12,
-        kReadWriteVar = 13,
-        kLeftArrow = 14,
-        kBinop = 15,  // TODO: rename kGenericBinop, this is some arbitrary collection of the valid binop characters.
-        kKeyword = 16,      // Any identifier with a colon after it.
+        kPlus = 7,         // so named because it could be an addition or a class extension
+        kMinus = 8,        // Could be unary negation so handled separately
+        kAsterisk = 9,     // so named because it could be a multiply or a class method
+        kAssign = 10,
+        kLessThan = 11,
+        kGreaterThan = 12,
+        kPipe = 13,
+        kReadWriteVar = 14,
+        kLeftArrow = 15,
+        kBinop = 16,  // TODO: rename kGenericBinop, this is some arbitrary collection of the valid binop characters.
+        kKeyword = 17,      // Any identifier with a colon after it.
         // <<< all above could also be binops >>>
 
-        kOpenParen = 17,
-        kCloseParen = 18,
-        kOpenCurly = 19,
-        kCloseCurly = 20,
-        kOpenSquare = 21,
-        kCloseSquare = 22,
-        kComma = 23,
-        kSemicolon = 24,
-        kColon = 25,
-        kCaret = 26,
-        kTilde = 27,
-        kHash = 28,
-        kGrave = 29,
-        kVar = 30,
-        kArg = 31,
-        kConst = 32,
-        kClassVar = 33,
-        kIdentifier = 34,
-        kClassName = 35,
-        kDot = 36,
-        kDotDot = 37,
-        kEllipses = 38,
-        kCurryArgument = 39,
-        kBeginClosedFunction = 40, // #{
+        kOpenParen = 18,
+        kCloseParen = 19,
+        kOpenCurly = 20,
+        kCloseCurly = 21,
+        kOpenSquare = 22,
+        kCloseSquare = 23,
+        kComma = 24,
+        kSemicolon = 25,
+        kColon = 26,
+        kCaret = 27,
+        kTilde = 28,
+        kHash = 29,
+        kGrave = 30,
+        kVar = 31,
+        kArg = 32,
+        kConst = 33,
+        kClassVar = 34,
+        kIdentifier = 35,
+        kClassName = 36,
+        kDot = 37,
+        kDotDot = 38,
+        kEllipses = 39,
+        kCurryArgument = 40,
+        kBeginClosedFunction = 41, // #{
 
         // Control Flow
-        kIf = 41,
-        kWhile = 42
+        kIf = 42,
+        kWhile = 43
     };
 
     Name name;
@@ -91,6 +92,9 @@ struct Token {
     }
     static inline Token makeFloatLiteral(double f, std::string_view r, Location loc) {
         return Token(kLiteral, r, Slot::makeFloat(f), false, false, loc);
+    }
+    static inline Token makePi(std::string_view r, Location loc) {
+        return Token(kPi, r, Slot::makeNil(), false, false, loc);
     }
     // Note we don't copy strings or symbols into SC-side String or Symbol objects for now
     static inline Token makeString(std::string_view r, Location loc, bool escape) {
