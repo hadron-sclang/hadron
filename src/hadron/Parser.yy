@@ -20,7 +20,7 @@
 %token <hadron::library::Token> BEGINCLOSEDFUNC
 
 %type <hadron::library::ArgListNode> argdecls
-%type <hadron::library::BlockNode> cmdlinecode block blocklist1 blocklist optblock
+%type <hadron::library::BlockNode> cmdlinecode block blockliteral optblock
 %type <hadron::library::ClassExtNode> classextension
 %type <hadron::library::ClassNode> classdef
 %type <hadron::library::ExprSeqNode> dictslotlist1 dictslotdef arrayelems1
@@ -37,7 +37,7 @@
 %type <hadron::library::NameNode> mavarlist
 %type <hadron::library::Node> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
 %type <hadron::library::Node> literallist1 literal listliteral coreliteral classorclassext
-%type <hadron::library::Node> classorclassexts qualifiers qual
+%type <hadron::library::Node> classorclassexts qualifiers qual blocklistitem blocklist1 blocklist
 %type <hadron::library::ReturnNode> funretval retval
 %type <hadron::library::SeriesIterNode> valrange3
 %type <hadron::library::SeriesNode> valrange2
@@ -55,7 +55,7 @@
 %type <hadron::library::Token> binop binop2
 
 %precedence ASSIGN
-%left BINOP KEYWORD PLUS MINUS ASTERISK LESSTHAN GREATERTHAN PIPE READWRITEVAR LEFTARROW
+%left BINOP KEYWORD PLUS MINUS ASTERISK LESSTHAN GREATERTHAN PIPE READWRITEVAR
 %precedence DOT
 %start root
 
@@ -344,11 +344,15 @@ funretval   : %empty { $funretval = hadron::library::ReturnNode(); }
                 }
             ;
 
-blocklist1[target]  : block { $target = $block; }
-                    | blocklist1[build] block { $target = append($build, $block); }
+blocklist1[target]  : blocklistitem { $target = $blocklistitem; }
+                    | blocklist1[build] blocklistitem { $target = append($build, $blocklistitem); }
                     ;
 
-blocklist   : %empty { $blocklist = hadron::library::BlockNode(); }
+blocklistitem   : blockliteral { $blocklistitem = $blockliteral.toBase(); }
+                | listcomp { $blocklistitem = $listcomp.toBase(); }
+                ;
+
+blocklist   : %empty { $blocklist = hadron::library::Node(); }
             | blocklist1 { $blocklist = $blocklist1; }
             ;
 
@@ -481,25 +485,52 @@ msgsend : IDENTIFIER blocklist1 {
             }
         ;
 
-listcomp    : OPENCURLY COLON exprseq qualifiers CLOSECURLY {
-                    auto listComp = hadron::library::ListCompNode::make(threadContext, $OPENCURLY);
-                    listComp.setBody($exprseq);
-                    listComp.setQualifiers($qualifiers);
-                    $listcomp = listComp;
-                }
-            ;
-
-qualifiers[target]  : qual { $target = $qual; }
-                    | qualifiers[build] qual { $target = append($build, $qual); }
-                    ;
-
-qual    : IDENTIFIER LEFTARROW exprseq {
-                auto generator = hadron::library::GenQualNode::make(threadContext, $LEFTARROW);
-                generator.setName(hadron::library::NameNode::make(theadContext, $IDENTIFIER));
-                generator.setExprSeq($exprseq);
-                $qual = generator.toBase();
+listcomp: OPENCURLY COLON exprseq COMMA qualifiers CLOSECURLY {
+                auto listComp = hadron::library::ListCompNode::make(threadContext, $OPENCURLY);
+                listComp.setBody($exprseq);
+                listComp.setQualifiers($qualifiers);
+                $listcomp = listComp;
+            }
+        | OPENCURLY SEMICOLON exprseq COMMA qualifiers CLOSECURLY {
+                auto listComp = hadron::library::ListCompNode::make(threadContext, $OPENCURLY);
+                listComp.setBody($exprseq);
+                listComp.setQualifiers($qualifiers);
+                $listcomp = listComp;
             }
         ;
+
+qualifiers[target]  : qual { $target = $qual; }
+                    | qualifiers[build] COMMA qual { $target = append($build, $qual); }
+                    ;
+
+qual: IDENTIFIER LEFTARROW exprseq {
+            auto generator = hadron::library::GenQualNode::make(threadContext, $LEFTARROW);
+            generator.setName(hadron::library::NameNode::make(threadContext, $IDENTIFIER));
+            generator.setExprSeq($exprseq);
+            $qual = generator.toBase();
+        }
+    | exprseq {
+            auto guard = hadron::library::GuardQualNode::make(threadContext, $exprseq.token());
+            guard.setExprSeq($exprseq);
+            $qual = guard.toBase();
+        }
+    | VAR IDENTIFIER ASSIGN exprseq {
+            auto binding = hadron::library::BindingQualNode::make(threadContext, $VAR);
+            binding.setName(hadron::library::NameNode::make(threadContext, $IDENTIFIER));
+            binding.setExprSeq($exprseq);
+            $qual = binding.toBase();
+        }
+    | COLON[first] COLON[second] exprseq {
+            auto sideEffect = hadron::library::SideEffectQualNode::make(threadContext, $first);
+            sideEffect.setExprSeq($exprseq);
+            $qual = sideEffect.toBase();
+        }
+    | COLON WHILE exprseq {
+            auto termination = hadron::library::TerminationQualNode::make(threadContext, $COLON);
+            termination.setExprSeq($exprseq);
+            $qual = termination.toBase();
+        }
+    ;
 
 if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] optcomma CLOSEPAREN {
             auto ifNode = hadron::library::IfNode::make(threadContext, $IF);
@@ -542,7 +573,7 @@ if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] o
 
 while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN {
                 auto whileNode = hadron::library::WhileNode::make(threadContext, $WHILE);
-                whileNode.setConditionBlock($condition);
+                whileNode.setConditionBlock($condition.toBase());
                 whileNode.setActionBlock($blocks);
                 $while = whileNode;
             }
@@ -558,7 +589,7 @@ while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN
                 $blocks.setTail($blocks.toBase());
 
                 whileNode.setConditionBlock($blocks);
-                whileNode.setActionBlock(actionBlock);
+                whileNode.setActionBlock(actionBlock.toBase());
                 $while = whileNode;
             }
         ;
@@ -618,6 +649,7 @@ arrayelems1[target] : exprseq { $target = $exprseq; }
                     ;
 
 expr1[target]   : literal { $target = $literal; }
+                | blockliteral { $target = $blockliteral.toBase(); }
                 | listcomp { $target = $listcomp.toBase(); }
                 | IDENTIFIER { $target = hadron::library::NameNode::make(threadContext, $IDENTIFIER).toBase(); }
                 | CURRYARGUMENT {
@@ -1081,6 +1113,9 @@ mavarlist[target]   : IDENTIFIER {
                         }
                     ;
 
+blockliteral:   block { $blockliteral = $block; }
+            ;
+
 listliteral : coreliteral { $listliteral = $coreliteral; }
         | listlit2 { $listliteral = $listlit2.toBase(); }
         | dictlit2 { $listliteral = $dictlit2.toBase(); }
@@ -1107,7 +1142,6 @@ coreliteral : LITERAL {
                     literal.setValue(hadron::Slot::makeFloat($float.second));
                     $coreliteral = literal.toBase();
                 }
-            | block { $coreliteral = $block.toBase(); }
             | stringlist { $coreliteral = $stringlist.toBase(); }
             | SYMBOL { $coreliteral = hadron::library::SymbolNode::make(threadContext, $SYMBOL).toBase(); }
             ;
@@ -1128,7 +1162,6 @@ binop   : BINOP { $binop = $BINOP; }
         | GREATERTHAN { $binop = $GREATERTHAN; }
         | PIPE { $binop = $PIPE; }
         | READWRITEVAR { $READWRITEVAR; }
-        | LEFTARROW { $LEFTARROW; }
         ;
 
 binop2  : binop { $binop2 = $binop; }

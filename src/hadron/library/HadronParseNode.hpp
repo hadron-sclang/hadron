@@ -352,11 +352,11 @@ public:
             NodeBase<WhileNode, schema::HadronWhileNodeSchema, Node>(instance) {}
     ~WhileNode() {}
 
-    BlockNode conditionBlock() const { return BlockNode(m_instance->conditionBlock); }
-    void setConditionBlock(BlockNode blockNode) { m_instance->conditionBlock = blockNode.slot(); }
+    Node conditionBlock() const { return Node::wrapUnsafe(m_instance->conditionBlock); }
+    void setConditionBlock(Node n) { m_instance->conditionBlock = n.slot(); }
 
-    BlockNode actionBlock() const { return BlockNode(m_instance->actionBlock); }
-    void setActionBlock(BlockNode blockNode) { m_instance->actionBlock = blockNode.slot(); }
+    Node actionBlock() const { return Node::wrapUnsafe(m_instance->actionBlock); }
+    void setActionBlock(Node n) { m_instance->actionBlock = n.slot(); }
 };
 
 class EventNode : public NodeBase<EventNode, schema::HadronEventNodeSchema, Node> {

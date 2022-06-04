@@ -532,9 +532,10 @@ library::AST ASTBuilder::transform(ThreadContext* context, const library::Node n
     case library::WhileNode::nameHash(): {
         const auto whileNode = library::WhileNode(node.slot());
         auto whileAST = library::WhileAST::makeWhile(context);
-        whileAST.setConditionBlock(buildBlock(context, whileNode.conditionBlock()));
+        // TODO: could be list comprehension nodes here, handle.
+        whileAST.setConditionBlock(buildBlock(context, library::BlockNode(whileNode.conditionBlock().slot())));
         if (whileNode.actionBlock()) {
-            whileAST.setRepeatBlock(buildBlock(context, whileNode.actionBlock()));
+            whileAST.setRepeatBlock(buildBlock(context, library::BlockNode(whileNode.actionBlock().slot())));
         } else {
             auto nil = library::ConstantAST::makeConstant(context, Slot::makeNil());
             whileAST.repeatBlock().statements().addAST(context, library::AST::wrapUnsafe(nil.slot()));
