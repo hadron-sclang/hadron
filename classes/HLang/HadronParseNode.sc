@@ -210,3 +210,31 @@ HadronWhileNode : HadronParseNode {
 	var <>conditionBlock;
 	var <>actionBlock; // can be nil
 }
+
+// See the grammar described at https://doc.sccode.org/Guides/ListComprehensions.html#Grammar
+HadronListComprehensionNode : HadronParseNode {
+	var <>body; // An HadronExprSeqNode
+	var <>qualifiers; // One or more Hadron*QualifierNode
+}
+
+HadronGeneratorQualifierNode : HadronParseNode {
+	var <>name;
+	var <>exprSeq;
+}
+
+HadronGuardQualifierNode : HadronParseNode {
+	var <>exprSeq;
+}
+
+HadronBindingQualifierNode : HadronParseNode {
+	var <>name;
+	var <>exprSeq;
+}
+
+HadronSideEffectQualifierNode : HadronParseNode {
+	var <>exprSeq;
+}
+
+HadronTerminationQualifierNode : HadronParseNode {
+	var <>exprSeq;
+}

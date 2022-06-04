@@ -666,6 +666,93 @@ public:
     ~EmptyNode() {}
 };
 
+class ListCompNode : public NodeBase<ListCompNode, schema::HadronListComprehensionNodeSchema, Node> {
+public:
+    ListCompNode(): NodeBase<ListCompNode, schema::HadronListComprehensionNodeSchema, Node>() {}
+    explicit ListCompNode(schema::HadronListComprehensionNodeSchema* instance):
+            NodeBase<ListCompNode, schema::HadronListComprehensionNodeSchema, Node>(instance) {}
+    explicit ListCompNode(Slot instance):
+            NodeBase<ListCompNode, schema::HadronListComprehensionNodeSchema, Node>(instance) {}
+    ~ListCompNode() {}
+
+    ExprSeqNode body() const { return ExprSeqNode(m_instance->body); }
+    void setBody(ExprSeqNode seq) { m_instance->body = seq.slot(); }
+
+    Node qualifiers() const { return Node::wrapUnsafe(m_instance->qualifiers); }
+    void setQualifiers(Node n) { m_instance->qualifiers = n.slot(); }
+};
+
+class TerminationQualNode : public NodeBase<TerminationQualNode, schema::HadronTerminationQualifierNodeSchema, Node> {
+public:
+    TerminationQualNode(): NodeBase<TerminationQualNode, schema::HadronTerminationQualifierNodeSchema, Node>() {}
+    explicit TerminationQualNode(schema::HadronTerminationQualifierNodeSchema* instance):
+            NodeBase<TerminationQualNode, schema::HadronTerminationQualifierNodeSchema, Node>(instance) {}
+    explicit TerminationQualNode(Slot instance):
+            NodeBase<TerminationQualNode, schema::HadronTerminationQualifierNodeSchema, Node>(instance) {}
+    ~TerminationQualNode() {}
+
+    ExprSeqNode exprSeq() const { return ExprSeqNode(m_instance->exprSeq); }
+    void setExprSeq(ExprSeqNode seq) { m_instance->exprSeq = seq.slot(); }
+};
+
+class SideEffectQualNode : public NodeBase<SideEffectQualNode, schema::HadronSideEffectQualifierNodeSchema, Node> {
+public:
+    SideEffectQualNode(): NodeBase<SideEffectQualNode, schema::HadronSideEffectQualifierNodeSchema, Node>() {}
+    explicit SideEffectQualNode(schema::HadronSideEffectQualifierNodeSchema* instance):
+            NodeBase<SideEffectQualNode, schema::HadronSideEffectQualifierNodeSchema, Node>(instance) {}
+    explicit SideEffectQualNode(Slot instance):
+            NodeBase<SideEffectQualNode, schema::HadronSideEffectQualifierNodeSchema, Node>(instance) {}
+    ~SideEffectQualNode() {}
+
+    ExprSeqNode exprSeq() const { return ExprSeqNode(m_instance->exprSeq); }
+    void setExprSeq(ExprSeqNode seq) { m_instance->exprSeq = seq.slot(); }
+};
+
+class BindingQualNode : public NodeBase<BindingQualNode, schema::HadronBindingQualifierNodeSchema, Node> {
+public:
+    BindingQualNode(): NodeBase<BindingQualNode, schema::HadronBindingQualifierNodeSchema, Node>() {}
+    explicit BindingQualNode(schema::HadronBindingQualifierNodeSchema* instance):
+            NodeBase<BindingQualNode, schema::HadronBindingQualifierNodeSchema, Node>(instance) {}
+    explicit BindingQualNode(Slot instance):
+            NodeBase<BindingQualNode, schema::HadronBindingQualifierNodeSchema, Node>(instance) {}
+    ~BindingQualNode() {}
+
+    NameNode name() const { return NameNode(m_instance->name); }
+    void setName(NameNode n) { m_instance->name = n.slot(); }
+
+    ExprSeqNode exprSeq() const { return ExprSeqNode(m_instance->exprSeq); }
+    void setExprSeq(ExprSeqNode seq) { m_instance->exprSeq = seq.slot(); }
+};
+
+class GuardQualNode : public NodeBase<GuardQualNode, schema::HadronGuardQualifierNodeSchema, Node> {
+public:
+    GuardQualNode(): NodeBase<GuardQualNode, schema::HadronGuardQualifierNodeSchema, Node>() {}
+    explicit GuardQualNode(schema::HadronGuardQualifierNodeSchema* instance):
+            NodeBase<GuardQualNode, schema::HadronGuardQualifierNodeSchema, Node>(instance) {}
+    explicit GuardQualNode(Slot instance):
+            NodeBase<GuardQualNode, schema::HadronGuardQualifierNodeSchema, Node>(instance) {}
+    ~GuardQualNode() {}
+
+    ExprSeqNode exprSeq() const { return ExprSeqNode(m_instance->exprSeq); }
+    void setExprSeq(ExprSeqNode seq) { m_instance->exprSeq = seq.slot(); }
+};
+
+class GenQualNode : public NodeBase<GenQualNode, schema::HadronGeneratorQualifierNodeSchema, Node> {
+public:
+    GenQualNode(): NodeBase<GenQualNode, schema::HadronGeneratorQualifierNodeSchema, Node>() {}
+    explicit GenQualNode(schema::HadronGeneratorQualifierNodeSchema* instance):
+            NodeBase<GenQualNode, schema::HadronGeneratorQualifierNodeSchema, Node>(instance) {}
+    explicit GenQualNode(Slot instance):
+            NodeBase<GenQualNode, schema::HadronGeneratorQualifierNodeSchema, Node>(instance) {}
+    ~GenQualNode() {}
+
+    NameNode name() const { return NameNode(m_instance->name); }
+    void setName(NameNode n) { m_instance->name = n.slot(); }
+
+    ExprSeqNode exprSeq() const { return ExprSeqNode(m_instance->exprSeq); }
+    void setExprSeq(ExprSeqNode seq) { m_instance->exprSeq = seq.slot(); }
+};
+
 } // namespace library
 } // namespace hadron
 

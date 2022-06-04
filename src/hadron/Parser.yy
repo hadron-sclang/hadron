@@ -31,12 +31,13 @@
 %type <hadron::library::KeyValueNode> litdictslotlist
 %type <hadron::library::EventNode> dictlit2
 %type <hadron::library::CollectionNode> listlit listlit2
+%type <hadron::library::ListCompNode> listcomp
 %type <hadron::library::MethodNode> methods methoddef
 %type <hadron::library::MultiAssignVarsNode> mavars
 %type <hadron::library::NameNode> mavarlist
 %type <hadron::library::Node> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
 %type <hadron::library::Node> literallist1 literal listliteral coreliteral classorclassext
-%type <hadron::library::Node> classorclassexts
+%type <hadron::library::Node> classorclassexts qualifiers qual
 %type <hadron::library::ReturnNode> funretval retval
 %type <hadron::library::SeriesIterNode> valrange3
 %type <hadron::library::SeriesNode> valrange2
@@ -480,6 +481,26 @@ msgsend : IDENTIFIER blocklist1 {
             }
         ;
 
+listcomp    : OPENCURLY COLON exprseq qualifiers CLOSECURLY {
+                    auto listComp = hadron::library::ListCompNode::make(threadContext, $OPENCURLY);
+                    listComp.setBody($exprseq);
+                    listComp.setQualifiers($qualifiers);
+                    $listcomp = listComp;
+                }
+            ;
+
+qualifiers[target]  : qual { $target = $qual; }
+                    | qualifiers[build] qual { $target = append($build, $qual); }
+                    ;
+
+qual    : IDENTIFIER LEFTARROW exprseq {
+                auto generator = hadron::library::GenQualNode::make(threadContext, $LEFTARROW);
+                generator.setName(hadron::library::NameNode::make(theadContext, $IDENTIFIER));
+                generator.setExprSeq($exprseq);
+                $qual = generator.toBase();
+            }
+        ;
+
 if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] optcomma CLOSEPAREN {
             auto ifNode = hadron::library::IfNode::make(threadContext, $IF);
             ifNode.setCondition($condition);
@@ -597,6 +618,7 @@ arrayelems1[target] : exprseq { $target = $exprseq; }
                     ;
 
 expr1[target]   : literal { $target = $literal; }
+                | listcomp { $target = $listcomp.toBase(); }
                 | IDENTIFIER { $target = hadron::library::NameNode::make(threadContext, $IDENTIFIER).toBase(); }
                 | CURRYARGUMENT {
                         $target = hadron::library::CurryArgumentNode::make(threadContext, $CURRYARGUMENT).toBase();
@@ -808,9 +830,7 @@ funcvardecls[target]    : %empty { $target = hadron::library::VarListNode(); }
                         ;
 
 funcvardecls1[target]   : funcvardecl { $target = $funcvardecl; }
-                        | funcvardecls1[build] funcvardecl {
-                                $target = append($build, $funcvardecl);
-                            }
+                        | funcvardecls1[build] funcvardecl { $target = append($build, $funcvardecl); }
                         ;
 
 funcvardecl : VAR vardeflist SEMICOLON {
