@@ -589,6 +589,15 @@ if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] o
             ifNode.setTrueBlock(wrapInnerBlock(threadContext, $true));
             $if = ifNode;
         }
+    | expr DOT IF block[true] optblock {
+            auto ifNode = hadron::library::IfNode::make(threadContext, $IF);
+            auto condSeq = hadron::library::ExprSeqNode::make(threadContext, $expr.token());
+            condSeq.setExpr($expr);
+            ifNode.setCondition(condSeq);
+            ifNode.setTrueBlock($true);
+            ifNode.setElseBlock($optblock);
+            $if = ifNode;
+        }
     | IF OPENPAREN exprseq[condition] CLOSEPAREN block[true] optblock {
             auto ifNode = hadron::library::IfNode::make(threadContext, $IF);
             ifNode.setCondition($condition);
@@ -600,8 +609,8 @@ if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] o
 
 while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN {
                 auto whileNode = hadron::library::WhileNode::make(threadContext, $WHILE);
-                whileNode.setConditionBlock($condition.toBase());
-                whileNode.setActionBlock($blocks);
+                whileNode.setConditionBlock($condition);
+                whileNode.setActionBlock(hadron::library::BlockNode($blocks.slot()));
                 $while = whileNode;
             }
         | WHILE blocklist1[blocks] {
@@ -615,8 +624,8 @@ while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN
                 }
                 $blocks.setTail($blocks.toBase());
 
-                whileNode.setConditionBlock($blocks);
-                whileNode.setActionBlock(actionBlock.toBase());
+                whileNode.setConditionBlock(hadron::library::BlockNode($blocks.slot()));
+                whileNode.setActionBlock(actionBlock);
                 $while = whileNode;
             }
         ;
