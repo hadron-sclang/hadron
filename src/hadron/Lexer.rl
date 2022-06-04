@@ -203,6 +203,13 @@
         'while' {
             m_tokens.emplace_back(Token::make(Token::Name::kWhile, std::string_view(ts, 5), getLocation(ts), false));
         };
+        'inf' {
+            auto value = std::numeric_limits<double>::infinity();
+            m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, 3), getLocation(ts)));
+        };
+        'pi' {
+            m_tokens.emplace_back(Token::makeFloatLiteral(M_PI, std::string_view(ts, 2), getLocation(ts)));
+        };
 
         ###############
         # identifiers #
@@ -279,7 +286,9 @@
 #include "spdlog/spdlog.h"
 
 #include <array>
+#include <cmath>
 #include <cstddef>
+#include <limits>
 #include <stdint.h>
 #include <stdlib.h>
 #include <vector>
