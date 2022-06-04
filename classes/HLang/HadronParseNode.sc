@@ -44,6 +44,7 @@ HadronAssignNode : HadronParseNode {
 HadronBinopCallNode : HadronParseNode {
 	var <>leftHand;
 	var <>rightHand;
+	var <>adverb; // it is possible in some cases to add a third argument
 }
 
 // { |arguments| var variables; body }

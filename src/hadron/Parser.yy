@@ -35,7 +35,7 @@
 %type <hadron::library::MethodNode> methods methoddef
 %type <hadron::library::MultiAssignVarsNode> mavars
 %type <hadron::library::NameNode> mavarlist
-%type <hadron::library::Node> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
+%type <hadron::library::Node> root expr exprn expr1 adverb valrangex1 msgsend literallistc
 %type <hadron::library::Node> literallist1 literal listliteral coreliteral classorclassext
 %type <hadron::library::Node> classorclassexts qualifiers qual blocklistitem blocklist1 blocklist
 %type <hadron::library::ReturnNode> funretval retval
@@ -630,20 +630,16 @@ while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN
             }
         ;
 
-// TODO: figure out is this used? What does it mean? Things like: "4 + .foo 5" parse in LSC (evaluates to 9).
-/*
-adverb  : %empty { $adverb = nullptr; }
-        | DOT IDENTIFIER {
-                $adverb = std::make_unique<hadron::parse::LiteralNode($IDENTIFIER,
-                    hadron::Slot(hadron::Type::kSymbol, hadron::Slot::Value()));
-            }
+
+adverb  : %empty { $adverb = hadron::library::Node(); }
+        | DOT IDENTIFIER { $adverb = hadron::library::SymbolNode::make(threadContext, $IDENTIFIER).toBase(); }
         | DOT INTEGER {
-                $adverb = std::make_unique<hadron::parse::LiteralNode($INTEGER.first,
-                    hadron::Slot(hadron::Type::kInteger, hadron::Slot::Value($INTEGER.second)));
+                auto literal = hadron::library::SlotNode::make(threadContext, $INTEGER);
+                literal.setValue($INTEGER.value());
+                $adverb = literal.toBase();
             }
-        | DOT OPENPAREN exprseq CLOSEPAREN { $adverb = std::move($exprseq); }
+        | DOT OPENPAREN exprseq CLOSEPAREN { $adverb = $exprseq.toBase(); }
         ;
-*/
 
 exprn[target]   : expr { $target = $expr; }
                 | exprn[build] SEMICOLON expr { $target = append($build, $expr); }
@@ -828,10 +824,11 @@ valrange3   : exprseq[start] DOTDOT {
 
 expr[target]    : expr1 { $target = $expr1; }
                 | CLASSNAME { $target = hadron::library::NameNode::make(threadContext, $CLASSNAME).toBase(); }
-                | expr[leftHand] binop2 /* adverb */ expr[rightHand] %prec BINOP {
+                | expr[leftHand] binop2 adverb expr[rightHand] %prec BINOP {
                         auto binop = hadron::library::BinopCallNode::make(threadContext, $binop2);
                         binop.setLeftHand($leftHand);
                         binop.setRightHand($rightHand);
+                        binop.setAdverb($adverb);
                         $target = binop.toBase();
                     }
                 | IDENTIFIER ASSIGN expr[build] {

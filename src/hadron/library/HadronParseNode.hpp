@@ -609,6 +609,9 @@ public:
 
     Node rightHand() const { return Node::wrapUnsafe(m_instance->rightHand); }
     void setRightHand(Node node) { m_instance->rightHand = node.slot(); }
+
+    Node adverb() const { return Node::wrapUnsafe(m_instance->adverb); }
+    void setAdverb(Node node) { m_instance->adverb = node.slot(); }
 };
 
 class AssignNode : public NodeBase<AssignNode, schema::HadronAssignNodeSchema, Node> {
