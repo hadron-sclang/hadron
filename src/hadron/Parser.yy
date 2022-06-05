@@ -116,6 +116,17 @@ hadron::library::BlockNode wrapInnerBlock(hadron::ThreadContext* threadContext, 
 }
 
 yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContext* threadContext);
+
+// If first has a next, removes it and returns it. Otherwise returns an empty Node.
+inline hadron::library::Node removeTail(hadron::library::Node head) {
+    auto tail = hadron::library::Node::wrapUnsafe(head.next().slot());
+    if (tail) {
+        head.setNext(hadron::library::Node());
+        tail.setTail(head.tail());
+        head.setTail(head);
+    }
+    return tail;
+}
 }
 
 %%
@@ -617,15 +628,8 @@ while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN
             }
         | WHILE blocklist1[blocks] {
                 auto whileNode = hadron::library::WhileNode::make(threadContext, $WHILE);
-
                 // Extract second block as condition block, if present.
-                auto actionBlock = hadron::library::BlockNode($blocks.next().slot());
-                if (actionBlock) {
-                    $blocks.setNext(hadron::library::Node());
-                    actionBlock.setTail($blocks.tail());
-                }
-                $blocks.setTail($blocks.toBase());
-
+                auto actionBlock = hadron::library::BlockNode(removeTail($blocks.toBase()).slot());
                 whileNode.setConditionBlock(hadron::library::BlockNode($blocks.slot()));
                 whileNode.setActionBlock(actionBlock);
                 $while = whileNode;
@@ -727,11 +731,7 @@ valrangex1  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE {
                     auto copySeries = hadron::library::CopySeriesNode::make(threadContext, $OPENSQUARE);
                     copySeries.setTarget($expr1);
                     auto first = $arglist1;
-                    auto second = hadron::library::Node::wrapUnsafe(first.next().slot());
-                    if (second) {
-                        first.setNext(hadron::library::Node());
-                        first.setTail(first.toBase());
-                    }
+                    auto second = removeTail(first.toBase());
                     copySeries.setFirst(first);
                     copySeries.setSecond(second);
                     $valrangex1 = copySeries.toBase();
@@ -746,11 +746,7 @@ valrangex1  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE {
                     auto copySeries = hadron::library::CopySeriesNode::make(threadContext, $OPENSQUARE);
                     copySeries.setTarget($expr1);
                     auto first = $arglist1;
-                    auto second = hadron::library::Node::wrapUnsafe(first.next().slot());
-                    if (second) {
-                        first.setNext(hadron::library::Node());
-                        first.setTail(first.toBase());
-                    }
+                    auto second = removeTail(first.toBase());
                     copySeries.setFirst(first);
                     copySeries.setSecond(second);
                     copySeries.setLast($last);
@@ -761,9 +757,30 @@ valrangex1  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE {
 valrangeassign  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE ASSIGN expr {
                         auto putSeries = hadron::library::PutSeriesNode::make(threadContext, $ASSIGN);
                         putSeries.setTarget($expr1);
-                        if ($arglist1.next()) {
-                            #error here
-                        }
+                        auto first = $arglist1.toBase();
+                        auto second = removeTail(first);
+                        putSeries.setFirst(first);
+                        putSeries.setSecond(second);
+                        putSeries.setValue($expr);
+                        $valrangeassign = putSeries.toBase();
+                    }
+                | expr1 OPENSQUARE DOTDOT exprseq CLOSESQUARE ASSIGN expr {
+                        auto putSeries = hadron::library::PutSeriesNode::make(threadContext, $ASSIGN);
+                        putSeries.setTarget($expr1);
+                        putSeries.setLast($exprseq.toBase());
+                        putSeries.setValue($expr);
+                        $valrangeassign = putSeries.toBase();
+                    }
+                | expr1 OPENSQUARE arglist1 DOTDOT exprseq CLOSESQUARE ASSIGN expr {
+                        auto putSeries = hadron::library::PutSeriesNode::make(threadContext, $ASSIGN);
+                        putSeries.setTarget($expr1);
+                        auto first = $arglist1.toBase();
+                        auto second = removeTail(first);
+                        putSeries.setFirst(first);
+                        putSeries.setSecond(second);
+                        putSeries.setLast($exprseq.toBase());
+                        putSeries.setValue($expr);
+                        $valrangeassign = putSeries.toBase();
                     }
                 ;
 
@@ -834,6 +851,7 @@ valrange3   : exprseq[start] DOTDOT {
             ;
 
 expr[target]    : expr1 { $target = $expr1; }
+                | valrangeassign
                 | CLASSNAME { $target = hadron::library::NameNode::make(threadContext, $CLASSNAME).toBase(); }
                 | expr[leftHand] binop2 adverb expr[rightHand] %prec BINOP {
                         auto binop = hadron::library::BinopCallNode::make(threadContext, $binop2);

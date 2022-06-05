@@ -510,14 +510,14 @@ public:
     ~PerformListNode() {}
 };
 
-class PutSeriesNode : public NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema> {
+class PutSeriesNode : public NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema, Node> {
 public:
-    PutSeriesNode(): NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema>() {}
+    PutSeriesNode(): NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema, Node>() {}
     explicit PutSeriesNode(schema::HadronPutSeriesNodeSchema* instance):
-            NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema>(instance) {}
+            NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema, Node>(instance) {}
     explicit PutSeriesNode(Slot instance):
-            NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema>(instance) {}
-    ~PutSeriesNode();
+            NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema, Node>(instance) {}
+    ~PutSeriesNode() {}
 
     Node target() const { return Node::wrapUnsafe(m_instance->target); }
     void setTarget(Node n) { m_instance->target = n.slot(); }
