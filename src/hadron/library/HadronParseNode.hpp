@@ -353,10 +353,10 @@ public:
     ~WhileNode() {}
 
     BlockNode conditionBlock() const { return BlockNode(m_instance->conditionBlock); }
-    void setConditionBlock(BlockNode blockNode) { m_instance->conditionBlock = blockNode.slot(); }
+    void setConditionBlock(BlockNode n) { m_instance->conditionBlock = n.slot(); }
 
     BlockNode actionBlock() const { return BlockNode(m_instance->actionBlock); }
-    void setActionBlock(BlockNode blockNode) { m_instance->actionBlock = blockNode.slot(); }
+    void setActionBlock(BlockNode n) { m_instance->actionBlock = n.slot(); }
 };
 
 class EventNode : public NodeBase<EventNode, schema::HadronEventNodeSchema, Node> {
@@ -510,6 +510,31 @@ public:
     ~PerformListNode() {}
 };
 
+class PutSeriesNode : public NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema, Node> {
+public:
+    PutSeriesNode(): NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema, Node>() {}
+    explicit PutSeriesNode(schema::HadronPutSeriesNodeSchema* instance):
+            NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema, Node>(instance) {}
+    explicit PutSeriesNode(Slot instance):
+            NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema, Node>(instance) {}
+    ~PutSeriesNode() {}
+
+    Node target() const { return Node::wrapUnsafe(m_instance->target); }
+    void setTarget(Node n) { m_instance->target = n.slot(); }
+
+    Node first() const { return Node::wrapUnsafe(m_instance->first); }
+    void setFirst(Node n) { m_instance->first = n.slot(); }
+
+    Node second() const { return Node::wrapUnsafe(m_instance->second); }
+    void setSecond(Node n) { m_instance->second = n.slot(); }
+
+    Node last() const { return Node::wrapUnsafe(m_instance->last); }
+    void setLast(Node n) { m_instance->last = n.slot(); }
+
+    Node value() const { return Node::wrapUnsafe(m_instance->value); }
+    void setValue(Node n) { m_instance->value = n.slot(); }
+};
+
 class CallNode : public CallNodeBase<CallNode, schema::HadronCallNodeSchema> {
 public:
     CallNode(): CallNodeBase<CallNode, schema::HadronCallNodeSchema>() {}
@@ -609,6 +634,9 @@ public:
 
     Node rightHand() const { return Node::wrapUnsafe(m_instance->rightHand); }
     void setRightHand(Node node) { m_instance->rightHand = node.slot(); }
+
+    Node adverb() const { return Node::wrapUnsafe(m_instance->adverb); }
+    void setAdverb(Node node) { m_instance->adverb = node.slot(); }
 };
 
 class AssignNode : public NodeBase<AssignNode, schema::HadronAssignNodeSchema, Node> {
@@ -664,6 +692,93 @@ public:
     explicit EmptyNode(Slot instance):
             NodeBase<EmptyNode, schema::HadronEmptyNodeSchema, Node>(instance) {}
     ~EmptyNode() {}
+};
+
+class ListCompNode : public NodeBase<ListCompNode, schema::HadronListComprehensionNodeSchema, Node> {
+public:
+    ListCompNode(): NodeBase<ListCompNode, schema::HadronListComprehensionNodeSchema, Node>() {}
+    explicit ListCompNode(schema::HadronListComprehensionNodeSchema* instance):
+            NodeBase<ListCompNode, schema::HadronListComprehensionNodeSchema, Node>(instance) {}
+    explicit ListCompNode(Slot instance):
+            NodeBase<ListCompNode, schema::HadronListComprehensionNodeSchema, Node>(instance) {}
+    ~ListCompNode() {}
+
+    ExprSeqNode body() const { return ExprSeqNode(m_instance->body); }
+    void setBody(ExprSeqNode seq) { m_instance->body = seq.slot(); }
+
+    Node qualifiers() const { return Node::wrapUnsafe(m_instance->qualifiers); }
+    void setQualifiers(Node n) { m_instance->qualifiers = n.slot(); }
+};
+
+class TerminationQualNode : public NodeBase<TerminationQualNode, schema::HadronTerminationQualifierNodeSchema, Node> {
+public:
+    TerminationQualNode(): NodeBase<TerminationQualNode, schema::HadronTerminationQualifierNodeSchema, Node>() {}
+    explicit TerminationQualNode(schema::HadronTerminationQualifierNodeSchema* instance):
+            NodeBase<TerminationQualNode, schema::HadronTerminationQualifierNodeSchema, Node>(instance) {}
+    explicit TerminationQualNode(Slot instance):
+            NodeBase<TerminationQualNode, schema::HadronTerminationQualifierNodeSchema, Node>(instance) {}
+    ~TerminationQualNode() {}
+
+    ExprSeqNode exprSeq() const { return ExprSeqNode(m_instance->exprSeq); }
+    void setExprSeq(ExprSeqNode seq) { m_instance->exprSeq = seq.slot(); }
+};
+
+class SideEffectQualNode : public NodeBase<SideEffectQualNode, schema::HadronSideEffectQualifierNodeSchema, Node> {
+public:
+    SideEffectQualNode(): NodeBase<SideEffectQualNode, schema::HadronSideEffectQualifierNodeSchema, Node>() {}
+    explicit SideEffectQualNode(schema::HadronSideEffectQualifierNodeSchema* instance):
+            NodeBase<SideEffectQualNode, schema::HadronSideEffectQualifierNodeSchema, Node>(instance) {}
+    explicit SideEffectQualNode(Slot instance):
+            NodeBase<SideEffectQualNode, schema::HadronSideEffectQualifierNodeSchema, Node>(instance) {}
+    ~SideEffectQualNode() {}
+
+    ExprSeqNode exprSeq() const { return ExprSeqNode(m_instance->exprSeq); }
+    void setExprSeq(ExprSeqNode seq) { m_instance->exprSeq = seq.slot(); }
+};
+
+class BindingQualNode : public NodeBase<BindingQualNode, schema::HadronBindingQualifierNodeSchema, Node> {
+public:
+    BindingQualNode(): NodeBase<BindingQualNode, schema::HadronBindingQualifierNodeSchema, Node>() {}
+    explicit BindingQualNode(schema::HadronBindingQualifierNodeSchema* instance):
+            NodeBase<BindingQualNode, schema::HadronBindingQualifierNodeSchema, Node>(instance) {}
+    explicit BindingQualNode(Slot instance):
+            NodeBase<BindingQualNode, schema::HadronBindingQualifierNodeSchema, Node>(instance) {}
+    ~BindingQualNode() {}
+
+    NameNode name() const { return NameNode(m_instance->name); }
+    void setName(NameNode n) { m_instance->name = n.slot(); }
+
+    ExprSeqNode exprSeq() const { return ExprSeqNode(m_instance->exprSeq); }
+    void setExprSeq(ExprSeqNode seq) { m_instance->exprSeq = seq.slot(); }
+};
+
+class GuardQualNode : public NodeBase<GuardQualNode, schema::HadronGuardQualifierNodeSchema, Node> {
+public:
+    GuardQualNode(): NodeBase<GuardQualNode, schema::HadronGuardQualifierNodeSchema, Node>() {}
+    explicit GuardQualNode(schema::HadronGuardQualifierNodeSchema* instance):
+            NodeBase<GuardQualNode, schema::HadronGuardQualifierNodeSchema, Node>(instance) {}
+    explicit GuardQualNode(Slot instance):
+            NodeBase<GuardQualNode, schema::HadronGuardQualifierNodeSchema, Node>(instance) {}
+    ~GuardQualNode() {}
+
+    ExprSeqNode exprSeq() const { return ExprSeqNode(m_instance->exprSeq); }
+    void setExprSeq(ExprSeqNode seq) { m_instance->exprSeq = seq.slot(); }
+};
+
+class GenQualNode : public NodeBase<GenQualNode, schema::HadronGeneratorQualifierNodeSchema, Node> {
+public:
+    GenQualNode(): NodeBase<GenQualNode, schema::HadronGeneratorQualifierNodeSchema, Node>() {}
+    explicit GenQualNode(schema::HadronGeneratorQualifierNodeSchema* instance):
+            NodeBase<GenQualNode, schema::HadronGeneratorQualifierNodeSchema, Node>(instance) {}
+    explicit GenQualNode(Slot instance):
+            NodeBase<GenQualNode, schema::HadronGeneratorQualifierNodeSchema, Node>(instance) {}
+    ~GenQualNode() {}
+
+    NameNode name() const { return NameNode(m_instance->name); }
+    void setName(NameNode n) { m_instance->name = n.slot(); }
+
+    ExprSeqNode exprSeq() const { return ExprSeqNode(m_instance->exprSeq); }
+    void setExprSeq(ExprSeqNode seq) { m_instance->exprSeq = seq.slot(); }
 };
 
 } // namespace library

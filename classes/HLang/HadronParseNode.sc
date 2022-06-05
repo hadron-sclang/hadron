@@ -44,6 +44,7 @@ HadronAssignNode : HadronParseNode {
 HadronBinopCallNode : HadronParseNode {
 	var <>leftHand;
 	var <>rightHand;
+	var <>adverb; // it is possible in some cases to add a third argument
 }
 
 // { |arguments| var variables; body }
@@ -158,6 +159,14 @@ HadronNumericSeriesNode : HadronParseNode {
 
 HadronPerformListNode : HadronCallNode { }
 
+HadronPutSeriesNode : HadronParseNode {
+	var <>target;
+	var <>first;
+	var <>second;
+	var <>last;
+	var <>value;
+}
+
 // "^valueExpr"
 HadronReturnNode : HadronParseNode {
 	var <>valueExpr;
@@ -192,6 +201,7 @@ HadronStringNode : HadronParseNode { }
 
 HadronSymbolNode : HadronParseNode { }
 
+// Implied call to .value()
 HadronValueNode : HadronCallNode { }
 
 // "token = initialValue"
@@ -209,4 +219,32 @@ HadronVarListNode : HadronParseNode {
 HadronWhileNode : HadronParseNode {
 	var <>conditionBlock;
 	var <>actionBlock; // can be nil
+}
+
+// See the grammar described at https://doc.sccode.org/Guides/ListComprehensions.html#Grammar
+HadronListComprehensionNode : HadronParseNode {
+	var <>body; // An HadronExprSeqNode
+	var <>qualifiers; // One or more Hadron*QualifierNode
+}
+
+HadronGeneratorQualifierNode : HadronParseNode {
+	var <>name;
+	var <>exprSeq;
+}
+
+HadronGuardQualifierNode : HadronParseNode {
+	var <>exprSeq;
+}
+
+HadronBindingQualifierNode : HadronParseNode {
+	var <>name;
+	var <>exprSeq;
+}
+
+HadronSideEffectQualifierNode : HadronParseNode {
+	var <>exprSeq;
+}
+
+HadronTerminationQualifierNode : HadronParseNode {
+	var <>exprSeq;
 }

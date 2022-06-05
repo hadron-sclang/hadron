@@ -17,10 +17,10 @@
 %token <hadron::library::Token> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA
 %token <hadron::library::Token> READWRITEVAR SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT
 %token <hadron::library::Token> ELLIPSES CURRYARGUMENT IF WHILE STRING SYMBOL BINOP KEYWORD IDENTIFIER CLASSNAME
-%token <hadron::library::Token> BEGINCLOSEDFUNC
+%token <hadron::library::Token> BEGINCLOSEDFUNC PI
 
 %type <hadron::library::ArgListNode> argdecls
-%type <hadron::library::BlockNode> cmdlinecode block blocklist1 blocklist optblock
+%type <hadron::library::BlockNode> cmdlinecode block blockliteral optblock
 %type <hadron::library::ClassExtNode> classextension
 %type <hadron::library::ClassNode> classdef
 %type <hadron::library::ExprSeqNode> dictslotlist1 dictslotdef arrayelems1
@@ -31,12 +31,13 @@
 %type <hadron::library::KeyValueNode> litdictslotlist
 %type <hadron::library::EventNode> dictlit2
 %type <hadron::library::CollectionNode> listlit listlit2
+%type <hadron::library::ListCompNode> listcomp
 %type <hadron::library::MethodNode> methods methoddef
 %type <hadron::library::MultiAssignVarsNode> mavars
 %type <hadron::library::NameNode> mavarlist
-%type <hadron::library::Node> root expr exprn expr1 /* adverb */ valrangex1 msgsend literallistc
+%type <hadron::library::Node> root expr exprn expr1 adverb valrangex1 msgsend literallistc valrangeassign
 %type <hadron::library::Node> literallist1 literal listliteral coreliteral classorclassext
-%type <hadron::library::Node> classorclassexts
+%type <hadron::library::Node> classorclassexts qualifiers qual blocklistitem blocklist1 blocklist
 %type <hadron::library::ReturnNode> funretval retval
 %type <hadron::library::SeriesIterNode> valrange3
 %type <hadron::library::SeriesNode> valrange2
@@ -45,16 +46,16 @@
 %type <hadron::library::VarListNode> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
 %type <hadron::library::StringNode> string stringlist
 
-%type <hadron::library::Token> superclass optname
+%type <hadron::library::Token> superclass optname name
 %type <hadron::library::Token> primitive
 %type <std::pair<bool, bool>> rwspec
 %type <bool> rspec
 %type <std::pair<hadron::library::Token, int32_t>> integer
-%type <std::pair<hadron::library::Token, double>> float
+%type <std::pair<hadron::library::Token, double>> floatr float
 %type <hadron::library::Token> binop binop2
 
 %precedence ASSIGN
-%left BINOP KEYWORD PLUS MINUS ASTERISK LESSTHAN GREATERTHAN PIPE READWRITEVAR LEFTARROW
+%left BINOP KEYWORD PLUS MINUS ASTERISK LESSTHAN GREATERTHAN PIPE READWRITEVAR
 %precedence DOT
 %start root
 
@@ -67,6 +68,8 @@
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "hadron/Token.hpp"
+
+#include <cmath>
 
 #include "fmt/format.h"
 #include "spdlog/spdlog.h"
@@ -113,6 +116,17 @@ hadron::library::BlockNode wrapInnerBlock(hadron::ThreadContext* threadContext, 
 }
 
 yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContext* threadContext);
+
+// If first has a next, removes it and returns it. Otherwise returns an empty Node.
+inline hadron::library::Node removeTail(hadron::library::Node head) {
+    auto tail = hadron::library::Node::wrapUnsafe(head.next().slot());
+    if (tail) {
+        head.setNext(hadron::library::Node());
+        tail.setTail(head.tail());
+        head.setTail(head);
+    }
+    return tail;
+}
 }
 
 %%
@@ -189,8 +203,8 @@ methods[target] : %empty { $target = hadron::library::MethodNode(); }
                 | methods[build] methoddef { $target = append($build, $methoddef); }
                 ;
 
-methoddef   : IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = hadron::library::MethodNode::make(threadContext, $IDENTIFIER);
+methoddef   : name OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
+                    auto method = hadron::library::MethodNode::make(threadContext, $name);
                     method.setIsClassMethod(false);
                     method.setPrimitiveToken($primitive);
                     auto block = hadron::library::BlockNode::make(threadContext, $OPENCURLY);
@@ -200,8 +214,8 @@ methoddef   : IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOS
                     method.setBody(block);
                     $methoddef = method;
                 }
-            | ASTERISK IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = hadron::library::MethodNode::make(threadContext, $IDENTIFIER);
+            | ASTERISK name OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
+                    auto method = hadron::library::MethodNode::make(threadContext, $name);
                     method.setIsClassMethod(true);
                     method.setPrimitiveToken($primitive);
                     auto block = hadron::library::BlockNode::make(threadContext, $OPENCURLY);
@@ -343,11 +357,15 @@ funretval   : %empty { $funretval = hadron::library::ReturnNode(); }
                 }
             ;
 
-blocklist1[target]  : block { $target = $block; }
-                    | blocklist1[build] block { $target = append($build, $block); }
+blocklist1[target]  : blocklistitem { $target = $blocklistitem; }
+                    | blocklist1[build] blocklistitem { $target = append($build, $blocklistitem); }
                     ;
 
-blocklist   : %empty { $blocklist = hadron::library::BlockNode(); }
+blocklistitem   : blockliteral { $blocklistitem = $blockliteral.toBase(); }
+                | listcomp { $blocklistitem = $listcomp.toBase(); }
+                ;
+
+blocklist   : %empty { $blocklist = hadron::library::Node(); }
             | blocklist1 { $blocklist = $blocklist1; }
             ;
 
@@ -368,7 +386,18 @@ msgsend : IDENTIFIER blocklist1 {
             }
         | IDENTIFIER OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
                 auto call = hadron::library::CallNode::make(threadContext, $IDENTIFIER);
-                call.setArguments(append<hadron::library::Node>($arglist1.toBase(), $blocklist.toBase()));
+                call.setArguments(append($arglist1.toBase(), $blocklist.toBase()));
+                call.setKeywordArguments($optkeyarglist);
+                $msgsend = call.toBase();
+            }
+        | OPENPAREN binop2 CLOSEPAREN OPENPAREN CLOSEPAREN blocklist1 {
+                auto call = hadron::library::CallNode::make(threadContext, $binop2);
+                call.setArguments($blocklist1);
+                $msgsend = call.toBase();
+            }
+        | OPENPAREN binop2 CLOSEPAREN OPENPAREN arglist1 optkeyarglist CLOSEPAREN blocklist {
+                auto call = hadron::library::CallNode::make(threadContext, $binop2);
+                call.setArguments(append($arglist1.toBase(), $blocklist.toBase()));
                 call.setKeywordArguments($optkeyarglist);
                 $msgsend = call.toBase();
             }
@@ -376,6 +405,13 @@ msgsend : IDENTIFIER blocklist1 {
                 // TODO - differentiate between this and superPerformList()
                 auto performList = hadron::library::PerformListNode::make(threadContext, $OPENPAREN);
                 performList.setTarget(hadron::library::NameNode::make(threadContext, $IDENTIFIER).toBase());
+                performList.setArguments($arglistv1.toBase());
+                performList.setKeywordArguments($optkeyarglist);
+                $msgsend = performList.toBase();
+            }
+        | OPENPAREN[first] binop2 CLOSEPAREN OPENPAREN[second] arglistv1 optkeyarglist CLOSEPAREN {
+                auto performList = hadron::library::PerformListNode::make(threadContext, $first);
+                performList.setTarget(hadron::library::NameNode::make(threadContext, $binop2).toBase());
                 performList.setArguments($arglistv1.toBase());
                 performList.setKeywordArguments($optkeyarglist);
                 $msgsend = performList.toBase();
@@ -418,10 +454,11 @@ msgsend : IDENTIFIER blocklist1 {
                 $msgsend = newCall.toBase();
             }
         | CLASSNAME OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
+                auto performList = hadron::library::PerformListNode::make(threadContext, $OPENPAREN);
                 auto newCall = hadron::library::NewNode::make(threadContext, $CLASSNAME);
                 newCall.setTarget(hadron::library::NameNode::make(threadContext, $CLASSNAME).toBase());
-                newCall.setArguments($arglistv1.toBase());
-                newCall.setKeywordArguments($optkeyarglist);
+                performList.setArguments(append(newCall.toBase(), $arglistv1.toBase()));
+                performList.setKeywordArguments($optkeyarglist);
                 $msgsend = newCall.toBase();
             }
         | expr DOT OPENPAREN CLOSEPAREN blocklist {
@@ -451,6 +488,14 @@ msgsend : IDENTIFIER blocklist1 {
                 value.setKeywordArguments($optkeyarglist);
                 $msgsend = value.toBase();
             }
+        | expr DOT OPENPAREN arglistv1 optkeyarglist CLOSEPAREN {
+                auto performList = hadron::library::PerformListNode::make(threadContext, $OPENPAREN);
+                auto valueCall = hadron::library::ValueNode::make(threadContext, $DOT);
+                valueCall.setTarget($expr);
+                performList.setArguments(append(valueCall.toBase(), $arglistv1.toBase()));
+                performList.setKeywordArguments($optkeyarglist);
+                $msgsend = performList.toBase();
+            }
         | expr DOT IDENTIFIER OPENPAREN CLOSEPAREN blocklist {
                 auto call = hadron::library::CallNode::make(threadContext, $IDENTIFIER);
                 call.setTarget($expr);
@@ -479,6 +524,53 @@ msgsend : IDENTIFIER blocklist1 {
                 $msgsend = call.toBase();
             }
         ;
+
+listcomp: OPENCURLY COLON exprseq COMMA qualifiers CLOSECURLY {
+                auto listComp = hadron::library::ListCompNode::make(threadContext, $OPENCURLY);
+                listComp.setBody($exprseq);
+                listComp.setQualifiers($qualifiers);
+                $listcomp = listComp;
+            }
+        | OPENCURLY SEMICOLON exprseq COMMA qualifiers CLOSECURLY {
+                auto listComp = hadron::library::ListCompNode::make(threadContext, $OPENCURLY);
+                listComp.setBody($exprseq);
+                listComp.setQualifiers($qualifiers);
+                $listcomp = listComp;
+            }
+        ;
+
+qualifiers[target]  : qual { $target = $qual; }
+                    | qualifiers[build] COMMA qual { $target = append($build, $qual); }
+                    ;
+
+qual: IDENTIFIER LEFTARROW exprseq {
+            auto generator = hadron::library::GenQualNode::make(threadContext, $LEFTARROW);
+            generator.setName(hadron::library::NameNode::make(threadContext, $IDENTIFIER));
+            generator.setExprSeq($exprseq);
+            $qual = generator.toBase();
+        }
+    | exprseq {
+            auto guard = hadron::library::GuardQualNode::make(threadContext, $exprseq.token());
+            guard.setExprSeq($exprseq);
+            $qual = guard.toBase();
+        }
+    | VAR IDENTIFIER ASSIGN exprseq {
+            auto binding = hadron::library::BindingQualNode::make(threadContext, $VAR);
+            binding.setName(hadron::library::NameNode::make(threadContext, $IDENTIFIER));
+            binding.setExprSeq($exprseq);
+            $qual = binding.toBase();
+        }
+    | COLON[first] COLON[second] exprseq {
+            auto sideEffect = hadron::library::SideEffectQualNode::make(threadContext, $first);
+            sideEffect.setExprSeq($exprseq);
+            $qual = sideEffect.toBase();
+        }
+    | COLON WHILE exprseq {
+            auto termination = hadron::library::TerminationQualNode::make(threadContext, $COLON);
+            termination.setExprSeq($exprseq);
+            $qual = termination.toBase();
+        }
+    ;
 
 if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] optcomma CLOSEPAREN {
             auto ifNode = hadron::library::IfNode::make(threadContext, $IF);
@@ -510,6 +602,15 @@ if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] o
             ifNode.setTrueBlock(wrapInnerBlock(threadContext, $true));
             $if = ifNode;
         }
+    | expr DOT IF block[true] optblock {
+            auto ifNode = hadron::library::IfNode::make(threadContext, $IF);
+            auto condSeq = hadron::library::ExprSeqNode::make(threadContext, $expr.token());
+            condSeq.setExpr($expr);
+            ifNode.setCondition(condSeq);
+            ifNode.setTrueBlock($true);
+            ifNode.setElseBlock($optblock);
+            $if = ifNode;
+        }
     | IF OPENPAREN exprseq[condition] CLOSEPAREN block[true] optblock {
             auto ifNode = hadron::library::IfNode::make(threadContext, $IF);
             ifNode.setCondition($condition);
@@ -519,43 +620,39 @@ if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] o
         }
     ;
 
-while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN {
+while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN blocklist[moreblocks] {
                 auto whileNode = hadron::library::WhileNode::make(threadContext, $WHILE);
                 whileNode.setConditionBlock($condition);
-                whileNode.setActionBlock($blocks);
+                auto action = append($blocks, $moreblocks);
+                whileNode.setActionBlock(hadron::library::BlockNode(action.slot()));
                 $while = whileNode;
             }
         | WHILE blocklist1[blocks] {
                 auto whileNode = hadron::library::WhileNode::make(threadContext, $WHILE);
-
                 // Extract second block as condition block, if present.
-                auto actionBlock = hadron::library::BlockNode($blocks.next().slot());
-                if (actionBlock) {
-                    $blocks.setNext(hadron::library::Node());
-                    actionBlock.setTail($blocks.tail());
-                }
-                $blocks.setTail($blocks.toBase());
-
-                whileNode.setConditionBlock($blocks);
+                auto actionBlock = hadron::library::BlockNode(removeTail($blocks.toBase()).slot());
+                whileNode.setConditionBlock(hadron::library::BlockNode($blocks.slot()));
                 whileNode.setActionBlock(actionBlock);
+                $while = whileNode;
+            }
+        | expr DOT WHILE OPENPAREN block[action] CLOSEPAREN {
+                auto whileNode = hadron::library::WhileNode::make(threadContext, $WHILE);
+                whileNode.setConditionBlock(hadron::library::BlockNode($expr.slot()));
+                whileNode.setActionBlock($action);
                 $while = whileNode;
             }
         ;
 
-// TODO: figure out is this used? What does it mean? Things like: "4 + .foo 5" parse in LSC (evaluates to 9).
-/*
-adverb  : %empty { $adverb = nullptr; }
-        | DOT IDENTIFIER {
-                $adverb = std::make_unique<hadron::parse::LiteralNode($IDENTIFIER,
-                    hadron::Slot(hadron::Type::kSymbol, hadron::Slot::Value()));
-            }
+
+adverb  : %empty { $adverb = hadron::library::Node(); }
+        | DOT IDENTIFIER { $adverb = hadron::library::SymbolNode::make(threadContext, $IDENTIFIER).toBase(); }
         | DOT INTEGER {
-                $adverb = std::make_unique<hadron::parse::LiteralNode($INTEGER.first,
-                    hadron::Slot(hadron::Type::kInteger, hadron::Slot::Value($INTEGER.second)));
+                auto literal = hadron::library::SlotNode::make(threadContext, $INTEGER);
+                literal.setValue($INTEGER.value());
+                $adverb = literal.toBase();
             }
-        | DOT OPENPAREN exprseq CLOSEPAREN { $adverb = std::move($exprseq); }
+        | DOT OPENPAREN exprseq CLOSEPAREN { $adverb = $exprseq.toBase(); }
         ;
-*/
 
 exprn[target]   : expr { $target = $expr; }
                 | exprn[build] SEMICOLON expr { $target = append($build, $expr); }
@@ -597,6 +694,8 @@ arrayelems1[target] : exprseq { $target = $exprseq; }
                     ;
 
 expr1[target]   : literal { $target = $literal; }
+                | blockliteral { $target = $blockliteral.toBase(); }
+                | listcomp { $target = $listcomp.toBase(); }
                 | IDENTIFIER { $target = hadron::library::NameNode::make(threadContext, $IDENTIFIER).toBase(); }
                 | CURRYARGUMENT {
                         $target = hadron::library::CurryArgumentNode::make(threadContext, $CURRYARGUMENT).toBase();
@@ -639,11 +738,7 @@ valrangex1  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE {
                     auto copySeries = hadron::library::CopySeriesNode::make(threadContext, $OPENSQUARE);
                     copySeries.setTarget($expr1);
                     auto first = $arglist1;
-                    auto second = hadron::library::Node::wrapUnsafe(first.next().slot());
-                    if (second) {
-                        first.setNext(hadron::library::Node());
-                        first.setTail(first.toBase());
-                    }
+                    auto second = removeTail(first.toBase());
                     copySeries.setFirst(first);
                     copySeries.setSecond(second);
                     $valrangex1 = copySeries.toBase();
@@ -658,17 +753,43 @@ valrangex1  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE {
                     auto copySeries = hadron::library::CopySeriesNode::make(threadContext, $OPENSQUARE);
                     copySeries.setTarget($expr1);
                     auto first = $arglist1;
-                    auto second = hadron::library::Node::wrapUnsafe(first.next().slot());
-                    if (second) {
-                        first.setNext(hadron::library::Node());
-                        first.setTail(first.toBase());
-                    }
+                    auto second = removeTail(first.toBase());
                     copySeries.setFirst(first);
                     copySeries.setSecond(second);
                     copySeries.setLast($last);
                     $valrangex1 = copySeries.toBase();
                 }
             ;
+
+valrangeassign  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE ASSIGN expr {
+                        auto putSeries = hadron::library::PutSeriesNode::make(threadContext, $ASSIGN);
+                        putSeries.setTarget($expr1);
+                        auto first = $arglist1.toBase();
+                        auto second = removeTail(first);
+                        putSeries.setFirst(first);
+                        putSeries.setSecond(second);
+                        putSeries.setValue($expr);
+                        $valrangeassign = putSeries.toBase();
+                    }
+                | expr1 OPENSQUARE DOTDOT exprseq CLOSESQUARE ASSIGN expr {
+                        auto putSeries = hadron::library::PutSeriesNode::make(threadContext, $ASSIGN);
+                        putSeries.setTarget($expr1);
+                        putSeries.setLast($exprseq.toBase());
+                        putSeries.setValue($expr);
+                        $valrangeassign = putSeries.toBase();
+                    }
+                | expr1 OPENSQUARE arglist1 DOTDOT exprseq CLOSESQUARE ASSIGN expr {
+                        auto putSeries = hadron::library::PutSeriesNode::make(threadContext, $ASSIGN);
+                        putSeries.setTarget($expr1);
+                        auto first = $arglist1.toBase();
+                        auto second = removeTail(first);
+                        putSeries.setFirst(first);
+                        putSeries.setSecond(second);
+                        putSeries.setLast($exprseq.toBase());
+                        putSeries.setValue($expr);
+                        $valrangeassign = putSeries.toBase();
+                    }
+                ;
 
 // (start, step..size) --> SimpleNumber.series(start, step, last) -> start.series(step, last)
 valrange2   : exprseq[start] DOTDOT {
@@ -737,11 +858,13 @@ valrange3   : exprseq[start] DOTDOT {
             ;
 
 expr[target]    : expr1 { $target = $expr1; }
+                | valrangeassign
                 | CLASSNAME { $target = hadron::library::NameNode::make(threadContext, $CLASSNAME).toBase(); }
-                | expr[leftHand] binop2 /* adverb */ expr[rightHand] %prec BINOP {
+                | expr[leftHand] binop2 adverb expr[rightHand] %prec BINOP {
                         auto binop = hadron::library::BinopCallNode::make(threadContext, $binop2);
                         binop.setLeftHand($leftHand);
                         binop.setRightHand($rightHand);
+                        binop.setAdverb($adverb);
                         $target = binop.toBase();
                     }
                 | IDENTIFIER ASSIGN expr[build] {
@@ -808,9 +931,7 @@ funcvardecls[target]    : %empty { $target = hadron::library::VarListNode(); }
                         ;
 
 funcvardecls1[target]   : funcvardecl { $target = $funcvardecl; }
-                        | funcvardecls1[build] funcvardecl {
-                                $target = append($build, $funcvardecl);
-                            }
+                        | funcvardecls1[build] funcvardecl { $target = append($build, $funcvardecl); }
                         ;
 
 funcvardecl : VAR vardeflist SEMICOLON {
@@ -1061,6 +1182,16 @@ mavarlist[target]   : IDENTIFIER {
                         }
                     ;
 
+// WHILE and IF are not true reserved words in sclang, so we allow them to be used as identifiers for method names for
+// compatibility with LSC.
+name: IDENTIFIER { $name = $IDENTIFIER; }
+    | WHILE { $name = $WHILE; }
+    | IF { $name = $IF; }
+    ;
+
+blockliteral:   block { $blockliteral = $block; }
+            ;
+
 listliteral : coreliteral { $listliteral = $coreliteral; }
         | listlit2 { $listliteral = $listlit2.toBase(); }
         | dictlit2 { $listliteral = $dictlit2.toBase(); }
@@ -1087,7 +1218,6 @@ coreliteral : LITERAL {
                     literal.setValue(hadron::Slot::makeFloat($float.second));
                     $coreliteral = literal.toBase();
                 }
-            | block { $coreliteral = $block.toBase(); }
             | stringlist { $coreliteral = $stringlist.toBase(); }
             | SYMBOL { $coreliteral = hadron::library::SymbolNode::make(threadContext, $SYMBOL).toBase(); }
             ;
@@ -1096,8 +1226,15 @@ integer : INTEGER { $integer = std::make_pair($INTEGER, $INTEGER.value().getInt3
         | MINUS INTEGER %prec MINUS { $integer = std::make_pair($INTEGER, -$INTEGER.value().getInt32()); }
         ;
 
-float   : FLOAT { $float = std::make_pair($FLOAT, $FLOAT.value().getFloat()); }
-        | MINUS FLOAT %prec MINUS { $float = std::make_pair($FLOAT, -$FLOAT.value().getFloat()); }
+floatr  : FLOAT { $floatr = std::make_pair($FLOAT, $FLOAT.value().getFloat()); }
+        | MINUS FLOAT %prec MINUS { $floatr = std::make_pair($FLOAT, -$FLOAT.value().getFloat()); }
+        ;
+
+float   : floatr { $float = $floatr; }
+        | floatr PI { $float = std::make_pair($floatr.first, $floatr.second * M_PI); }
+        | integer PI { $float = std::make_pair($integer.first, static_cast<double>($integer.second) * M_PI); }
+        | PI { $float = std::make_pair($PI, M_PI); }
+        | MINUS PI { $float = std::make_pair($PI, -M_PI); }
         ;
 
 binop   : BINOP { $binop = $BINOP; }
@@ -1108,7 +1245,6 @@ binop   : BINOP { $binop = $BINOP; }
         | GREATERTHAN { $binop = $GREATERTHAN; }
         | PIPE { $binop = $PIPE; }
         | READWRITEVAR { $READWRITEVAR; }
-        | LEFTARROW { $LEFTARROW; }
         ;
 
 binop2  : binop { $binop2 = $binop; }
@@ -1158,6 +1294,10 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContex
             return  yy::parser::make_FLOAT(scToken, token.location);
         }
         return yy::parser::make_LITERAL(scToken, token.location);
+
+    case hadron::Token::Name::kPi:
+        scToken.setName(hadron::library::Symbol::fromView(threadContext, "pi"));
+        return yy::parser::make_PI(scToken, token.location);
 
     case hadron::Token::Name::kString:
         scToken.setName(hadron::library::Symbol::fromView(threadContext, "string"));

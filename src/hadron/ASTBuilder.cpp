@@ -532,6 +532,7 @@ library::AST ASTBuilder::transform(ThreadContext* context, const library::Node n
     case library::WhileNode::nameHash(): {
         const auto whileNode = library::WhileNode(node.slot());
         auto whileAST = library::WhileAST::makeWhile(context);
+        // TODO: could be list comprehension nodes here, handle.
         whileAST.setConditionBlock(buildBlock(context, whileNode.conditionBlock()));
         if (whileNode.actionBlock()) {
             whileAST.setRepeatBlock(buildBlock(context, whileNode.actionBlock()));

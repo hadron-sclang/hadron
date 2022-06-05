@@ -26,9 +26,29 @@
             int32_t value = strtol(marker, nullptr, 16);
             m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
+        # Integer radix
+        digit+ ('r' %marker) [a-zA-Z0-9]+ {
+            int32_t radix = strtol(ts, nullptr, 10);
+            int32_t value = strtol(marker, nullptr, radix);
+            m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
+        };
         # Float base-10
         digit+ '.' digit+ {
             double value = strtod(ts, nullptr);
+            m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
+        };
+        # Float scientific notation
+        digit+ ('.' digit+)? 'e' ('-' | '+')? digit+ {
+            double value = strtod(ts, nullptr);
+            m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
+        };
+        # Float radix
+        digit+ ('r' %marker) [a-zA-Z0-9]+ '.' [A-Z]+ {
+            int32_t radix = strtol(ts, nullptr, 10);
+            char* dot = nullptr;
+            double value = static_cast<double>(strtoll(marker, &dot, radix));
+            double decimal = static_cast<double>(strtoll(dot + 1, nullptr, radix));
+            value += decimal / pow(static_cast<double>(radix), static_cast<double>(te - dot - 1));
             m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
 
@@ -36,7 +56,7 @@
         # string literals #
         ###################
         # Double-quoted string.
-        '"' (('\\' any %hasEscape) | (extend - '"'))* '"' {
+        '"' (('\\' any %hasEscape) | (extend - ('"' | '\\')))* '"' {
             m_tokens.emplace_back(Token::makeString(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
                     hasEscapeChars));
             hasEscapeChars = false;
@@ -46,7 +66,7 @@
         # symbols #
         ###########
         # Single-quoted symbol.
-        '\'' (('\\' any %hasEscape) | (extend - '\''))* '\'' {
+        '\'' (('\\' any %hasEscape) | (extend - ('\'' | '\\')))* '\'' {
             m_tokens.emplace_back(Token::makeSymbol(std::string_view(ts + 1, te - ts - 2), getLocation(ts + 1),
                     hasEscapeChars));
             hasEscapeChars = false;
@@ -198,6 +218,13 @@
         'while' {
             m_tokens.emplace_back(Token::make(Token::Name::kWhile, std::string_view(ts, 5), getLocation(ts), false));
         };
+        'inf' {
+            auto value = std::numeric_limits<double>::infinity();
+            m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, 3), getLocation(ts)));
+        };
+        'pi' {
+            m_tokens.emplace_back(Token::makePi(std::string_view(ts, 2), getLocation(ts)));
+        };
 
         ###############
         # identifiers #
@@ -275,6 +302,7 @@
 
 #include <array>
 #include <cstddef>
+#include <limits>
 #include <stdint.h>
 #include <stdlib.h>
 #include <vector>
@@ -294,7 +322,9 @@ Lexer::Lexer(std::string_view code):
 }
 
 Lexer::Lexer(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter):
-    m_code(code), m_errorReporter(errorReporter) {}
+    m_code(code), m_errorReporter(errorReporter) {
+        m_errorReporter->setCode(m_code.data());
+    }
 
 bool Lexer::lex() {
     // Ragel-required state variables.
