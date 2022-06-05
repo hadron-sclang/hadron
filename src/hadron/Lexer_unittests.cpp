@@ -175,6 +175,15 @@ TEST_CASE("Lexer Integers") {
         CHECK(lexer.tokens()[3].range.data() == code + 11);
         CHECK(lexer.tokens()[3].range.size() == 1);
     }
+    SUBCASE("int radix") {
+        const char* code = "36rZIGZAG 2r01101011 16ra9";
+        Lexer lexer(code);
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 3);
+        CHECK(lexer.tokens()[0].value.getInt32() == 2147341480);
+        CHECK(lexer.tokens()[1].value.getInt32() == 107);
+        CHECK(lexer.tokens()[2].value.getInt32() == 169);
+    }
 }
 
 TEST_CASE("Lexer Floating Point") {
@@ -234,6 +243,12 @@ TEST_CASE("Lexer Floating Point") {
         CHECK(lexer.tokens()[2].value.getFloat() == 4e-1);
         CHECK(lexer.tokens()[3].value.getFloat() == 1000.1e-3);
         CHECK(lexer.tokens()[4].value.getFloat() == 1e+8);
+    }
+    SUBCASE("float radix") {
+        Lexer lexer("36rA.BITNOT");
+        REQUIRE(lexer.lex());
+        REQUIRE(lexer.tokens().size() == 1);
+        CHECK(lexer.tokens()[0].value.getFloat() == 10.320080118933857);
     }
 }
 

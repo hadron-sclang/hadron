@@ -26,6 +26,12 @@
             int32_t value = strtol(marker, nullptr, 16);
             m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
+        # Integer radix
+        digit+ ('r' %marker) [a-zA-Z0-9]+ {
+            int32_t radix = strtol(ts, nullptr, 10);
+            int32_t value = strtol(marker, nullptr, radix);
+            m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
+        };
         # Float base-10
         digit+ '.' digit+ {
             double value = strtod(ts, nullptr);
@@ -34,6 +40,15 @@
         # Float scientific notation
         digit+ ('.' digit+)? 'e' ('-' | '+')? digit+ {
             double value = strtod(ts, nullptr);
+            m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
+        };
+        # Float radix
+        digit+ ('r' %marker) [a-zA-Z0-9]+ '.' [A-Z]+ {
+            int32_t radix = strtol(ts, nullptr, 10);
+            char* dot = nullptr;
+            double value = static_cast<double>(strtoll(marker, &dot, radix));
+            double decimal = static_cast<double>(strtoll(dot + 1, nullptr, radix));
+            value += decimal / pow(static_cast<double>(radix), static_cast<double>(te - dot - 1));
             m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
 
