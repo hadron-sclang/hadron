@@ -620,10 +620,11 @@ if  : IF OPENPAREN exprseq[condition] COMMA exprseq[true] COMMA exprseq[false] o
         }
     ;
 
-while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN {
+while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN blocklist[moreblocks] {
                 auto whileNode = hadron::library::WhileNode::make(threadContext, $WHILE);
                 whileNode.setConditionBlock($condition);
-                whileNode.setActionBlock(hadron::library::BlockNode($blocks.slot()));
+                auto action = append($blocks, $moreblocks);
+                whileNode.setActionBlock(hadron::library::BlockNode(action.slot()));
                 $while = whileNode;
             }
         | WHILE blocklist1[blocks] {
@@ -632,6 +633,12 @@ while   : WHILE OPENPAREN block[condition] optcomma blocklist[blocks] CLOSEPAREN
                 auto actionBlock = hadron::library::BlockNode(removeTail($blocks.toBase()).slot());
                 whileNode.setConditionBlock(hadron::library::BlockNode($blocks.slot()));
                 whileNode.setActionBlock(actionBlock);
+                $while = whileNode;
+            }
+        | expr DOT WHILE OPENPAREN block[action] CLOSEPAREN {
+                auto whileNode = hadron::library::WhileNode::make(threadContext, $WHILE);
+                whileNode.setConditionBlock(hadron::library::BlockNode($expr.slot()));
+                whileNode.setActionBlock($action);
                 $while = whileNode;
             }
         ;
