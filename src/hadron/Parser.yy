@@ -46,7 +46,7 @@
 %type <hadron::library::VarListNode> classvardecl classvardecls funcvardecls funcvardecl funcvardecls1
 %type <hadron::library::StringNode> string stringlist
 
-%type <hadron::library::Token> superclass optname
+%type <hadron::library::Token> superclass optname name
 %type <hadron::library::Token> primitive
 %type <std::pair<bool, bool>> rwspec
 %type <bool> rspec
@@ -203,8 +203,8 @@ methods[target] : %empty { $target = hadron::library::MethodNode(); }
                 | methods[build] methoddef { $target = append($build, $methoddef); }
                 ;
 
-methoddef   : IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = hadron::library::MethodNode::make(threadContext, $IDENTIFIER);
+methoddef   : name OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
+                    auto method = hadron::library::MethodNode::make(threadContext, $name);
                     method.setIsClassMethod(false);
                     method.setPrimitiveToken($primitive);
                     auto block = hadron::library::BlockNode::make(threadContext, $OPENCURLY);
@@ -214,8 +214,8 @@ methoddef   : IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOS
                     method.setBody(block);
                     $methoddef = method;
                 }
-            | ASTERISK IDENTIFIER OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
-                    auto method = hadron::library::MethodNode::make(threadContext, $IDENTIFIER);
+            | ASTERISK name OPENCURLY argdecls funcvardecls primitive methbody CLOSECURLY {
+                    auto method = hadron::library::MethodNode::make(threadContext, $name);
                     method.setIsClassMethod(true);
                     method.setPrimitiveToken($primitive);
                     auto block = hadron::library::BlockNode::make(threadContext, $OPENCURLY);
@@ -1181,6 +1181,13 @@ mavarlist[target]   : IDENTIFIER {
                             $target = append($build, name);
                         }
                     ;
+
+// WHILE and IF are not true reserved words in sclang, so we allow them to be used as identifiers for method names for
+// compatibility with LSC.
+name: IDENTIFIER { $name = $IDENTIFIER; }
+    | WHILE { $name = $WHILE; }
+    | IF { $name = $IF; }
+    ;
 
 blockliteral:   block { $blockliteral = $block; }
             ;
