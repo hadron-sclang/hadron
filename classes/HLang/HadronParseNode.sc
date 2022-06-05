@@ -159,6 +159,14 @@ HadronNumericSeriesNode : HadronParseNode {
 
 HadronPerformListNode : HadronCallNode { }
 
+HadronPutSeriesNode : HadronParseNode {
+	var <>target;
+	var <>first;
+	var <>second;
+	var <>last;
+	var <>value;
+}
+
 // "^valueExpr"
 HadronReturnNode : HadronParseNode {
 	var <>valueExpr;

@@ -510,6 +510,31 @@ public:
     ~PerformListNode() {}
 };
 
+class PutSeriesNode : public NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema> {
+public:
+    PutSeriesNode(): NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema>() {}
+    explicit PutSeriesNode(schema::HadronPutSeriesNodeSchema* instance):
+            NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema>(instance) {}
+    explicit PutSeriesNode(Slot instance):
+            NodeBase<PutSeriesNode, schema::HadronPutSeriesNodeSchema>(instance) {}
+    ~PutSeriesNode();
+
+    Node target() const { return Node::wrapUnsafe(m_instance->target); }
+    void setTarget(Node n) { m_instance->target = n.slot(); }
+
+    Node first() const { return Node::wrapUnsafe(m_instance->first); }
+    void setFirst(Node n) { m_instance->first = n.slot(); }
+
+    Node second() const { return Node::wrapUnsafe(m_instance->second); }
+    void setSecond(Node n) { m_instance->second = n.slot(); }
+
+    Node last() const { return Node::wrapUnsafe(m_instance->last); }
+    void setLast(Node n) { m_instance->last = n.slot(); }
+
+    Node value() const { return Node::wrapUnsafe(m_instance->value); }
+    void setValue(Node n) { m_instance->value = n.slot(); }
+};
+
 class CallNode : public CallNodeBase<CallNode, schema::HadronCallNodeSchema> {
 public:
     CallNode(): CallNodeBase<CallNode, schema::HadronCallNodeSchema>() {}

@@ -35,7 +35,7 @@
 %type <hadron::library::MethodNode> methods methoddef
 %type <hadron::library::MultiAssignVarsNode> mavars
 %type <hadron::library::NameNode> mavarlist
-%type <hadron::library::Node> root expr exprn expr1 adverb valrangex1 msgsend literallistc
+%type <hadron::library::Node> root expr exprn expr1 adverb valrangex1 msgsend literallistc valrangeassign
 %type <hadron::library::Node> literallist1 literal listliteral coreliteral classorclassext
 %type <hadron::library::Node> classorclassexts qualifiers qual blocklistitem blocklist1 blocklist
 %type <hadron::library::ReturnNode> funretval retval
@@ -757,6 +757,15 @@ valrangex1  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE {
                     $valrangex1 = copySeries.toBase();
                 }
             ;
+
+valrangeassign  : expr1 OPENSQUARE arglist1 DOTDOT CLOSESQUARE ASSIGN expr {
+                        auto putSeries = hadron::library::PutSeriesNode::make(threadContext, $ASSIGN);
+                        putSeries.setTarget($expr1);
+                        if ($arglist1.next()) {
+                            #error here
+                        }
+                    }
+                ;
 
 // (start, step..size) --> SimpleNumber.series(start, step, last) -> start.series(step, last)
 valrange2   : exprseq[start] DOTDOT {
