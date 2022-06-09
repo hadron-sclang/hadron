@@ -44,7 +44,7 @@ public:
     static inline Slot makeFloat(double d) { return Slot(d); }
     static inline Slot makeNil() { return Slot(kObjectPointerTag); }
     static inline Slot makeInt32(int32_t i) { return Slot(kInt32Tag | (static_cast<uint64_t>(i) & (~kTagMask))); }
-    static inline Slot makeBool(bool b) { return Slot(kBooleanTag | (b ? 1ull : 0ull)); }
+    static inline Slot makeBool(bool b) { return Slot(static_cast<uint64_t>(kBooleanTag | (b ? 1ull : 0ull))); }
     static inline Slot makePointer(library::Schema* p) {
         return Slot(kObjectPointerTag | reinterpret_cast<uint64_t>(p));
     }

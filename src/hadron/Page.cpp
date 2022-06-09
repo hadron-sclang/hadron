@@ -32,8 +32,12 @@ bool Page::map() {
     if (!m_isExecutable) {
         address = mmap(nullptr, m_totalSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     } else {
+#if defined(__APPLE__)
         address = mmap(nullptr, m_totalSize, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_JIT | MAP_PRIVATE | MAP_ANONYMOUS,
                 -1, 0);
+#else
+        address = mmap(nullptr, m_totalSize, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+#endif
     }
 
     if (address == MAP_FAILED) {

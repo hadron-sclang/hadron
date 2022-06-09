@@ -46,8 +46,10 @@ if(APPLE)
         # anying that isn't x86_64 must be 64-bit ARM.
         set(HADRON_HOST_CPU "aarch64")
     endif()
+elseif(UNIX)
+    set(HADRON_HOST_CPU ${CMAKE_HOST_SYSTEM_PROCESSOR})
 else()
-    message(ERROR "TODO: add CPU detection to host OS")
+    message(FATAL_ERROR "TODO: add CPU detection to host OS")
 endif()
 
 message(STATUS "hadron detected host CPU ${HADRON_HOST_CPU}")

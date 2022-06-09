@@ -3,12 +3,18 @@
 #include "fmt/format.h"
 #include "spdlog/spdlog.h"
 
+#if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wc99-extensions"
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
 extern "C" {
 #include "lightening.h"
 }
+
+#if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic pop
+#endif
 
 namespace {
     // We need to save all of the callee-save registers, which is a per-architecture value not exposed by lightening.h
@@ -39,13 +45,17 @@ LighteningJIT::~LighteningJIT() {
 
 // static
 bool LighteningJIT::markThreadForJITCompilation() {
+#   if defined(__APPLE__)
     pthread_jit_write_protect_np(false);
+#endif
     return true;
 }
 
 // static
 void LighteningJIT::markThreadForJITExecution() {
+#   if defined(__APPLE__)
     pthread_jit_write_protect_np(true);
+#   endif
 }
 
 void LighteningJIT::begin(int8_t* buffer, size_t size) {
@@ -99,12 +109,19 @@ JIT::Reg LighteningJIT::getCStackPointerRegister() const {
 #   else
 #   error "Undefined chipset"
 #   endif
+
     r = r - kNumberOfReservedRegisters;  // Adjust register number for the reserved registers.
 
+#   if defined(__clang__) || defined(__GNUC__)
 #   pragma GCC diagnostic push
-#   pragma GCC diagnostic ignored "-Wc99-extensions"
+#   pragma GCC diagnostic ignored "-Wpedantic"
+#   endif
+
     assert(jit_same_gprs(reg(r), JIT_SP));
+
+#   if defined(__clang__) || defined(__GNUC__)
 #   pragma GCC diagnostic pop
+#   endif
 
     return r;
 }

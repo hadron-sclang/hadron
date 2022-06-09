@@ -3,6 +3,8 @@
 #include "hadron/ErrorReporter.hpp"
 #include "internal/FileSystem.hpp"
 
+#include <fstream>
+
 namespace hadron {
 
 SourceFile::SourceFile(std::string path): m_path(path), m_codeSize(0) { }
