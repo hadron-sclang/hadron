@@ -5,13 +5,7 @@
 
 #if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic push
-
-#if defined(__clang__)
-#pragma GCC diagnostic ignored "-Wc99-extensions"
-#elif defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wpedantic"
-#endif
-
 #endif
 
 extern "C" {
@@ -120,11 +114,7 @@ JIT::Reg LighteningJIT::getCStackPointerRegister() const {
 
 #   if defined(__clang__) || defined(__GNUC__)
 #   pragma GCC diagnostic push
-#   if defined(__clang__)
-#   pragma GCC diagnostic ignored "-Wc99-extensions"
-#   elif defined(__GNUC__)
 #   pragma GCC diagnostic ignored "-Wpedantic"
-#   endif
 #   endif
 
     assert(jit_same_gprs(reg(r), JIT_SP));
