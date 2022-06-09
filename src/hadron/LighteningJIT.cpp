@@ -3,14 +3,22 @@
 #include "fmt/format.h"
 #include "spdlog/spdlog.h"
 
-#if __clang__
+#if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic push
+
+#if defined(__clang__)
 #pragma GCC diagnostic ignored "-Wc99-extensions"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wpedantic"
 #endif
+
+#endif
+
 extern "C" {
 #include "lightening.h"
 }
-#if __clang__
+
+#if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
 
@@ -43,13 +51,17 @@ LighteningJIT::~LighteningJIT() {
 
 // static
 bool LighteningJIT::markThreadForJITCompilation() {
+#   if defined(__APPLE__)
     pthread_jit_write_protect_np(false);
+#endif
     return true;
 }
 
 // static
 void LighteningJIT::markThreadForJITExecution() {
+#   if defined(__APPLE__)
     pthread_jit_write_protect_np(true);
+#   endif
 }
 
 void LighteningJIT::begin(int8_t* buffer, size_t size) {
@@ -103,12 +115,23 @@ JIT::Reg LighteningJIT::getCStackPointerRegister() const {
 #   else
 #   error "Undefined chipset"
 #   endif
+
     r = r - kNumberOfReservedRegisters;  // Adjust register number for the reserved registers.
 
+#   if defined(__clang__) || defined(__GNUC__)
 #   pragma GCC diagnostic push
+#   if defined(__clang__)
 #   pragma GCC diagnostic ignored "-Wc99-extensions"
+#   elif defined(__GNUC__)
+#   pragma GCC diagnostic ignored "-Wpedantic"
+#   endif
+#   endif
+
     assert(jit_same_gprs(reg(r), JIT_SP));
+
+#   if defined(__clang__) || defined(__GNUC__)
 #   pragma GCC diagnostic pop
+#   endif
 
     return r;
 }

@@ -387,7 +387,6 @@ int main(int argc, char* argv[]) {
             outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:08x};\n", hadron::hash(className));
             outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:08x};\n",
                     hadron::hash(fmt::format("Meta_{}", className)));
-            outFile << fmt::format("    {}Schema& operator=(const {}Schema&) = default;\n", className, className);
 
             if (classIter->second.isFundamentalType) {
                 outFile << "};" << std::endl << std::endl;

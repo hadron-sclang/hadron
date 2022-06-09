@@ -36,7 +36,8 @@ public:
             const T& t = static_cast<const T&>(*this);
             if (t.m_instance) {
                 S* instance = arrayAllocRaw(context, maxSize);
-                std::memcpy(instance, t.m_instance, t.m_instance->schema._sizeInBytes);
+                std::memcpy(reinterpret_cast<void*>(instance), reinterpret_cast<const void*>(t.m_instance),
+                        t.m_instance->schema._sizeInBytes);
                 return T(instance);
             } else {
                 // Copying an empty array but requesting a nonzero maxSize so we just create a new array with that size.
@@ -111,15 +112,14 @@ public:
     void resize(ThreadContext* context, int32_t newSize) {
         T& t = static_cast<T&>(*this);
         if (newSize > capacity(context)) {
-            S* newArray = arrayAllocRaw(context, newSize);
             if (t.m_instance) {
-                assert(t.m_instance->schema._className == S::kNameHash);
-                std::memcpy(newArray, t.m_instance, t.m_instance->schema._sizeInBytes);
+                T newArray = copy(context, newSize);
+                t.m_instance = newArray.instance();
             } else {
+                S* newArray = arrayAllocRaw(context, newSize);
                 newArray->schema._className = S::kNameHash;
+                t.m_instance = newArray;
             }
-
-            t.m_instance = newArray;
         }
 
         if (t.m_instance) {

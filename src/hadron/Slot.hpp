@@ -45,8 +45,10 @@ public:
     static inline Slot makeNil() { return Slot(kObjectPointerTag); }
     static inline Slot makeInt32(int32_t i) { return Slot(kInt32Tag | (static_cast<uint64_t>(i) & (~kTagMask))); }
     static inline Slot makeBool(bool b) { return Slot(static_cast<uint64_t>(kBooleanTag | (b ? 1ull : 0ull))); }
-    static inline Slot makePointer(library::Schema* p) { return Slot(kPointerTag | reinterpret_cast<uint64_t>(p)); }
-    static inline Slot makeHash(Hash h) { return Slot(kHashTag | (h & (~kTagMask))); }
+    static inline Slot makePointer(library::Schema* p) {
+        return Slot(kObjectPointerTag | reinterpret_cast<uint64_t>(p));
+    }
+    static inline Slot makeSymbol(Hash h) { return Slot(kSymbolTag | (static_cast<uint64_t>(h) & (~kTagMask))); }
     static inline Slot makeChar(char c) { return Slot(kCharTag | c); }
     static inline Slot makeRawPointer(int8_t* p) { return Slot(kRawPointerTag | reinterpret_cast<uint64_t>(p)); }
 
