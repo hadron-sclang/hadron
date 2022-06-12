@@ -35,6 +35,8 @@ private:
 // referring to HIRId values instead of some other Integer identifier.
 using HIRId = Integer;
 using BlockId = Integer;
+using Reg = Integer;
+using VReg = Integer;
 
 } // namespace library
 } // namespace hadron

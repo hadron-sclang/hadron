@@ -6,7 +6,7 @@
 namespace hadron {
 namespace lir {
 
-struct AssignLIR : public LIR {
+struct AssignLIR : public LIR { 
     AssignLIR() = delete;
     explicit AssignLIR(VReg orig):
         LIR(kAssign, TypeFlags::kAllFlags),

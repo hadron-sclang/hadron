@@ -152,6 +152,8 @@ list(APPEND HLANG_CLASS_FILES
     "${HLANG_PATH}/HLang/HadronAST.sc"
     "${HLANG_PATH}/HLang/HadronCFG.sc"
     "${HLANG_PATH}/HLang/HadronHIR.sc"
+    "${HLANG_PATH}/HLang/HadronLinearFrame.sc"
+    "${HLANG_PATH}/HLang/HadronLIR.sc"
     "${HLANG_PATH}/HLang/HadronParseNode.sc"
 )
 
@@ -191,6 +193,7 @@ add_library(hadron STATIC
     library/HadronCFG.hpp
     library/HadronHIR.cpp
     library/HadronHIR.hpp
+    library/HadronLIR.hpp
     library/HadronParseNode.hpp
     library/Integer.hpp
     library/Kernel.hpp
