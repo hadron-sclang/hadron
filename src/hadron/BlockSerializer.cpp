@@ -1,17 +1,19 @@
 #include "hadron/BlockSerializer.hpp"
 
-#include "hadron/LinearFrame.hpp"
-#include "hadron/lir/LabelLIR.hpp"
+#include "hadron/library/Array.hpp"
+#include "hadron/ThreadContext.hpp"
 
 #include <algorithm>
 
 namespace hadron {
 
-std::unique_ptr<LinearFrame> BlockSerializer::serialize(const library::CFGFrame frame) {
+library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const library::CFGFrame frame) {
     // Prepare the LinearFrame for recording of value lifetimes.
-    auto linearFrame = std::make_unique<LinearFrame>();
-    linearFrame->blockOrder.reserve(frame.numberOfBlocks());
-    linearFrame->blockLabels.resize(frame.numberOfBlocks(), linearFrame->instructions.end());
+    auto linearFrame = library::LinearFrame::alloc(context);
+    linearFrame.initToNil();
+    linearFrame.setBlockOrder(library::TypedArray<library::LabelId>::typedArrayAlloc(context, frame.numberOfBlocks()));
+    linearFrame.setBlockLabels(library::TypedArray<library::LabelLIR>::typedArrayAlloc(context,
+            frame.numberOfBlocks()));
 
     // Map of block number to Block struct, useful when recursing through control flow graph.
     std::vector<library::CFGBlock> blocks;
@@ -61,7 +63,7 @@ std::unique_ptr<LinearFrame> BlockSerializer::serialize(const library::CFGFrame 
 }
 
 void BlockSerializer::orderBlocks(library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
-        std::vector<lir::LabelID>& blockOrder) {
+        std::vector<library::LabelId>& blockOrder) {
     // Mark block as visited by updating number to pointer map.
     blocks[block.id()] = block;
     for (int32_t i = 0; i < block.successors().size(); ++i) {

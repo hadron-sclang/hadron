@@ -33,8 +33,9 @@ private:
 
 // HIR uses plain Integers as unique identifiers for values. We use the HIRId alias to help clarify when we are
 // referring to HIRId values instead of some other Integer identifier.
-using HIRId = Integer;
 using BlockId = Integer;
+using HIRId = Integer;
+using LabelId = Integer;
 using Reg = Integer;
 using VReg = Integer;
 

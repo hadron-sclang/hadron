@@ -88,8 +88,28 @@ public:
             LIRBase<AssignLIR, schema::HadronAssignLIRSchema, LIR>(instance) {}
     ~AssignLIR() {}
 
-    VReg origin() const { return VReg(t.m_instance->origin); }
-    void setOrigin(VReg o) { t.m_instance->origin = o.slot(); }
+    VReg origin() const { return VReg(m_instance->origin); }
+    void setOrigin(VReg o) { m_instance->origin = o.slot(); }
+};
+
+// class PhiLIR
+
+class LabelLIR : public LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR> {
+public:
+    LabelLIR(): LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR>() {}
+    explicit LabelLIR(schema::HadronLabelLIRSchema* instance):
+            LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR>(instance) {}
+    explicit LabelLIR(Slot instance): LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR>(instance) {}
+    ~LabelLIR() {}
+
+    LabelId labelId() const { return LabelId(m_instance->labelId); }
+    void setLabelId(LabelId lbl) { m_instance->labelId = lbl.slot(); }
+
+    TypedArray<LabelId> predecessors() const { return TypedArray<LabelId>(m_instance->predecessors); }
+    void setPredecessors(TypedArray<LabelId> pred) { m_instance->predecessors = pred.slot(); }
+
+    TypedArray<LabelId> successors() const { return TypedArray<LabelId>(m_instance->successors); }
+    void setSuccessors(TypedArray<LabelId> succ) { m_instance->successors = succ.slot(); }
 };
 
 } // namespace library

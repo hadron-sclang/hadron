@@ -12,7 +12,6 @@
 #include "hadron/library/Object.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
-#include "hadron/LinearFrame.hpp"
 #include "hadron/Materializer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/RegisterAllocator.hpp"
