@@ -1,6 +1,7 @@
 #include "hadron/BlockSerializer.hpp"
 
 #include "hadron/library/Array.hpp"
+#include "hadron/library/HadronHIR.hpp"
 #include "hadron/ThreadContext.hpp"
 
 #include <algorithm>
@@ -11,7 +12,7 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
     // Prepare the LinearFrame for recording of value lifetimes.
     auto linearFrame = library::LinearFrame::alloc(context);
     linearFrame.initToNil();
-    linearFrame.setBlockLabels(library::TypedArray<library::LabelLIR>::typedArrayAlloc(context,
+    linearFrame.setBlockLabels(library::TypedArray<library::LabelLIR>::typedNewClear(context,
             frame.numberOfBlocks()));
 
     // Map of block number (index) to Block struct, useful when recursing through control flow graph.
@@ -24,6 +25,8 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
     orderBlocks(context, frame.rootScope().blocks().typedFirst(), blocks, blockOrder);
     blockOrder = blockOrder.typedReverse(context);
     linearFrame.setBlockOrder(blockOrder);
+
+    auto instructions = library::TypedArray<library::LIR>::typedArrayAlloc(context);
 
     // Fill linear frame with LIR in computed order.
     for (int32_t i = 0; i < blockOrder.size(); ++i) {
@@ -47,30 +50,26 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
             successors = successors.typedAdd(context, succ.id());
         }
         label.setSuccessors(successors);
-/*
+
+        auto labelPhis = library::TypedArray<library::LIR>::typedArrayAlloc(context, block.phis().size());
         for (int32_t i = 0; i < block.phis().size(); ++i) {
             auto phi = block.phis().typedAt(i);
-            // TODO: this is a duplication of the logic in LinearFrame::append() for phis, and is mixing iterators
-            // in vRegs between the label->phi and the linearFrame->instructions which seems likely to create bugs.
-            // Reconsider.
-            auto phiLIR = phi->lowerPhi(linearFrame.get());
-            auto value = static_cast<lir::VReg>(linearFrame->vRegs.size());
-            phiLIR->value = value;
-            linearFrame->hirToRegMap.emplace(std::make_pair(phi->id, value));
-            label->phis.emplace_back(std::move(phiLIR));
-            auto iter = label->phis.end();
-            --iter;
-            linearFrame->vRegs.emplace_back(iter);
+            auto phiLIR = phi.lowerPhi(context, linearFrame);
+            linearFrame.append(context, phi.id(), phiLIR.toBase(), labelPhis);
         }
-        // Start the block with a label and then append all contained instructions.
-        linearFrame->instructions.emplace_back(std::move(label));
-        linearFrame->blockLabels[block->id()] = --(linearFrame->instructions.end());
+        label.setPhis(labelPhis);
 
-        for (const auto& hir : block->statements()) {
-            hir->lower(linearFrame.get());
+        // Start the block with a label and then append all contained instructions.
+        linearFrame.append(context, library::HIRId(), label.toBase(), instructions);
+        linearFrame.blockLabels().typedPut(block.id(), label);
+
+        for (int32_t i = 0; i < block.statements().size(); ++i) {
+            auto hir = block.statements().typedAt(i);
+            hir.lower(context, linearFrame, instructions);
         }
-*/
     }
+
+    linearFrame.setInstructions(instructions);
     return linearFrame;
 }
 

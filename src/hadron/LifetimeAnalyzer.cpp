@@ -1,9 +1,6 @@
 #include "hadron/LifetimeAnalyzer.hpp"
 
-#include "hadron/BlockSerializer.hpp"
-#include "hadron/LinearFrame.hpp"
-#include "hadron/lir/LabelLIR.hpp"
-#include "hadron/lir/LIR.hpp"
+#inclue "hadron/ThreadContext.hpp"
 
 #include "spdlog/spdlog.h"
 
@@ -12,7 +9,7 @@
 namespace hadron {
 
 /*
-Pseudocode for the lifetime interval building algorithm taken verbatiim from [RA5] in the Bibliography,  "Linear Scan
+Pseudocode for the lifetime interval building algorithm taken verbatiim from [RA5] in the Bibliography, "Linear Scan
 Register Allocation on SSA Form" by C. Wimmer and M. Franz.
 
 BUILDINTERVALS
@@ -44,8 +41,9 @@ BUILDINTERVALS
         b.liveIn = live
 */
 
-void LifetimeAnalyzer::buildLifetimes(LinearFrame* linearFrame) {
-    linearFrame->lineNumbers.reserve(linearFrame->instructions.size());
+void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFrame linearFrame) {
+
+    // Compute blockRanges.
     linearFrame->blockRanges.resize(linearFrame->blockLabels.size());
     size_t blockStart = 0;
     const lir::LabelLIR* lastLabel = nullptr;

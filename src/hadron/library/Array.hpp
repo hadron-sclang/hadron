@@ -76,14 +76,20 @@ public:
     explicit TypedArray(Slot instance): Array(instance) {}
     ~TypedArray() {}
 
-    static TypedArray<T> typedArrayAlloc(ThreadContext* context, int32_t maxSize) {
+    static TypedArray<T> typedArrayAlloc(ThreadContext* context, int32_t maxSize = 0) {
         Array a = arrayAlloc(context, maxSize);
+        return TypedArray<T>(a.instance());
+    }
+
+    static TypedArray<T> typedNewClear(ThreadContext* context, int32_t indexedSize) {
+        Array a = newClear(context, indexedSize);
         return TypedArray<T>(a.instance());
     }
 
     T typedAt(int32_t index) const { return T::wrapUnsafe(at(index)); }
     T typedFirst() const { return T::wrapUnsafe(first()); }
     T typedLast() const { return T::wrapUnsafe(last()); }
+    void typedPut(int32_t index, T element) { put(index, element.slot()); }
 
     TypedArray<T>& typedAdd(ThreadContext* context, T element) {
         add(context, element.slot());

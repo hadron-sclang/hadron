@@ -3,6 +3,7 @@
 
 #include "hadron/library/Array.hpp"
 #include "hadron/library/Boolean.hpp"
+#include "hadron/library/Dictionary.hpp"
 #include "hadron/library/HadronLIR.hpp"
 #include "hadron/library/Set.hpp"
 #include "hadron/library/Object.hpp"
@@ -65,6 +66,13 @@ public:
     explicit LinearFrame(Slot instance): Object<LinearFrame, schema::HadronLinearFrameSchema>(instance) {}
     ~LinearFrame() {}
 
+    // Convenience function, returns associated VReg in LIR or nil if no hir value found.
+    inline VReg hirToReg(HIRId hirId) { return hirToRegMap().typedGet(hirId); }
+
+    // Appends lir to lirArray, which is assumed to be in the LinearBlock. If hirId is valid then we add to the
+    // mapping. Returns the assigned VReg or kInvalidVReg if no value assigned.
+    VReg append(ThreadContext* context, HIRId hirId, LIR lir, TypedArray<LIR>& lirArray);
+
     TypedArray<LIR> instructions() const { return TypedArray<LIR>(m_instance->instructions); }
     void setInstructions(TypedArray<LIR> inst) { m_instance->instructions = inst.slot(); }
 
@@ -87,6 +95,9 @@ public:
 
     Integer numberOfSpillSlots() const { return Integer(m_instance->numberOfSpillSlots); }
     void setNumberOfSpillSlots(Integer i) { m_instance->numberOfSpillSlots = i.slot(); }
+
+    TypedIdentDict<HIRId, VReg> hirToRegMap() const { return TypedIdentDict<HIRId, VReg>(m_instance->hirToRegMap); }
+    void setHIRToRegMap(TypedIdentDict<HIRId, VReg> a) { m_instance->hirToRegMap = a.slot(); }
 };
 
 } // namespace library

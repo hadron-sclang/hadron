@@ -9,7 +9,7 @@ namespace library {
 class Boolean {
 public:
     Boolean(): m_slot(Slot::makeNil()) {}
-    Boolean(bool b): m_slot(Slot::makeBool(b));
+    Boolean(bool b): m_slot(Slot::makeBool(b)) {}
     Boolean(Slot b): m_slot(b) { assert(b.isNil() || b.isBool()); }
     Boolean(const Boolean& b): m_slot(b.slot()) { assert(m_slot.isNil() || m_slot.isBool()); }
 

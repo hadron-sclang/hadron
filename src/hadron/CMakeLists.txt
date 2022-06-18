@@ -194,7 +194,9 @@ add_library(hadron STATIC
     library/HadronCFG.hpp
     library/HadronHIR.cpp
     library/HadronHIR.hpp
+    library/HadronLinearFrame.cpp
     library/HadronLinearFrame.hpp
+    library/HadronLIR.cpp
     library/HadronLIR.hpp
     library/HadronParseNode.hpp
     library/Integer.hpp

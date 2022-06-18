@@ -93,6 +93,30 @@ public:
         return t;
     }
 
+    T& insert(ThreadContext* context, int32_t index, E item) {
+        T& t = static_cast<const T&>(*this);
+        assert(index < t.size());
+
+        T& target = t;
+
+        // If we need a new array copy all the elements up to index into that array.
+        if (t.size() == t.capacity()) {
+            S* newArray = T::arrayAllocRaw(context, t.size() + 1);
+            std::memcpy(reinterpret_cast<void*>(newArray), reinterpret_cast<void*>(t.m_instance),
+                    sizeof(S) + (index * sizeof(E)));
+            target = T(newArray);
+        }
+
+        // Shift elements starting at index to the right by one.
+        std::memcpy(reinterpret_cast<int8_t*>(target.start()) + ((index + 1) * sizeof(E)),
+                reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)), sizeof(E) * (t.size() - index));
+
+        target.resize(t.size() + 1);
+        target.put(index, item);
+
+        return target;
+    }
+
     // Returns a pointer to the start of the elements, which is just past the schema.
     inline E* start() const {
         const T& t = static_cast<const T&>(*this);

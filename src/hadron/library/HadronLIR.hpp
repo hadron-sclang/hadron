@@ -83,6 +83,8 @@ public:
     explicit LIR(schema::HadronLIRSchema* instance): LIRBase<LIR, schema::HadronLIRSchema, LIR>(instance) {}
     explicit LIR(Slot instance): LIRBase<LIR, schema::HadronLIRSchema, LIR>(instance) {}
     ~LIR() {}
+
+    bool producesValue() const;
 };
 
 class AssignLIR : public LIRBase<AssignLIR, schema::HadronAssignLIRSchema, LIR> {
@@ -98,7 +100,25 @@ public:
     void setOrigin(VReg o) { m_instance->origin = o.slot(); }
 };
 
-// class PhiLIR
+class PhiLIR : public LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR> {
+public:
+    PhiLIR(): LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR>() {}
+    explicit PhiLIR(schema::HadronPhiLIRSchema* instance):
+            LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR>(instance) {}
+    explicit PhiLIR(Slot instance):
+            LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR>(instance) {}
+    ~PhiLIR() {}
+
+    TypedArray<VReg> inputs() const { return TypedArray<VReg>(m_instance->inputs); }
+    void setInputs(TypedArray<VReg> i) { m_instance->inputs = i.slot(); }
+
+    inline void addInput(ThreadContext* context, LIR input) {
+        auto reg = input.vReg();
+        assert(reg);
+        reads().typedAdd(context, reg);
+        setInputs(inputs().typedAdd(context, reg));
+    }
+};
 
 class LabelLIR : public LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR> {
 public:
@@ -116,6 +136,9 @@ public:
 
     TypedArray<LabelId> successors() const { return TypedArray<LabelId>(m_instance->successors); }
     void setSuccessors(TypedArray<LabelId> succ) { m_instance->successors = succ.slot(); }
+
+    TypedArray<LIR> phis() const { return TypedArray<LIR>(m_instance->phis); }
+    void setPhis(TypedArray<LIR> p) { m_instance->phis = p.slot(); }
 };
 
 } // namespace library

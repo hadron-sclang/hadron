@@ -3,6 +3,8 @@
 
 #include "hadron/library/Array.hpp"
 #include "hadron/library/HadronCFG.hpp"
+#include "hadron/library/HadronLinearFrame.hpp"
+#include "hadron/library/HadronLIR.hpp"
 #include "hadron/library/Integer.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Object.hpp"
@@ -93,6 +95,10 @@ public:
     // convenience returns |value| as recorded within this object. Can return nil, which indicates that this operation /
     // only consumes values but doesn't generate a new one. When adding new HIR types, add them to this method.
     HIRId proposeId(HIRId proposedId);
+
+    // Convert this HIR to LIR and append to the linearFrame. The |instructions| reference is for pass-through to
+    // linearFrame.append(), to support building the list outside of the linearFrame and just setting it at the end.
+    void lower(ThreadContext* context, LinearFrame linearFrame, TypedArray<LIR>& instructions);
 };
 
 class BlockLiteralHIR : public HIRBase<BlockLiteralHIR, schema::HadronBlockLiteralHIRSchema, HIR> {
@@ -269,6 +275,8 @@ public:
     // A phi is *trivial* if it has only one distinct input value that is not self-referential. If this phi is trivial,
     // return the trivial value. Otherwise return a nil value.
     HIRId getTrivialValue() const;
+
+    PhiLIR lowerPhi(ThreadContext* context, LinearFrame linearFrame);
 
     Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
     void setName(Symbol n) { m_instance->name = n.slot(); }
