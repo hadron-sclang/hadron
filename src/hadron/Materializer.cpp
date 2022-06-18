@@ -31,7 +31,7 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
     }
 
     BlockSerializer serializer;
-    auto linearFrame = serializer.serialize(frame);
+    auto linearFrame = serializer.serialize(context, frame);
 
     LifetimeAnalyzer lifetimeAnalyzer;
     lifetimeAnalyzer.buildLifetimes(linearFrame.get());

@@ -185,6 +185,7 @@ add_library(hadron STATIC
     library/AbstractFunction.hpp
     library/Array.hpp
     library/ArrayedCollection.hpp
+    library/Boolean.hpp
     library/Collection.hpp
     library/Dictionary.hpp
     library/Function.hpp

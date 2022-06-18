@@ -1,6 +1,7 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_BLOCK_SERIALIZER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_BLOCK_SERIALIZER_HPP_
 
+#include "hadron/library/Array.hpp"
 #include "hadron/library/HadronCFG.hpp"
 #include "hadron/library/HadronLinearFrame.hpp"
 #include "hadron/library/HadronLIR.hpp"
@@ -27,8 +28,8 @@ public:
 
 private:
     // Does the recursive postorder traversal of the blocks and saves the output in |blockOrder|.
-    void orderBlocks(library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
-            std::vector<library::LabelID>& blockOrder);
+    void orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
+            library::TypedArray<library::LabelId> blockOrder);
 };
 
 } // namespace hadron

@@ -28,7 +28,6 @@ public:
         return array;
     }
 
-
     // Supports IdentitySet, searches the array for an element with identityHash matching |key|, or the index of the
     // empty element if no matching element found.
     int32_t atIdentityHash(Slot key) const {
@@ -58,6 +57,15 @@ public:
 
         return index;
     }
+
+    // Returns a new array with the members of this array in reverse order.
+    Array reverse(ThreadContext* context) const {
+        auto r = Array::arrayAlloc(context, size());
+        for (int32_t i = size() - 1; i >= 0; --i) {
+            r = r.add(context, at(i));
+        }
+        return r;
+    }
 };
 
 template<typename T>
@@ -84,6 +92,11 @@ public:
 
     Slot typedIndexOf(T item) const {
         return indexOf(item.slot());
+    }
+
+    TypedArray<T> typedReverse(ThreadContext* context) {
+        auto r = reverse(context);
+        return TypedArray<T>(r.instance());
     }
 };
 

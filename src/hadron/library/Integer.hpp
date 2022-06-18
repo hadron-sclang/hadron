@@ -20,7 +20,7 @@ public:
     inline const Integer& operator=(const Integer& i) { m_slot = i.slot(); return *this; }
     inline bool isNil() const { return m_slot.isNil(); }
     inline int32_t int32() const { return m_slot.getInt32(); }
-    void setInt32(int32_t i) { m_slot = Slot::makeInt32(i); }
+    inline void setInt32(int32_t i) { m_slot = Slot::makeInt32(i); }
     inline Slot slot() const { return m_slot; }
 
     inline bool operator==(const Integer& i) const { return m_slot == i.m_slot; }

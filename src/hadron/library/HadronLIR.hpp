@@ -25,6 +25,12 @@ public:
         return B::wrapUnsafe(Slot::makePointer(reinterpret_cast<library::Schema*>(t.m_instance)));
     }
 
+    static T make(ThreadContext* context) {
+        auto t = T::alloc(context);
+        t.initToNil();
+        return t;
+    }
+
     VReg vReg() const {
         const T& t = static_cast<const T&>(*this);
         return VReg(t.m_instance->vReg);
