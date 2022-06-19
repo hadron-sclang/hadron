@@ -55,7 +55,7 @@ public:
     }
 
     // add() is not implemented as a primitive in the SuperCollider library code. This C++ implementation mimic the
-    // implementation in Set. If making substantive changes to behavior in either implementation the other must change /
+    // implementation in Set. If making substantive changes to behavior in either implementation the other must change
     // to reflect the new behavior. TODO: consider a new implementation of HadronSet, HadronIdentitySet,
     // HadronIdentityDictionary.
     void add(ThreadContext* context, Slot item) {

@@ -9,6 +9,8 @@
 namespace hadron {
 namespace library {
 
+// TODO(https://github.com/hadron-sclang/hadron/issues/111): Templatize all the data structures!
+
 // The element type of Array is always going to be Slot, which means that Arrays naturally support heterogenous types as
 // they can store anything that fits in a Slot. For C++-side access to sclang Arrays we also provide type wrappers for
 // arrays of homogeneous types that automatically wrap and unwrap Slots into the assigned type.

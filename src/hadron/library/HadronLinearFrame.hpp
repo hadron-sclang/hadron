@@ -43,6 +43,17 @@ public:
             Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema>(instance) {}
     ~LifetimeInterval() {}
 
+    static LifetimeInterval makeLifetimeInterval(ThreadContext* context, int32_t value) {
+        auto lifetimeInterval = LifetimeInterval::alloc(context);
+        lifetimeInterval.initToNil();
+        lifetimeInterval.setValueNumber(value);
+        lifetimeInterval.setIsSplit(false);
+        lifetimeInterval.setIsSpill(false);
+        return lifetimeInterval;
+    }
+
+    void addLiveRange(ThreadContext* context, int32_t from, int32_t to);
+
     TypedArray<LiveRange> ranges() const { return TypedArray<LiveRange>(m_instance->ranges); }
     void setRanges(TypedArray<LiveRange> r) { m_instance->ranges = r.slot(); }
 
@@ -95,10 +106,9 @@ public:
     TypedArray<LiveRange> blockRanges() const { return TypedArray<LiveRange>(m_instance->blockRanges); }
     void setBlockRanges(TypedArray<LiveRange> r) { m_instance->blockRanges = r.slot(); }
 
-    TypedArray<LifetimeInterval> valueLifetimes() const {
-        return TypedArray<LifetimeInterval>(m_instance->valueLifetimes);
-    }
-    void setValueLifetimes(TypedArray<LifetimeInterval> vL) { m_instance->valueLifetimes = vL.slot(); }
+    using Intervals = TypedArray<TypedArray<LifetimeInterval>>;
+    Intervals valueLifetimes() const { return Intervals(m_instance->valueLifetimes); }
+    void setValueLifetimes(Intervals ivls) { m_instance->valueLifetimes = ivls.slot(); }
 
     Integer numberOfSpillSlots() const { return Integer(m_instance->numberOfSpillSlots); }
     void setNumberOfSpillSlots(Integer i) { m_instance->numberOfSpillSlots = i.slot(); }

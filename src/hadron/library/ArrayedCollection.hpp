@@ -57,6 +57,8 @@ public:
         return elementsSize;
     }
 
+    // TODO(https://github.com/hadron-sclang/hadron/issues/109): add C++ style access semantics
+
     E at(int32_t index) const {
         assert(0 <= index && index < size());
         return *(start() + index);
