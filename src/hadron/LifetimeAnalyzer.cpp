@@ -1,6 +1,7 @@
 #include "hadron/LifetimeAnalyzer.hpp"
 
-#inclue "hadron/ThreadContext.hpp"
+#include "hadron/library/Array.hpp"
+#include "hadron/ThreadContext.hpp"
 
 #include "spdlog/spdlog.h"
 
@@ -42,33 +43,35 @@ BUILDINTERVALS
 */
 
 void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFrame linearFrame) {
-
     // Compute blockRanges.
-    linearFrame->blockRanges.resize(linearFrame->blockLabels.size());
-    size_t blockStart = 0;
-    const lir::LabelLIR* lastLabel = nullptr;
-    for (auto& lir : linearFrame->instructions) {
-        if (lir->opcode == lir::kLabel) {
+    auto blockRanges = library::TypedArray<library::LiveRange>::typedNewClear(context,
+            linearFrame.blockLabels().size());
+    int32_t blockStart = 0;
+    library::LabelLIR lastLabel = library::LabelLIR();
+    for (int32_t i = 0; i < linearFrame.instructions().size(); ++i) {
+        auto lir = linearFrame.instructions().typedAt(i);
+        if (lir.className() == library::LabelLIR::nameHash()) {
             if (lastLabel) {
-                linearFrame->blockRanges[lastLabel->id] = std::make_pair(blockStart, linearFrame->lineNumbers.size());
+                blockRanges.typedPut(lastLabel.labelId().int32(),
+                        library::LiveRange::makeLiveRange(context, blockStart, i));
             }
-            lastLabel = reinterpret_cast<const lir::LabelLIR*>(lir.get());
-            blockStart = linearFrame->lineNumbers.size();
+            lastLabel = hadron::library::LabelLIR(lir.slot());
+            blockStart = i;
         }
-        linearFrame->lineNumbers.emplace_back(lir.get());
     }
-    assert(lastLabel);
     // Save final block range.
-    linearFrame->blockRanges[lastLabel->id] = std::make_pair(blockStart, linearFrame->lineNumbers.size());
+    blockRanges.typedPut(lastLabel.labelId().int32(), library::LiveRange::makeLiveRange(context, blockStart,
+            linearFrame.instructions().size()));
+    linearFrame.setBlockRanges(blockRanges);
 
-    assert(linearFrame->lineNumbers.size() == linearFrame->instructions.size());
 
-    std::vector<std::unordered_set<size_t>> liveIns(linearFrame->blockOrder.size());
     linearFrame->valueLifetimes.resize(linearFrame->vRegs.size());
     for (size_t i = 0; i < linearFrame->vRegs.size(); ++i) {
         linearFrame->valueLifetimes[i].emplace_back(std::make_unique<LifetimeInterval>());
         linearFrame->valueLifetimes[i][0]->valueNumber = i;
     }
+
+    std::vector<std::unordered_set<size_t>> liveIns(linearFrame->blockOrder.size());
 
     // for each block b in reverse order do
     for (int i = linearFrame->blockOrder.size() - 1; i >= 0; --i) {

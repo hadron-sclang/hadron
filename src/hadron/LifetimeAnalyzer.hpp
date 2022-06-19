@@ -14,6 +14,8 @@ public:
     LifetimeAnalyzer() = default;
     ~LifetimeAnalyzer() = default;
 
+    // Computes blockRanges and the valueLifetimes elements in the LinearBlock. All optimizations that add, remove,
+    // or reorder instructions must occur before this step.
     void buildLifetimes(ThreadContext* context, library::LinearFrame linearFrame);
 };
 

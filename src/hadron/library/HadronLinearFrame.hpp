@@ -20,6 +20,13 @@ public:
     explicit LiveRange(Slot instance): Object<LiveRange, schema::HadronLiveRangeSchema>(instance) {}
     ~LiveRange() {}
 
+    static LiveRange makeLiveRange(ThreadContext* context, int32_t from, int32_t to) {
+        auto liveRange = LiveRange::alloc(context);
+        liveRange.setFrom(Integer(from));
+        liveRange.setTo(Integer(to));
+        return liveRange;
+    }
+
     Integer from() const { return Integer(m_instance->from); }
     void setFrom(Integer f) { m_instance->from = f.slot(); }
 
