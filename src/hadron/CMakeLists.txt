@@ -152,6 +152,7 @@ list(APPEND HLANG_CLASS_FILES
     "${HLANG_PATH}/HLang/HadronAST.sc"
     "${HLANG_PATH}/HLang/HadronCFG.sc"
     "${HLANG_PATH}/HLang/HadronHIR.sc"
+    "${HLANG_PATH}/HLang/HadronLifetimeInterval.sc"
     "${HLANG_PATH}/HLang/HadronLinearFrame.sc"
     "${HLANG_PATH}/HLang/HadronLIR.sc"
     "${HLANG_PATH}/HLang/HadronParseNode.sc"
@@ -194,6 +195,8 @@ add_library(hadron STATIC
     library/HadronCFG.hpp
     library/HadronHIR.cpp
     library/HadronHIR.hpp
+    library/HadronLifetimeInterval.cpp
+    library/HadronLifetimeInterval.hpp
     library/HadronLinearFrame.cpp
     library/HadronLinearFrame.hpp
     library/HadronLIR.cpp
@@ -283,6 +286,7 @@ set(HADRON_COMPILER_UNITTESTS
 
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Array_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/ArrayedCollection_unittests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/library/HadronLifetimeInterval_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Dictionary_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/LibraryTestFixture.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Set_unittests.cpp

@@ -66,6 +66,47 @@ TEST_CASE_FIXTURE(LibraryTestFixture, "Array") {
         }
     }
 
+    SUBCASE("insert") {
+        auto array = library::Array();
+
+        array = array.insert(context(), 0, Slot::makeInt32(1));
+        REQUIRE_EQ(array.size(), 1);
+        CHECK_EQ(array.at(0), Slot::makeInt32(1));
+
+        array = array.insert(context(), 1, Slot::makeInt32(3));
+        REQUIRE_EQ(array.size(), 2);
+        CHECK_EQ(array.at(0), Slot::makeInt32(1));
+        CHECK_EQ(array.at(1), Slot::makeInt32(3));
+
+        array = array.insert(context(), 0, Slot::makeInt32(0));
+        REQUIRE_EQ(array.size(), 3);
+        CHECK_EQ(array.at(0), Slot::makeInt32(0));
+        CHECK_EQ(array.at(1), Slot::makeInt32(1));
+        CHECK_EQ(array.at(2), Slot::makeInt32(3));
+
+        array = array.insert(context(), 2, Slot::makeInt32(2));
+        REQUIRE_EQ(array.size(), 4);
+        CHECK_EQ(array.at(0), Slot::makeInt32(0));
+        CHECK_EQ(array.at(1), Slot::makeInt32(1));
+        CHECK_EQ(array.at(2), Slot::makeInt32(2));
+        CHECK_EQ(array.at(3), Slot::makeInt32(3));
+
+        for (int i = 0; i < 96; ++i) {
+            array = array.insert(context(), 2, Slot::makeInt32(-i));
+        }
+        REQUIRE_EQ(array.size(), 100);
+        CHECK_EQ(array.at(0), Slot::makeInt32(0));
+        CHECK_EQ(array.at(1), Slot::makeInt32(1));
+        for (int i = 0; i < 96; ++i) {
+            CHECK_EQ(array.at(97 - i).getInt32(), -i);
+        }
+        CHECK_EQ(array.at(98), Slot::makeInt32(2));
+        CHECK_EQ(array.at(99), Slot::makeInt32(3));
+    }
+
+    SUBCASE("removeAt") {
+        #error test me
+    }
 }
 
 } // namespace hadron

@@ -49,6 +49,39 @@ TEST_CASE_FIXTURE(LibraryTestFixture, "IdentitySet") {
             CHECK(set.contains(Slot::makeBool((i + 4) % 2)));
         }
     }
+
+    SUBCASE("ordered set") {
+        auto set = library::OrderedIdentitySet::makeIdentitySet(context());
+        set.add(context(), Slot::makeInt32(200));
+        set.add(context(), Slot::makeInt32(-5));
+        set.add(context(), Slot::makeInt32(0));
+        set.add(context(), Slot::makeInt32(99));
+        set.add(context(), Slot::makeInt32(-5));
+        set.add(context(), Slot::makeInt32(-98));
+        set.add(context(), Slot::makeInt32(4));
+        set.add(context(), Slot::makeInt32(200));
+
+        REQUIRE_EQ(set.size(), 6);
+        REQUIRE_EQ(set.items().size(), 6);
+
+        CHECK(set.contains(Slot::makeInt32(-98)));
+        CHECK_EQ(set.items().at(0).getInt32(), -98);
+
+        CHECK(set.contains(Slot::makeInt32(-5)));
+        CHECK_EQ(set.items().at(1).getInt32(), -5);
+
+        CHECK(set.contains(Slot::makeInt32(0)));
+        CHECK_EQ(set.items().at(2).getInt32(), 0);
+
+        CHECK(set.contains(Slot::makeInt32(4)));
+        CHECK_EQ(set.items().at(3).getInt32(), 4);
+
+        CHECK(set.contains(Slot::makeInt32(99)));
+        CHECK_EQ(set.items().at(4).getInt32(), 99);
+
+        CHECK(set.contains(Slot::makeInt32(200)));
+        CHECK_EQ(set.items().at(5).getInt32(), 200);
+    }
 }
 
 } // namespace hadron

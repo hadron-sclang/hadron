@@ -131,7 +131,7 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
             if (lir.vReg()) {
                 // intervals[opd].setFrom(op.id)
                 blockVariableRanges[lir.vReg().int32()].first = j;
-                valueLifetimes.typedAt(lir.vReg().int32()).typedAt(0).usages().typedAdd(context, library::Integer(j));
+                valueLifetimes.typedAt(lir.vReg().int32()).typedAt(0).usages().add(context, library::Integer(j).slot());
 
                 // live.remove(opd)
                 live.erase(lir.vReg().int32());
@@ -143,7 +143,7 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
                 // intervals[opd].addRange(b.from, op.id)
                 blockVariableRanges[opd.int32()].first = blockRange.from().int32();
                 blockVariableRanges[opd.int32()].second = std::max(j + 1, blockVariableRanges[opd.int32()].second);
-                valueLifetimes.typedAt(opd.int32()).typedAt(0).usages().typedAdd(context, library::Integer(j));
+                valueLifetimes.typedAt(opd.int32()).typedAt(0).usages().add(context, library::Integer(j).slot());
                 // live.add(opd)
                 live.insert(opd.int32());
 

@@ -36,6 +36,7 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
     LifetimeAnalyzer lifetimeAnalyzer;
     lifetimeAnalyzer.buildLifetimes(context, linearFrame);
 
+/*
     hadron::RegisterAllocator registerAllocator(hadron::kNumberOfPhysicalRegisters);
     registerAllocator.allocateRegisters(linearFrame.get());
 
@@ -57,6 +58,8 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
     assert(finalSize < bytecodeSize);
 
     return bytecode;
+*/
+    return library::Int8Array();
 }
 
 } // namespace hadron

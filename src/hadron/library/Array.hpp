@@ -78,6 +78,9 @@ public:
     explicit TypedArray(Slot instance): Array(instance) {}
     ~TypedArray() {}
 
+    // Does NOT do what it says on the tin.
+    static inline TypedArray<T> wrapUnsafe(Slot instance) { return TypedArray<T>(instance); }
+
     static TypedArray<T> typedArrayAlloc(ThreadContext* context, int32_t maxSize = 0) {
         Array a = arrayAlloc(context, maxSize);
         return TypedArray<T>(a.instance());
@@ -88,7 +91,7 @@ public:
         return TypedArray<T>(a.instance());
     }
 
-    T typedAt(int32_t index) const { return T::wrapUnsafe(at(index)); }
+    T typedAt(int32_t index) const { return T::wrapUnsafe(at(index).slot()); }
     T typedFirst() const { return T::wrapUnsafe(first()); }
     T typedLast() const { return T::wrapUnsafe(last()); }
     void typedPut(int32_t index, T element) { put(index, element.slot()); }
@@ -105,6 +108,11 @@ public:
     TypedArray<T> typedReverse(ThreadContext* context) {
         auto r = reverse(context);
         return TypedArray<T>(r.instance());
+    }
+
+    TypedArray<T> typedInsert(ThreadContext* context, int32_t index, T element) {
+        auto i = insert(context, index, element.slot());
+        return TypedArray<T>(i.instance());
     }
 };
 

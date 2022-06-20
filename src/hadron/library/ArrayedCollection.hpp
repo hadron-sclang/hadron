@@ -96,27 +96,46 @@ public:
     }
 
     T& insert(ThreadContext* context, int32_t index, E item) {
-        T& t = static_cast<const T&>(*this);
-        assert(index < t.size());
+        T& t = static_cast<T&>(*this);
+        if (index == t.size()) { return add(context, item); }
 
-        T& target = t;
+        assert(0 <= index && index < t.size());
 
-        // If we need a new array copy all the elements up to index into that array.
-        if (t.size() == t.capacity()) {
+        // If we need to create a new array for resizing, move the elements while copying them, thus avoiding
+        // the redundant copy of the unshifted elements in resize().
+        if (t.capacity(context) == t.size()) {
             S* newArray = T::arrayAllocRaw(context, t.size() + 1);
-            std::memcpy(reinterpret_cast<void*>(newArray), reinterpret_cast<void*>(t.m_instance),
-                    sizeof(S) + (index * sizeof(E)));
-            target = T(newArray);
+            newArray->schema._className = t.m_instance->schema._className;
+            newArray->schema._sizeInBytes = sizeof(S) + ((t.size() + 1) * sizeof(E));
+            // Copy elements before index into the new array.
+            std::memcpy(reinterpret_cast<int8_t*>(newArray) + sizeof(S), t.start(), index * sizeof(E));
+            // Copy remaining elements into place shifted one right.
+            std::memcpy(reinterpret_cast<int8_t*>(newArray) + sizeof(S) + ((index + 1) * sizeof(E)),
+                    reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)), sizeof(E) * (t.size() - index));
+            t.m_instance = newArray;
+            t.put(index, item);
+            return t;
         }
 
+        t.resize(context, t.size() + 1);
         // Shift elements starting at index to the right by one.
-        std::memcpy(reinterpret_cast<int8_t*>(target.start()) + ((index + 1) * sizeof(E)),
+        std::memmove(reinterpret_cast<int8_t*>(t.start()) + ((index + 1) * sizeof(E)),
                 reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)), sizeof(E) * (t.size() - index));
+        t.put(index, item);
 
-        target.resize(t.size() + 1);
-        target.put(index, item);
+        return t;
+    }
 
-        return target;
+    void removeAt(ThreadContext* context, int32_t index) {
+        T& t = static_cast<T&>(*this);
+        assert(0 <= index && index < t.size());
+
+        // Shift elements starting at index + 1 to the left by one.
+        if (index < t.size() - 1) {
+            std::memmove(t.start() + (index * sizeof(E)), t.start() + ((index + 1) * sizeof(E)), t.size() - index - 1);
+        }
+
+        t.resize(context, t.size() - 1);
     }
 
     // Returns a pointer to the start of the elements, which is just past the schema.

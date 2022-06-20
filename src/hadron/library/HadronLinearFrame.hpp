@@ -2,79 +2,14 @@
 #define SRC_HADRON_LIBRARY_HADRON_LINEAR_FRAME_HPP_
 
 #include "hadron/library/Array.hpp"
-#include "hadron/library/Boolean.hpp"
 #include "hadron/library/Dictionary.hpp"
 #include "hadron/library/HadronLIR.hpp"
-#include "hadron/library/Set.hpp"
+#include "hadron/library/HadronLifetimeInterval.hpp"
 #include "hadron/library/Object.hpp"
 #include "hadron/schema/HLang/HadronLinearFrameSchema.hpp"
 
 namespace hadron {
 namespace library {
-
-class LiveRange : public Object<LiveRange, schema::HadronLiveRangeSchema> {
-public:
-    LiveRange(): Object<LiveRange, schema::HadronLiveRangeSchema>() {}
-    explicit LiveRange(schema::HadronLiveRangeSchema* instance):
-            Object<LiveRange, schema::HadronLiveRangeSchema>(instance) {}
-    explicit LiveRange(Slot instance): Object<LiveRange, schema::HadronLiveRangeSchema>(instance) {}
-    ~LiveRange() {}
-
-    static LiveRange makeLiveRange(ThreadContext* context, int32_t from, int32_t to) {
-        auto liveRange = LiveRange::alloc(context);
-        liveRange.setFrom(Integer(from));
-        liveRange.setTo(Integer(to));
-        return liveRange;
-    }
-
-    Integer from() const { return Integer(m_instance->from); }
-    void setFrom(Integer f) { m_instance->from = f.slot(); }
-
-    Integer to() const { return Integer(m_instance->to); }
-    void setTo(Integer t) { m_instance->to = t.slot(); }
-};
-
-class LifetimeInterval : public Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema> {
-public:
-    LifetimeInterval(): Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema>() {}
-    explicit LifetimeInterval(schema::HadronLifetimeIntervalSchema* instance):
-            Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema>(instance) {}
-    explicit LifetimeInterval(Slot instance):
-            Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema>(instance) {}
-    ~LifetimeInterval() {}
-
-    static LifetimeInterval makeLifetimeInterval(ThreadContext* context, int32_t value) {
-        auto lifetimeInterval = LifetimeInterval::alloc(context);
-        lifetimeInterval.initToNil();
-        lifetimeInterval.setValueNumber(value);
-        lifetimeInterval.setIsSplit(false);
-        lifetimeInterval.setIsSpill(false);
-        return lifetimeInterval;
-    }
-
-    void addLiveRange(ThreadContext* context, int32_t from, int32_t to);
-
-    TypedArray<LiveRange> ranges() const { return TypedArray<LiveRange>(m_instance->ranges); }
-    void setRanges(TypedArray<LiveRange> r) { m_instance->ranges = r.slot(); }
-
-    TypedIdentSet<Integer> usages() const { return TypedIdentSet<Integer>(m_instance->usages); }
-    void setUsages(TypedIdentSet<Integer> u) { m_instance->usages = u.slot(); }
-
-    VReg valueNumber() const { return VReg(m_instance->valueNumber); }
-    void setValueNumber(VReg v) { m_instance->valueNumber = v.slot(); }
-
-    Integer registerNumber() const { return Integer(m_instance->registerNumber); }
-    void setRegisterNumber(Integer r) { m_instance->registerNumber = r.slot(); }
-
-    Boolean isSplit() const { return Boolean(m_instance->isSplit); }
-    void setIsSplit(Boolean b) { m_instance->isSplit = b.slot(); }
-
-    Boolean isSpill() const { return Boolean(m_instance->isSpill); }
-    void setIsSpill(Boolean b) { m_instance->isSpill = b.slot(); }
-
-    Integer spillSlot() const { return Integer(m_instance->spillSlot); }
-    void setSpillSlot(Integer i) { m_instance->spillSlot = i.slot(); }
-};
 
 class LinearFrame : public Object<LinearFrame, schema::HadronLinearFrameSchema> {
 public:
