@@ -105,7 +105,22 @@ TEST_CASE_FIXTURE(LibraryTestFixture, "Array") {
     }
 
     SUBCASE("removeAt") {
-        #error test me
+        auto array = library::Array();
+        for (int32_t i = 0; i < 10; ++i) {
+            array = array.add(context(), Slot::makeInt32(i));
+        }
+
+        array.removeAt(context(), 0);
+        array.removeAt(context(), 1);
+        array.removeAt(context(), 2);
+        array.removeAt(context(), 3);
+        array.removeAt(context(), 4);
+        REQUIRE_EQ(array.size(), 5);
+        CHECK_EQ(array.at(0).getInt32(), 1);
+        CHECK_EQ(array.at(1).getInt32(), 3);
+        CHECK_EQ(array.at(2).getInt32(), 5);
+        CHECK_EQ(array.at(3).getInt32(), 7);
+        CHECK_EQ(array.at(4).getInt32(), 9);
     }
 }
 

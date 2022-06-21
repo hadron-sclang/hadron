@@ -168,7 +168,7 @@ TEST_CASE_FIXTURE(LibraryTestFixture, "LifetimeInterval") {
             CHECK(lt.ranges().typedFirst().from().int32() == 0);
             CHECK(lt.ranges().typedFirst().to().int32() == 100);
         }
-/*
+
         SUBCASE("Left expansion with overlap") {
             auto lt = library::LifetimeInterval::makeLifetimeInterval(context(), 0);
             lt.addLiveRange(context(), 90, 95);
@@ -180,17 +180,17 @@ TEST_CASE_FIXTURE(LibraryTestFixture, "LifetimeInterval") {
 
             lt.addLiveRange(context(), 52, 100);
             REQUIRE(lt.ranges().size() == 3);
-            auto it = lt.ranges().begin();
-            CHECK(range.from().int32(), 10);
-            CHECK(range.to().int32(), 15);
-            range = lt.ranges().typedAt(0);
-            CHECK(range.from().int32(), 30);
-            CHECK(range.to().int32(), 35);
-            range = lt.ranges().typedAt(0);
-            CHECK(range.from().int32(), 50);
-            CHECK(range.to().int32(), 100);
-            range = lt.ranges().typedAt(0);
-            REQUIRE(it == lt.ranges().end());
+            auto range = lt.ranges().typedAt(0);
+            CHECK_EQ(range.from().int32(), 10);
+            CHECK_EQ(range.to().int32(), 15);
+
+            range = lt.ranges().typedAt(1);
+            CHECK_EQ(range.from().int32(), 30);
+            CHECK_EQ(range.to().int32(), 35);
+
+            range = lt.ranges().typedAt(2);
+            CHECK_EQ(range.from().int32(), 50);
+            CHECK_EQ(range.to().int32(), 100);
 
             lt.addLiveRange(context(), 1, 32);
             REQUIRE(lt.ranges().size() == 2);
@@ -214,45 +214,47 @@ TEST_CASE_FIXTURE(LibraryTestFixture, "LifetimeInterval") {
             lt.addLiveRange(context(), 3, 4);
             REQUIRE(lt.ranges().size() == 5);
 
-            auto it = lt.ranges().begin();
-            CHECK(range.from().int32(), 0);
-            CHECK(range.to().int32(), 1);
-            range = lt.ranges().typedAt(0);
-            CHECK(range.from().int32(), 1);
-            CHECK(range.to().int32(), 2);
-            range = lt.ranges().typedAt(0);
-            CHECK(range.from().int32(), 2);
-            CHECK(range.to().int32(), 3);
-            range = lt.ranges().typedAt(0);
-            CHECK(range.from().int32(), 3);
-            CHECK(range.to().int32(), 4);
-            range = lt.ranges().typedAt(0);
-            CHECK(range.from().int32(), 4);
-            CHECK(range.to().int32(), 5);
-            range = lt.ranges().typedAt(0);
-            REQUIRE(it == lt.ranges().end());
+            auto range = lt.ranges().typedAt(0);
+            CHECK_EQ(range.from().int32(), 0);
+            CHECK_EQ(range.to().int32(), 1);
+
+            range = lt.ranges().typedAt(1);
+            CHECK_EQ(range.from().int32(), 1);
+            CHECK_EQ(range.to().int32(), 2);
+
+            range = lt.ranges().typedAt(2);
+            CHECK_EQ(range.from().int32(), 2);
+            CHECK_EQ(range.to().int32(), 3);
+
+            range = lt.ranges().typedAt(3);
+            CHECK_EQ(range.from().int32(), 3);
+            CHECK_EQ(range.to().int32(), 4);
+
+            range = lt.ranges().typedAt(4);
+            CHECK_EQ(range.from().int32(), 4);
+            CHECK_EQ(range.to().int32(), 5);
 
             lt.addLiveRange(context(), 1, 3);
             lt.addLiveRange(context(), 3, 5);
             REQUIRE(lt.ranges().size() == 3);
-            it = lt.ranges().begin();
-            CHECK(range.from().int32(), 0);
-            CHECK(range.to().int32(), 1);
+
             range = lt.ranges().typedAt(0);
-            CHECK(range.from().int32(), 1);
-            CHECK(range.to().int32(), 3);
-            range = lt.ranges().typedAt(0);
-            CHECK(range.from().int32(), 3);
-            CHECK(range.to().int32(), 5);
-            range = lt.ranges().typedAt(0);
-            REQUIRE(it == lt.ranges().end());
+            CHECK_EQ(range.from().int32(), 0);
+            CHECK_EQ(range.to().int32(), 1);
+
+            range = lt.ranges().typedAt(1);
+            CHECK_EQ(range.from().int32(), 1);
+            CHECK_EQ(range.to().int32(), 3);
+
+            range = lt.ranges().typedAt(2);
+            CHECK_EQ(range.from().int32(), 3);
+            CHECK_EQ(range.to().int32(), 5);
 
             lt.addLiveRange(context(), 0, 5);
             REQUIRE(lt.ranges().size() == 1);
             CHECK(lt.ranges().typedFirst().from().int32() == 0);
             CHECK(lt.ranges().typedFirst().to().int32() == 5);
         }
-        */
     } // addLiveRange
 }
 

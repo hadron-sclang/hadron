@@ -45,13 +45,36 @@ public:
     static LifetimeInterval makeLifetimeInterval(ThreadContext* context, int32_t value) {
         auto lifetimeInterval = LifetimeInterval::alloc(context);
         lifetimeInterval.initToNil();
+        lifetimeInterval.setUsages(OrderedIdentitySet::makeIdentitySet(context));
         lifetimeInterval.setValueNumber(value);
         lifetimeInterval.setIsSplit(false);
         lifetimeInterval.setIsSpill(false);
         return lifetimeInterval;
     }
 
+    // Adds an interval in sorted order to list, possibly merging with other intervals.
     void addLiveRange(ThreadContext* context, int32_t from, int32_t to);
+
+    // Keeps all ranges before |splitTime|, return a new LifetimeInterval with all ranges after |splitTime|. If
+    // |splitTime| is within a LiveRange it will also be split. Also splits the usages set.
+    LifetimeInterval splitAt(ThreadContext* context, int32_t splitTime);
+
+    // Returns true if p is within a LiveRange inside this LifetimeInterval.
+    bool covers(int32_t p) const;
+
+    // Returns true if this and |lt| intersect, meaning there is some value |first| contained in a LiveRange for
+    // both objects. Will set |first| to that value if true, will not modify first if false.
+    bool findFirstIntersection(const LifetimeInterval lt, int32_t& first) const;
+
+    bool isEmpty() const { return ranges().size() == 0; }
+    Integer start() const {
+        if (isEmpty()) { return Integer(); }
+        return ranges().typedFirst().from();
+    }
+    Integer end() const {
+        if (isEmpty()) { return Integer(); }
+        return ranges().typedLast().to();
+    }
 
     TypedArray<LiveRange> ranges() const { return TypedArray<LiveRange>(m_instance->ranges); }
     void setRanges(TypedArray<LiveRange> r) { m_instance->ranges = r.slot(); }

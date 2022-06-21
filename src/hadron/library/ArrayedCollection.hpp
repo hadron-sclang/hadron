@@ -132,7 +132,9 @@ public:
 
         // Shift elements starting at index + 1 to the left by one.
         if (index < t.size() - 1) {
-            std::memmove(t.start() + (index * sizeof(E)), t.start() + ((index + 1) * sizeof(E)), t.size() - index - 1);
+            std::memmove(reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)),
+                    reinterpret_cast<int8_t*>(t.start()) + ((index + 1) * sizeof(E)),
+                    (t.size() - index - 1) * sizeof(E));
         }
 
         t.resize(context, t.size() - 1);
