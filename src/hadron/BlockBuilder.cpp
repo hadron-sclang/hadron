@@ -447,19 +447,19 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
     // Search instance variables next.
     library::Class classDef = block.frame().method().ownerClass();
     auto instVarIndex = classDef.instVarNames().indexOf(name);
-    if (instVarIndex.isInt32()) {
+    if (instVarIndex) {
         // Go find the this pointer.
         auto thisHIR = findName(context, context->symbolTable->thisSymbol(), block, library::HIRId());
         assert(thisHIR);
         assert(thisHIR.id());
         if (!toWrite) {
             auto readFromThis = library::ReadFromThisHIR::makeReadFromThisHIR(context, thisHIR.id(),
-                    instVarIndex.getInt32(), name);
+                    instVarIndex.int32(), name);
             auto hir = readFromThis.toBase();
             block.append(context, hir);
             return hir;
         }
-        auto writeToThis = library::WriteToThisHIR::makeWriteToThisHIR(context, thisHIR.id(), instVarIndex.getInt32(),
+        auto writeToThis = library::WriteToThisHIR::makeWriteToThisHIR(context, thisHIR.id(), instVarIndex.int32(),
                 name, toWrite);
         auto hir = writeToThis.toBase();
         block.append(context, hir);
@@ -481,19 +481,19 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
     library::Class classVarDef = classDef;
     while (!classVarDef.isNil()) {
         auto classVarOffset = classVarDef.classVarNames().indexOf(name);
-        if (classVarOffset.isInt32()) {
+        if (classVarOffset) {
             auto classArrayHIR = library::ReadFromContextHIR::makeReadFromContextHIR(context, offsetof(ThreadContext,
                     classVariablesArray), library::Symbol::fromView(context, "_classVariablesArray"));
             auto classArrayId = block.append(context, classArrayHIR.toBase());
             if (!toWrite) {
                 auto readFromClass = library::ReadFromClassHIR::makeReadFromClassHIR(context, classArrayId,
-                        classVarOffset.getInt32(), name);
+                        classVarOffset.int32(), name);
                 auto hir = readFromClass.toBase();
                 block.append(context, hir);
                 return hir;
             }
-            auto writeToClass = library::WriteToClassHIR::makeWriteToClassHIR(context, classArrayId, classVarOffset.
-                    getInt32(), name, toWrite);
+            auto writeToClass = library::WriteToClassHIR::makeWriteToClassHIR(context, classArrayId,
+                    classVarOffset.int32(), name, toWrite);
             auto hir = writeToClass.toBase();
             block.append(context, hir);
             return hir;
@@ -506,11 +506,11 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
     library::Class classConstDef = classDef;
     while (!classConstDef.isNil()) {
         auto constIndex = classConstDef.constNames().indexOf(name);
-        if (constIndex.isInt32()) {
+        if (constIndex) {
             // Constants are read-only.
             assert(!toWrite);
             auto constant = library::ConstantHIR::makeConstantHIR(context,
-                    classConstDef.constValues().at(constIndex.getInt32()));
+                    classConstDef.constValues().at(constIndex.int32()));
             auto id = block.append(context, constant.toBase());
             assert(id);
             return block.frame().values().typedAt(id.int32());

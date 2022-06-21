@@ -52,8 +52,8 @@ public:
     // add() is not implemented as a primitive in the SuperCollider library code. This C++ implementation mimic the
     // implementation in Set. If making substantive changes to behavior in either implementation the other must change
     // to reflect the new behavior. TODO: consider a new implementation of HadronSet, HadronIdentitySet,
-    // HadronIdentityDictionary.
-    void add(ThreadContext* context, Slot item) {
+    // HadronIdentityDictionary. Returns true if the item was actually added.
+    bool add(ThreadContext* context, Slot item) {
         T& t = static_cast<T&>(*this);
         assert(item);
 
@@ -71,15 +71,49 @@ public:
 
         auto index = t.array().atIdentityHash(item);
         auto existingElement = t.array().at(index);
-        if (existingElement) {
-            assert(existingElement.identityHash() == item.identityHash());
-        } else {
+        if (!existingElement) {
             t.setSize(t.size() + 1);
+            t.array().put(index, item);
+            return true;
         }
-        t.array().put(index, item);
+
+        assert(existingElement.identityHash() == item.identityHash());
+        return false;;
     }
 
-    bool contains(Slot item) const {
+    bool remove(ThreadContext* /* context */, Slot item) {
+        T& t = static_cast<T&>(*this);
+        assert(item);
+
+        auto index = t.array().atIdentityHash(item);
+        auto existingElement = t.array().at(index);
+        if (existingElement) {
+            assert(existingElement.identityHash() == item.identityHash());
+            t.array().put(index, Slot::makeNil());
+            t.setSize(t.size() - 1);
+
+            // We need to fix up any objects that may have been in collision with this removed element.
+            // Equivalent to Set:fixCollisionsFrom() in sclang code.
+            index = (index + 1) % t.array().size();
+            existingElement = t.array().at(index);
+            while (existingElement) {
+                auto newIndex = t.array().atIdentityHash(existingElement);
+                if (newIndex != index) {
+                    auto atNewIndex = t.array().at(newIndex);
+                    t.array().put(newIndex, existingElement);
+                    t.array().put(index, atNewIndex);
+                }
+                index = (index + 1) % t.array().size();
+                existingElement = t.array().at(index);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    bool includes(Slot item) const {
         const T& t = static_cast<const T&>(*this);
         auto index = t.array().atIdentityHash(item);
         return !t.array().at(index).isNil();
@@ -138,11 +172,12 @@ public:
         return set;
     }
 
-    void add(ThreadContext* context, Slot item) {
+    bool add(ThreadContext* context, Slot item) {
         assert(item.isInt32());
         // Prevent duplicate additions to the items array.
-        if (contains(item)) { return; }
-        IdentitySetBase<OrderedIdentitySet, schema::OrderedIdentitySetSchema>::add(context, item);
+        if (!IdentitySetBase<OrderedIdentitySet, schema::OrderedIdentitySetSchema>::add(context, item)) {
+            return false;
+        }
 
         // Find the correct spot to insert this item, to maintain sorted order in the array. We're just directly
         // comparing Slot values, which doesn't make a lot of sense for non-numeric entries. Would need to route this
@@ -152,6 +187,28 @@ public:
             if (items().typedAt(index).int32() > item.getInt32()) { break; }
         }
         setItems(items().typedInsert(context, index, item));
+        return true;
+    }
+
+    bool remove(ThreadContext* context, Slot item) {
+        assert(item.isInt32());
+        if (!IdentitySetBase<OrderedIdentitySet, schema::OrderedIdentitySetSchema>::remove(context, item)) {
+            return false;
+        }
+
+        auto index = items().indexOf(item);
+        items().removeAt(context, index.int32());
+        return true;
+    }
+
+    // Inspired by std::set::lower_bound (but with O(n) runtime instead of O(lg n)), returns the first element in the
+    // set >= item or nil if no such element exists.
+    Integer lowerBound(Integer item) const {
+        int32_t index = 0;
+        for (; index < items().size(); ++index) {
+            if (items().typedAt(index).int32() >= item.int32()) { return items().typedAt(index); }
+        }
+        return Integer();
     }
 
     // Items are always maintained in order.

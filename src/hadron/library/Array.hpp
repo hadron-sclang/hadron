@@ -91,6 +91,11 @@ public:
         return TypedArray<T>(a.instance());
     }
 
+    TypedArray<T> typedCopyRange(ThreadContext* context, int32_t start, int32_t end) const {
+        Array a = copyRange(context, start, end);
+        return TypedArray<T>(a.instance());
+    }
+
     T typedAt(int32_t index) const { return T::wrapUnsafe(at(index).slot()); }
     T typedFirst() const { return T::wrapUnsafe(first()); }
     T typedLast() const { return T::wrapUnsafe(last()); }

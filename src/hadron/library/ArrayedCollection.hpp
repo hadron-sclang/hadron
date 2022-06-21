@@ -3,11 +3,11 @@
 
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
-#include "hadron/ThreadContext.hpp"
-
+#include "hadron/library/Integer.hpp"
 #include "hadron/library/SequenceableCollection.hpp"
 #include "hadron/library/Symbol.hpp"
 #include "hadron/schema/Common/Collections/ArrayedCollectionSchema.hpp"
+#include "hadron/ThreadContext.hpp"
 
 #include <cstring>
 
@@ -31,9 +31,9 @@ public:
 
     // Produces a new T with a copy of the values of this. Can specify an optional capacity to make the new array at.
     T copy(ThreadContext* context, int32_t maxSize = 0) const {
-        maxSize = std::max(maxSize, size());
+        const T& t = static_cast<const T&>(*this);
+        maxSize = std::max(maxSize, t.size());
         if (maxSize > 0) {
-            const T& t = static_cast<const T&>(*this);
             if (t.m_instance) {
                 S* instance = arrayAllocRaw(context, maxSize);
                 std::memcpy(reinterpret_cast<void*>(instance), reinterpret_cast<const void*>(t.m_instance),
@@ -46,6 +46,19 @@ public:
         }
 
         return T();
+    }
+
+    // Returns a new T with a copy of all elements from |start| to |end| inclusive. If |end| < |start|, returns an
+    // empty list.
+    T copyRange(ThreadContext* context, int32_t start, int32_t end) const {
+        const T& t = static_cast<const T&>(*this);
+        end = std::min(end, t.size() - 1);
+        if (end < start) { return T::arrayAlloc(context); }
+        auto newArray = T();
+        auto newSize = end - start + 1;
+        newArray.resize(context, newSize);
+        std::memcpy(newArray.start(), reinterpret_cast<int8_t*>(t.start()) + (start * sizeof(E)), newSize * sizeof(E));
+        return newArray;
     }
 
     // Always returns size in number of elements.
@@ -88,7 +101,7 @@ public:
         T& t = static_cast<T&>(*this);
         if (coll.size()) {
             int32_t oldSize = size();
-            resize(context, oldSize + coll.size());
+            t.resize(context, oldSize + coll.size());
             std::memcpy(reinterpret_cast<int8_t*>(t.m_instance) + sizeof(S) + (oldSize * sizeof(E)),
                 coll.start(), coll.size() * sizeof(E));
         }
@@ -175,13 +188,13 @@ public:
     }
 
     // Returns an int32_t with the index of item, or nil if item not found.
-    Slot indexOf(E item) const {
+    Integer indexOf(E item) const {
         for (int32_t i = 0; i < size(); ++i) {
             if (item == at(i)) {
-                return Slot::makeInt32(i);
+                return Integer(i);
             }
         }
-        return Slot::makeNil();
+        return Integer();
     }
 
 protected:
