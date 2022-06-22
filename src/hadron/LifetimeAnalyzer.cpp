@@ -73,7 +73,7 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
                 library::TypedArray<library::LifetimeInterval>::typedArrayAlloc(context));
         valueLifetimes.typedPut(i,
                 valueLifetimes.typedAt(i).typedAdd(context,
-                library::LifetimeInterval::makeLifetimeInterval(context, i)));
+                library::LifetimeInterval::makeLifetimeInterval(context, library::VReg(i))));
     }
 
     std::vector<std::unordered_set<int32_t>> liveIns(linearFrame.blockOrder().size());

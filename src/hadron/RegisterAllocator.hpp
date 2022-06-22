@@ -34,7 +34,7 @@ private:
     library::LifetimeInterval m_current;
     std::vector<library::LifetimeInterval> m_unhandled;
     std::vector<library::LifetimeInterval> m_active;
-    std::vector<std::list<LtIRef>> m_inactive;
+    std::vector<std::list<library::LifetimeInterval>> m_inactive;
     std::vector<library::LifetimeInterval> m_activeSpills;
     int32_t m_numberOfRegisters;
 };

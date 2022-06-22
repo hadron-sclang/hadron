@@ -85,6 +85,7 @@ public:
     ~LIR() {}
 
     bool producesValue() const;
+    bool shouldPreserveRegisters() const;
 };
 
 class AssignLIR : public LIRBase<AssignLIR, schema::HadronAssignLIRSchema, LIR> {
