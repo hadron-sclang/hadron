@@ -42,11 +42,10 @@ public:
             Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema>(instance) {}
     ~LifetimeInterval() {}
 
-    static LifetimeInterval makeLifetimeInterval(ThreadContext* context, int32_t value) {
+    static LifetimeInterval makeLifetimeInterval(ThreadContext* context) {
         auto lifetimeInterval = LifetimeInterval::alloc(context);
         lifetimeInterval.initToNil();
         lifetimeInterval.setUsages(OrderedIdentitySet::makeIdentitySet(context));
-        lifetimeInterval.setValueNumber(value);
         lifetimeInterval.setIsSplit(false);
         lifetimeInterval.setIsSpill(false);
         return lifetimeInterval;

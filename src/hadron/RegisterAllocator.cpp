@@ -1,7 +1,7 @@
 #include "hadron/RegisterAllocator.hpp"
 
-#include "hadron/LinearFrame.hpp"
-#include "hadron/lir/LIR.hpp"
+#include "hadron/library/HadronLIR.hpp"
+#include "hadron/ThreadContext.hpp"
 
 #include <algorithm>
 
@@ -90,27 +90,27 @@ ALLOCATEBLOCKEDREG
 namespace {
 // Comparison operator for making min heaps in m_unhandled and m_inactive, sorted by start time.
 struct IntervalCompare {
-    bool operator()(const hadron::LtIRef& lt1, const hadron::LtIRef& lt2) const {
-        return (lt1->start() > lt2->start());
+    bool operator()(const hadron::library::LifetimeInterval& lt1, const hadron::library::LifetimeInterval& lt2) const {
+        return (lt1.start().int32() > lt2.start().int32());
     }
 };
 } // namespace
 
 namespace hadron {
 
-RegisterAllocator::RegisterAllocator(size_t numberOfRegisters): m_numberOfRegisters(numberOfRegisters) {
+RegisterAllocator::RegisterAllocator(int32_t numberOfRegisters): m_numberOfRegisters(numberOfRegisters) {
     m_active.resize(m_numberOfRegisters);
     m_inactive.resize(m_numberOfRegisters);
 }
 
-void RegisterAllocator::allocateRegisters(LinearFrame* linearFrame) {
+void RegisterAllocator::allocateRegisters(ThreadContext* context, library::LinearFrame linearFrame) {
     // We build a min-heap of nonemtpy value lifetimes, ordered by start time. Higher-number values are likely to start
     // later in the block, so we add them to the heap in reverse order.
-    m_unhandled.reserve(linearFrame->valueLifetimes.size());
-    for (int i = linearFrame->valueLifetimes.size() - 1; i >= 0; --i) {
-        if (!linearFrame->valueLifetimes[i][0]->isEmpty()) {
-            m_unhandled.emplace_back(std::move(linearFrame->valueLifetimes[i][0]));
-            linearFrame->valueLifetimes[i].clear();
+    m_unhandled.reserve(linearFrame.valueLifetimes().size());
+    for (int32_t i = linearFrame.valueLifetimes().size() - 1; i >= 0; --i) {
+        if (!linearFrame.valueLifetimes().typedAt(i).typedAt(0).isEmpty()) {
+            m_unhandled.emplace_back(linearFrame.valueLifetimes().typedAt(i).typedAt(0));
+            linearFrame.valueLifetimes().typedAt(i).resize(context, 0);
         }
     }
     std::make_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
@@ -120,21 +120,21 @@ void RegisterAllocator::allocateRegisters(LinearFrame* linearFrame) {
 
     // Populate m_inactive with any register reservations, and add at least one usage for every register at the end
     // of the program, useful for minimizing corner cases in calculation of register next usage during allocation.
-    size_t numberOfInstructions = linearFrame->instructions.size();
-    for (size_t i = 0; i < m_numberOfRegisters; ++i) {
-        auto regLifetime = std::make_unique<LifetimeInterval>();
-        regLifetime->registerNumber = i;
-        regLifetime->usages.emplace(numberOfInstructions);
-        regLifetime->addLiveRange(numberOfInstructions, numberOfInstructions + 1);
-        m_inactive[i].emplace_back(std::move(regLifetime));
+    auto numberOfInstructions = linearFrame.instructions().size();
+    for (int32_t i = 0; i < m_numberOfRegisters; ++i) {
+        auto regLifetime = library::LifetimeInterval::makeLifetimeInterval(context);
+        regLifetime.setRegisterNumber(i);
+        regLifetime.usages().add(context, Slot::makeInt32(numberOfInstructions));
+        regLifetime.addLiveRange(context, numberOfInstructions, numberOfInstructions + 1);
+        m_inactive[i].emplace_back(regLifetime);
     }
     // Iterate through all instructions and add additional reservations as needed.
-    for (size_t i = 0; i < linearFrame->lineNumbers.size(); ++i) {
-        if (linearFrame->lineNumbers[i]->shouldPreserveRegisters()) {
-            for (size_t j = 0; j < m_numberOfRegisters; ++j) {
-                auto regLifetime = m_inactive[j].back().get();
-                regLifetime->addLiveRange(i, i + 1);
-                regLifetime->usages.emplace(i);
+    for (int32_t i = 0; i < numberOfInstructions; ++i) {
+        if (linearFrame.instructions().typedAt(i).shouldPreserveRegisters()) {
+            for (int32_t j = 0; j < m_numberOfRegisters; ++j) {
+                auto regLifetime = m_inactive[j].back();
+                regLifetime.addLiveRange(context, i, i + 1);
+                regLifetime.usages().add(context, Slot::makeInt32(i));
             }
         }
     }
