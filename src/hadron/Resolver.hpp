@@ -1,15 +1,9 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_RESOLVER_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_RESOLVER_HPP_
 
-#include <cstddef>
+#include "hadron/library/HadronLinearFrame.hpp"
 
 namespace hadron {
-
-struct LinearFrame;
-
-namespace hir {
-struct MoveOperand;
-}
 
 // The Resolver takes a LinearFrame that has completed register allocation, and schedules the various register transfers
 // required both to keep values consistent across register allocation changes as well as between different blocks across
@@ -20,10 +14,10 @@ public:
     Resolver() = default;
     ~Resolver() = default;
 
-    void resolve(LinearFrame* linearFrame);
+    void resolve(library::LinearFrame linearFrame);
 
 private:
-    bool findAt(size_t valueNumber, LinearFrame* linearFrame, size_t line, int& location);
+    bool findAt(int32_t valueNumber, library::LinearFrame linearFrame, int32_t line, int32_t& location);
 };
 
 } // namespace hadron

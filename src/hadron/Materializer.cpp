@@ -38,10 +38,10 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
 
     hadron::RegisterAllocator registerAllocator(hadron::kNumberOfPhysicalRegisters);
     registerAllocator.allocateRegisters(context, linearFrame);
-/*
+/
     hadron::Resolver resolver;
-    resolver.resolve(linearFrame.get());
-
+    resolver.resolve(linearFrame);
+/*
     size_t bytecodeSize = linearFrame->instructions.size() * 16;
     auto bytecode = library::Int8Array::arrayAlloc(context, bytecodeSize);
     bytecodeSize = bytecode.capacity(context);

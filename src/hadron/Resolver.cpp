@@ -1,10 +1,7 @@
 #include "hadron/Resolver.hpp"
 
 #include "hadron/BlockSerializer.hpp"
-#include "hadron/LinearFrame.hpp"
-#include "hadron/lir/BranchLIR.hpp"
-#include "hadron/lir/LabelLIR.hpp"
-#include "hadron/lir/LIR.hpp"
+#include "hadron/library/HadronLIR.hpp"
 
 #include <cassert>
 #include <unordered_map>
@@ -33,11 +30,13 @@ for each control flow edge from predecessor to successor do
 
 namespace hadron {
 
-void Resolver::resolve(LinearFrame* linearFrame) {
+void Resolver::resolve(library::LinearFrame linearFrame) {
     // for each control flow edge from predecessor to successor do
-    for (auto blockNumber : linearFrame->blockOrder) {
-        assert((*linearFrame->blockLabels[blockNumber])->opcode == lir::kLabel);
-        const auto blockLabel = reinterpret_cast<const lir::LabelLIR*>(linearFrame->blockLabels[blockNumber]->get());
+    for (int32_t blockIndex = 0; blockIndex < linearFrame.blockOrder().size(); ++blockIndex) {
+        auto blockNumber = linearFrame.blockOrder().typedAt(blockIndex).int32();
+        auto blockLabel = linearFrame.blockLabels().typedAt(blockNumber);
+        for (int32_t successorIndex = 0; successorIndex < blockLabel.successors().count(); ++successorIndex) {
+            #error here
         for (auto successorNumber : blockLabel->successors) {
             // for each interval it live at begin of successor do
             assert((*linearFrame->blockLabels[successorNumber])->opcode == lir::kLabel);
