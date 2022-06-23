@@ -26,10 +26,10 @@ public:
     void allocateRegisters(ThreadContext* context, library::LinearFrame linearFrame);
 
 private:
-    bool tryAllocateFreeReg();
-    void allocateBlockedReg(library::LinearFrame linearFrame);
-    void spill(library::LifetimeInterval interval, library::LinearFrame linearFrame);
-    void handled(library::LifetimeInterval interval, library::LinearFrame linearFrame);
+    bool tryAllocateFreeReg(ThreadContext* context);
+    void allocateBlockedReg(ThreadContext* context, library::LinearFrame linearFrame);
+    void spill(ThreadContext* context, library::LifetimeInterval interval, library::LinearFrame linearFrame);
+    void handled(ThreadContext* context, library::LifetimeInterval interval, library::LinearFrame linearFrame);
 
     library::LifetimeInterval m_current;
     std::vector<library::LifetimeInterval> m_unhandled;

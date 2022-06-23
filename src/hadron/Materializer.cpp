@@ -36,10 +36,9 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
     LifetimeAnalyzer lifetimeAnalyzer;
     lifetimeAnalyzer.buildLifetimes(context, linearFrame);
 
-/*
     hadron::RegisterAllocator registerAllocator(hadron::kNumberOfPhysicalRegisters);
-    registerAllocator.allocateRegisters(linearFrame.get());
-
+    registerAllocator.allocateRegisters(context, linearFrame);
+/*
     hadron::Resolver resolver;
     resolver.resolve(linearFrame.get());
 
