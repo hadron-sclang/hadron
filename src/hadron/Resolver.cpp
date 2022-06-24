@@ -2,6 +2,7 @@
 
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/library/HadronLIR.hpp"
+#include "hadron/ThreadContext.hpp"
 
 #include <cassert>
 #include <unordered_map>
@@ -30,27 +31,24 @@ for each control flow edge from predecessor to successor do
 
 namespace hadron {
 
-void Resolver::resolve(library::LinearFrame linearFrame) {
-    // for each control flow edge from predecessor to successor do
+void Resolver::resolve(ThreadContext* context, library::LinearFrame linearFrame) {
     for (int32_t blockIndex = 0; blockIndex < linearFrame.blockOrder().size(); ++blockIndex) {
         auto blockNumber = linearFrame.blockOrder().typedAt(blockIndex).int32();
         auto blockLabel = linearFrame.blockLabels().typedAt(blockNumber);
-        for (int32_t successorIndex = 0; successorIndex < blockLabel.successors().count(); ++successorIndex) {
-            #error here
-        for (auto successorNumber : blockLabel->successors) {
-            // for each interval it live at begin of successor do
-            assert((*linearFrame->blockLabels[successorNumber])->opcode == lir::kLabel);
-            auto successorLabel = reinterpret_cast<lir::LabelLIR*>(linearFrame->blockLabels[successorNumber]->get());
-            size_t blockIndex = 0;
-            for (; blockIndex < successorLabel->predecessors.size(); ++blockIndex) {
-                if (successorLabel->predecessors[blockIndex] == blockNumber) {
+        // for each control flow edge from predecessor to successor do
+        for (int32_t successorIndex = 0; successorIndex < blockLabel.successors().size(); ++successorIndex) {
+            auto successorNumber = blockLabel.successors().typedAt(successorIndex).int32();
+            auto successorLabel = linearFrame.blockLabels().typedAt(successorNumber);
+            int32_t succPredIndex = 0;
+            for (; succPredIndex < successorLabel.predecessors().size(); ++succPredIndex) {
+                if (successorLabel.predecessors().typedAt(succPredIndex).int32() == blockNumber) {
                     break;
                 }
             }
-            assert(blockIndex < successorLabel->predecessors.size());
+            assert(succPredIndex < successorLabel.predecessors().size());
 
-            std::unordered_map<int, int> moves;
-/*
+            auto moves = library::TypedIdentDict<Integer, Integer>::makeIdentityDictionary(context);
+            // for each interval it live at begin of successor do
             for (auto live : successorLabel->liveIns) {
                 int moveFrom, moveTo;
 
@@ -65,7 +63,7 @@ void Resolver::resolve(library::LinearFrame linearFrame) {
                 if (livePhi) {
                     // phi = phi function defining it
                     // opd = phi.inputOf(predecessor)
-                    size_t opd = livePhi->inputs[blockIndex].number;
+                    size_t opd = livePhi->inputs[succPredIndex].number;
                     // if opd is a constant then TODO
                     //   moveFrom = opd
                     // else
@@ -89,7 +87,7 @@ void Resolver::resolve(library::LinearFrame linearFrame) {
                     }
                 }
             }
-*/
+
             if (moves.size()) {
                 // If the block has only one successor, or this is the last successor, we can simply prepend the move
                 // instructions to the outbound branch.
