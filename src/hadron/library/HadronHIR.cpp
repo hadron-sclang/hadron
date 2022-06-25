@@ -37,10 +37,6 @@ HIRId HIR::proposeId(HIRId proposedId) {
     return HIRId();
 }
 
-void HIR::lower(ThreadContext* /* context */, LinearFrame /* linearFrame */, TypedArray<LIR>& /* instructions*/ ) {
-
-}
-
 void PhiHIR::addInput(ThreadContext* context, HIR input) {
     assert(input.id());
 
@@ -70,10 +66,6 @@ HIRId PhiHIR::getTrivialValue() const {
     // Phis with no inputs are invalid.
     assert(reads().size() == 1);
     return reads().typedNext(Slot::makeNil());
-}
-
-PhiLIR PhiHIR::lowerPhi(ThreadContext* /* context */, LinearFrame /* linearFrame */) {
-    return PhiLIR();
 }
 
 } // namespace library

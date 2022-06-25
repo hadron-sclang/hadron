@@ -12,6 +12,8 @@
 namespace hadron {
 namespace library {
 
+using LabelId = Integer;
+using Reg = Integer;
 using VReg = Integer;
 static constexpr VReg kContextPointerVReg = VReg(-3);
 static constexpr VReg kFramePointerVReg = VReg(-2);

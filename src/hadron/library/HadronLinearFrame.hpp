@@ -24,7 +24,8 @@ public:
     inline VReg hirToReg(HIRId hirId) { return hirToRegMap().typedGet(hirId); }
 
     // Appends lir to lirArray, which is assumed to be in the LinearBlock. If hirId is valid then we add to the
-    // mapping. Returns the assigned VReg or kInvalidVReg if no value assigned.
+    // mapping. Returns the assigned VReg or kInvalidVReg if no value assigned. Note the pass-by-reference on the
+    // |lirArray| argument, allowing the array to be re-assigned on additions.
     VReg append(ThreadContext* context, HIRId hirId, LIR lir, TypedArray<LIR>& lirArray);
 
     TypedArray<LIR> instructions() const { return TypedArray<LIR>(m_instance->instructions); }

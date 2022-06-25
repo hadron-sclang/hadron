@@ -4,7 +4,6 @@
 #include "hadron/library/Array.hpp"
 #include "hadron/library/HadronCFG.hpp"
 #include "hadron/library/HadronLinearFrame.hpp"
-#include "hadron/library/HadronLIR.hpp"
 #include "hadron/library/Integer.hpp"
 
 #include <list>
@@ -27,9 +26,10 @@ public:
     library::LinearFrame serialize(ThreadContext* context, const library::CFGFrame frame);
 
 private:
-    // Does the recursive postorder traversal of the blocks and saves the output in |blockOrder|.
+    // Performs a recursive postorder traversal of the blocks and saves the output in |blockOrder|.
     void orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
             library::TypedArray<library::LabelId> blockOrder);
+
 };
 
 } // namespace hadron
