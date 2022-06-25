@@ -49,7 +49,7 @@ public:
     explicit IdentitySetBase(Slot instance): Set<T, S>(instance) {}
     ~IdentitySetBase() {}
 
-    // add() is not implemented as a primitive in the SuperCollider library code. This C++ implementation mimic the
+    // add() is not implemented as a primitive in the SuperCollider library code. This C++ implementation mimics the
     // implementation in Set. If making substantive changes to behavior in either implementation the other must change
     // to reflect the new behavior. TODO: consider a new implementation of HadronSet, HadronIdentitySet,
     // HadronIdentityDictionary. Returns true if the item was actually added.
@@ -139,6 +139,15 @@ public:
 
     static IdentitySet makeIdentitySet(ThreadContext* context, int32_t capacity = 4) {
         return make(context, capacity);
+    }
+
+    // addAll is normally a method on Collection for IdentitySet, but we specialize this only for IdentitySet.
+    void addAll(ThreadContext* context, const IdentitySet ids) {
+        auto item = ids.next(Slot::makeNil());
+        while (item) {
+            add(context, item);
+            item = ids.next(item);
+        }
     }
 
     // Returns the item next to |i| in the unordered array, or nil if that was the last item. If |i| is nil, returns
@@ -232,6 +241,14 @@ public:
 
     void typedAdd(ThreadContext* context, V item) {
         add(context, item.slot());
+    }
+
+    void typedAddAll(ThreadContext* context, const TypedIdentSet<V> ids) {
+        addAll(context, ids);
+    }
+
+    void typedRemove(ThreadContext* context, V item) {
+        remove(context, item.slot());
     }
 
     bool typedContains(V item) const {

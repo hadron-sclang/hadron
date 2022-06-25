@@ -6,6 +6,7 @@
 #include "hadron/library/HadronLIR.hpp"
 #include "hadron/library/HadronLifetimeInterval.hpp"
 #include "hadron/library/Object.hpp"
+#include "hadron/library/Set.hpp"
 #include "hadron/schema/HLang/HadronLinearFrameSchema.hpp"
 
 namespace hadron {
@@ -40,6 +41,9 @@ public:
 
     TypedArray<LiveRange> blockRanges() const { return TypedArray<LiveRange>(m_instance->blockRanges); }
     void setBlockRanges(TypedArray<LiveRange> r) { m_instance->blockRanges = r.slot(); }
+
+    TypedArray<TypedIdentSet<VReg>> liveIns() const { return TypedArray<TypedIdentSet<VReg>>(m_instance->liveIns); }
+    void setLiveIns(TypedArray<TypedIdentSet<VReg>> li) { m_instance->liveIns = li.slot(); }
 
     using Intervals = TypedArray<TypedArray<LifetimeInterval>>;
     Intervals valueLifetimes() const { return Intervals(m_instance->valueLifetimes); }

@@ -140,6 +140,9 @@ public:
 
     TypedArray<LIR> phis() const { return TypedArray<LIR>(m_instance->phis); }
     void setPhis(TypedArray<LIR> p) { m_instance->phis = p.slot(); }
+
+    Integer loopReturnPredIndex() const { return Integer(m_instance->loopReturnPredIndex); }
+    void setLoopReturnPredIndex(Integer i) { m_instance->loopReturnPredIndex = i.slot(); }
 };
 
 } // namespace library

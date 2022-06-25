@@ -42,6 +42,7 @@ HadronLabelLIR : HadronLIR {
 	var <>predecessors;
 	var <>successors;
 	var <>phis;
+	var <>loopReturnPredIndex;
 }
 
 HadronLoadConstantLIR : HadronLIR {

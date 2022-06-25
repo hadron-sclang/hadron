@@ -34,6 +34,7 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
         auto block = blocks[blockNumber];
         auto label = library::LabelLIR::make(context);
         label.setLabelId(block.id());
+        label.setLoopReturnPredIndex(block.loopReturnPredIndex());
 
         auto predecessors = library::TypedArray<library::LabelId>::typedArrayAlloc(context,
                 block.predecessors().size());

@@ -47,10 +47,13 @@ void Resolver::resolve(ThreadContext* context, library::LinearFrame linearFrame)
             }
             assert(succPredIndex < successorLabel.predecessors().size());
 
-            auto moves = library::TypedIdentDict<Integer, Integer>::makeIdentityDictionary(context);
+            auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeIdentityDictionary(context);
+
             // for each interval it live at begin of successor do
-            for (auto live : successorLabel->liveIns) {
-                int moveFrom, moveTo;
+            auto liveIns = linearFrame.liveIns().typedAt(successorNumber);
+            auto it = liveIns.typedNext(library::VReg());
+            while (it) {
+                int32_t moveFrom, moveTo;
 
                 // if it starts at begin of successor then
                 const lir::PhiLIR* livePhi = nullptr;
@@ -86,6 +89,8 @@ void Resolver::resolve(ThreadContext* context, library::LinearFrame linearFrame)
                         assert(emplace.first->second == moveTo);
                     }
                 }
+
+                it = liveIns.typedNext(it);
             }
 
             if (moves.size()) {

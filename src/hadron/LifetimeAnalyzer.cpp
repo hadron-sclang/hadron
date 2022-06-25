@@ -76,7 +76,8 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
                 library::LifetimeInterval::makeLifetimeInterval(context, library::VReg(i))));
     }
 
-    std::vector<std::unordered_set<int32_t>> liveIns(linearFrame.blockOrder().size());
+    auto liveIns = library::TypedArray<library::TypedIdentSet<library::VReg>>::typedNewClear(context,
+            linearFrame.blockOrder().size());
 
     // for each block b in reverse order do
     for (int32_t i = linearFrame.blockOrder().size() - 1; i >= 0; --i) {
@@ -85,10 +86,10 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
         auto blockLabel = library::LabelLIR(linearFrame.instructions().typedAt(blockRange.from().int32()).slot());
 
         // live = union of successor.liveIn for each successor of b
-        std::unordered_set<int32_t> live;
+        auto live = library::TypedIdentSet<library::VReg>::makeTypedIdentSet(context);
         for (int32_t j = 0; j < blockLabel.successors().size(); ++j) {
             auto succNumber = blockLabel.successors().typedAt(j).int32();
-            live.insert(liveIns[succNumber].begin(), liveIns[succNumber].end());
+            live.typedAddAll(context, liveIns.typedAt(succNumber));
 
             auto succRange = linearFrame.blockRanges().typedAt(succNumber);
             auto succLabel = library::LabelLIR(linearFrame.instructions().typedAt(succRange.from().int32()).slot());
@@ -102,10 +103,10 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
             }
 
             // for each phi function phi of successors of b do
-            //   live.add(phi.inputOf(b))
             for (int32_t k = 0; k < succLabel.phis().size(); ++k) {
                 auto phi = library::PhiLIR(succLabel.phis().typedAt(k).slot());
-                live.insert(phi.inputs().typedAt(inputNumber).int32());
+                // live.add(phi.inputOf(b))
+                live.typedAdd(context, phi.inputs().typedAt(inputNumber));
             }
         }
 
@@ -116,9 +117,11 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
                 std::make_pair(std::numeric_limits<int32_t>::max(), 0));
 
         // for each opd in live do
-        for (auto opd : live) {
+        auto opd = live.typedNext(library::VReg());
+        while (opd) {
             // intervals[opd].addRange(b.from, b.to)
-            blockVariableRanges[opd] = std::make_pair(blockRange.from().int32(), blockRange.to().int32());
+            blockVariableRanges[opd.int32()] = std::make_pair(blockRange.from().int32(), blockRange.to().int32());
+            opd = live.typedNext(opd);
         }
 
         // for each operation op of b in reverse order do
@@ -134,18 +137,19 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
                 valueLifetimes.typedAt(lir.vReg().int32()).typedAt(0).usages().add(context, library::Integer(j).slot());
 
                 // live.remove(opd)
-                live.erase(lir.vReg().int32());
+                live.typedRemove(context, lir.vReg().int32());
             }
 
             // for each input operand opd of op do
-            library::VReg opd = lir.reads().typedNext(library::VReg());
+            opd = lir.reads().typedNext(library::VReg());
             while (opd) {
                 // intervals[opd].addRange(b.from, op.id)
-                blockVariableRanges[opd.int32()].first = blockRange.from().int32();
+                blockVariableRanges[opd.int32()].first = std::min(blockVariableRanges[opd.int32()].first,
+                        blockRange.from().int32());
                 blockVariableRanges[opd.int32()].second = std::max(j + 1, blockVariableRanges[opd.int32()].second);
                 valueLifetimes.typedAt(opd.int32()).typedAt(0).usages().add(context, library::Integer(j).slot());
                 // live.add(opd)
-                live.insert(opd.int32());
+                live.typedAdd(context, opd.int32());
 
                 opd = lir.reads().typedNext(opd);
             }
@@ -155,17 +159,28 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
         for (int32_t j = 0; j < blockLabel.phis().size(); ++j) {
             auto phi = blockLabel.phis().typedAt(j);
             // live.remove(phi.output)
-            live.erase(phi.vReg().int32());
+            live.typedRemove(context, phi.vReg().int32());
         }
 
-        // TODO: loop header step
         // if b is loop header then
-        //   loopEnd = last block of the loop starting at b
-        //   for each opd in live do
-        //     intervals[opd].addRange(b.from, loopEnd.to)
+        if (blockLabel.loopReturnPredIndex()) {
+            // loopEnd = last block of the loop starting at b
+            auto loopEnd = blockRanges.typedAt(blockLabel.predecessors().typedAt(
+                    blockLabel.loopReturnPredIndex().int32()).int32());
+            // for each opd in live do
+            opd = live.typedNext(library::VReg());
+            while (opd) {
+                // intervals[opd].addRange(b.from, loopEnd.to)
+                blockVariableRanges[opd.int32()].first = std::min(blockVariableRanges[opd.int32()].first,
+                        blockRange.from().int32());
+                blockVariableRanges[opd.int32()].second = std::max(blockVariableRanges[opd.int32()].second,
+                        loopEnd.to().int32());
+                opd = live.typedNext(opd);
+            }
+        }
 
         // b.liveIn = live
-        liveIns[blockNumber].swap(live);
+        liveIns.typedPut(blockNumber, live);
 
         // Cleanup step, add the now final ranges into the lifetimes.
         for (size_t j = 0; j < blockVariableRanges.size(); ++j) {
@@ -184,6 +199,7 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
     }
 
     linearFrame.setValueLifetimes(valueLifetimes);
+    linearFrame.setLiveIns(liveIns);
 }
 
 } // namespace hadron

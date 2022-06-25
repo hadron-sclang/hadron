@@ -341,12 +341,14 @@ library::HIRId BlockBuilder::buildWhile(ThreadContext* context, const library::M
 
     // Build condition block. Note this block is unsealed.
     auto conditionScope = buildInlineBlock(context, method, parentScope, currentBlock, whileAST.conditionBlock());
+    auto conditionEntryBlock = conditionScope.blocks().typedFirst();
+    conditionEntryBlock.setIsLoopHeader(true);
     parentScope.setSubScopes(parentScope.subScopes().typedAdd(context, conditionScope));
 
     // Predecessor block branches to condition block.
-    currentBlock.setSuccessors(currentBlock.successors().typedAdd(context, conditionScope.blocks().typedFirst()));
+    currentBlock.setSuccessors(currentBlock.successors().typedAdd(context, conditionEntryBlock));
     auto predBranch = library::BranchHIR::makeBranchHIR(context);
-    predBranch.setBlockId(conditionScope.blocks().typedFirst().id());
+    predBranch.setBlockId(conditionEntryBlock.id());
     currentBlock.append(context, predBranch.toBase());
     auto conditionExitBlock = conditionScope.blocks().typedLast();
 
@@ -356,8 +358,8 @@ library::HIRId BlockBuilder::buildWhile(ThreadContext* context, const library::M
     auto repeatExitBlock = repeatScope.blocks().typedLast();
 
     // Repeat block branches to condition block.
-    auto conditionEntryBlock = conditionScope.blocks().typedFirst();
     repeatExitBlock.setSuccessors(repeatExitBlock.successors().typedAdd(context, conditionEntryBlock));
+    conditionEntryBlock.setLoopReturnPredIndex(library::Integer(conditionEntryBlock.predecessors().size()));
     conditionEntryBlock.setPredecessors(conditionEntryBlock.predecessors().typedAdd(context, repeatExitBlock));
     auto repeatBranch = library::BranchHIR::makeBranchHIR(context);
     repeatBranch.setBlockId(conditionEntryBlock.id());
