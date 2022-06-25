@@ -342,7 +342,6 @@ library::HIRId BlockBuilder::buildWhile(ThreadContext* context, const library::M
     // Build condition block. Note this block is unsealed.
     auto conditionScope = buildInlineBlock(context, method, parentScope, currentBlock, whileAST.conditionBlock());
     auto conditionEntryBlock = conditionScope.blocks().typedFirst();
-    conditionEntryBlock.setIsLoopHeader(true);
     parentScope.setSubScopes(parentScope.subScopes().typedAdd(context, conditionScope));
 
     // Predecessor block branches to condition block.

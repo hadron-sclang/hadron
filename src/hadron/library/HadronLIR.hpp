@@ -101,6 +101,18 @@ public:
     void setOrigin(VReg o) { m_instance->origin = o.slot(); }
 };
 
+class BranchLIR :public LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR> {
+public:
+    BranchLIR(): LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR>() {}
+    explicit BranchLIR(schema::HadronBranchLIRSchema* instance):
+            LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR>(instance) {}
+    explicit BranchLIR(Slot instance): LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR>(instance) {}
+    ~BranchLIR() {}
+
+    LabelId labelId() const { return LabelId(m_instance->labelId); }
+    void setLabelId(LabelId id) { m_instance->labelId = id.slot(); }
+};
+
 class PhiLIR : public LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR> {
 public:
     PhiLIR(): LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR>() {}

@@ -233,6 +233,9 @@ public:
     explicit TypedIdentSet(Slot instance): IdentitySet(instance) {}
     ~TypedIdentSet() {}
 
+    // TODO: all IdentSets need to be typed, then this goes away
+    static inline TypedIdentSet<V> wrapUnsafe(Slot instance) { return TypedIdentSet<V>(instance); }
+
     static TypedIdentSet<V> makeTypedIdentSet(ThreadContext* context, int32_t capacity = 4) {
         return TypedIdentSet<V>(IdentitySet::makeIdentitySet(context, capacity).slot());
     }

@@ -369,7 +369,7 @@ public:
     }
     void setLoopReturnPredIndex(Integer i) {
         T& t = static_cast<T&>(*this);
-        t.m_instance->setLoopReturnPredIndex = i.slot();
+        t.m_instance->loopReturnPredIndex = i.slot();
     }
 };
 
