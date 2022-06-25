@@ -1,5 +1,7 @@
 #include "hadron/MoveScheduler.hpp"
 
+#include "hadron/library/Dictionary.hpp"
+#include "hadron/library/LibraryTestFixture.hpp"
 #include "hadron/OpcodeIterator.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/VirtualJIT.hpp"
@@ -12,10 +14,10 @@
 
 namespace hadron {
 
-TEST_CASE("MoveScheduler simple") {
+TEST_CASE_FIXTURE(LibraryTestFixture, "MoveScheduler") {
     SUBCASE("empty set") {
         VirtualJIT jit;
-        std::unordered_map<int, int> moves;
+        auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
         MoveScheduler ms;
         std::array<int8_t, 16> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
@@ -27,7 +29,8 @@ TEST_CASE("MoveScheduler simple") {
 
     SUBCASE("register to register") {
         VirtualJIT jit;
-        std::unordered_map<int, int> moves({{3, 2}});
+        auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
+        moves.typedPut(context(), library::Integer(3), library::Integer(2));
         MoveScheduler ms;
         std::array<int8_t, 16> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
@@ -46,7 +49,8 @@ TEST_CASE("MoveScheduler simple") {
 
     SUBCASE("register to spill") {
         VirtualJIT jit;
-        std::unordered_map<int, int> moves({{0, -1}});
+        auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
+        moves.typedPut(context(), library::Integer(0), library::Integer(-1));
         MoveScheduler ms;
         std::array<int8_t, 16> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
@@ -67,7 +71,8 @@ TEST_CASE("MoveScheduler simple") {
 
     SUBCASE("spill to register") {
         VirtualJIT jit;
-        std::unordered_map<int, int> moves({{-24, 5}});
+        auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
+        moves.typedPut(context(), library::Integer(-24), library::Integer(5));
         MoveScheduler ms;
         std::array<int8_t, 16> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
@@ -88,7 +93,10 @@ TEST_CASE("MoveScheduler simple") {
 
     SUBCASE("multiple independent moves") {
         VirtualJIT jit;
-        std::unordered_map<int, int> moves({{-3, 2}, {9, 7}, {3, -1}});
+        auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
+        moves.typedPut(context(), library::Integer(-3), library::Integer( 2));
+        moves.typedPut(context(), library::Integer( 9), library::Integer( 7));
+        moves.typedPut(context(), library::Integer( 3), library::Integer(-1));
         MoveScheduler ms;
         std::array<int8_t, 32> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
@@ -96,9 +104,11 @@ TEST_CASE("MoveScheduler simple") {
         size_t finalSize = 0;
         jit.end(&finalSize);
         OpcodeReadIterator it(jitBuffer.begin(), jitBuffer.size());
-        // Instructions can be in any order so check all three and remove from the map as we encounter.
+        bool gotMinusThree = false;
+        bool gotNine = false;
+        bool gotThree = false;
+
         while (it.getSize() < finalSize) {
-            std::unordered_map<int, int>::iterator mapIter = moves.end();
             if (it.peek() == Opcode::kLdxiL) {
                 JIT::Reg target, address;
                 int offset;
@@ -106,13 +116,15 @@ TEST_CASE("MoveScheduler simple") {
                 CHECK_EQ(target, 2);
                 CHECK_EQ(address, JIT::kStackPointerReg);
                 CHECK_EQ(offset, -3 * kSlotSize);
-                mapIter = moves.find(-3);
+                CHECK(!gotMinusThree);
+                gotMinusThree = true;
             } else if (it.peek() == Opcode::kMovr) {
                 JIT::Reg target, value;
                 REQUIRE(it.movr(target, value));
                 CHECK_EQ(target, 7);
                 CHECK_EQ(value, 9);
-                mapIter = moves.find(9);
+                CHECK(!gotNine);
+                gotNine = true;
             } else if (it.peek() == Opcode::kStxiL) {
                 int offset;
                 JIT::Reg address, value;
@@ -120,20 +132,21 @@ TEST_CASE("MoveScheduler simple") {
                 CHECK_EQ(offset, -1 * kSlotSize);
                 CHECK_EQ(address, JIT::kStackPointerReg);
                 CHECK_EQ(value, 3);
-                mapIter = moves.find(3);
+                CHECK(!gotThree);
+                gotThree = true;
             }
-            REQUIRE(mapIter != moves.end());
-            moves.erase(mapIter);
         }
         CHECK_EQ(it.getSize(), finalSize);
-        CHECK(moves.empty());
+        CHECK(gotMinusThree);
+        CHECK(gotNine);
+        CHECK(gotThree);
     }
-}
 
-TEST_CASE("MoveScheduler Chains") {
     SUBCASE("Two Chain") {
         VirtualJIT jit;
-        std::unordered_map<int, int> moves({{3, 2}, {2, 1}});
+        auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
+        moves.typedPut(context(), library::Integer(3), library::Integer(2));
+        moves.typedPut(context(), library::Integer(2), library::Integer(1));
         MoveScheduler ms;
         std::array<int8_t, 16> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
@@ -152,7 +165,10 @@ TEST_CASE("MoveScheduler Chains") {
 
     SUBCASE("Three Chain Through Spill") {
         VirtualJIT jit;
-        std::unordered_map<int, int> moves({{0, 3}, {3, 1}, {-1, 0}});
+        auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
+        moves.typedPut(context(), library::Integer( 0), library::Integer(3));
+        moves.typedPut(context(), library::Integer( 3), library::Integer(1));
+        moves.typedPut(context(), library::Integer(-1), library::Integer(0));
         MoveScheduler ms;
         std::array<int8_t, 32> jitBuffer;
         jit.begin(jitBuffer.begin(), jitBuffer.size());
@@ -172,7 +188,15 @@ TEST_CASE("MoveScheduler Chains") {
 
     SUBCASE("Eight Chain Unordered") {
         VirtualJIT jit;
-        std::unordered_map<int, int> moves({{6, 5}, {2, 1}, {5, 4}, {7, 6}, {4, 3}, {1, 0}, {3, 2}, {8, 7}});
+        auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
+        moves.typedPut(context(), library::Integer(6), library::Integer(5));
+        moves.typedPut(context(), library::Integer(2), library::Integer(1));
+        moves.typedPut(context(), library::Integer(5), library::Integer(4));
+        moves.typedPut(context(), library::Integer(7), library::Integer(6));
+        moves.typedPut(context(), library::Integer(4), library::Integer(3));
+        moves.typedPut(context(), library::Integer(1), library::Integer(0));
+        moves.typedPut(context(), library::Integer(3), library::Integer(2));
+        moves.typedPut(context(), library::Integer(8), library::Integer(7));
         MoveScheduler ms;
         std::array<int8_t, 64> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
@@ -193,12 +217,15 @@ TEST_CASE("MoveScheduler Chains") {
         REQUIRE_EQ(finalSize, it.getSize());
         CHECK_EQ(std::memcmp(jitBuffer.data(), desiredBuffer.data(), finalSize), 0);
     }
-}
 
-TEST_CASE("MoveScheduler Cycles") {
     SUBCASE("Two Simple Cycles") {
         VirtualJIT jit;
-        std::unordered_map<int, int> moves({{0, 3}, {2, 4}, {4, 2}, {3, 0}});
+        auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
+        moves.typedPut(context(), library::Integer(0), library::Integer(3));
+        moves.typedPut(context(), library::Integer(2), library::Integer(1));
+        moves.typedPut(context(), library::Integer(1), library::Integer(2));
+        moves.typedPut(context(), library::Integer(3), library::Integer(0));
+
         MoveScheduler ms;
         std::array<int8_t, 32> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
@@ -206,20 +233,28 @@ TEST_CASE("MoveScheduler Cycles") {
         size_t finalSize = 0;
         jit.end(&finalSize);
 
+        std::array<bool, 4> regSet{false, false, false, false};
+
         // Instructions should be all xor operations and every target register should be set at least once.
         OpcodeReadIterator it(jitBuffer.data(), jitBuffer.size());
         while (it.getSize() < finalSize) {
             REQUIRE(it.peek() == Opcode::kXorr);
             JIT::Reg target, a, b;
             REQUIRE(it.xorr(target, a, b));
-            moves.erase(target);
+            regSet[target] = true;
         }
-        CHECK(moves.empty());
+
+        for (auto bit : regSet) {
+            CHECK(bit);
+        }
     }
 
     SUBCASE("Three Cycle") {
         VirtualJIT jit;
-        std::unordered_map<int, int> moves({{0, 2}, {1, 0}, {2, 1}});
+        auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
+        moves.typedPut(context(), library::Integer(0), library::Integer(2));
+        moves.typedPut(context(), library::Integer(1), library::Integer(0));
+        moves.typedPut(context(), library::Integer(2), library::Integer(1));
         MoveScheduler ms;
         std::array<int8_t, 32> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
@@ -251,4 +286,4 @@ TEST_CASE("MoveScheduler Cycles") {
     }
 }
 
-}
+} // namespace hadron

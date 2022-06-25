@@ -1,9 +1,9 @@
 #include "hadron/Emitter.hpp"
 
 #include "hadron/JIT.hpp"
-#include "hadron/LinearFrame.hpp"
-#include "hadron/lir/LabelLIR.hpp"
-#include "hadron/lir/LIR.hpp"
+#include "hadron/library/HadronLIR.hpp"
+#include "hadron/MoveScheduler.hpp"
+#include "hadron/ThreadContext.hpp"
 
 #include "spdlog/spdlog.h"
 
@@ -12,23 +12,42 @@
 
 namespace hadron {
 
-void Emitter::emit(LinearFrame* linearFrame, JIT* jit) {
+void Emitter::emit(ThreadContext* /* context */, library::LinearFrame linearFrame, JIT* jit) {
     // Key is block number, value is known addresses of labels, built as they are encountered.
-    std::unordered_map<lir::LabelID, JIT::Address> labelAddresses;
+    std::unordered_map<int32_t, JIT::Address> labelAddresses;
     // For forward jumps we record the Label returned and the block number they are targeted to, and patch them all at
     // the end when all the addresses are known.
-    std::vector<std::pair<JIT::Label, lir::LabelID>> patchNeeded;
+    std::vector<std::pair<JIT::Label, int32_t>> patchNeeded;
 
-    for (size_t line = 0; line < linearFrame->lineNumbers.size(); ++line) {
-        const lir::LIR* lir = linearFrame->lineNumbers[line];
+    for (int32_t line = 0; line < linearFrame.instructions().size(); ++line) {
+        library::LIR lir = linearFrame.instructions().typedAt(line);
 
         // Labels need to capture their address before any move predicates so we handle them separately here.
-        if (lir->opcode == lir::Opcode::kLabel) {
-            const auto label = reinterpret_cast<const lir::LabelLIR*>(lir);
-            labelAddresses.emplace(std::make_pair(label->id, jit->address()));
+        if (lir.className() == library::LabelLIR::nameHash()) {
+            const auto label = library::LabelLIR(lir.slot());
+            labelAddresses.emplace(std::make_pair(label.labelId().int32(), jit->address()));
         }
 
-        lir->emit(jit, patchNeeded);
+        if (lir.moves().size()) {
+            MoveScheduler moveScheduler;
+            moveScheduler.scheduleMoves(lir.moves(), jit);
+        }
+
+        switch (lir.className()) {
+        case library::AssignLIR::nameHash():
+        case library::BranchIfTrueLIR::nameHash():
+        case library::BranchLIR::nameHash():
+        case library::BranchToRegisterLIR::nameHash():
+        case library::InterruptLIR::nameHash():
+        case library::LabelLIR::nameHash():
+        case library::LoadConstantLIR::nameHash():
+        case library::LoadFromPointerLIR::nameHash():
+        case library::PhiLIR::nameHash():
+        case library::StoreToPointerLIR::nameHash():
+
+        default:
+            assert(false); // missing LIR case for bytecode emission.
+        }
     }
 
     // Update any patches needed for forward jumps.

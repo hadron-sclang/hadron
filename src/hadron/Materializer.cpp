@@ -41,8 +41,8 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
 
     hadron::Resolver resolver;
     resolver.resolve(context, linearFrame);
-/*
-    size_t bytecodeSize = linearFrame->instructions.size() * 16;
+
+    size_t bytecodeSize = linearFrame.instructions().size() * 16;
     auto bytecode = library::Int8Array::arrayAlloc(context, bytecodeSize);
     bytecodeSize = bytecode.capacity(context);
 
@@ -50,15 +50,13 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
     jit.begin(bytecode.start(), bytecodeSize);
 
     hadron::Emitter emitter;
-    emitter.emit(linearFrame.get(), &jit);
+    emitter.emit(context, linearFrame, &jit);
 
     size_t finalSize = 0;
     jit.end(&finalSize);
     assert(finalSize < bytecodeSize);
 
     return bytecode;
-*/
-    return library::Int8Array();
 }
 
 } // namespace hadron

@@ -12,6 +12,11 @@
 namespace hadron {
 namespace library {
 
+using VReg = Integer;
+static constexpr VReg kContextPointerVReg = VReg(-3);
+static constexpr VReg kFramePointerVReg = VReg(-2);
+static constexpr VReg kStackPointerVReg = VReg(-1);
+
 template<typename T, typename S, typename B>
 class LIRBase : public Object<T, S> {
 public:
@@ -101,7 +106,7 @@ public:
     void setOrigin(VReg o) { m_instance->origin = o.slot(); }
 };
 
-class BranchLIR :public LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR> {
+class BranchLIR : public LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR> {
 public:
     BranchLIR(): LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR>() {}
     explicit BranchLIR(schema::HadronBranchLIRSchema* instance):
@@ -111,6 +116,47 @@ public:
 
     LabelId labelId() const { return LabelId(m_instance->labelId); }
     void setLabelId(LabelId id) { m_instance->labelId = id.slot(); }
+};
+
+class BranchIfTrueLIR : public LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR> {
+public:
+    BranchIfTrueLIR(): LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR>() {}
+    explicit BranchIfTrueLIR(schema::HadronBranchIfTrueLIRSchema* instance):
+            LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR>(instance) {}
+    explicit BranchIfTrueLIR(Slot instance):
+            LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR>(instance) {}
+    ~BranchIfTrueLIR() {}
+
+    VReg condition() const { return VReg(m_instance->condition); }
+    void setCondition(VReg c) { m_instance->condition = c.slot(); }
+
+    LabelId labelId() const { return LabelId(m_instance->labelId); }
+    void setLabelId(LabelId id) { m_instance->labelId = id.slot(); }
+};
+
+class BranchToRegisterLIR : public LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR> {
+public:
+    BranchToRegisterLIR(): LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR>() {}
+    explicit BranchToRegisterLIR(schema::HadronBranchToRegisterLIRSchema* instance):
+            LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR>(instance) {}
+    explicit BranchToRegisterLIR(Slot instance):
+            LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR>(instance) {}
+    ~BranchToRegisterLIR() {}
+
+    VReg address() const { return VReg(m_instance->address); }
+    void setAddress(VReg addr) { m_instance->address = addr.slot(); }
+};
+
+class InterruptLIR : public LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR> {
+public:
+    InterruptLIR(): LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR>() {}
+    explicit InterruptLIR(schema::HadronInterruptLIRSchema* instance):
+            LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR>(instance) {}
+    explicit InterruptLIR(Slot instance): LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR>(instance) {}
+    ~InterruptLIR() {}
+
+    Integer interruptCode() const { return Integer(m_instance->interruptCode); }
+    void setInterruptCode(Integer code) { m_instance->interruptCode = code.slot(); }
 };
 
 class PhiLIR : public LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR> {
@@ -155,6 +201,45 @@ public:
 
     Integer loopReturnPredIndex() const { return Integer(m_instance->loopReturnPredIndex); }
     void setLoopReturnPredIndex(Integer i) { m_instance->loopReturnPredIndex = i.slot(); }
+};
+
+class LoadConstantLIR : public LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR> {
+public:
+    LoadConstantLIR(): LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR>() {}
+    explicit LoadConstantLIR(schema::HadronLoadConstantLIRSchema* instance):
+            LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR>(instance) {}
+    explicit LoadConstantLIR(Slot instance):
+            LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR>(instance) {}
+    ~LoadConstantLIR() {}
+
+    Slot constant() const { return m_instance->constant; }
+    void setConstant(Slot c) { m_instance->constant = c; }
+};
+
+class LoadFromPointerLIR : public LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR> {
+public:
+    LoadFromPointerLIR(): LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR>() {}
+    explicit LoadFromPointerLIR(schema::HadronLoadFromPointerLIRSchema* instance):
+            LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR>(instance) {}
+    explicit LoadFromPointerLIR(Slot instance):
+            LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR>(instance) {}
+    ~LoadFromPointerLIR() {}
+
+    VReg pointer() const { return VReg(m_instance->pointer); }
+    void setPointer(VReg p) { m_instance->pointer = p.slot(); }
+
+    Integer offset() const { return Integer(m_instance->offset); }
+    void setOffset(Integer off) { m_instance->offset = off.slot(); }
+};
+
+class StoreToPointerLIR : public LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR> {
+public:
+    StoreToPointerLIR(): LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR>() {}
+    explicit StoreToPointerLIR(schema::HadronStoreToPointerLIRSchema* instance):
+            LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR>(instance) {}
+    explicit StoreToPointerLIR(Slot instance):
+            LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR>(instance) {}
+    ~StoreToPointerLIR() {}
 };
 
 } // namespace library

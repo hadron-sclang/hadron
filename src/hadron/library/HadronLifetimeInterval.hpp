@@ -3,6 +3,7 @@
 
 #include "hadron/library/Array.hpp"
 #include "hadron/library/Boolean.hpp"
+#include "hadron/library/HadronLIR.hpp"
 #include "hadron/library/Integer.hpp"
 #include "hadron/library/Set.hpp"
 #include "hadron/library/Object.hpp"

@@ -60,6 +60,6 @@ HadronPhiLIR : HadronLIR {
 
 HadronStoreToPointerLIR : HadronLIR {
 	var <>pointer;
-	var <>toStore;
 	var <>offset;
+	var <>toStore;
 }

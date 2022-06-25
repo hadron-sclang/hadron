@@ -9,11 +9,11 @@ namespace library {
 // Wraps a Slot containing either an int32_t or nil.
 class Integer {
 public:
-    Integer(): m_slot(Slot::makeNil()) {}
-    Integer(int32_t i): m_slot(Slot::makeInt32(i)) {}
+    constexpr Integer(): m_slot(Slot::makeNil()) {}
+    constexpr Integer(int32_t i): m_slot(Slot::makeInt32(i)) {}
     Integer(Slot i): m_slot(i) { assert(i.isNil() || i.isInt32()); }
     Integer(const Integer& i): m_slot(i.slot()) { assert(m_slot.isNil() || m_slot.isInt32()); }
-    ~Integer() {}
+    ~Integer() = default;
 
     static inline Integer wrapUnsafe(Slot s) { return Integer(s); }
 
@@ -37,7 +37,6 @@ using BlockId = Integer;
 using HIRId = Integer;
 using LabelId = Integer;
 using Reg = Integer;
-using VReg = Integer;
 
 } // namespace library
 } // namespace hadron
