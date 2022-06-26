@@ -157,6 +157,12 @@ public:
     explicit InterruptLIR(Slot instance): LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR>(instance) {}
     ~InterruptLIR() {}
 
+    static InterruptLIR makeInterrupt(ThreadContext* context, int32_t code) {
+        auto interruptLIR = InterruptLIR::make(context);
+        interruptLIR.setInterruptCode(Integer(code));
+        return interruptLIR;
+    }
+
     Integer interruptCode() const { return Integer(m_instance->interruptCode); }
     void setInterruptCode(Integer code) { m_instance->interruptCode = code.slot(); }
 };
@@ -214,6 +220,12 @@ public:
             LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR>(instance) {}
     ~LoadConstantLIR() {}
 
+    static LoadConstantLIR makeLoadConstant(ThreadContext* context, Slot cnst) {
+        auto load = LoadConstantLIR::make(context);
+        load.setConstant(cnst);
+        return load;
+    }
+
     Slot constant() const { return m_instance->constant; }
     void setConstant(Slot c) { m_instance->constant = c; }
 };
@@ -226,6 +238,13 @@ public:
     explicit LoadFromPointerLIR(Slot instance):
             LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR>(instance) {}
     ~LoadFromPointerLIR() {}
+
+    static LoadFromPointerLIR makeLoadFromPointer(ThreadContext* context, VReg ptr, int32_t off) {
+        auto loadFromPointerLIR = LoadFromPointerLIR::make(context);
+        loadFromPointerLIR.setPointer(ptr);
+        loadFromPointerLIR.setOffset(Integer(off));
+        return loadFromPointerLIR;
+    }
 
     VReg pointer() const { return VReg(m_instance->pointer); }
     void setPointer(VReg p) { m_instance->pointer = p.slot(); }
@@ -242,6 +261,23 @@ public:
     explicit StoreToPointerLIR(Slot instance):
             LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR>(instance) {}
     ~StoreToPointerLIR() {}
+
+    static StoreToPointerLIR makeStoreToPointer(ThreadContext* context, VReg ptr, int32_t off, VReg store) {
+        auto storeLIR = StoreToPointerLIR::make(context);
+        storeLIR.setPointer(ptr);
+        storeLIR.setOffset(Integer(off));
+        storeLIR.setToStore(store);
+        return storeLIR;
+    }
+
+    VReg pointer() const { return VReg(m_instance->pointer); }
+    void setPointer(VReg p) { m_instance->pointer = p.slot(); }
+
+    Integer offset() const { return Integer(m_instance->offset); }
+    void setOffset(Integer off) { m_instance->offset = off.slot(); }
+
+    VReg toStore() const { return VReg(m_instance->toStore); }
+    void setToStore(VReg p) { m_instance->toStore = p.slot(); }
 };
 
 } // namespace library

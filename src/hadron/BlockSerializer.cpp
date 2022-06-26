@@ -1,7 +1,10 @@
 #include "hadron/BlockSerializer.hpp"
 
 #include "hadron/library/Array.hpp"
+#include "hadron/library/Function.hpp"
 #include "hadron/library/HadronHIR.hpp"
+#include "hadron/library/HadronLIR.hpp"
+#include "hadron/library/Kernel.hpp"
 #include "hadron/ThreadContext.hpp"
 
 namespace hadron {
@@ -53,6 +56,17 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
         auto labelPhis = library::TypedArray<library::LIR>::typedArrayAlloc(context, block.phis().size());
         for (int32_t i = 0; i < block.phis().size(); ++i) {
             auto phi = block.phis().typedAt(i);
+
+            auto phiLIR = std::make_unique<lir::PhiLIR>();
+
+            for (auto nvid : inputs) {
+                auto vReg = linearFrame->hirToReg(nvid);
+                assert(vReg != lir::kInvalidVReg);
+                phiLIR->addInput(linearFrame->vRegs[vReg]->get());
+            }
+
+            return phiLIR;
+
             auto phiLIR = phi.lowerPhi(context, linearFrame);
             linearFrame.append(context, phi.id(), phiLIR.toBase(), labelPhis);
         }
@@ -74,20 +88,26 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
                 assert(!blockLiteralHIR.functionDef().isNil());
 
                 // Interrupt to allocate memory for the Function object.
-                linearFrame->append(kInvalidID, std::make_unique<lir::InterruptLIR>(ThreadContext::InterruptCode::kAllocateMemory));
-                // TODO: actual useful stack frame offset
-                auto functionVReg = linearFrame->append(id, std::make_unique<lir::LoadFromPointerLIR>(lir::kStackPointerVReg, 0));
+                linearFrame.append(context, library::HIRId(), library::InterruptLIR::makeInterrupt(context,
+                        ThreadContext::InterruptCode::kAllocateMemory).toBase(), instructions);
 
-                // Set the Function context to the current context pointer. Make a copy of the current context register.
-                auto contextVReg = linearFrame->append(kInvalidID, std::make_unique<lir::AssignLIR>(lir::kContextPointerVReg));
+                // TODO: actual useful stack frame offset
+                auto functionVReg = linearFrame.append(context, blockLiteralHIR.id(),
+                        library::LoadFromPointerLIR::makeLoadFromPointer(context,
+                        library::kStackPointerVReg, 0).toBase(), instructions);
+
+                // Set the Function context to the current context pointer.
                 // TODO: Add the pointer flagging
-                linearFrame->append(kInvalidID, std::make_unique<lir::StoreToPointerLIR>(functionVReg, contextVReg,
-                        offsetof(schema::FunctionSchema, context)));
+                linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                        functionVReg, offsetof(schema::FunctionSchema, context), library::kContextPointerVReg).toBase(),
+                        instructions);
 
                 // Load the functiondef/method into a register.
-                auto functionDefVReg = linearFrame->append(kInvalidID, std::make_unique<lir::LoadConstantLIR>(functionDef.slot()));
-                linearFrame->append(kInvalidID, std::make_unique<lir::StoreToPointerLIR>(functionVReg, functionDefVReg,
-                        offsetof(schema::FunctionSchema, def)));
+                auto functionDefVReg = linearFrame.append(context, library::HIRId(),
+                        library::LoadConstantLIR::makeLoadConstant(context,
+                        blockLiteralHIR.functionDef().slot()).toBase(), instructions);
+                linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                        functionVReg, offsetof(schema::FunctionSchema, def), functionDefVReg).toBase(), instructions);
             } break;
 
 
