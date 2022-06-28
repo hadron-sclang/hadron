@@ -116,6 +116,12 @@ public:
     explicit BranchLIR(Slot instance): LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR>(instance) {}
     ~BranchLIR() {}
 
+    static BranchLIR makeBranch(ThreadContext* context, Integer lblId) {
+        auto branchLIR = library::BranchLIR::make(context);
+        branchLIR.setLabelId(lblId);
+        return branchLIR;
+    }
+
     LabelId labelId() const { return LabelId(m_instance->labelId); }
     void setLabelId(LabelId id) { m_instance->labelId = id.slot(); }
 };
@@ -128,6 +134,13 @@ public:
     explicit BranchIfTrueLIR(Slot instance):
             LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR>(instance) {}
     ~BranchIfTrueLIR() {}
+
+    static BranchIfTrueLIR makeBranchIfTrue(ThreadContext* context, VReg cond, LabelId lblId) {
+        auto branchLIR = library::BranchIfTrueLIR::make(context);
+        branchLIR.setCondition(cond);
+        branchLIR.setLabelId(lblId);
+        return branchLIR;
+    }
 
     VReg condition() const { return VReg(m_instance->condition); }
     void setCondition(VReg c) { m_instance->condition = c.slot(); }

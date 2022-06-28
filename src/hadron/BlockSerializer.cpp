@@ -57,17 +57,12 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
         for (int32_t i = 0; i < block.phis().size(); ++i) {
             auto phi = block.phis().typedAt(i);
 
-            auto phiLIR = std::make_unique<lir::PhiLIR>();
-
-            for (auto nvid : inputs) {
-                auto vReg = linearFrame->hirToReg(nvid);
-                assert(vReg != lir::kInvalidVReg);
-                phiLIR->addInput(linearFrame->vRegs[vReg]->get());
+            auto phiLIR = library::PhiLIR::make(context);
+            for (int32_t i = 0; i < phi.inputs().size(); ++i) {
+                auto nvid = phi.inputs().typedAt(i);
+                auto vReg = linearFrame.hirToReg(nvid);
+                phiLIR.addInput(context, linearFrame.vRegs().typedAt(vReg.int32()));
             }
-
-            return phiLIR;
-
-            auto phiLIR = phi.lowerPhi(context, linearFrame);
             linearFrame.append(context, phi.id(), phiLIR.toBase(), labelPhis);
         }
         label.setPhis(labelPhis);
@@ -110,12 +105,38 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
                         functionVReg, offsetof(schema::FunctionSchema, def), functionDefVReg).toBase(), instructions);
             } break;
 
+            case library::BranchHIR::nameHash(): {
+                auto branchHIR = library::BranchHIR(hir.slot());
+                linearFrame.append(context, library::HIRId(), library::BranchLIR::makeBranch(context,
+                        branchHIR.blockId()).toBase(), instructions);
+            } break;
 
-            case library::BranchHIR::nameHash():
-            case library::BranchIfTrueHIR::nameHash():
-            case library::ConstantHIR::nameHash():
-            case library::LoadOuterFrameHIR::nameHash():
-            case library::MessageHIR::nameHash():
+            case library::BranchIfTrueHIR::nameHash(): {
+                auto branchIfTrueHIR = library::BranchIfTrueHIR(hir.slot());
+                linearFrame.append(context, library::HIRId(), library::BranchIfTrueLIR::makeBranchIfTrue(context,
+                        linearFrame.hirToReg(branchIfTrueHIR.condition()), branchIfTrueHIR.blockId()).toBase(),
+                        instructions);
+            } break;
+
+            case library::ConstantHIR::nameHash(): {
+                auto constantHIR = library::ConstantHIR(hir.slot());
+                linearFrame.append(context, constantHIR.id(), library::LoadConstantLIR::makeLoadConstant(context,
+                        constantHIR.constant()).toBase(), instructions);
+            } break;
+
+            case library::LoadOuterFrameHIR::nameHash(): {
+                auto loadOuterFrameHIR = library::LoadOuterFrameHIR(hir.slot());
+                auto innerContextVReg = loadOuterFrameHIR.innerContext() ? linearFrame.hirToReg(
+                        loadOuterFrameHIR.innerContext()) : library::kFramePointerVReg;
+                linearFrame.append(context, loadOuterFrameHIR.id(),
+                        library::LoadFromPointerLIR::makeLoadFromPointer(context, innerContextVReg,
+                        offsetof(schema::FramePrivateSchema, context)).toBase(), instructions);
+            } break;
+
+            case library::MessageHIR::nameHash(): {
+                
+            } break;
+
             case library::MethodReturnHIR::nameHash():
             case library::PhiHIR::nameHash():
             case library::ReadFromClassHIR::nameHash():
