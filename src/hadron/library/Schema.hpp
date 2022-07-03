@@ -21,6 +21,8 @@ struct Schema {
     Schema(const Schema&&) = delete;
     ~Schema() = delete;
 
+    // TODO(https://github.com/hadron-sclang/hadron/issues/108): can we shrink this to 8 bytes?
+
     // Underscores as prefixes for these members so they don't collide with instance variables derived from scanning the
     // SuperCollider class files. This is always a symbol.
     Hash _className;

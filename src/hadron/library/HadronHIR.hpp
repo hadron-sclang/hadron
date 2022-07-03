@@ -3,6 +3,7 @@
 
 #include "hadron/library/Array.hpp"
 #include "hadron/library/HadronCFG.hpp"
+#include "hadron/library/HadronLinearFrame.hpp"
 #include "hadron/library/Integer.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Object.hpp"
@@ -220,6 +221,7 @@ public:
         setArguments(arguments().typedAdd(context, arg));
     }
 
+    // TODO: why not force these into pairs?
     void addKeywordArgument(ThreadContext* context, HIRId arg) {
         reads().typedAdd(context, arg);
         setKeywordArguments(keywordArguments().typedAdd(context, arg));

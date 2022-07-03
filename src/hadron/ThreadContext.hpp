@@ -32,11 +32,11 @@ struct ThreadContext {
     const int8_t* exitMachineCode = nullptr;
 
     enum InterruptCode : int32_t {
-        kNormalReturn,
+        kAllocateMemory,
         kDispatch,
-        kAllocateMemory
+        kReturn
     };
-    InterruptCode interruptCode = InterruptCode::kNormalReturn;
+    InterruptCode interruptCode = InterruptCode::kReturn;
 
     // The stack pointer as preserved on entry into machine code.
     void* cStackPointer = nullptr;

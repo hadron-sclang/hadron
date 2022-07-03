@@ -75,4 +75,8 @@ HadronCFGBlock {
 	var <>nilConstantValue;
 	// An IdentitySet of the ConstantHIR ids, for quick membership queries.
 	var <>constantIds;
+
+	// Usually nil. If non-nil, this Block is a loop header/condition block, and the value is an Integer index
+	// into the predecessor array for the repeat block that branches back to this block.
+	var <>loopReturnPredIndex;
 }

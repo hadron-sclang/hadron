@@ -66,6 +66,62 @@ TEST_CASE_FIXTURE(LibraryTestFixture, "Array") {
         }
     }
 
+    SUBCASE("insert") {
+        auto array = library::Array();
+
+        array = array.insert(context(), 0, Slot::makeInt32(1));
+        REQUIRE_EQ(array.size(), 1);
+        CHECK_EQ(array.at(0), Slot::makeInt32(1));
+
+        array = array.insert(context(), 1, Slot::makeInt32(3));
+        REQUIRE_EQ(array.size(), 2);
+        CHECK_EQ(array.at(0), Slot::makeInt32(1));
+        CHECK_EQ(array.at(1), Slot::makeInt32(3));
+
+        array = array.insert(context(), 0, Slot::makeInt32(0));
+        REQUIRE_EQ(array.size(), 3);
+        CHECK_EQ(array.at(0), Slot::makeInt32(0));
+        CHECK_EQ(array.at(1), Slot::makeInt32(1));
+        CHECK_EQ(array.at(2), Slot::makeInt32(3));
+
+        array = array.insert(context(), 2, Slot::makeInt32(2));
+        REQUIRE_EQ(array.size(), 4);
+        CHECK_EQ(array.at(0), Slot::makeInt32(0));
+        CHECK_EQ(array.at(1), Slot::makeInt32(1));
+        CHECK_EQ(array.at(2), Slot::makeInt32(2));
+        CHECK_EQ(array.at(3), Slot::makeInt32(3));
+
+        for (int i = 0; i < 96; ++i) {
+            array = array.insert(context(), 2, Slot::makeInt32(-i));
+        }
+        REQUIRE_EQ(array.size(), 100);
+        CHECK_EQ(array.at(0), Slot::makeInt32(0));
+        CHECK_EQ(array.at(1), Slot::makeInt32(1));
+        for (int i = 0; i < 96; ++i) {
+            CHECK_EQ(array.at(97 - i).getInt32(), -i);
+        }
+        CHECK_EQ(array.at(98), Slot::makeInt32(2));
+        CHECK_EQ(array.at(99), Slot::makeInt32(3));
+    }
+
+    SUBCASE("removeAt") {
+        auto array = library::Array();
+        for (int32_t i = 0; i < 10; ++i) {
+            array = array.add(context(), Slot::makeInt32(i));
+        }
+
+        array.removeAt(context(), 0);
+        array.removeAt(context(), 1);
+        array.removeAt(context(), 2);
+        array.removeAt(context(), 3);
+        array.removeAt(context(), 4);
+        REQUIRE_EQ(array.size(), 5);
+        CHECK_EQ(array.at(0).getInt32(), 1);
+        CHECK_EQ(array.at(1).getInt32(), 3);
+        CHECK_EQ(array.at(2).getInt32(), 5);
+        CHECK_EQ(array.at(3).getInt32(), 7);
+        CHECK_EQ(array.at(4).getInt32(), 9);
+    }
 }
 
 } // namespace hadron

@@ -68,6 +68,15 @@ public:
         array().put(index + 1, value);
     }
 
+    void putAll(ThreadContext* context, const IdentityDictionary dict) {
+        for (int32_t i = 0; i < dict.array().size(); i += 2) {
+            auto key = dict.array().at(i);
+            if (key) {
+                put(context, key, dict.array().at(i + 1));
+            }
+        }
+    }
+
     Slot get(Slot key) {
         // keys cannot be nil.
         assert(key);
@@ -90,6 +99,10 @@ public:
 
     void typedPut(ThreadContext* context, K key, V value) {
         put(context, key.slot(), value.slot());
+    }
+
+    void typedPutAll(ThreadContext* context, TypedIdentDict<K, V> dict) {
+        putAll(context, dict);
     }
 
     V typedGet(K key) {

@@ -1,14 +1,15 @@
 #ifndef SRC_COMPILER_INCLUDE_HADRON_REGISTER_ALLOCATOR_HPP_
 #define SRC_COMPILER_INCLUDE_HADRON_REGISTER_ALLOCATOR_HPP_
 
-#include "hadron/LifetimeInterval.hpp"
+#include "hadron/library/HadronLifetimeInterval.hpp"
+#include "hadron/library/HadronLinearFrame.hpp"
 
 #include <list>
 #include <vector>
 
 namespace hadron {
 
-struct LinearFrame;
+struct ThreadContext;
 
 // The RegisterAllocator takes a LinearFrame in SSA form with lifetime ranges and outputs a register allocation
 // schedule for each value.
@@ -19,23 +20,23 @@ struct LinearFrame;
 class RegisterAllocator {
 public:
     RegisterAllocator() = delete;
-    RegisterAllocator(size_t numberOfRegisters);
+    RegisterAllocator(int32_t numberOfRegisters);
     ~RegisterAllocator() = default;
 
-    void allocateRegisters(LinearFrame* linearFrame);
+    void allocateRegisters(ThreadContext* context, library::LinearFrame linearFrame);
 
 private:
-    bool tryAllocateFreeReg();
-    void allocateBlockedReg(LinearFrame* linearFrame);
-    void spill(LtIRef interval, LinearFrame* linearFrame);
-    void handled(LtIRef interval, LinearFrame* linearFrame);
+    bool tryAllocateFreeReg(ThreadContext* context);
+    void allocateBlockedReg(ThreadContext* context, library::LinearFrame linearFrame);
+    void spill(ThreadContext* context, library::LifetimeInterval interval, library::LinearFrame linearFrame);
+    void handled(ThreadContext* context, library::LifetimeInterval interval, library::LinearFrame linearFrame);
 
-    LtIRef m_current;
-    std::vector<LtIRef> m_unhandled;
-    std::vector<LtIRef> m_active;
-    std::vector<std::list<LtIRef>> m_inactive;
-    std::vector<LtIRef> m_activeSpills;
-    size_t m_numberOfRegisters;
+    library::LifetimeInterval m_current;
+    std::vector<library::LifetimeInterval> m_unhandled;
+    std::vector<library::LifetimeInterval> m_active;
+    std::vector<std::list<library::LifetimeInterval>> m_inactive;
+    std::vector<library::LifetimeInterval> m_activeSpills;
+    int32_t m_numberOfRegisters;
 };
 
 } // namespace hadron

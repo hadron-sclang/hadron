@@ -9,6 +9,8 @@
 namespace hadron {
 namespace library {
 
+// TODO(https://github.com/hadron-sclang/hadron/issues/111): Templatize all the data structures!
+
 // The element type of Array is always going to be Slot, which means that Arrays naturally support heterogenous types as
 // they can store anything that fits in a Slot. For C++-side access to sclang Arrays we also provide type wrappers for
 // arrays of homogeneous types that automatically wrap and unwrap Slots into the assigned type.
@@ -27,7 +29,6 @@ public:
         }
         return array;
     }
-
 
     // Supports IdentitySet, searches the array for an element with identityHash matching |key|, or the index of the
     // empty element if no matching element found.
@@ -58,6 +59,15 @@ public:
 
         return index;
     }
+
+    // Returns a new array with the members of this array in reverse order.
+    Array reverse(ThreadContext* context) const {
+        auto r = Array::arrayAlloc(context, size());
+        for (int32_t i = size() - 1; i >= 0; --i) {
+            r = r.add(context, at(i));
+        }
+        return r;
+    }
 };
 
 template<typename T>
@@ -68,14 +78,28 @@ public:
     explicit TypedArray(Slot instance): Array(instance) {}
     ~TypedArray() {}
 
-    static TypedArray<T> typedArrayAlloc(ThreadContext* context, int32_t maxSize) {
+    // Does NOT do what it says on the tin.
+    static inline TypedArray<T> wrapUnsafe(Slot instance) { return TypedArray<T>(instance); }
+
+    static TypedArray<T> typedArrayAlloc(ThreadContext* context, int32_t maxSize = 0) {
         Array a = arrayAlloc(context, maxSize);
         return TypedArray<T>(a.instance());
     }
 
-    T typedAt(int32_t index) const { return T::wrapUnsafe(at(index)); }
+    static TypedArray<T> typedNewClear(ThreadContext* context, int32_t indexedSize) {
+        Array a = newClear(context, indexedSize);
+        return TypedArray<T>(a.instance());
+    }
+
+    TypedArray<T> typedCopyRange(ThreadContext* context, int32_t start, int32_t end) const {
+        Array a = copyRange(context, start, end);
+        return TypedArray<T>(a.instance());
+    }
+
+    T typedAt(int32_t index) const { return T::wrapUnsafe(at(index).slot()); }
     T typedFirst() const { return T::wrapUnsafe(first()); }
     T typedLast() const { return T::wrapUnsafe(last()); }
+    void typedPut(int32_t index, T element) { put(index, element.slot()); }
 
     TypedArray<T>& typedAdd(ThreadContext* context, T element) {
         add(context, element.slot());
@@ -84,6 +108,16 @@ public:
 
     Slot typedIndexOf(T item) const {
         return indexOf(item.slot());
+    }
+
+    TypedArray<T> typedReverse(ThreadContext* context) {
+        auto r = reverse(context);
+        return TypedArray<T>(r.instance());
+    }
+
+    TypedArray<T> typedInsert(ThreadContext* context, int32_t index, T element) {
+        auto i = insert(context, index, element.slot());
+        return TypedArray<T>(i.instance());
     }
 };
 

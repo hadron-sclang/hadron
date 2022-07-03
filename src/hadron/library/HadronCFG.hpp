@@ -362,6 +362,15 @@ public:
         T& t = static_cast<T&>(*this);
         t.m_instance->constantIds = tis.slot();
     }
+
+    Integer loopReturnPredIndex() const {
+        const T& t = static_cast<const T&>(*this);
+        return Integer(t.m_instance->loopReturnPredIndex);
+    }
+    void setLoopReturnPredIndex(Integer i) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->loopReturnPredIndex = i.slot();
+    }
 };
 
 class CFGFrame;

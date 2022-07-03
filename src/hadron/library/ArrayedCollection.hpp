@@ -3,11 +3,11 @@
 
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
-#include "hadron/ThreadContext.hpp"
-
+#include "hadron/library/Integer.hpp"
 #include "hadron/library/SequenceableCollection.hpp"
 #include "hadron/library/Symbol.hpp"
 #include "hadron/schema/Common/Collections/ArrayedCollectionSchema.hpp"
+#include "hadron/ThreadContext.hpp"
 
 #include <cstring>
 
@@ -31,9 +31,9 @@ public:
 
     // Produces a new T with a copy of the values of this. Can specify an optional capacity to make the new array at.
     T copy(ThreadContext* context, int32_t maxSize = 0) const {
-        maxSize = std::max(maxSize, size());
+        const T& t = static_cast<const T&>(*this);
+        maxSize = std::max(maxSize, t.size());
         if (maxSize > 0) {
-            const T& t = static_cast<const T&>(*this);
             if (t.m_instance) {
                 S* instance = arrayAllocRaw(context, maxSize);
                 std::memcpy(reinterpret_cast<void*>(instance), reinterpret_cast<const void*>(t.m_instance),
@@ -48,6 +48,20 @@ public:
         return T();
     }
 
+    // Returns a new T with a copy of all elements from |start| to |end| inclusive. If |end| < |start|, returns an
+    // empty list.
+    T copyRange(ThreadContext* context, int32_t start, int32_t end) const {
+        const T& t = static_cast<const T&>(*this);
+        end = std::min(end, t.size() - 1);
+        if (end < start) { return T::arrayAlloc(context); }
+        auto newArray = T();
+        auto newSize = end - start + 1;
+        newArray.resize(context, newSize);
+        std::memcpy(reinterpret_cast<void*>(newArray.start()),
+                reinterpret_cast<int8_t*>(t.start()) + (start * sizeof(E)), newSize * sizeof(E));
+        return newArray;
+    }
+
     // Always returns size in number of elements.
     int32_t size() const {
         const T& t = static_cast<const T&>(*this);
@@ -56,6 +70,8 @@ public:
         assert(elementsSize >= 0);
         return elementsSize;
     }
+
+    // TODO(https://github.com/hadron-sclang/hadron/issues/109): add C++ style access semantics
 
     E at(int32_t index) const {
         assert(0 <= index && index < size());
@@ -86,11 +102,56 @@ public:
         T& t = static_cast<T&>(*this);
         if (coll.size()) {
             int32_t oldSize = size();
-            resize(context, oldSize + coll.size());
+            t.resize(context, oldSize + coll.size());
             std::memcpy(reinterpret_cast<int8_t*>(t.m_instance) + sizeof(S) + (oldSize * sizeof(E)),
                 coll.start(), coll.size() * sizeof(E));
         }
         return t;
+    }
+
+    T& insert(ThreadContext* context, int32_t index, E item) {
+        T& t = static_cast<T&>(*this);
+        if (index == t.size()) { return add(context, item); }
+
+        assert(0 <= index && index < t.size());
+
+        // If we need to create a new array for resizing, move the elements while copying them, thus avoiding
+        // the redundant copy of the unshifted elements in resize().
+        if (t.capacity(context) == t.size()) {
+            S* newArray = T::arrayAllocRaw(context, t.size() + 1);
+            newArray->schema._className = t.m_instance->schema._className;
+            newArray->schema._sizeInBytes = sizeof(S) + ((t.size() + 1) * sizeof(E));
+            // Copy elements before index into the new array.
+            std::memcpy(reinterpret_cast<int8_t*>(newArray) + sizeof(S), t.start(), index * sizeof(E));
+            // Copy remaining elements into place shifted one right.
+            std::memcpy(reinterpret_cast<int8_t*>(newArray) + sizeof(S) + ((index + 1) * sizeof(E)),
+                    reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)), sizeof(E) * (t.size() - index));
+            t.m_instance = newArray;
+            t.put(index, item);
+            return t;
+        }
+
+        t.resize(context, t.size() + 1);
+        // Shift elements starting at index to the right by one.
+        std::memmove(reinterpret_cast<int8_t*>(t.start()) + ((index + 1) * sizeof(E)),
+                reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)), sizeof(E) * (t.size() - index));
+        t.put(index, item);
+
+        return t;
+    }
+
+    void removeAt(ThreadContext* context, int32_t index) {
+        T& t = static_cast<T&>(*this);
+        assert(0 <= index && index < t.size());
+
+        // Shift elements starting at index + 1 to the left by one.
+        if (index < t.size() - 1) {
+            std::memmove(reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)),
+                    reinterpret_cast<int8_t*>(t.start()) + ((index + 1) * sizeof(E)),
+                    (t.size() - index - 1) * sizeof(E));
+        }
+
+        t.resize(context, t.size() - 1);
     }
 
     // Returns a pointer to the start of the elements, which is just past the schema.
@@ -128,13 +189,13 @@ public:
     }
 
     // Returns an int32_t with the index of item, or nil if item not found.
-    Slot indexOf(E item) const {
+    Integer indexOf(E item) const {
         for (int32_t i = 0; i < size(); ++i) {
             if (item == at(i)) {
-                return Slot::makeInt32(i);
+                return Integer(i);
             }
         }
-        return Slot::makeNil();
+        return Integer();
     }
 
 protected:

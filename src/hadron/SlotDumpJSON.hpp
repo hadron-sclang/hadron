@@ -10,7 +10,7 @@ namespace hadron {
 
 struct ThreadContext;
 
-// To avoid copying strings around this class wraps a Slot
+// To avoid copying strings around this class wraps the string and provides access to it via the json() accessor.
 class SlotDumpJSON {
 public:
     SlotDumpJSON();

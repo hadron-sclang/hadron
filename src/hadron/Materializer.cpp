@@ -4,8 +4,8 @@
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
 #include "hadron/library/HadronHIR.hpp"
+#include "hadron/library/HadronLinearFrame.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
-#include "hadron/LinearFrame.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
 #include "hadron/ThreadContext.hpp"
@@ -31,18 +31,18 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
     }
 
     BlockSerializer serializer;
-    auto linearFrame = serializer.serialize(frame);
+    auto linearFrame = serializer.serialize(context, frame);
 
     LifetimeAnalyzer lifetimeAnalyzer;
-    lifetimeAnalyzer.buildLifetimes(linearFrame.get());
+    lifetimeAnalyzer.buildLifetimes(context, linearFrame);
 
     hadron::RegisterAllocator registerAllocator(hadron::kNumberOfPhysicalRegisters);
-    registerAllocator.allocateRegisters(linearFrame.get());
+    registerAllocator.allocateRegisters(context, linearFrame);
 
     hadron::Resolver resolver;
-    resolver.resolve(linearFrame.get());
+    resolver.resolve(context, linearFrame);
 
-    size_t bytecodeSize = linearFrame->instructions.size() * 16;
+    size_t bytecodeSize = linearFrame.instructions().size() * 16;
     auto bytecode = library::Int8Array::arrayAlloc(context, bytecodeSize);
     bytecodeSize = bytecode.capacity(context);
 
@@ -50,7 +50,7 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
     jit.begin(bytecode.start(), bytecodeSize);
 
     hadron::Emitter emitter;
-    emitter.emit(linearFrame.get(), &jit);
+    emitter.emit(context, linearFrame, &jit);
 
     size_t finalSize = 0;
     jit.end(&finalSize);

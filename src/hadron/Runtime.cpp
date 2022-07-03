@@ -88,7 +88,6 @@ bool Runtime::buildTrampolines() {
     m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const uint8_t*)>(
             jit.addressToFunctionPointer(entryAddr));
     jitArray.resize(m_threadContext.get(), trampolineSize);
-    SPDLOG_INFO("Runtime built JIT trampoline at {} bytes out of {} max.", trampolineSize, jitBufferSize);
 
     return true;
 }
