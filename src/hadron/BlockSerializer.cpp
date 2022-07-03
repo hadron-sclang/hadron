@@ -53,6 +53,7 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
         }
         label.setSuccessors(successors);
 
+        // Lower any phis in the label.
         auto labelPhis = library::TypedArray<library::LIR>::typedArrayAlloc(context, block.phis().size());
         for (int32_t i = 0; i < block.phis().size(); ++i) {
             auto phi = block.phis().typedAt(i);
@@ -134,20 +135,137 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
             } break;
 
             case library::MessageHIR::nameHash(): {
-                
+                auto messageHIR = library::MessageHIR(hir.slot());
+                // Save selector to stack.
+                auto selectorVReg = linearFrame.append(context, library::HIRId(),
+                        library::LoadConstantLIR::makeLoadConstant(context,
+                        messageHIR.selector(context).slot()).toBase(), instructions);
+                linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                        library::kStackPointerVReg, 0, selectorVReg).toBase(), instructions);
+
+                // Save number of arguments to stack.
+                auto numberOfArgsVReg = linearFrame.append(context, library::HIRId(),
+                        library::LoadConstantLIR::makeLoadConstant(context,
+                        Slot::makeInt32(messageHIR.arguments().size())).toBase(), instructions);
+                linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                        library::kStackPointerVReg, sizeof(Slot), numberOfArgsVReg).toBase(), instructions);
+
+                // Save number of keyword arguments to stack.
+                auto numberOfKeyArgsVReg = linearFrame.append(context, library::HIRId(),
+                        library::LoadConstantLIR::makeLoadConstant(context,
+                        Slot::makeInt32(messageHIR.keywordArguments().size())).toBase(), instructions);
+                linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                        library::kStackPointerVReg, 2 * sizeof(Slot), numberOfKeyArgsVReg).toBase(), instructions);
+
+                // Save arguments to stack.
+                int32_t offset = 3 * sizeof(Slot);
+                for (int32_t i = 0; i < messageHIR.arguments().size(); ++i) {
+                    auto argVReg = linearFrame.hirToReg(messageHIR.arguments().typedAt(i));
+                    assert(argVReg);
+                    linearFrame.append(context, library::HIRId(),
+                            library::StoreToPointerLIR::makeStoreToPointer(context, library::kStackPointerVReg, offset,
+                            argVReg).toBase(), instructions);
+                    offset += sizeof(Slot);
+                }
+
+                // Save keyword arguments to stack.
+                for (int32_t i = 0; i < messageHIR.keywordArguments().size(); ++i) {
+                    auto argVReg = linearFrame.hirToReg(messageHIR.keywordArguments().typedAt(i));
+                    assert(argVReg);
+                    linearFrame.append(context, library::HIRId(),
+                            library::StoreToPointerLIR::makeStoreToPointer(context, library::kStackPointerVReg, offset,
+                            argVReg).toBase(), instructions);
+                    offset += sizeof(Slot);
+                }
+
+                // Raise interrupt for a dispatch request.
+                linearFrame.append(context, library::HIRId(), library::InterruptLIR::makeInterrupt(context,
+                        ThreadContext::InterruptCode::kDispatch).toBase(), instructions);
+
+                // Load return value.
+                linearFrame.append(context, messageHIR.id(), library::LoadFromPointerLIR::makeLoadFromPointer(context,
+                        library::kStackPointerVReg, 0).toBase(), instructions);
             } break;
 
-            case library::MethodReturnHIR::nameHash():
-            case library::PhiHIR::nameHash():
-            case library::ReadFromClassHIR::nameHash():
-            case library::ReadFromContextHIR::nameHash():
-            case library::ReadFromFrameHIR::nameHash():
-            case library::ReadFromThisHIR::nameHash():
-            case library::RouteToSuperclassHIR::nameHash():
-            case library::StoreReturnHIR::nameHash():
-            case library::WriteToClassHIR::nameHash():
-            case library::WriteToFrameHIR::nameHash():
-            case library::WriteToThisHIR::nameHash():
+            case library::MethodReturnHIR::nameHash(): {
+                // Raise return interrupt.
+                linearFrame.append(context, library::HIRId(), library::InterruptLIR::makeInterrupt(context,
+                        ThreadContext::InterruptCode::kReturn).toBase(), instructions);
+            } break;
+
+            case library::PhiHIR::nameHash(): {
+                // Shouldn't encounter phis in block statements.
+                assert(false);
+            } break;
+
+            case library::ReadFromClassHIR::nameHash(): {
+                auto readFromClassHIR = library::ReadFromClassHIR(hir.slot());
+                auto classVarVReg = linearFrame.hirToReg(readFromClassHIR.classVariableArray());
+                linearFrame.append(context, readFromClassHIR.id(),
+                        library::LoadFromPointerLIR::makeLoadFromPointer(context, classVarVReg,
+                        readFromClassHIR.arrayIndex() * sizeof(Slot)).toBase(), instructions);
+            } break;
+
+            case library::ReadFromContextHIR::nameHash(): {
+                auto readFromContextHIR = library::ReadFromContextHIR(hir.slot());
+                linearFrame.append(context, readFromContextHIR.id(),
+                        library::LoadFromPointerLIR::makeLoadFromPointer(context, library::kContextPointerVReg,
+                        readFromContextHIR.offset() * sizeof(Slot)).toBase(), instructions);
+            } break;
+
+            case library::ReadFromFrameHIR::nameHash(): {
+                auto readFromFrameHIR = library::ReadFromFrameHIR(hir.slot());
+                auto frameVReg = readFromFrameHIR.frameId() ? linearFrame.hirToReg(readFromFrameHIR.frameId()) :
+                        library::kFramePointerVReg;
+                linearFrame.append(context, readFromFrameHIR.id(), library::LoadFromPointerLIR::makeLoadFromPointer(
+                        context, frameVReg, readFromFrameHIR.frameIndex() * sizeof(Slot)).toBase(), instructions);
+            } break;
+
+            case library::ReadFromThisHIR::nameHash(): {
+                auto readFromThisHIR = library::ReadFromThisHIR(hir.slot());
+                auto thisVReg = linearFrame.hirToReg(readFromThisHIR.thisId());
+                linearFrame.append(context, readFromThisHIR.id(), library::LoadFromPointerLIR::makeLoadFromPointer(
+                        context, thisVReg, readFromThisHIR.index() * sizeof(Slot)).toBase(), instructions);
+            } break;
+
+            case library::RouteToSuperclassHIR::nameHash(): {
+                // TODO: super routing, perhaps with a different interrupt code to dispatch?
+            } break;
+
+            case library::StoreReturnHIR::nameHash(): {
+                // If we're thunking back to C++ code to return we can just put the return value on the stack for now.
+                // It needs a special spot, however, to ensure it doesn't get overwritten.
+                auto storeReturnHIR = library::StoreReturnHIR(hir.slot());
+                auto returnVReg = linearFrame.hirToReg(storeReturnHIR.returnValue());
+                linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                        library::kStackPointerVReg, 0, returnVReg).toBase(), instructions);
+            } break;
+
+            case library::WriteToClassHIR::nameHash(): {
+                auto writeToClassHIR = library::WriteToClassHIR(hir.slot());
+                auto classVarVReg = linearFrame.hirToReg(writeToClassHIR.classVariableArray());
+                auto toWriteVReg = linearFrame.hirToReg(writeToClassHIR.toWrite());
+                linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                        classVarVReg, writeToClassHIR.arrayIndex() * sizeof(Slot), toWriteVReg).toBase(),
+                        instructions);
+            } break;
+
+            case library::WriteToFrameHIR::nameHash(): {
+                auto writeToFrameHIR = library::WriteToFrameHIR(hir.slot());
+                auto frameVReg = writeToFrameHIR.frameId() ? linearFrame.hirToReg(writeToFrameHIR.frameId()) :
+                        library::kFramePointerVReg;
+                auto toWriteVReg = linearFrame.hirToReg(writeToFrameHIR.toWrite());
+                linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                        frameVReg, writeToFrameHIR.frameIndex() * sizeof(Slot), toWriteVReg).toBase(), instructions);
+            } break;
+
+            case library::WriteToThisHIR::nameHash(): {
+                auto writeToThisHIR = library::WriteToThisHIR(hir.slot());
+                auto thisVReg = linearFrame.hirToReg(writeToThisHIR.thisId());
+                auto toWriteVReg = linearFrame.hirToReg(writeToThisHIR.toWrite());
+                linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                        thisVReg, writeToThisHIR.index() * sizeof(Slot), toWriteVReg).toBase(), instructions);
+            } break;
 
             default:
                 assert(false); // missing case for hir

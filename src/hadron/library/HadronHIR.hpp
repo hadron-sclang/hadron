@@ -221,6 +221,7 @@ public:
         setArguments(arguments().typedAdd(context, arg));
     }
 
+    // TODO: why not force these into pairs?
     void addKeywordArgument(ThreadContext* context, HIRId arg) {
         reads().typedAdd(context, arg);
         setKeywordArguments(keywordArguments().typedAdd(context, arg));
