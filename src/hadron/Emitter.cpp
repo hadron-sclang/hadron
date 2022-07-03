@@ -111,7 +111,7 @@ void Emitter::emit(ThreadContext* /* context */, library::LinearFrame linearFram
             auto storeToPointerLIR = library::StoreToPointerLIR(lir.slot());
             jit->stxi_w(storeToPointerLIR.offset().int32(), locate(lir, storeToPointerLIR.pointer()),
                     locate(lir, storeToPointerLIR.toStore()));
-        }
+        } break;
 
         default:
             assert(false); // missing LIR case for bytecode emission.

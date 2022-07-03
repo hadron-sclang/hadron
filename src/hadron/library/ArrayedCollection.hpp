@@ -57,7 +57,8 @@ public:
         auto newArray = T();
         auto newSize = end - start + 1;
         newArray.resize(context, newSize);
-        std::memcpy(newArray.start(), reinterpret_cast<int8_t*>(t.start()) + (start * sizeof(E)), newSize * sizeof(E));
+        std::memcpy(reinterpret_cast<void*>(newArray.start()),
+                reinterpret_cast<int8_t*>(t.start()) + (start * sizeof(E)), newSize * sizeof(E));
         return newArray;
     }
 
