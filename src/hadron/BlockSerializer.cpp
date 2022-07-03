@@ -148,24 +148,24 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
                         library::LoadConstantLIR::makeLoadConstant(context,
                         Slot::makeInt32(messageHIR.arguments().size())).toBase(), instructions);
                 linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
-                        library::kStackPointerVReg, sizeof(Slot), numberOfArgsVReg).toBase(), instructions);
+                        library::kStackPointerVReg, kSlotSize, numberOfArgsVReg).toBase(), instructions);
 
                 // Save number of keyword arguments to stack.
                 auto numberOfKeyArgsVReg = linearFrame.append(context, library::HIRId(),
                         library::LoadConstantLIR::makeLoadConstant(context,
                         Slot::makeInt32(messageHIR.keywordArguments().size())).toBase(), instructions);
                 linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
-                        library::kStackPointerVReg, 2 * sizeof(Slot), numberOfKeyArgsVReg).toBase(), instructions);
+                        library::kStackPointerVReg, 2 * kSlotSize, numberOfKeyArgsVReg).toBase(), instructions);
 
                 // Save arguments to stack.
-                int32_t offset = 3 * sizeof(Slot);
+                int32_t offset = 3 * kSlotSize;
                 for (int32_t i = 0; i < messageHIR.arguments().size(); ++i) {
                     auto argVReg = linearFrame.hirToReg(messageHIR.arguments().typedAt(i));
                     assert(argVReg);
                     linearFrame.append(context, library::HIRId(),
                             library::StoreToPointerLIR::makeStoreToPointer(context, library::kStackPointerVReg, offset,
                             argVReg).toBase(), instructions);
-                    offset += sizeof(Slot);
+                    offset += kSlotSize;
                 }
 
                 // Save keyword arguments to stack.
@@ -175,7 +175,7 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
                     linearFrame.append(context, library::HIRId(),
                             library::StoreToPointerLIR::makeStoreToPointer(context, library::kStackPointerVReg, offset,
                             argVReg).toBase(), instructions);
-                    offset += sizeof(Slot);
+                    offset += kSlotSize;
                 }
 
                 // Raise interrupt for a dispatch request.
@@ -203,14 +203,14 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
                 auto classVarVReg = linearFrame.hirToReg(readFromClassHIR.classVariableArray());
                 linearFrame.append(context, readFromClassHIR.id(),
                         library::LoadFromPointerLIR::makeLoadFromPointer(context, classVarVReg,
-                        readFromClassHIR.arrayIndex() * sizeof(Slot)).toBase(), instructions);
+                        readFromClassHIR.arrayIndex() * kSlotSize).toBase(), instructions);
             } break;
 
             case library::ReadFromContextHIR::nameHash(): {
                 auto readFromContextHIR = library::ReadFromContextHIR(hir.slot());
                 linearFrame.append(context, readFromContextHIR.id(),
                         library::LoadFromPointerLIR::makeLoadFromPointer(context, library::kContextPointerVReg,
-                        readFromContextHIR.offset() * sizeof(Slot)).toBase(), instructions);
+                        readFromContextHIR.offset() * kSlotSize).toBase(), instructions);
             } break;
 
             case library::ReadFromFrameHIR::nameHash(): {
@@ -218,14 +218,14 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
                 auto frameVReg = readFromFrameHIR.frameId() ? linearFrame.hirToReg(readFromFrameHIR.frameId()) :
                         library::kFramePointerVReg;
                 linearFrame.append(context, readFromFrameHIR.id(), library::LoadFromPointerLIR::makeLoadFromPointer(
-                        context, frameVReg, readFromFrameHIR.frameIndex() * sizeof(Slot)).toBase(), instructions);
+                        context, frameVReg, readFromFrameHIR.frameIndex() * kSlotSize).toBase(), instructions);
             } break;
 
             case library::ReadFromThisHIR::nameHash(): {
                 auto readFromThisHIR = library::ReadFromThisHIR(hir.slot());
                 auto thisVReg = linearFrame.hirToReg(readFromThisHIR.thisId());
                 linearFrame.append(context, readFromThisHIR.id(), library::LoadFromPointerLIR::makeLoadFromPointer(
-                        context, thisVReg, readFromThisHIR.index() * sizeof(Slot)).toBase(), instructions);
+                        context, thisVReg, readFromThisHIR.index() * kSlotSize).toBase(), instructions);
             } break;
 
             case library::RouteToSuperclassHIR::nameHash(): {
@@ -246,7 +246,7 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
                 auto classVarVReg = linearFrame.hirToReg(writeToClassHIR.classVariableArray());
                 auto toWriteVReg = linearFrame.hirToReg(writeToClassHIR.toWrite());
                 linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
-                        classVarVReg, writeToClassHIR.arrayIndex() * sizeof(Slot), toWriteVReg).toBase(),
+                        classVarVReg, writeToClassHIR.arrayIndex() * kSlotSize, toWriteVReg).toBase(),
                         instructions);
             } break;
 
@@ -256,7 +256,7 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
                         library::kFramePointerVReg;
                 auto toWriteVReg = linearFrame.hirToReg(writeToFrameHIR.toWrite());
                 linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
-                        frameVReg, writeToFrameHIR.frameIndex() * sizeof(Slot), toWriteVReg).toBase(), instructions);
+                        frameVReg, writeToFrameHIR.frameIndex() * kSlotSize, toWriteVReg).toBase(), instructions);
             } break;
 
             case library::WriteToThisHIR::nameHash(): {
@@ -264,7 +264,7 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
                 auto thisVReg = linearFrame.hirToReg(writeToThisHIR.thisId());
                 auto toWriteVReg = linearFrame.hirToReg(writeToThisHIR.toWrite());
                 linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
-                        thisVReg, writeToThisHIR.index() * sizeof(Slot), toWriteVReg).toBase(), instructions);
+                        thisVReg, writeToThisHIR.index() * kSlotSize, toWriteVReg).toBase(), instructions);
             } break;
 
             default:
