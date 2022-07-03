@@ -3,7 +3,6 @@
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Heap.hpp"
-#include "hadron/LinearFrame.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"

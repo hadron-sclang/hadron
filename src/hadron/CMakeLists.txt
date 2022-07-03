@@ -215,19 +215,6 @@ add_library(hadron STATIC
     library/Symbol.hpp
     library/Thread.hpp
 
-    lir/AssignLIR.hpp
-    lir/BranchIfTrueLIR.hpp
-    lir/BranchLIR.hpp
-    lir/BranchToRegisterLIR.hpp
-    lir/InterruptLIR.hpp
-    lir/LabelLIR.hpp
-    lir/LIR.cpp
-    lir/LIR.hpp
-    lir/LoadConstantLIR.hpp
-    lir/LoadFromPointerLIR.hpp
-    lir/PhiLIR.hpp
-    lir/StoreToPointerLIR.hpp
-
     Arch.hpp
     ASTBuilder.cpp
     ASTBuilder.hpp
@@ -244,12 +231,8 @@ add_library(hadron STATIC
     JIT.hpp
     LifetimeAnalyzer.cpp
     LifetimeAnalyzer.hpp
-    LifetimeInterval.cpp
-    LifetimeInterval.hpp
     LighteningJIT.cpp
     LighteningJIT.hpp
-    LinearFrame.cpp
-    LinearFrame.hpp
     Materializer.cpp
     Materializer.hpp
     MoveScheduler.cpp
@@ -279,7 +262,6 @@ add_library(hadron STATIC
 set(HADRON_COMPILER_UNITTESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/ErrorReporter_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lexer_unittests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/LifetimeInterval_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MoveScheduler_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/OpcodeIterator_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Slot_unittests.cpp
