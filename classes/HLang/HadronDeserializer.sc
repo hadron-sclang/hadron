@@ -26,8 +26,11 @@ HadronDeserializer {
 					decode = references.at(refId);
 				});
 			},
-			'Array' {
-
+			'Array', {
+				decode = Array.new;
+				obj.do({ |item|
+					decode = decode.add(HadronDeserializer.prBuildInstance(item, references));
+				});
 			},
 			/* default */ {
 				// Not a Dictionary, can use directly.
