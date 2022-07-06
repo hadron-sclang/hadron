@@ -12,7 +12,7 @@ HadronLexToken {
 HadronParseNode {
 	var <>token;
 	var <>next;
-	var tail;
+	var <>tail;
 }
 
 // Alphabetical list of nodes returned by the parse tree.
