@@ -13,6 +13,60 @@ HadronParseNode {
 	var <>token;
 	var <>next;
 	var <>tail;
+
+	// Returns a String with a complete dot graph description of a parse tree rooted at this node.
+	asDotGraph {
+		var dotString = "digraph HadronParseTree {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n\n";
+		dotString = this.prAsDotNode(dotString);
+		dotString = dotString ++ "}\n";
+		^dotString;
+	}
+
+	prAsDotNode { |dotString|
+		var children, nodeName, nodeSerial;
+		// map of names to objects.
+		children = IdentityDictionary.new;
+		nodeSerial = this.identityHash.abs.asString;
+
+		// Remove "Hadron" from the start of the node class name.
+		nodeName = this.class.name.asString;
+		nodeName = nodeName["Hadron".size ..];
+		nodeName = nodeName[.. nodeName.find("Node") - 1];
+
+		dotString = dotString ++
+		"  node_% [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n"
+		"    <tr><td bgcolor=\"lightGray\"><b>%</b></td></tr>\n"
+		"    <tr><td><font face=\"monospace\">%</font></td></tr>\n"
+		"    <tr><td port=\"next\">next</td></tr>\n".format(nodeSerial, nodeName,
+			HadronDeserializer.htmlEscapeString(token.snippet));
+
+		this.class.instVarNames.do({ |name|
+			switch(name,
+				\token, {},
+				\next, {},
+				\tail, {},
+				/* default */ {
+					var value = this.perform(name);
+					if (value.class.findRespondingMethodFor('prAsDotNode').notNil, {
+						dotString = dotString ++ "    <tr><td port=\"%\">%</td></tr>\n".format(name, name);
+						children.put(name, value);
+					});
+			});
+		});
+		dotString = dotString ++ "    </table>>]\n";
+
+		if (next.notNil, {
+			dotString = next.prAsDotNode(dotString);
+			dotString = dotString ++ "    node_%:next -> node_%\n".format(nodeSerial, next.identityHash.abs.asString);
+		});
+
+		children.keysValuesDo({ |name, node|
+			dotString = node.prAsDotNode(dotString);
+			dotString = dotString ++ "    node_%:% -> node_%\n".format(nodeSerial, name, node.identityHash.abs.asString);
+		});
+
+		^dotString;
+	}
 }
 
 // Alphabetical list of nodes returned by the parse tree.

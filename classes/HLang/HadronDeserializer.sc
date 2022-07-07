@@ -16,14 +16,14 @@ HadronDeserializer {
 					className = obj.at("_className").asSymbol;
 					decodeClass = className.asClass;
 					decode = decodeClass.new;
-					reference = obj.at("_identityHash");
+					reference = obj.at("_identityHash").asInteger;
 					references.put(reference, decode);
 					decodeClass.instVarNames.do({ |name|
 						decode.perform((name.asString ++ "_").asSymbol,
 							HadronDeserializer.prBuildInstance(obj.at(name.asString), references));
 					});
 				}, {
-					decode = references.at(refId);
+					decode = references.at(refId.asInteger);
 				});
 			},
 			'Array', {
@@ -38,5 +38,15 @@ HadronDeserializer {
 		});
 
 		^decode;
+	}
+
+	*htmlEscapeString { |str|
+		str = str.replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;");
+		str = str.replace(" ", "&nbsp;");
+		str = str.replace("{", "&#123;");
+		str = str.replace("[", "&#91;");
+		str = str.replace("<", "&lt;");
+		str = str.replace(">", "&gt;");
+		^str;
 	}
 }
