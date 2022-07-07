@@ -36,9 +36,12 @@ HadronParseNode {
 		dotString = dotString ++
 		"  node_% [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n"
 		"    <tr><td bgcolor=\"lightGray\"><b>%</b></td></tr>\n"
-		"    <tr><td><font face=\"monospace\">%</font></td></tr>\n"
-		"    <tr><td port=\"next\">next</td></tr>\n".format(nodeSerial, nodeName,
+		"    <tr><td><font face=\"monospace\">%</font></td></tr>\n".format(nodeSerial, nodeName,
 			HadronDeserializer.htmlEscapeString(token.snippet));
+
+		if (next.notNil, {
+			dotString = dotString ++ "    <tr><td port=\"next\">next</td></tr>\n";
+		});
 
 		this.class.instVarNames.do({ |name|
 			switch(name,
