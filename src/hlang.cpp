@@ -17,9 +17,8 @@ int main(int argc, char* argv[]) {
 
     auto errorReporter = std::make_shared<hadron::ErrorReporter>();
     hadron::Runtime runtime(errorReporter);
-    if (!runtime.initInterpreter()) {
-        return -1;
-    }
+    if (!runtime.initInterpreter()) { return -1; }
+    if (!runtime.compileClassLibrary()) { return -1; }
 
     return 0;
 }

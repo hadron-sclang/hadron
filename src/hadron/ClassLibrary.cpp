@@ -71,7 +71,6 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
             const auto& path = fs::absolute(entry.path());
             if (!fs::is_regular_file(path) || path.extension() != ".sc")
                 continue;
-            SPDLOG_INFO("Class Library scanning '{}'", path.c_str());
 
             auto sourceFile = std::make_unique<SourceFile>(path.string());
             if (!sourceFile->read(m_errorReporter)) { return false; }
@@ -145,8 +144,6 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                         library::Symbol primitiveName = methodNode.primitiveToken().snippet(context);
                         method.setPrimitiveName(primitiveName);
                     } else {
-                        SPDLOG_INFO("Building AST for {}:{}", methodClassDef.name(context).view(context),
-                                methodName.view(context));
                         // Build the AST from the MethodNode block.
                         ASTBuilder astBuilder(m_errorReporter);
                         auto ast = astBuilder.buildBlock(context, methodNode.body());
@@ -177,9 +174,6 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
 
 bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, library::Class metaClassDef,
         const library::ClassNode classNode) {
-
-    SPDLOG_INFO("Scanning Class: {}", classDef.name(context).view(context));
-
     library::Symbol superclassName;
     library::Symbol metaSuperclassName;
 
@@ -303,8 +297,6 @@ bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
 }
 
 bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class classDef) {
-    SPDLOG_INFO("Composing Class {}", classDef.name(context).view(context));
-
     auto classASTs = m_methodASTs.find(classDef.name(context));
     assert(classASTs != m_methodASTs.end());
 
@@ -322,8 +314,6 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         if (!method.primitiveName(context).isNil()) { continue; }
 
         auto methodName = method.name(context);
-
-        SPDLOG_INFO("Building Frame for {}:{}", classDef.name(context).view(context), methodName.view(context));
 
         auto astIter = classASTs->second->find(methodName);
         assert(astIter != classASTs->second->end());
@@ -373,8 +363,6 @@ bool ClassLibrary::materializeFrames(ThreadContext* context) {
             // Methods that call a primitive have no Frame and should not be compiled.
             auto frameIter = methodMap.second->find(methodName);
             if (frameIter == methodMap.second->end()) { continue; }
-
-            SPDLOG_INFO("materializing frame for {}:{}", className.view(context), methodName.view(context));
 
             auto bytecode = Materializer::materialize(context, frameIter->second);
             method.setCode(bytecode);
