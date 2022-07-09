@@ -395,7 +395,7 @@ int main(int argc, char* argv[]) {
 
             bootstrapFile << "\n    // ========== " << className
                     << fmt::format("\n    className = library::Symbol::fromView(context, \"{}\");\n", className)
-                    << "    m_bootstrapClasses.emplace(className);"
+                    << "    m_bootstrapClasses.emplace(className);\n"
                     << "    classDef = findOrInitClass(context, className);\n"
                     << "    instVarNames = library::SymbolArray::arrayAlloc(context);\n";
 

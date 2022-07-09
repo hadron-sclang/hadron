@@ -150,6 +150,7 @@ endforeach()
 
 list(APPEND HLANG_CLASS_FILES
     "${HLANG_PATH}/HLang/HadronAST.sc"
+    "${HLANG_PATH}/HLang/HadronBuildArtifacts.sc"
     "${HLANG_PATH}/HLang/HadronCFG.sc"
     "${HLANG_PATH}/HLang/HadronHIR.sc"
     "${HLANG_PATH}/HLang/HadronLifetimeInterval.sc"
@@ -191,6 +192,7 @@ add_library(hadron STATIC
     library/Dictionary.hpp
     library/Function.hpp
     library/HadronAST.hpp
+    library/HadronBuildArtifacts.hpp
     library/HadronCFG.cpp
     library/HadronCFG.hpp
     library/HadronHIR.cpp
