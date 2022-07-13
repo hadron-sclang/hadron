@@ -1,5 +1,20 @@
 // The AST represents a node in the Hadron Abstract Syntax Tree
-HadronAST { }
+HadronAST {
+	asDotGraph {
+		var dotString = "digraph HadronAbstractSyntaxTree {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n\n";
+		dotString = this.prAsDotNode(dotString);
+		dotString = dotString ++ "}\n";
+		^dotString;
+	}
+
+	prAsDotNode { |dotString|
+		var nodeName;
+
+		nodeName = this.class.name.asString;
+		nodeName = nodeName["Hadron".size ..];
+		nodeName = nodeName[.. nodeName.find("AST") - 1];
+	}
+}
 
 HadronAssignAST : HadronAST {
 	var <>name;
@@ -55,6 +70,18 @@ HadronNameAST : HadronAST {
 
 HadronSequenceAST : HadronAST {
 	var <>sequence;
+
+	prAsDotNode { |dotString|
+		if (sequence.size() > 0) {
+
+		} {
+			dotString = dotString ++
+			"  ast_% [shape=plain label=<<table border="0" cellborder="1" cellspacing="0">\n"
+			"    <tr><td bgcolor="lightGray"><b>%</b></td></tr></table>>]\n";
+		}
+
+		^dotString;
+	}
 }
 
 HadronWhileAST : HadronAST {
