@@ -30,4 +30,15 @@ HadronVisualizer {
 		str = str.replace(">", "&gt;");
 		^str;
 	}
+
+	*idString { |obj|
+		var hash = obj.identityHash;
+		var str;
+		if (hash < 0, {
+			str = "N" ++ ((-1 * hash).asString);
+		}, {
+			str = "P" ++ (hash.asString);
+		});
+		^str;
+	}
 }

@@ -26,7 +26,7 @@ HadronParseNode {
 		var children, nodeName, nodeSerial;
 		// map of names to objects.
 		children = IdentityDictionary.new;
-		nodeSerial = this.identityHash.abs.asString;
+		nodeSerial = HadronVisualizer.idString(this);
 
 		// Remove "Hadron" from the start of the node class name.
 		nodeName = this.class.name.asString;
@@ -60,12 +60,14 @@ HadronParseNode {
 
 		if (next.notNil, {
 			dotString = next.prAsDotNode(dotString);
-			dotString = dotString ++ "    node_%:next -> node_%\n".format(nodeSerial, next.identityHash.abs.asString);
+			dotString = dotString ++
+			"  node_%:next -> node_%\n".format(nodeSerial, HadronVisualizer.idString(next));
 		});
 
 		children.keysValuesDo({ |name, node|
 			dotString = node.prAsDotNode(dotString);
-			dotString = dotString ++ "    node_%:% -> node_%\n".format(nodeSerial, name, node.identityHash.abs.asString);
+			dotString = dotString ++
+			"  node_%:% -> node_%\n".format(nodeSerial, name, HadronVisualizer.idString(node));
 		});
 
 		^dotString;
