@@ -23,13 +23,20 @@ HadronAST {
 
 		dotString = dotString ++
 		"  ast_% [shape=plain label=<<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">\n"
-		"    <tr><td bgcolor=\"lightGray\"><b>%</b></td></tr></table>>]".format(nodeId, nodeName);
+		"    <tr><td bgcolor=\"lightGray\"><b>%</b></td></tr>\n".format(nodeId, nodeName);
 
 		this.class.instVarNames.do({ |name|
 			var value = this.perform(name);
 			if (value.class.findRespondingMethodFor('prAsDotNode').notNil, {
-				dotString = dotString ++ "    <tr><td port=\"%\">%</td></tr>\n".format(name, name);
-				children.put(name, value);
+				if (value.class.name !== 'HadronSequenceAST' or: { value.sequence.size() > 0 }, {
+					dotString = dotString ++ "    <tr><td port=\"%\">%</td></tr>\n".format(name, name);
+					children.put(name, value);
+				}, {
+					dotString = dotString ++ "    <tr><td>%</td></tr>\n".format(name);
+				});
+			}, {
+				dotString = dotString ++ "    <tr><td>%: %</td></tr>\n"
+				.format(name, HadronVisualizer.htmlEscapeString(value.asString));
 			});
 		});
 

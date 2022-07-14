@@ -31,7 +31,7 @@ public:
     void setClassName(Symbol c) { m_instance->className = c.slot(); }
 
     Symbol methodName(ThreadContext* context) const { return Symbol(context, m_instance->methodName); }
-    void setMethodName(Symbol m) { m_instance->className = m.slot(); }
+    void setMethodName(Symbol m) { m_instance->methodName = m.slot(); }
 
     Node parseTree() const { return Node::wrapUnsafe(m_instance->parseTree); }
     void setParseTree(Node p) { m_instance->parseTree = p.slot(); }

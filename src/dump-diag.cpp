@@ -84,32 +84,37 @@ int main(int argc, char* argv[]) {
     auto sourceFileSymbol = hadron::library::Symbol::fromView(runtime.context(), FLAGS_sourceFile);
 
     if (isClassFile) {
-        // Make top-level build artifacts with top-level parse tree set.
-        auto buildArtifacts = hadron::library::BuildArtifacts::make(runtime.context());
-        hadron::library::Symbol className = parser->root().token().snippet(runtime.context());
-        buildArtifacts.setSourceFile(sourceFileSymbol);
-        buildArtifacts.setClassName(className);
-        buildArtifacts.setParseTree(parser->root());
-        artifacts = artifacts.typedAdd(runtime.context(), buildArtifacts);
+        auto rootNode = parser->root();
+        while (rootNode) {
+            auto className = rootNode.token().snippet(runtime.context());
 
-        hadron::library::MethodNode methodNode;
-        if (parser->root().className() == hadron::library::ClassNode::nameHash()) {
-            auto classNode = hadron::library::ClassNode(parser->root().slot());
-            methodNode = classNode.methods();
-        } else {
-            auto classExtNode = hadron::library::ClassExtNode(parser->root().slot());
-            methodNode = classExtNode.methods();
-        }
+            hadron::library::MethodNode methodNode;
+            if (rootNode.className() == hadron::library::ClassNode::nameHash()) {
+                auto classNode = hadron::library::ClassNode(rootNode.slot());
+                methodNode = classNode.methods();
+            } else {
+                auto classExtNode = hadron::library::ClassExtNode(rootNode.slot());
+                methodNode = classExtNode.methods();
+            }
 
-        while (methodNode) {
-            buildArtifacts = hadron::library::BuildArtifacts::make(runtime.context());
-            buildArtifacts.setSourceFile(sourceFileSymbol);
-            buildArtifacts.setClassName(className);
-            buildArtifacts.setMethodName(methodNode.token().snippet(runtime.context()));
-            buildArtifacts.setParseTree(methodNode.body().toBase());
-            build(runtime.context(), buildArtifacts, FLAGS_stopAfter, errorReporter);
-            artifacts = artifacts.typedAdd(runtime.context(), buildArtifacts);
-            methodNode = hadron::library::MethodNode(methodNode.next().slot());
+            while (methodNode) {
+                auto buildArtifacts = hadron::library::BuildArtifacts::make(runtime.context());
+                buildArtifacts.setSourceFile(sourceFileSymbol);
+                buildArtifacts.setClassName(className);
+                if (methodNode.isClassMethod()) {
+                    // Prepend a '*' symbol to class method names.
+                    buildArtifacts.setMethodName(hadron::library::Symbol::fromView(runtime.context(),
+                            fmt::format("*{}", methodNode.token().snippet(runtime.context()).view(runtime.context()))));
+                } else {
+                    buildArtifacts.setMethodName(methodNode.token().snippet(runtime.context()));
+                }
+                buildArtifacts.setParseTree(methodNode.body().toBase());
+                build(runtime.context(), buildArtifacts, FLAGS_stopAfter, errorReporter);
+                artifacts = artifacts.typedAdd(runtime.context(), buildArtifacts);
+                methodNode = hadron::library::MethodNode(methodNode.next().slot());
+            }
+
+            rootNode = rootNode.next();
         }
     } else {
         auto buildArtifacts = hadron::library::BuildArtifacts::make(runtime.context());

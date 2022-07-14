@@ -18,8 +18,9 @@ HadronVisualizer {
 	// buildArtifacts is an Array of HadronBuildArtifacts,
 	// outputDir is a directory to build index.html and related files,
 	// stopAfter is one of the stageNames after which we won't generate a report.
-	*buildVisualization { |buildArtifacts, outputDir, stopAfter = \machineCode|
-		var indexFile;
+	*buildVisualization { |buildArtifacts, outputDir, dotPath, stopAfter = \machineCode|
+		var stopAfterStage, indexFile;
+		stopAfterStage = stageNames.at(stopAfter);
 
 		File.mkdir(outputDir);
 		indexFile = File.new(outputDir +/+ "index.html", "w");
@@ -28,24 +29,42 @@ HadronVisualizer {
 			"<html>\n"
 			"  <head><title>hadron vis report</title></head>\n"
 			"  <style>\n"
-			"  body {{ font-family: Verdana }}\n"
-			"  td.used {{ background-color: grey; color: white }}\n"
-			"  td.live {{ background-color: lightGrey; color: black }}\n"
+			"    body { font-family: Verdana }\n"
+			"    td.used { background-color: grey; color: white }\n"
+			"    td.live { background-color: lightGrey; color: black }\n"
 			"  </style>\n"
-			"  <body>\n"
-			"    <h2>hadron vis report for</h2>\n");
+			"  <body>\n");
 
 		buildArtifacts.do({ |artifact|
-			if (artifact.methodName.notNil, {
-				indexFile.write("  <h2>%:%</h2>\n".format(artifact.className, artifact.methodName));
-			}, {
-				indexFile.write("  <h2>%</h2>\n".format(artifact.className));
+			indexFile.write("  <h2>%:%</h2>\n"
+				.format(artifact.className, artifact.methodName));
+			indexFile.write("  <p>%:%</p>\n"
+				.format(artifact.sourceFile, artifact.parseTree.token.lineNumber));
+
+			if (artifact.parseTree.notNil, {
+				var commandLine, parseBase;
+				parseBase = outputDir +/+ "parse_" ++ HadronVisualizer.idString(artifact.parseTree);
+				File.use(parseBase ++ ".dot", "w", { |f| f.write(artifact.parseTree.asDotGraph); });
+				commandLine = dotPath ++ " -Tsvg -o% %".format(parseBase ++ ".svg", parseBase ++ ".dot");
+				commandLine.unixCmd({}, false);
+				indexFile.write("  <h3>parse tree</h3>\n  <img src=\"%\"/>\n".format(parseBase ++ ".svg"));
+			});
+
+			if (stopAfterStage > stageNames.at(\parse) and: { artifact.abstractSyntaxTree.notNil }, {
+				var commandLine, astBase;
+				astBase = outputDir +/+ "ast_" ++ HadronVisualizer.idString(artifact.abstractSyntaxTree);
+				File.use(astBase ++ ".dot", "w", { |f| f.write(artifact.abstractSyntaxTree.asDotGraph); });
+				commandLine = dotPath ++ " -Tsvg -o% %".format(astBase ++ ".svg", astBase ++ ".dot");
+				commandLine.unixCmd({}, false);
+				indexFile.write("  <h3>abstract syntax tree</h3>\n  <img src=\"%\"/>\n".format(astBase ++ ".svg"));
 			});
 		});
 
 		indexFile.write(
 			"  </body>\n"
 			"</html>\n");
+
+		indexFile.close();
 	}
 
 	*htmlEscapeString { |str|
