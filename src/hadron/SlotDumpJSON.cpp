@@ -27,7 +27,8 @@ public:
         encodeSlot(context, slot, m_doc);
 
         rapidjson::Writer<rapidjson::StringBuffer> writer(m_buffer);
-        m_doc.Accept(writer);
+        bool result = m_doc.Accept(writer);
+        assert(result);
     }
 
     std::string_view json() const { return std::string_view(m_buffer.GetString(), m_buffer.GetSize()); }
@@ -43,33 +44,48 @@ private:
         auto& alloc = m_doc.GetAllocator();
 
         switch (slot.getType()) {
-        case TypeFlags::kFloatFlag:
-            value = slot.getFloat();
-            break;
+        case TypeFlags::kFloatFlag: {
+            // rapidjson silently fails to encode NaN and inf doubles.
+            auto dub = slot.getFloat();
+            if (std::isnan(dub)) {
+                value.SetObject();
+                value.AddMember("_className", rapidjson::Value("Float"), alloc);
+                value.AddMember("value", rapidjson::Value("nan"), alloc);
+                return;
+            }
+            if (std::isinf(dub)) {
+                value.SetObject();
+                value.AddMember("_className", rapidjson::Value("Float"), alloc);
+                value.AddMember("value", rapidjson::Value("inf"), alloc);
+                return;
+            }
+
+            value = dub;
+        } return;
 
         case TypeFlags::kIntegerFlag:
             value = slot.getInt32();
-            break;
+            return;
 
         case TypeFlags::kBooleanFlag:
             value = slot.getBool();
-            break;
+            return;
 
         case TypeFlags::kNilFlag:
             value = rapidjson::Value();
-            break;
+            return;
 
         // We dump most objects as dictionaries of their members, with the exception of some data structures like
         // Arrays, Sets, Dictionaries, etc, which need special treatment.
         case TypeFlags::kObjectFlag:
             encodeObject(context, slot, value);
-            break;
+            return;
 
-        // Encode symbols as strings directly in the JSON.
+        // Encode symbols as strings directly in the JSON. Strings are encoded as Objects.
         case TypeFlags::kSymbolFlag: {
             auto symbol = library::Symbol(context, slot);
             value.SetString(symbol.view(context).data(), alloc);
-        } break;
+        } return;
 
         // encode as an object of type "Char"
         case TypeFlags::kCharFlag: {
@@ -78,20 +94,20 @@ private:
             rapidjson::Value charValue;
             charValue.SetString(fmt::format("{}", slot.getChar()).data(), alloc);
             value.AddMember("value", charValue, alloc);
-        } break;
+        } return;
 
         // TODO
         case TypeFlags::kRawPointerFlag:
             assert(false); // TODO
             value = rapidjson::Value();
-            break;
+            return;
 
         // Slots should always have a single type flag.
         case TypeFlags::kNoFlags:
         case TypeFlags::kAllFlags:
             assert(false);
             value = rapidjson::Value();
-            break;
+            return;
         }
     }
 
@@ -124,6 +140,7 @@ private:
             SPDLOG_ERROR("failed to look up class '{}', name hash 0x{:08x} in class library", className.view(context),
                     className.hash());
             assert(false);
+            return;
         }
 
         if (slotObject.className() == library::Array::nameHash()) {
@@ -137,7 +154,9 @@ private:
             }
             value.AddMember("_elements", arrayElements, alloc);
             return;
-        } else if (slotObject.className() == library::Int8Array::nameHash()) {
+        }
+
+        if (slotObject.className() == library::Int8Array::nameHash()) {
             rapidjson::Value arrayElements;
             arrayElements.SetArray();
             auto array = library::Int8Array(slot);
@@ -146,7 +165,9 @@ private:
             }
             value.AddMember("_elements", arrayElements, alloc);
             return;
-        } else if (slotObject.className() == library::SymbolArray::nameHash()) {
+        }
+
+        if (slotObject.className() == library::SymbolArray::nameHash()) {
             rapidjson::Value arrayElements;
             arrayElements.SetArray();
             auto array = library::SymbolArray(slot);
@@ -157,6 +178,14 @@ private:
                 arrayElements.PushBack(symbolValue, alloc);
             }
             value.AddMember("_elements", arrayElements, alloc);
+            return;
+        }
+
+        if (slotObject.className() == library::String::nameHash()) {
+            rapidjson::Value elements;
+            auto string = library::String(slot);
+            elements.SetString(string.view().data(), alloc);
+            value.AddMember("_elements", elements, alloc);
             return;
         }
 

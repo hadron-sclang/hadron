@@ -44,7 +44,9 @@ bool Runtime::compileClassLibrary() {
     SPDLOG_INFO("Starting Class Library compilation for files at {}", classLibPath.c_str());
     m_threadContext->classLibrary->addClassDirectory(classLibPath);
     m_threadContext->classLibrary->addClassDirectory(findHLangClassLibrary());
-    return m_threadContext->classLibrary->compileLibrary(m_threadContext.get());
+    bool result = m_threadContext->classLibrary->compileLibrary(m_threadContext.get());
+    SPDLOG_INFO("Completed Class Library compilation.");
+    return result;
 }
 
 bool Runtime::buildThreadContext() {

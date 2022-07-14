@@ -175,9 +175,7 @@ int32_t ASTBuilder::appendToSequence(ThreadContext* context, library::SequenceAS
 }
 
 library::AST ASTBuilder::transform(ThreadContext* context, const library::Node node, int32_t& curryCount) {
-
     switch(node.className()) {
-
     case library::ArgListNode::nameHash():
         assert(false); // internal error, not a valid node within a block
         return library::EmptyAST::alloc(context).toBase();

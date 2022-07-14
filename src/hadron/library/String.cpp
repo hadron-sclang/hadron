@@ -24,8 +24,8 @@ String String::appendView(ThreadContext* context, std::string_view v, bool hasEs
     }
 
     if (!hasEscape) {
-        string.m_instance->schema._sizeInBytes += v.length();
         std::memcpy(string.start() + string.size(), v.data(), v.length());
+        string.m_instance->schema._sizeInBytes += v.length();
         return string;
     }
 
