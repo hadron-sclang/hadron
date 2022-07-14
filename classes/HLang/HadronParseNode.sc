@@ -16,7 +16,9 @@ HadronParseNode {
 
 	// Returns a String with a complete dot graph description of a parse tree rooted at this node.
 	asDotGraph {
-		var dotString = "digraph HadronParseTree {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n\n";
+		var dotString = "digraph HadronParseTree {\n"
+		"  graph [fontname=helvetica];\n"
+		"  node [fontname=helvetica];\n\n";
 		dotString = this.prAsDotNode(dotString);
 		dotString = dotString ++ "}\n";
 		^dotString;

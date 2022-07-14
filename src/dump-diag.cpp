@@ -37,7 +37,8 @@ void build(hadron::ThreadContext* context, hadron::library::BuildArtifacts build
         std::shared_ptr<hadron::ErrorReporter> errorReporter) {
     if (stopAfter < 2) { return; }
     hadron::ASTBuilder astBuilder(errorReporter);
-    buildArtifacts.setAbstractSyntaxTree(astBuilder.buildBlock(context, buildArtifacts.parseTree()));
+    buildArtifacts.setAbstractSyntaxTree(astBuilder.buildBlock(context,
+            hadron::library::BlockNode(buildArtifacts.parseTree().slot())));
 
     if (stopAfter < 3) { return; }
 }
@@ -83,12 +84,38 @@ int main(int argc, char* argv[]) {
     auto sourceFileSymbol = hadron::library::Symbol::fromView(runtime.context(), FLAGS_sourceFile);
 
     if (isClassFile) {
+        // Make top-level build artifacts with top-level parse tree set.
+        auto buildArtifacts = hadron::library::BuildArtifacts::make(runtime.context());
+        hadron::library::Symbol className = parser->root().token().snippet(runtime.context());
+        buildArtifacts.setSourceFile(sourceFileSymbol);
+        buildArtifacts.setClassName(className);
+        buildArtifacts.setParseTree(parser->root());
+        artifacts = artifacts.typedAdd(runtime.context(), buildArtifacts);
 
+        hadron::library::MethodNode methodNode;
+        if (parser->root().className() == hadron::library::ClassNode::nameHash()) {
+            auto classNode = hadron::library::ClassNode(parser->root().slot());
+            methodNode = classNode.methods();
+        } else {
+            auto classExtNode = hadron::library::ClassExtNode(parser->root().slot());
+            methodNode = classExtNode.methods();
+        }
+
+        while (methodNode) {
+            buildArtifacts = hadron::library::BuildArtifacts::make(runtime.context());
+            buildArtifacts.setSourceFile(sourceFileSymbol);
+            buildArtifacts.setClassName(className);
+            buildArtifacts.setMethodName(methodNode.token().snippet(runtime.context()));
+            buildArtifacts.setParseTree(methodNode.body().toBase());
+            build(runtime.context(), buildArtifacts, FLAGS_stopAfter, errorReporter);
+            artifacts = artifacts.typedAdd(runtime.context(), buildArtifacts);
+            methodNode = hadron::library::MethodNode(methodNode.next().slot());
+        }
     } else {
         auto buildArtifacts = hadron::library::BuildArtifacts::make(runtime.context());
         buildArtifacts.setSourceFile(sourceFileSymbol);
         auto interpreterContext = runtime.context()->classLibrary->interpreterContext();
-        buildArtifacts.setParseTree(hadron::library::BlockNode(parser->root().slot()));
+        buildArtifacts.setParseTree(parser->root());
         build(runtime.context(), buildArtifacts, FLAGS_stopAfter, errorReporter);
         artifacts = artifacts.typedAdd(runtime.context(), buildArtifacts);
     }

@@ -27,7 +27,8 @@ public:
         encodeSlot(context, slot, m_doc);
 
         rapidjson::Writer<rapidjson::StringBuffer> writer(m_buffer);
-        m_doc.Accept(writer);
+        bool result = m_doc.Accept(writer);
+        assert(result);
     }
 
     std::string_view json() const { return std::string_view(m_buffer.GetString(), m_buffer.GetSize()); }
@@ -44,7 +45,8 @@ private:
 
         switch (slot.getType()) {
         case TypeFlags::kFloatFlag:
-            value = slot.getFloat();
+            // TODO: rapidjson failling to encode with values like "inf" and "NaN", restore
+            value = rapidjson::Value(); // slot.getFloat();
             break;
 
         case TypeFlags::kIntegerFlag:

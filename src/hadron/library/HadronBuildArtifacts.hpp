@@ -33,8 +33,8 @@ public:
     Symbol methodName(ThreadContext* context) const { return Symbol(context, m_instance->methodName); }
     void setMethodName(Symbol m) { m_instance->className = m.slot(); }
 
-    BlockNode parseTree() const { return BlockNode(m_instance->parseTree); }
-    void setParseTree(BlockNode p) { m_instance->parseTree = p.slot(); }
+    Node parseTree() const { return Node::wrapUnsafe(m_instance->parseTree); }
+    void setParseTree(Node p) { m_instance->parseTree = p.slot(); }
 
     BlockAST abstractSyntaxTree() const { return BlockAST(m_instance->abstractSyntaxTree); }
     void setAbstractSyntaxTree(BlockAST a) { m_instance->abstractSyntaxTree = a.slot(); }
