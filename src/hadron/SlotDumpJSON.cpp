@@ -47,13 +47,13 @@ private:
         case TypeFlags::kFloatFlag: {
             // rapidjson silently fails to encode NaN and inf doubles.
             auto dub = slot.getFloat();
-            if (isnan(dub)) {
+            if (std::isnan(dub)) {
                 value.SetObject();
                 value.AddMember("_className", rapidjson::Value("Float"), alloc);
                 value.AddMember("value", rapidjson::Value("nan"), alloc);
                 return;
             }
-            if (isinf(dub)) {
+            if (std::isinf(dub)) {
                 value.SetObject();
                 value.AddMember("_className", rapidjson::Value("Float"), alloc);
                 value.AddMember("value", rapidjson::Value("inf"), alloc);
