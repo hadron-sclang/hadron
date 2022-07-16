@@ -3,6 +3,7 @@
 
 #include "hadron/library/HadronAST.hpp"
 #include "hadron/library/HadronParseNode.hpp"
+#include "hadron/library/Kernel.hpp"
 #include "hadron/library/Object.hpp"
 #include "hadron/library/Symbol.hpp"
 #include "hadron/schema/HLang/HadronBuildArtifactsSchema.hpp"

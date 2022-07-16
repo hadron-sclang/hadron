@@ -24,24 +24,22 @@ public:
     BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter);
     ~BlockBuilder() = default;
 
-    library::CFGFrame buildMethod(ThreadContext* context, const library::Method method,
-            const library::BlockAST blockAST);
+    library::CFGFrame buildMethod(ThreadContext* context, const library::BlockAST blockAST,
+            const library::Class owningClass);
 
 private:
-    library::CFGFrame buildFrame(ThreadContext* context, const library::Method method,
-            const library::BlockAST blockAST, library::BlockLiteralHIR outerBlockHIR);
+    library::CFGFrame buildFrame(ThreadContext* context, const library::BlockAST blockAST,
+            library::BlockLiteralHIR outerBlockHIR);
 
     // Re-uses the containing stack frame but produces a new scope.
-    library::CFGScope buildInlineBlock(ThreadContext* context, const library::Method method,
-            library::CFGScope parentScope, library::CFGBlock predecessor, const library::BlockAST blockAST);
+    library::CFGScope buildInlineBlock(ThreadContext* context, library::CFGScope parentScope,
+            library::CFGBlock predecessor, const library::BlockAST blockAST);
 
-    library::HIRId buildValue(ThreadContext* context, const library::Method method, library::CFGBlock& currentBlock,
-            const library::AST ast);
-    library::HIRId buildFinalValue(ThreadContext* context, const library::Method method,
-            library::CFGBlock& currentBlock, const library::SequenceAST sequence);
-    library::HIRId buildIf(ThreadContext* context, const library::Method method, library::CFGBlock& currentBlock,
-            const library::IfAST ifAST);
-    library::HIRId buildWhile(ThreadContext* context, const library::Method method, library::CFGBlock& currentBlock,
+    library::HIRId buildValue(ThreadContext* context, library::CFGBlock& currentBlock, const library::AST ast);
+    library::HIRId buildFinalValue(ThreadContext* context, library::CFGBlock& currentBlock,
+            const library::SequenceAST sequence);
+    library::HIRId buildIf(ThreadContext* context, library::CFGBlock& currentBlock, const library::IfAST ifAST);
+    library::HIRId buildWhile(ThreadContext* context, library::CFGBlock& currentBlock,
             const library::WhileAST whileAST);
 
     // If |toWrite| is nil that means this is a read operation. Returns nil if name not found.
@@ -49,6 +47,7 @@ private:
             library::HIRId toWrite);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
+    library::Class m_owningClass;
 };
 
 } // namespace hadron

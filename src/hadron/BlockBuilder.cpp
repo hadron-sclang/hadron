@@ -19,15 +19,16 @@ namespace hadron {
 BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
     m_errorReporter(errorReporter) { }
 
-library::CFGFrame BlockBuilder::buildMethod(ThreadContext* context, const library::Method method,
-        const library::BlockAST blockAST) {
-    return buildFrame(context, method, blockAST, library::BlockLiteralHIR());
+library::CFGFrame BlockBuilder::buildMethod(ThreadContext* context, const library::BlockAST blockAST,
+        const library::Class owningClass) {
+    m_owningClass = owningClass;
+    return buildFrame(context, blockAST, library::BlockLiteralHIR());
 }
 
-library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library::Method method,
-    const library::BlockAST blockAST, library::BlockLiteralHIR outerBlockHIR) {
+library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library::BlockAST blockAST,
+        library::BlockLiteralHIR outerBlockHIR) {
     // Build outer frame, root scope, and entry block.
-    auto frame = library::CFGFrame::makeCFGFrame(context, outerBlockHIR, method);
+    auto frame = library::CFGFrame::makeCFGFrame(context, outerBlockHIR);
     auto scope = frame.rootScope();
 
     // Add arguments to the prototype frame.
@@ -44,7 +45,7 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
     frame.setNumberOfBlocks(frame.numberOfBlocks() + 1);
     auto currentBlock = scope.blocks().typedFirst();
 
-    buildFinalValue(context, method, currentBlock, blockAST.statements());
+    buildFinalValue(context, currentBlock, blockAST.statements());
 
     // We append a return statement in the final block, if one wasn't already provided.
     if (!currentBlock.hasMethodReturn()) {
@@ -54,8 +55,8 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
     return frame;
 }
 
-library::CFGScope BlockBuilder::buildInlineBlock(ThreadContext* context, const library::Method method,
-        library::CFGScope parentScope, library::CFGBlock predecessor, const library::BlockAST blockAST) {
+library::CFGScope BlockBuilder::buildInlineBlock(ThreadContext* context, library::CFGScope parentScope,
+        library::CFGBlock predecessor, const library::BlockAST blockAST) {
     auto scope = library::CFGScope::makeSubCFGScope(context, parentScope);
     auto block = library::CFGBlock::makeCFGBlock(context, scope, scope.frame().numberOfBlocks());
     block.setPredecessors(block.predecessors().typedAdd(context, predecessor));
@@ -66,13 +67,13 @@ library::CFGScope BlockBuilder::buildInlineBlock(ThreadContext* context, const l
     assert(blockAST.argumentNames().size() <= 1);
 
     auto currentBlock = block;
-    buildFinalValue(context, method, currentBlock, blockAST.statements());
+    buildFinalValue(context, currentBlock, blockAST.statements());
 
     return scope;
 }
 
-library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::Method method,
-        library::CFGBlock& currentBlock, const library::AST ast) {
+library::HIRId BlockBuilder::buildValue(ThreadContext* context, library::CFGBlock& currentBlock,
+        const library::AST ast) {
     auto nodeValue = library::HIRId();
 
     switch(ast.className()) {
@@ -84,7 +85,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::M
 
     case library::SequenceAST::nameHash(): {
         auto sequenceAST = library::SequenceAST(ast.slot());
-        nodeValue = buildFinalValue(context, method, currentBlock, sequenceAST);
+        nodeValue = buildFinalValue(context, currentBlock, sequenceAST);
         assert(nodeValue);
     } break;
 
@@ -94,19 +95,19 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::M
         auto blockHIR = library::BlockLiteralHIR::makeBlockLiteralHIR(context);
         currentBlock.frame().setInnerBlocks(currentBlock.frame().innerBlocks().typedAdd(context, blockHIR));
         nodeValue = currentBlock.append(context, blockHIR.toBase());
-        blockHIR.setFrame(buildFrame(context, method, blockAST, blockHIR));
+        blockHIR.setFrame(buildFrame(context, blockAST, blockHIR));
         assert(nodeValue);
     } break;
 
     case library::IfAST::nameHash(): {
         auto ifAST = library::IfAST(ast.slot());
-        nodeValue = buildIf(context, method, currentBlock, ifAST);
+        nodeValue = buildIf(context, currentBlock, ifAST);
         assert(nodeValue);
     } break;
 
     case library::WhileAST::nameHash(): {
         auto whileAST = library::WhileAST(ast.slot());
-        nodeValue = buildWhile(context, method, currentBlock, whileAST);
+        nodeValue = buildWhile(context, currentBlock, whileAST);
         assert(nodeValue);
     } break;
 
@@ -119,13 +120,13 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::M
         // Build arguments.
         for (int32_t i = 0; i < messageAST.arguments().sequence().size(); ++i) {
             auto argAST = library::AST::wrapUnsafe(messageAST.arguments().sequence().at(i));
-            messageHIR.addArgument(context, buildValue(context, method, currentBlock, argAST));
+            messageHIR.addArgument(context, buildValue(context, currentBlock, argAST));
         }
 
         // Build keyword argument pairs.
         for (int32_t i = 0; i < messageAST.keywordArguments().sequence().size(); ++i) {
             auto argAST = library::AST::wrapUnsafe(messageAST.keywordArguments().sequence().at(i));
-            messageHIR.addKeywordArgument(context, buildValue(context, method, currentBlock, argAST));
+            messageHIR.addKeywordArgument(context, buildValue(context, currentBlock, argAST));
         }
 
         nodeValue = currentBlock.append(context, messageHIR.toBase());
@@ -142,7 +143,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::M
 
     case library::AssignAST::nameHash(): {
         auto assignAST = library::AssignAST(ast.slot());
-        nodeValue = buildValue(context, method, currentBlock, assignAST.value());
+        nodeValue = buildValue(context, currentBlock, assignAST.value());
         assert(nodeValue);
 
         auto assign = findName(context, assignAST.name(context), currentBlock, nodeValue);
@@ -170,7 +171,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::M
             // Complex value, assign nil as the prototype value, then create a write statement here to that offset.
             currentBlock.frame().setPrototypeFrame(currentBlock.frame().prototypeFrame().add(context, Slot::makeNil()));
 
-            nodeValue = buildValue(context, method, currentBlock, defineAST.value());
+            nodeValue = buildValue(context, currentBlock, defineAST.value());
             auto assign = findName(context, defineAST.name(context), currentBlock, nodeValue);
             assert(assign);
         }
@@ -186,7 +187,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::M
 
     case library::MethodReturnAST::nameHash(): {
         auto retAST = library::MethodReturnAST(ast.slot());
-        nodeValue = buildValue(context, method, currentBlock, retAST.value());
+        nodeValue = buildValue(context, currentBlock, retAST.value());
         assert(nodeValue);
 
         currentBlock.append(context, library::StoreReturnHIR::makeStoreReturnHIR(context, nodeValue).toBase());
@@ -196,7 +197,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::M
     case library::MultiAssignAST::nameHash(): {
         auto multiAssignAST = library::MultiAssignAST(ast.slot());
         // Final value of multiAssign statements is the array-like type returned by the expression.
-        nodeValue = buildValue(context, method, currentBlock, multiAssignAST.arrayValue());
+        nodeValue = buildValue(context, currentBlock, multiAssignAST.arrayValue());
         assert(nodeValue);
 
         // Each assignment is now translated into a name = nodeValue.at(i) message call.
@@ -228,14 +229,14 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::M
     return nodeValue;
 }
 
-library::HIRId BlockBuilder::buildFinalValue(ThreadContext* context, const library::Method method,
-        library::CFGBlock& currentBlock, const library::SequenceAST sequenceAST) {
+library::HIRId BlockBuilder::buildFinalValue(ThreadContext* context, library::CFGBlock& currentBlock,
+        const library::SequenceAST sequenceAST) {
     auto finalValue = library::HIRId();
 
     if (sequenceAST.sequence().size()) {
         for (int32_t i = 0; i < sequenceAST.sequence().size(); ++i) {
             auto ast = library::AST::wrapUnsafe(sequenceAST.sequence().at(i));
-            finalValue = buildValue(context, method, currentBlock, ast);
+            finalValue = buildValue(context, currentBlock, ast);
             currentBlock.setFinalValue(finalValue);
 
             // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
@@ -251,10 +252,10 @@ library::HIRId BlockBuilder::buildFinalValue(ThreadContext* context, const libra
     return finalValue;
 }
 
-library::HIRId BlockBuilder::buildIf(ThreadContext* context, library::Method method, library::CFGBlock& currentBlock,
+library::HIRId BlockBuilder::buildIf(ThreadContext* context, library::CFGBlock& currentBlock,
         const library::IfAST ifAST) {
     // Compute final value of the condition.
-    auto condition = buildFinalValue(context, method, currentBlock, ifAST.condition());
+    auto condition = buildFinalValue(context, currentBlock, ifAST.condition());
 
     // Add branch to the true block if the condition is true.
     auto trueBranch = library::BranchIfTrueHIR::makeBranchIfTrueHIR(context, condition);
@@ -269,13 +270,13 @@ library::HIRId BlockBuilder::buildIf(ThreadContext* context, library::Method met
     library::CFGBlock conditionBlock = currentBlock;
 
     // Build the true condition block.
-    auto trueScope = buildInlineBlock(context, method, parentScope, conditionBlock, ifAST.trueBlock());
+    auto trueScope = buildInlineBlock(context, parentScope, conditionBlock, ifAST.trueBlock());
     parentScope.setSubScopes(parentScope.subScopes().typedAdd(context, trueScope));
     trueBranch.setBlockId(trueScope.blocks().typedFirst().id());
     conditionBlock.setSuccessors(conditionBlock.successors().typedAdd(context, trueScope.blocks().typedFirst()));
 
     // Build the false condition block.
-    auto falseScope = buildInlineBlock(context, method, parentScope, conditionBlock, ifAST.falseBlock());
+    auto falseScope = buildInlineBlock(context, parentScope, conditionBlock, ifAST.falseBlock());
     parentScope.setSubScopes(parentScope.subScopes().typedAdd(context, falseScope));
     falseBranch.setBlockId(falseScope.blocks().typedFirst().id());
     conditionBlock.setSuccessors(conditionBlock.successors().typedAdd(context, falseScope.blocks().typedFirst()));
@@ -334,12 +335,12 @@ library::HIRId BlockBuilder::buildIf(ThreadContext* context, library::Method met
     return nodeValue;
 }
 
-library::HIRId BlockBuilder::buildWhile(ThreadContext* context, const library::Method method,
-        library::CFGBlock& currentBlock, const library::WhileAST whileAST) {
+library::HIRId BlockBuilder::buildWhile(ThreadContext* context, library::CFGBlock& currentBlock,
+        const library::WhileAST whileAST) {
     auto parentScope = currentBlock.scope();
 
     // Build condition block. Note this block is unsealed.
-    auto conditionScope = buildInlineBlock(context, method, parentScope, currentBlock, whileAST.conditionBlock());
+    auto conditionScope = buildInlineBlock(context, parentScope, currentBlock, whileAST.conditionBlock());
     auto conditionEntryBlock = conditionScope.blocks().typedFirst();
     parentScope.setSubScopes(parentScope.subScopes().typedAdd(context, conditionScope));
 
@@ -351,7 +352,7 @@ library::HIRId BlockBuilder::buildWhile(ThreadContext* context, const library::M
     auto conditionExitBlock = conditionScope.blocks().typedLast();
 
     // Build repeat block.
-    auto repeatScope = buildInlineBlock(context, method, parentScope, conditionExitBlock, whileAST.repeatBlock());
+    auto repeatScope = buildInlineBlock(context, parentScope, conditionExitBlock, whileAST.repeatBlock());
     parentScope.setSubScopes(parentScope.subScopes().typedAdd(context, repeatScope));
     auto repeatExitBlock = repeatScope.blocks().typedLast();
 
@@ -445,7 +446,7 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
     } while (true);
 
     // Search instance variables next.
-    library::Class classDef = block.frame().method().ownerClass();
+    library::Class classDef = m_owningClass;
     auto instVarIndex = classDef.instVarNames().indexOf(name);
     if (instVarIndex) {
         // Go find the this pointer.

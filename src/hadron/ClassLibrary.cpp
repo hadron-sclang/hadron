@@ -319,7 +319,7 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         assert(astIter != classASTs->second->end());
 
         BlockBuilder blockBuilder(m_errorReporter);
-        auto frame = blockBuilder.buildMethod(context, method, astIter->second);
+        auto frame = blockBuilder.buildMethod(context, astIter->second, classDef);
         if (!frame) { return false; }
 
         // TODO: Here's where we could extract some message signatures and compute dependencies, to decide on final
