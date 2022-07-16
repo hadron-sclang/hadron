@@ -1,5 +1,7 @@
 // dump-diag, utility to print compilation diagnostics to stdout in JSON.
 #include "hadron/ASTBuilder.hpp"
+#include "hadron/BlockBuilder.hpp"
+#include "hadron/BlockSerializer.hpp"
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/internal/FileSystem.hpp"
@@ -41,6 +43,9 @@ void build(hadron::ThreadContext* context, hadron::library::BuildArtifacts build
             hadron::library::BlockNode(buildArtifacts.parseTree().slot())));
 
     if (stopAfter < 3) { return; }
+    hadron::BlockBuilder blockBuilder(errorReporter);
+
+
 }
 
 int main(int argc, char* argv[]) {
@@ -51,6 +56,12 @@ int main(int argc, char* argv[]) {
     hadron::Runtime runtime(errorReporter);
     if (!runtime.initInterpreter()) {
         return -1;
+    }
+
+    if (FLAGS_stopAfter > 2) {
+        if (!runtime.compileClassLibrary()) {
+            return -1;
+        }
     }
 
     if (FLAGS_dumpClassArray) {

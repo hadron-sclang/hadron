@@ -38,6 +38,9 @@ public:
 
     BlockAST abstractSyntaxTree() const { return BlockAST(m_instance->abstractSyntaxTree); }
     void setAbstractSyntaxTree(BlockAST a) { m_instance->abstractSyntaxTree = a.slot(); }
+
+    CFGFrame controlFlowGraph() const { return CFGFrame(m_instance->controlFlowGraph); }
+    void setControlFlowGraph(CFGFrame f) { m_instance->controlFlowGraph = f.slot(); }
 };
 
 } // namespace library
