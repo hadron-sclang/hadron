@@ -83,6 +83,19 @@ public:
         auto index = array().atIdentityHashInPairs(key);
         return array().at(index + 1);
     }
+
+    // Useful for iterating over contents by giving the keys. If |key| is nil, returns the *first* item in the array
+    // or nil in an empty IdentityDictionary.
+    Slot nextKey(Slot key) {
+        int32_t index = key ? array().atIdentityHashInPairs(key) + 2 : 0;
+        auto nextKey = Slot::makeNil();
+        while (!nextKey && index < array().size()) {
+            nextKey = array().at(index);
+            index += 2;
+        }
+
+        return nextKey;
+    }
 };
 
 template<typename K, typename V>

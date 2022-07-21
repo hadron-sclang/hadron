@@ -13,6 +13,7 @@
 #include "hadron/Parser.hpp"
 #include "hadron/Runtime.hpp"
 #include "hadron/SlotDumpJSON.hpp"
+#include "hadron/SlotDumpSCLang.hpp"
 #include "hadron/SourceFile.hpp"
 #include "hadron/ThreadContext.hpp"
 
@@ -24,6 +25,7 @@
 
 DEFINE_string(sourceFile, "", "Path to the source code file to process.");
 DEFINE_bool(dumpClassArray, false, "Dump the compiled class library data structures, then exit.");
+DEFINE_bool(dumpSCLang, false, "If true, dump sclang code. If false, dump JSON.");
 DEFINE_int32(stopAfter, 7, "Stop compilation after phase, a number from 1-7. Compilation phases are: \n"
                            "    1: parse\n"
                            "    2: ast\n"
@@ -43,9 +45,14 @@ void build(hadron::ThreadContext* context, hadron::library::BuildArtifacts build
             hadron::library::BlockNode(buildArtifacts.parseTree().slot())));
 
     if (stopAfter < 3) { return; }
+
+    auto classDef = context->classLibrary->findClassNamed(buildArtifacts.className(context));
+    assert(classDef);
+    if (!classDef) { return; }
     hadron::BlockBuilder blockBuilder(errorReporter);
-
-
+    buildArtifacts.setControlFlowGraph(blockBuilder.buildMethod(context,
+            buildArtifacts.abstractSyntaxTree(), classDef));
+    assert(buildArtifacts.controlFlowGraph());
 }
 
 int main(int argc, char* argv[]) {
@@ -130,15 +137,18 @@ int main(int argc, char* argv[]) {
     } else {
         auto buildArtifacts = hadron::library::BuildArtifacts::make(runtime.context());
         buildArtifacts.setSourceFile(sourceFileSymbol);
-        auto interpreterContext = runtime.context()->classLibrary->interpreterContext();
         buildArtifacts.setParseTree(parser->root());
         build(runtime.context(), buildArtifacts, FLAGS_stopAfter, errorReporter);
         artifacts = artifacts.typedAdd(runtime.context(), buildArtifacts);
     }
 
-    auto dump = hadron::SlotDumpJSON();
-    dump.dump(runtime.context(), artifacts.slot());
-    std::cout << dump.json() << std::endl;
+    if (FLAGS_dumpSCLang) {
+        hadron::SlotDumpSCLang::dump(runtime.context(), artifacts.slot(), std::cout);
+    } else {
+        auto dump = hadron::SlotDumpJSON();
+        dump.dump(runtime.context(), artifacts.slot());
+        std::cout << dump.json() << std::endl;
+    }
 
     return 0;
 }

@@ -58,6 +58,15 @@ HadronVisualizer {
 				commandLine.unixCmd({}, false);
 				indexFile.write("  <h3>abstract syntax tree</h3>\n  <img src=\"%\"/>\n".format(astBase ++ ".svg"));
 			});
+
+			if (stopAfterStage > stageNames.at(\abstractSyntaxTree) and: { artifact.controlFlowGraph.notNil }, {
+				var commandLine, cfgBase;
+				cfgBase = outputDir +/+ "cfg_" ++ HadronVisualizer.idString(artifact.controlFlowGraph);
+				File.use(cfgBase ++ ".dot", "w", { |f| f.write(artifact.controlFlowGraph.asDotGraph); });
+				commandLine = dotPath ++ " -Tsvg -o% %".format(cfgBase ++ ".svg", cfgBase ++ ".dot");
+				commandLine.unixCmd({}, false);
+				indexFile.write("  <h3>control flow graph</h3>\n  <img src=\"%\"/>\n".format(cfgBase ++ ".svg"));
+			});
 		});
 
 		indexFile.write(

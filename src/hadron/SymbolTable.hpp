@@ -25,6 +25,7 @@ public:
 
     // String can be nil if hash not found.
     library::String getString(const library::Symbol s);
+    library::String getString(Hash h);
 
     // 'add'
     inline library::Symbol addSymbol() const { return m_add; }

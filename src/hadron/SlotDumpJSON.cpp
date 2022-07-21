@@ -156,6 +156,44 @@ private:
             return;
         }
 
+        if (slotObject.className() == library::IdentityDictionary::nameHash()) {
+            rapidjson::Value elements;
+            elements.SetArray();
+            auto identityDict = library::IdentityDictionary(slot);
+            Slot key = identityDict.nextKey(Slot::makeNil());
+            while (key) {
+                Slot value = identityDict.get(key);
+                assert(value);
+                rapidjson::Value keyValPair;
+                keyValPair.SetObject();
+                rapidjson::Value keyJson;
+                encodeSlot(context, key, keyJson);
+                keyValPair.AddMember("_key", keyJson, alloc);
+                rapidjson::Value valueJson;
+                encodeSlot(context, value, valueJson);
+                keyValPair.AddMember("_value", valueJson, alloc);
+                elements.PushBack(keyValPair, alloc);
+                key = identityDict.nextKey(key);
+            }
+            value.AddMember("_elements", elements, alloc);
+            return;
+        }
+
+        if (slotObject.className() == library::IdentitySet::nameHash()) {
+            rapidjson::Value setElements;
+            setElements.SetArray();
+            auto identitySet = library::IdentitySet(slot);
+            Slot item = identitySet.next(Slot::makeNil());
+            while (item) {
+                rapidjson::Value element;
+                encodeSlot(context, item, element);
+                setElements.PushBack(element, alloc);
+                item = identitySet.next(item);
+            }
+            value.AddMember("_elements", setElements, alloc);
+            return;
+        }
+
         if (slotObject.className() == library::Int8Array::nameHash()) {
             rapidjson::Value arrayElements;
             arrayElements.SetArray();

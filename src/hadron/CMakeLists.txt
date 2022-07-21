@@ -254,6 +254,8 @@ add_library(hadron STATIC
     Runtime.hpp
     SlotDumpJSON.cpp
     SlotDumpJSON.hpp
+    SlotDumpSCLang.cpp
+    SlotDumpSCLang.hpp
     SymbolTable.cpp
     SymbolTable.hpp
     ThreadContext.hpp

@@ -273,7 +273,7 @@ def buildControlFlow(outFile, rootFrame, outputDir, name, num):
     dotFile.write('digraph HadronControlFlow {\n  graph [fontname=helvetica];\n  node [fontname=helvetica];\n')
     saveScope(rootFrame['rootScope'], dotFile, '')
     # For whatever reason the connections between blocks have to all be specified at highest level scope, or some blocks
-    # will end up in the wrong subframes. So we do a separate pass just to enumerate the connections.
+    # will end up in the wrong subframes. So we do a separate pass just to enumerate the connections.   
     saveBlockGraph(rootFrame['rootScope'], dotFile, '')
     dotFile.write('}\n')
     dotFile.close()

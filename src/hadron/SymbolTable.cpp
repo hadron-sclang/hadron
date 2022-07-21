@@ -54,7 +54,11 @@ Hash SymbolTable::addSymbol(library::String s) {
 }
 
 library::String SymbolTable::getString(library::Symbol s) {
-    auto mapIter = m_symbolMap.find(s.hash());
+    return getString(s.hash());
+}
+
+library::String SymbolTable::getString(Hash h) {
+    auto mapIter = m_symbolMap.find(h);
     if (mapIter == m_symbolMap.end()) {
         assert(false);
         return library::String();
