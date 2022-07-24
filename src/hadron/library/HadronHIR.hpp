@@ -63,15 +63,6 @@ public:
         t.m_instance->consumers = c.slot();
     }
 
-    CFGBlock owningBlock() const {
-        const T& t = static_cast<const T&>(*this);
-        return CFGBlock(t.m_instance->owningBlock);
-    }
-    void setOwningBlock(CFGBlock b) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->owningBlock = b.slot();
-    }
-
 protected:
     void initBase(ThreadContext* context, TypeFlags flags) {
         T& t = static_cast<T&>(*this);

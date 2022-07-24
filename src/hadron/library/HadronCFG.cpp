@@ -27,7 +27,7 @@ HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
         frame().setValues(frame().values().typedAdd(context, hir));
     }
 
-    hir.setOwningBlock(*this);
+//    hir.setOwningBlock(*this);
 
     // Update the producers of values this hir consumes.
     if (hir.reads().size()) {

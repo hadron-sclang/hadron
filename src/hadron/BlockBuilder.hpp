@@ -8,6 +8,7 @@
 #include "hadron/library/Symbol.hpp"
 
 #include <memory>
+#include <vector>
 
 namespace hadron {
 
@@ -29,7 +30,7 @@ public:
 
 private:
     library::CFGFrame buildFrame(ThreadContext* context, const library::BlockAST blockAST,
-            library::BlockLiteralHIR outerBlockHIR);
+            std::vector<library::CFGFrame>& outerFrames);
 
     // Re-uses the containing stack frame but produces a new scope.
     library::CFGScope buildInlineBlock(ThreadContext* context, library::CFGScope parentScope,

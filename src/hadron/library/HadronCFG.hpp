@@ -12,223 +12,39 @@ namespace library {
 
 /*
  * Dependency graph of the various CFG objects and HIR:
- *
- *      /-----------------\
- *      |                 |
- *      v                 |
- *  +----------+      +----------+
- *  | CFGScope |----->| CFGFrame |
- *  +----------+      +----------+
- *       |  ^          ^  |  ^
- *       |  |          |  |  |
- *       |  | /--------/  |  |
- *       v  | |           v  |
- *  +----------+      +-------+
- *  | CFGBlock |----->| HIR   |
- *  +----------+      +-------+
- *       ^               |
- *       |               |
- *       \---------------/
- *
- * Using the CRTP prevents easy forward declaration of classes, making cyclical dependencies like this difficult to
- * resolve. The answer must be more templates!
+ * +----------+
+ * | CFGFrame |
+ * +----------+
+ *      |
+ *      |
+ *      V
+ * +---------+
+ * | CFGCope |
+ * +---------+
+ *      |
+ *      |
+ *      V
+ * +----------+
+ * | CFGBlock |
+ * +----------+
+ *      |
+ *      V
+ *   +-----+
+ *   | HIR |
+ *   +-----+
  */
 
-template<typename T, typename FrameT, typename BlockT>
-class CFGScopeT : public Object<T, schema::HadronCFGScopeSchema> {
+class CFGBlock : public Object<CFGBlock, schema::HadronCFGBlockSchema> {
 public:
-    CFGScopeT(): Object<T, schema::HadronCFGScopeSchema>() {}
-    explicit CFGScopeT(schema::HadronCFGScopeSchema* instance): Object<T, schema::HadronCFGScopeSchema>(instance) {}
-    explicit CFGScopeT(Slot instance): Object<T, schema::HadronCFGScopeSchema>(instance) {}
-    ~CFGScopeT() {}
+    CFGBlock(): Object<CFGBlock, schema::HadronCFGBlockSchema>() {}
+    explicit CFGBlock(schema::HadronCFGBlockSchema* instance):
+            Object<CFGBlock, schema::HadronCFGBlockSchema>(instance) {}
+    explicit CFGBlock(Slot instance): Object<CFGBlock, schema::HadronCFGBlockSchema>(instance) {}
+    ~CFGBlock() {}
 
-    static T makeRootCFGScope(ThreadContext* context, FrameT owningFrame) {
-        auto scope = T::alloc(context);
-        scope.initToNil();
-        scope.setFrame(owningFrame);
-        scope.setFrameIndex(0);
-        scope.setValueIndices(TypedIdentDict<Symbol, Integer>::makeTypedIdentDict(context));
-        return scope;
-    }
-
-    static T makeSubCFGScope(ThreadContext* context, T parentScope) {
-        auto scope = T::alloc(context);
-        scope.initToNil();
-        scope.setFrame(parentScope.frame());
-        scope.setParent(parentScope);
-        scope.setFrameIndex(0);
-        scope.setValueIndices(TypedIdentDict<Symbol, Integer>::makeTypedIdentDict(context));
-        return scope;
-    }
-
-    FrameT frame() const {
-        const T& t = static_cast<const T&>(*this);
-        return FrameT(t.m_instance->frame);
-    }
-    void setFrame(FrameT f) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->frame = f.slot();
-    }
-
-    T parent() const {
-        const T& t = static_cast<const T&>(*this);
-        return T(t.m_instance->parent);
-    }
-    void setParent(CFGScopeT p) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->parent = p.slot();
-    }
-
-    TypedArray<BlockT> blocks() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<BlockT>(t.m_instance->blocks);
-    }
-    void setBlocks(TypedArray<BlockT> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->blocks = a.slot();
-    }
-
-    TypedArray<T> subScopes() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<T>(t.m_instance->subScopes);
-    }
-    void setSubScopes(TypedArray<T> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->subScopes = a.slot();
-    }
-
-    int32_t frameIndex() const {
-        const T& t = static_cast<const T&>(*this);
-        return t.m_instance->frameIndex.getInt32();
-    }
-    void setFrameIndex(int32_t i) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->frameIndex = Slot::makeInt32(i);
-    }
-
-    TypedIdentDict<Symbol, Integer> valueIndices() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedIdentDict<Symbol, Integer>(t.m_instance->valueIndices);
-    }
-    void setValueIndices(TypedIdentDict<Symbol, Integer> tid) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->valueIndices = tid.slot();
-    }
-};
-
-template<typename T, typename ScopeT, typename HIRT, typename BlockLiteralHIRT>
-class CFGFrameT : public Object<T, schema::HadronCFGFrameSchema> {
-public:
-    CFGFrameT(): Object<T, schema::HadronCFGFrameSchema>() {}
-    explicit CFGFrameT(schema::HadronCFGFrameSchema* instance): Object<T, schema::HadronCFGFrameSchema>(instance) {}
-    explicit CFGFrameT(Slot instance): Object<T, schema::HadronCFGFrameSchema>(instance) {}
-    ~CFGFrameT() {}
-
-    static T makeCFGFrame(ThreadContext* context, BlockLiteralHIRT outerBlock) {
-        auto frame = T::alloc(context);
-        frame.initToNil();
-        frame.setOuterBlockHIR(outerBlock);
-        frame.setHasVarArgs(false);
-        frame.setRootScope(ScopeT::makeRootCFGScope(context, frame));
-        frame.setNumberOfBlocks(0);
-        return frame;
-    }
-
-    BlockLiteralHIRT outerBlockHIR() const {
-        const T& t = static_cast<const T&>(*this);
-        return BlockLiteralHIRT(t.m_instance->outerBlockHIR);
-    }
-    void setOuterBlockHIR(BlockLiteralHIRT b) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->outerBlockHIR = b.slot();
-    }
-
-    bool hasVarArgs() const {
-        const T& t = static_cast<const T&>(*this);
-        return t.m_instance->hasVarArgs.getBool();
-    }
-    void setHasVarArgs(bool b) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->hasVarArgs = Slot::makeBool(b);
-    }
-
-    SymbolArray variableNames() const {
-        const T& t = static_cast<const T&>(*this);
-        return SymbolArray(t.m_instance->variableNames);
-    }
-    void setVariableNames(SymbolArray a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->variableNames = a.slot();
-    }
-
-    Array prototypeFrame() const {
-        const T& t = static_cast<const T&>(*this);
-        return Array(t.m_instance->prototypeFrame);
-    }
-    void setPrototypeFrame(Array a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->prototypeFrame = a.slot();
-    }
-
-    TypedArray<BlockLiteralHIRT> innerBlocks() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<BlockLiteralHIRT>(t.m_instance->innerBlocks);
-    }
-    void setInnerBlocks(TypedArray<BlockLiteralHIRT> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->innerBlocks = a.slot();
-    }
-
-    FunctionDefArray selectors() const {
-        const T& t = static_cast<const T&>(*this);
-        return FunctionDefArray(t.m_instance->selectors);
-    }
-    void setSelectors(FunctionDefArray a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->selectors = a.slot();
-    }
-
-    ScopeT rootScope() const {
-        const T& t = static_cast<const T&>(*this);
-        return ScopeT(t.m_instance->rootScope);
-    }
-    void setRootScope(ScopeT s) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->rootScope = s.slot();
-    }
-
-    TypedArray<HIRT> values() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<HIRT>(t.m_instance->values);
-    }
-    void setValues(TypedArray<HIRT> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->values = a.slot();
-    }
-
-    int32_t numberOfBlocks() const {
-        const T& t = static_cast<const T&>(*this);
-        return t.m_instance->numberOfBlocks.getInt32();
-    }
-    void setNumberOfBlocks(int32_t n) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->numberOfBlocks = Slot::makeInt32(n);
-    }
-};
-
-template<typename T, typename FrameT, typename ScopeT, typename PhiHIRT, typename HIRT>
-class CFGBlockT : public Object<T, schema::HadronCFGBlockSchema> {
-public:
-    CFGBlockT(): Object<T, schema::HadronCFGBlockSchema>() {}
-    explicit CFGBlockT(schema::HadronCFGBlockSchema* instance): Object<T, schema::HadronCFGBlockSchema>(instance) {}
-    explicit CFGBlockT(Slot instance): Object<T, schema::HadronCFGBlockSchema>(instance) {}
-    ~CFGBlockT() {}
-
-    static T makeCFGBlock(ThreadContext* context, ScopeT scope, int32_t blockId) {
-        auto block = T::alloc(context);
+    static CFGBlock makeCFGBlock(ThreadContext* context, int32_t blockId) {
+        auto block = CFGBlock::alloc(context);
         block.initToNil();
-        block.setScope(scope);
-        block.setFrame(scope.frame());
         block.setId(blockId);
         block.setHasMethodReturn(false);
         block.setConstantValues(TypedIdentDict<Slot, HIRId>::makeTypedIdentDict(context));
@@ -236,32 +52,11 @@ public:
         return block;
     }
 
-    ScopeT scope() const {
-        const T& t = static_cast<const T&>(*this);
-        return ScopeT(t.m_instance->scope);
-    }
-    void setScope(ScopeT s) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->scope = s.slot();
-    }
+    // Adds hir to |statements| or |exitStatements|, returns assigned id.
+    HIRId append(ThreadContext* context, HIR hir);
 
-    FrameT frame() const {
-        const T& t = static_cast<const T&>(*this);
-        return FrameT(t.m_instance->frame);
-    }
-    void setFrame(FrameT f) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->frame = f.slot();
-    }
-
-    int32_t id() const {
-        const T& t = static_cast<const T&>(*this);
-        return t.m_instance->id.getInt32();
-    }
-    void setId(int32_t i) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->id = Slot::makeInt32(i);
-    }
+    int32_t id() const { return m_instance->id.getInt32(); }
+    void setId(int32_t i) { m_instance->id = Slot::makeInt32(i); }
 
     TypedArray<T> predecessors() const {
         const T& t = static_cast<const T&>(*this);
@@ -363,38 +158,187 @@ public:
     }
 };
 
-class CFGFrame;
-class CFGBlock;
-class CFGScope : public CFGScopeT<CFGScope, CFGFrame, CFGBlock> {
+
+
+class CFGScope : public Object<CFGScope, schema::HadronCFGScopeSchema> {
 public:
-    CFGScope(): CFGScopeT<CFGScope, CFGFrame, CFGBlock>() {}
-    explicit CFGScope(schema::HadronCFGScopeSchema* instance): CFGScopeT<CFGScope, CFGFrame, CFGBlock>(instance) {}
-    explicit CFGScope(Slot instance): CFGScopeT<CFGScope, CFGFrame, CFGBlock>(instance) {}
-    ~CFGScope() {}
+    CFGScopeT(): Object<T, schema::HadronCFGScopeSchema>() {}
+    explicit CFGScopeT(schema::HadronCFGScopeSchema* instance): Object<T, schema::HadronCFGScopeSchema>(instance) {}
+    explicit CFGScopeT(Slot instance): Object<T, schema::HadronCFGScopeSchema>(instance) {}
+    ~CFGScopeT() {}
+
+    static T makeRootCFGScope(ThreadContext* context, FrameT owningFrame) {
+        auto scope = T::alloc(context);
+        scope.initToNil();
+        scope.setFrame(owningFrame);
+        scope.setFrameIndex(0);
+        scope.setValueIndices(TypedIdentDict<Symbol, Integer>::makeTypedIdentDict(context));
+        return scope;
+    }
+
+    static T makeSubCFGScope(ThreadContext* context, T parentScope) {
+        auto scope = T::alloc(context);
+        scope.initToNil();
+        scope.setFrame(parentScope.frame());
+        scope.setParent(parentScope);
+        scope.setFrameIndex(0);
+        scope.setValueIndices(TypedIdentDict<Symbol, Integer>::makeTypedIdentDict(context));
+        return scope;
+    }
+
+    FrameT frame() const {
+        const T& t = static_cast<const T&>(*this);
+        return FrameT(t.m_instance->frame);
+    }
+    void setFrame(FrameT f) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->frame = f.slot();
+    }
+
+    T parent() const {
+        const T& t = static_cast<const T&>(*this);
+        return T(t.m_instance->parent);
+    }
+    void setParent(CFGScopeT p) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->parent = p.slot();
+    }
+
+    TypedArray<BlockT> blocks() const {
+        const T& t = static_cast<const T&>(*this);
+        return TypedArray<BlockT>(t.m_instance->blocks);
+    }
+    void setBlocks(TypedArray<BlockT> a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->blocks = a.slot();
+    }
+
+    TypedArray<T> subScopes() const {
+        const T& t = static_cast<const T&>(*this);
+        return TypedArray<T>(t.m_instance->subScopes);
+    }
+    void setSubScopes(TypedArray<T> a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->subScopes = a.slot();
+    }
+
+    int32_t frameIndex() const {
+        const T& t = static_cast<const T&>(*this);
+        return t.m_instance->frameIndex.getInt32();
+    }
+    void setFrameIndex(int32_t i) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->frameIndex = Slot::makeInt32(i);
+    }
+
+    TypedIdentDict<Symbol, Integer> valueIndices() const {
+        const T& t = static_cast<const T&>(*this);
+        return TypedIdentDict<Symbol, Integer>(t.m_instance->valueIndices);
+    }
+    void setValueIndices(TypedIdentDict<Symbol, Integer> tid) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->valueIndices = tid.slot();
+    }
 };
 
-class HIR;
-class BlockLiteralHIR;
-class CFGFrame : public CFGFrameT<CFGFrame, CFGScope, HIR, BlockLiteralHIR> {
+class CFGFrame : public Object<CFGFrame, schema::HadronCFGFrameSchema> {
 public:
-    CFGFrame(): CFGFrameT<CFGFrame, CFGScope, HIR, BlockLiteralHIR>() {}
+    CFGFrame(): Object<CFGFrame, schema::HadronCFGFrameSchema>() {}
     explicit CFGFrame(schema::HadronCFGFrameSchema* instance):
-            CFGFrameT<CFGFrame, CFGScope, HIR, BlockLiteralHIR>(instance) {}
-    explicit CFGFrame(Slot instance): CFGFrameT<CFGFrame, CFGScope, HIR, BlockLiteralHIR>(instance) {}
+            Object<CFGFrame, schema::HadronCFGFrameSchema>(instance) {}
+    explicit CFGFrame(Slot instance): Object<CFGFrame, schema::HadronCFGFrameSchema>(instance) {}
     ~CFGFrame() {}
-};
 
-class PhiHIR;
-class CFGBlock : public CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR> {
-public:
-    CFGBlock(): CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>() {}
-    explicit CFGBlock(schema::HadronCFGBlockSchema* instance):
-            CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>(instance) {}
-    explicit CFGBlock(Slot instance): CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>(instance) {}
-    ~CFGBlock() {}
+    static CFGFrame makeCFGFrame(ThreadContext* context) {
+        auto frame = CFGrame::alloc(context);
+        frame.initToNil();
+        frame.setOuterBlockHIR(outerBlock);
+        frame.setHasVarArgs(false);
+        frame.setRootScope(ScopeT::makeRootCFGScope(context, frame));
+        frame.setNumberOfBlocks(0);
+        return frame;
+    }
 
-    // Adds hir to |statements| or |exitStatements|, returns assigned id.
-    HIRId append(ThreadContext* context, HIR hir);
+    BlockLiteralHIRT outerBlockHIR() const {
+        const T& t = static_cast<const T&>(*this);
+        return BlockLiteralHIRT(t.m_instance->outerBlockHIR);
+    }
+    void setOuterBlockHIR(BlockLiteralHIRT b) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->outerBlockHIR = b.slot();
+    }
+
+    bool hasVarArgs() const {
+        const T& t = static_cast<const T&>(*this);
+        return t.m_instance->hasVarArgs.getBool();
+    }
+    void setHasVarArgs(bool b) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->hasVarArgs = Slot::makeBool(b);
+    }
+
+    SymbolArray variableNames() const {
+        const T& t = static_cast<const T&>(*this);
+        return SymbolArray(t.m_instance->variableNames);
+    }
+    void setVariableNames(SymbolArray a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->variableNames = a.slot();
+    }
+
+    Array prototypeFrame() const {
+        const T& t = static_cast<const T&>(*this);
+        return Array(t.m_instance->prototypeFrame);
+    }
+    void setPrototypeFrame(Array a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->prototypeFrame = a.slot();
+    }
+
+    TypedArray<BlockLiteralHIRT> innerBlocks() const {
+        const T& t = static_cast<const T&>(*this);
+        return TypedArray<BlockLiteralHIRT>(t.m_instance->innerBlocks);
+    }
+    void setInnerBlocks(TypedArray<BlockLiteralHIRT> a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->innerBlocks = a.slot();
+    }
+
+    FunctionDefArray selectors() const {
+        const T& t = static_cast<const T&>(*this);
+        return FunctionDefArray(t.m_instance->selectors);
+    }
+    void setSelectors(FunctionDefArray a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->selectors = a.slot();
+    }
+
+    ScopeT rootScope() const {
+        const T& t = static_cast<const T&>(*this);
+        return ScopeT(t.m_instance->rootScope);
+    }
+    void setRootScope(ScopeT s) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->rootScope = s.slot();
+    }
+
+    TypedArray<HIRT> values() const {
+        const T& t = static_cast<const T&>(*this);
+        return TypedArray<HIRT>(t.m_instance->values);
+    }
+    void setValues(TypedArray<HIRT> a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->values = a.slot();
+    }
+
+    int32_t numberOfBlocks() const {
+        const T& t = static_cast<const T&>(*this);
+        return t.m_instance->numberOfBlocks.getInt32();
+    }
+    void setNumberOfBlocks(int32_t n) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->numberOfBlocks = Slot::makeInt32(n);
+    }
 };
 
 } // namespace library

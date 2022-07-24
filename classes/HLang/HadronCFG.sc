@@ -54,14 +54,10 @@ HadronCFGFrame {
 }
 
 HadronCFGScope {
-	// The HadronCFGFrame that contains this scope.
-	var <>frame;
-	// Parent scope of this scope, or nil if this is the root scope.
-	var <>parent;
-	// An Array of HadronCFGBlock instances contained by this scope.
-	var <>blocks;
 	// An Array of HadronCFGScope instances contained by this scope.
 	var <>subScopes;
+	// An Array of HadronCFGBlock instances contained by this scope.
+	var <>blocks;
 	// The index in the HadronCFGFrame prototypeFrame array of the first local variable defined in this scope.
 	var <>frameIndex;
 	// An IdentityDictionary of names to index for quick membership lookup.
@@ -108,10 +104,6 @@ HadronCFGScope {
 }
 
 HadronCFGBlock {
-	// The HadronCFGScope that owns this block.
-	var <>scope;
-	// The top-level HadronCFGFrame.
-	var <>frame;
 	var <>id;
 	// Blocks that may branch to this block.
 	var <>predecessors;

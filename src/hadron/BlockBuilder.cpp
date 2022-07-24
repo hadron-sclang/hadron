@@ -22,13 +22,14 @@ BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
 library::CFGFrame BlockBuilder::buildMethod(ThreadContext* context, const library::BlockAST blockAST,
         const library::Class owningClass) {
     m_owningClass = owningClass;
-    return buildFrame(context, blockAST, library::BlockLiteralHIR());
+    std::vector<library::CFGFrame> outerFrames;
+    return buildFrame(context, blockAST, outerFrames);
 }
 
 library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library::BlockAST blockAST,
-        library::BlockLiteralHIR outerBlockHIR) {
+        std::vector<library::CFGFrame>& outerFrames) {
     // Build outer frame, root scope, and entry block.
-    auto frame = library::CFGFrame::makeCFGFrame(context, outerBlockHIR);
+    auto frame = library::CFGFrame::makeCFGFrame(context);
     auto scope = frame.rootScope();
 
     // Add arguments to the prototype frame.
