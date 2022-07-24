@@ -1,10 +1,13 @@
 #ifndef SRC_HADRON_LIBRARY_HADRON_CFG_HPP_
 #define SRC_HADRON_LIBRARY_HADRON_CFG_HPP_
 
+#include "hadron/library/ArrayedCollection.hpp"
 #include "hadron/library/Dictionary.hpp"
+#include "hadron/library/HadronHIR.hpp"
 #include "hadron/library/Integer.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Object.hpp"
+
 #include "hadron/schema/HLang/HadronCFGSchema.hpp"
 
 namespace hadron {
@@ -18,9 +21,9 @@ namespace library {
  *      |
  *      |
  *      V
- * +---------+
- * | CFGCope |
- * +---------+
+ * +----------+
+ * | CFGScope |
+ * +----------+
  *      |
  *      |
  *      V
@@ -34,6 +37,7 @@ namespace library {
  *   +-----+
  */
 
+class CFGFrame;
 class CFGBlock : public Object<CFGBlock, schema::HadronCFGBlockSchema> {
 public:
     CFGBlock(): Object<CFGBlock, schema::HadronCFGBlockSchema>() {}
@@ -53,192 +57,76 @@ public:
     }
 
     // Adds hir to |statements| or |exitStatements|, returns assigned id.
-    HIRId append(ThreadContext* context, HIR hir);
+    HIRId append(ThreadContext* context, CFGFrame frame, HIR hir);
 
     int32_t id() const { return m_instance->id.getInt32(); }
     void setId(int32_t i) { m_instance->id = Slot::makeInt32(i); }
 
-    TypedArray<T> predecessors() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<T>(t.m_instance->predecessors);
-    }
-    void setPredecessors(TypedArray<T> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->predecessors = a.slot();
-    }
+    Int32Array predecessors() const { return Int32Array(m_instance->predecessors); }
+    void setPredecessors(Int32Array a) { m_instance->predecessors = a.slot(); }
 
-    TypedArray<T> successors() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<T>(t.m_instance->successors);
-    }
-    void setSuccessors(TypedArray<T> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->successors = a.slot();
-    }
+    Int32Array successors() const { return Int32Array(m_instance->successors); }
+    void setSuccessors(Int32Array a) { m_instance->successors = a.slot(); }
 
-    TypedArray<PhiHIRT> phis() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<PhiHIRT>(t.m_instance->phis);
-    }
-    void setPhis(TypedArray<PhiHIRT> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->phis = a.slot();
-    }
+    TypedArray<PhiHIR> phis() const { return TypedArray<PhiHIR>(m_instance->phis); }
+    void setPhis(TypedArray<PhiHIR> a) { m_instance->phis = a.slot(); }
 
-    TypedArray<HIRT> statements() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<HIRT>(t.m_instance->statements);
-    }
-    void setStatements(TypedArray<HIRT> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->statements = a.slot();
-    }
+    TypedArray<HIR> statements() const { return TypedArray<HIR>(m_instance->statements); }
+    void setStatements(TypedArray<HIR> a) { m_instance->statements = a.slot(); }
 
-    TypedArray<HIRT> exitStatements() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<HIRT>(t.m_instance->exitStatements);
-    }
-    void setExitStatements(TypedArray<HIRT> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->exitStatements = a.slot();
-    }
+    // TODO: can refactor BranchIfTrueHIR to take two arguments, then there's only ever 1 exit statement from a block
+    TypedArray<HIR> exitStatements() const { return TypedArray<HIR>(m_instance->exitStatements); }
+    void setExitStatements(TypedArray<HIR> a) { m_instance->exitStatements = a.slot(); }
 
-    bool hasMethodReturn() const {
-        const T& t = static_cast<const T&>(*this);
-        return t.m_instance->hasMethodReturn.getBool();
-    }
-    void setHasMethodReturn(bool b) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->hasMethodReturn = Slot::makeBool(b);
-    }
+    bool hasMethodReturn() const { return m_instance->hasMethodReturn.getBool(); }
+    void setHasMethodReturn(bool b) { m_instance->hasMethodReturn = Slot::makeBool(b); }
 
-    HIRId finalValue() const {
-        const T& t = static_cast<const T&>(*this);
-        return HIRId(t.m_instance->finalValue);
-    }
-    void setFinalValue(HIRId id) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->finalValue = id.slot();
-    }
+    HIRId finalValue() const { return HIRId(m_instance->finalValue); }
+    void setFinalValue(HIRId id) { m_instance->finalValue = id.slot(); }
 
     TypedIdentDict<Slot, HIRId> constantValues() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedIdentDict<Slot, HIRId>(t.m_instance->constantValues);
+        return TypedIdentDict<Slot, HIRId>(m_instance->constantValues);
     }
-    void setConstantValues(TypedIdentDict<Slot, Integer> tid) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->constantValues = tid.slot();
-    }
+    void setConstantValues(TypedIdentDict<Slot, HIRId> tid) { m_instance->constantValues = tid.slot(); }
 
-    HIRId nilConstantValue() const {
-        const T& t = static_cast<const T&>(*this);
-        return HIRId(t.m_instance->nilConstantValue);
-    }
-    void setNilConstantValue(HIRId i) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->nilConstantValue = i.slot();
-    }
+    HIRId nilConstantValue() const { return HIRId(m_instance->nilConstantValue); }
+    void setNilConstantValue(HIRId i) { m_instance->nilConstantValue = i.slot(); }
 
-    TypedIdentSet<Integer> constantIds() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedIdentSet<Integer>(t.m_instance->constantIds);
-    }
-    void setConstantIds(TypedIdentSet<Integer> tis) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->constantIds = tis.slot();
-    }
+    TypedIdentSet<Integer> constantIds() const { return TypedIdentSet<Integer>(m_instance->constantIds); }
+    void setConstantIds(TypedIdentSet<Integer> tis) { m_instance->constantIds = tis.slot(); }
 
-    Integer loopReturnPredIndex() const {
-        const T& t = static_cast<const T&>(*this);
-        return Integer(t.m_instance->loopReturnPredIndex);
-    }
-    void setLoopReturnPredIndex(Integer i) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->loopReturnPredIndex = i.slot();
-    }
+    Integer loopReturnPredIndex() const { return Integer(m_instance->loopReturnPredIndex); }
+    void setLoopReturnPredIndex(Integer i) { m_instance->loopReturnPredIndex = i.slot(); }
 };
-
-
 
 class CFGScope : public Object<CFGScope, schema::HadronCFGScopeSchema> {
 public:
-    CFGScopeT(): Object<T, schema::HadronCFGScopeSchema>() {}
-    explicit CFGScopeT(schema::HadronCFGScopeSchema* instance): Object<T, schema::HadronCFGScopeSchema>(instance) {}
-    explicit CFGScopeT(Slot instance): Object<T, schema::HadronCFGScopeSchema>(instance) {}
-    ~CFGScopeT() {}
+    CFGScope(): Object<CFGScope, schema::HadronCFGScopeSchema>() {}
+    explicit CFGScope(schema::HadronCFGScopeSchema* instance):
+            Object<CFGScope, schema::HadronCFGScopeSchema>(instance) {}
+    explicit CFGScope(Slot instance): Object<CFGScope, schema::HadronCFGScopeSchema>(instance) {}
+    ~CFGScope() {}
 
-    static T makeRootCFGScope(ThreadContext* context, FrameT owningFrame) {
-        auto scope = T::alloc(context);
+    static CFGScope makeCFGScope(ThreadContext* context) {
+        auto scope = CFGScope::alloc(context);
         scope.initToNil();
-        scope.setFrame(owningFrame);
         scope.setFrameIndex(0);
         scope.setValueIndices(TypedIdentDict<Symbol, Integer>::makeTypedIdentDict(context));
         return scope;
     }
 
-    static T makeSubCFGScope(ThreadContext* context, T parentScope) {
-        auto scope = T::alloc(context);
-        scope.initToNil();
-        scope.setFrame(parentScope.frame());
-        scope.setParent(parentScope);
-        scope.setFrameIndex(0);
-        scope.setValueIndices(TypedIdentDict<Symbol, Integer>::makeTypedIdentDict(context));
-        return scope;
-    }
+    TypedArray<CFGBlock> blocks() const { return TypedArray<CFGBlock>(m_instance->blocks); }
+    void setBlocks(TypedArray<CFGBlock> a) { m_instance->blocks = a.slot(); }
 
-    FrameT frame() const {
-        const T& t = static_cast<const T&>(*this);
-        return FrameT(t.m_instance->frame);
-    }
-    void setFrame(FrameT f) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->frame = f.slot();
-    }
+    TypedArray<CFGScope> subScopes() const { return TypedArray<CFGScope>(m_instance->subScopes); }
+    void setSubScopes(TypedArray<CFGScope> a) { m_instance->subScopes = a.slot(); }
 
-    T parent() const {
-        const T& t = static_cast<const T&>(*this);
-        return T(t.m_instance->parent);
-    }
-    void setParent(CFGScopeT p) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->parent = p.slot();
-    }
-
-    TypedArray<BlockT> blocks() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<BlockT>(t.m_instance->blocks);
-    }
-    void setBlocks(TypedArray<BlockT> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->blocks = a.slot();
-    }
-
-    TypedArray<T> subScopes() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<T>(t.m_instance->subScopes);
-    }
-    void setSubScopes(TypedArray<T> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->subScopes = a.slot();
-    }
-
-    int32_t frameIndex() const {
-        const T& t = static_cast<const T&>(*this);
-        return t.m_instance->frameIndex.getInt32();
-    }
-    void setFrameIndex(int32_t i) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->frameIndex = Slot::makeInt32(i);
-    }
+    int32_t frameIndex() const { return m_instance->frameIndex.getInt32(); }
+    void setFrameIndex(int32_t i) { m_instance->frameIndex = Slot::makeInt32(i); }
 
     TypedIdentDict<Symbol, Integer> valueIndices() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedIdentDict<Symbol, Integer>(t.m_instance->valueIndices);
-    }
-    void setValueIndices(TypedIdentDict<Symbol, Integer> tid) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->valueIndices = tid.slot();
-    }
+        return TypedIdentDict<Symbol, Integer>(m_instance->valueIndices); }
+    void setValueIndices(TypedIdentDict<Symbol, Integer> tid) { m_instance->valueIndices = tid.slot(); }
 };
 
 class CFGFrame : public Object<CFGFrame, schema::HadronCFGFrameSchema> {
@@ -250,95 +138,37 @@ public:
     ~CFGFrame() {}
 
     static CFGFrame makeCFGFrame(ThreadContext* context) {
-        auto frame = CFGrame::alloc(context);
+        auto frame = CFGFrame::alloc(context);
         frame.initToNil();
-        frame.setOuterBlockHIR(outerBlock);
         frame.setHasVarArgs(false);
-        frame.setRootScope(ScopeT::makeRootCFGScope(context, frame));
+        frame.setRootScope(CFGScope::makeCFGScope(context));
         frame.setNumberOfBlocks(0);
         return frame;
     }
 
-    BlockLiteralHIRT outerBlockHIR() const {
-        const T& t = static_cast<const T&>(*this);
-        return BlockLiteralHIRT(t.m_instance->outerBlockHIR);
-    }
-    void setOuterBlockHIR(BlockLiteralHIRT b) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->outerBlockHIR = b.slot();
-    }
+    bool hasVarArgs() const { return m_instance->hasVarArgs.getBool(); }
+    void setHasVarArgs(bool b) { m_instance->hasVarArgs = Slot::makeBool(b); }
 
-    bool hasVarArgs() const {
-        const T& t = static_cast<const T&>(*this);
-        return t.m_instance->hasVarArgs.getBool();
-    }
-    void setHasVarArgs(bool b) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->hasVarArgs = Slot::makeBool(b);
-    }
+    SymbolArray variableNames() const { return SymbolArray(m_instance->variableNames); }
+    void setVariableNames(SymbolArray a) { m_instance->variableNames = a.slot(); }
 
-    SymbolArray variableNames() const {
-        const T& t = static_cast<const T&>(*this);
-        return SymbolArray(t.m_instance->variableNames);
-    }
-    void setVariableNames(SymbolArray a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->variableNames = a.slot();
-    }
+    Array prototypeFrame() const { return Array(m_instance->prototypeFrame); }
+    void setPrototypeFrame(Array a) { m_instance->prototypeFrame = a.slot(); }
 
-    Array prototypeFrame() const {
-        const T& t = static_cast<const T&>(*this);
-        return Array(t.m_instance->prototypeFrame);
-    }
-    void setPrototypeFrame(Array a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->prototypeFrame = a.slot();
-    }
+    TypedArray<BlockLiteralHIR> innerBlocks() const { return TypedArray<BlockLiteralHIR>(m_instance->innerBlocks); }
+    void setInnerBlocks(TypedArray<BlockLiteralHIR> a) { m_instance->innerBlocks = a.slot(); }
 
-    TypedArray<BlockLiteralHIRT> innerBlocks() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<BlockLiteralHIRT>(t.m_instance->innerBlocks);
-    }
-    void setInnerBlocks(TypedArray<BlockLiteralHIRT> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->innerBlocks = a.slot();
-    }
+    FunctionDefArray selectors() const { return FunctionDefArray(m_instance->selectors); }
+    void setSelectors(FunctionDefArray a) { m_instance->selectors = a.slot(); }
 
-    FunctionDefArray selectors() const {
-        const T& t = static_cast<const T&>(*this);
-        return FunctionDefArray(t.m_instance->selectors);
-    }
-    void setSelectors(FunctionDefArray a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->selectors = a.slot();
-    }
+    CFGScope rootScope() const { return CFGScope(m_instance->rootScope); }
+    void setRootScope(CFGScope s) { m_instance->rootScope = s.slot(); }
 
-    ScopeT rootScope() const {
-        const T& t = static_cast<const T&>(*this);
-        return ScopeT(t.m_instance->rootScope);
-    }
-    void setRootScope(ScopeT s) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->rootScope = s.slot();
-    }
+    TypedArray<HIR> values() const { return TypedArray<HIR>(m_instance->values); }
+    void setValues(TypedArray<HIR> a) { m_instance->values = a.slot(); }
 
-    TypedArray<HIRT> values() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<HIRT>(t.m_instance->values);
-    }
-    void setValues(TypedArray<HIRT> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->values = a.slot();
-    }
-
-    int32_t numberOfBlocks() const {
-        const T& t = static_cast<const T&>(*this);
-        return t.m_instance->numberOfBlocks.getInt32();
-    }
-    void setNumberOfBlocks(int32_t n) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->numberOfBlocks = Slot::makeInt32(n);
-    }
+    int32_t numberOfBlocks() const { return m_instance->numberOfBlocks.getInt32(); }
+    void setNumberOfBlocks(int32_t n) { m_instance->numberOfBlocks = Slot::makeInt32(n); }
 };
 
 } // namespace library

@@ -5,7 +5,7 @@
 namespace hadron {
 namespace library {
 
-HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
+HIRId CFGBlock::append(ThreadContext* context, CFGFrame frame, HIR hir) {
     // Re-use constants with the same values.
     if (hir.className() == ConstantHIR::nameHash()) {
         // We're possibly skipping dependency updates for this constant, so ensure that constants never have value
@@ -21,13 +21,11 @@ HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
         }
     }
 
-    auto id = HIRId(frame().values().size());
+    auto id = HIRId(frame.values().size());
     id = hir.proposeId(id);
     if (id) {
-        frame().setValues(frame().values().typedAdd(context, hir));
+        frame.setValues(frame.values().typedAdd(context, hir));
     }
-
-//    hir.setOwningBlock(*this);
 
     // Update the producers of values this hir consumes.
     if (hir.reads().size()) {
@@ -35,7 +33,7 @@ HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
         for (int32_t i = 0; i < readsArray.size(); ++i) {
             auto readsId = readsArray.typedAt(i);
             if (readsId) {
-                frame().values().typedAt(readsId.int32()).consumers().typedAdd(context, hir);
+                frame.values().typedAt(readsId.int32()).consumers().typedAdd(context, hir);
             }
         }
     }

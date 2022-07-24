@@ -2,13 +2,13 @@
 #define SRC_HADRON_LIBRARY_HADRON_HIR_HPP_
 
 #include "hadron/library/Array.hpp"
-#include "hadron/library/HadronCFG.hpp"
 #include "hadron/library/HadronLinearFrame.hpp"
 #include "hadron/library/Integer.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Object.hpp"
 #include "hadron/library/Set.hpp"
 #include "hadron/library/Symbol.hpp"
+
 #include "hadron/schema/HLang/HadronHIRSchema.hpp"
 
 namespace hadron {
@@ -101,9 +101,6 @@ public:
         blockLiteralHIR.initBase(context, TypeFlags::kObjectFlag);
         return blockLiteralHIR;
     }
-
-    CFGFrame frame() const { return CFGFrame(m_instance->frame); }
-    void setFrame(CFGFrame f) { m_instance->frame = f.slot(); }
 
     FunctionDef functionDef() const { return FunctionDef(m_instance->functionDef); }
     void setFunctionDef(FunctionDef f) { m_instance->functionDef = f.slot(); }

@@ -22,12 +22,10 @@ BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter):
 library::CFGFrame BlockBuilder::buildMethod(ThreadContext* context, const library::BlockAST blockAST,
         const library::Class owningClass) {
     m_owningClass = owningClass;
-    std::vector<library::CFGFrame> outerFrames;
-    return buildFrame(context, blockAST, outerFrames);
+    return buildFrame(context, blockAST);
 }
 
-library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library::BlockAST blockAST,
-        std::vector<library::CFGFrame>& outerFrames) {
+library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library::BlockAST blockAST) {
     // Build outer frame, root scope, and entry block.
     auto frame = library::CFGFrame::makeCFGFrame(context);
     auto scope = frame.rootScope();
@@ -42,24 +40,26 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
     }
 
     scope.setBlocks(scope.blocks().typedAdd(context,
-            library::CFGBlock::makeCFGBlock(context, scope, frame.numberOfBlocks())));
+            library::CFGBlock::makeCFGBlock(context, frame.numberOfBlocks())));
     frame.setNumberOfBlocks(frame.numberOfBlocks() + 1);
-    auto currentBlock = scope.blocks().typedFirst();
+    m_currentBlock = scope.blocks().typedFirst();
+    m_frames.push(frame);
+    m_scopes.push(scope);
 
-    buildFinalValue(context, currentBlock, blockAST.statements());
+    buildFinalValue(context, blockAST.statements());
 
     // We append a return statement in the final block, if one wasn't already provided.
-    if (!currentBlock.hasMethodReturn()) {
-        currentBlock.append(context, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
+    if (!m_currentBlock.hasMethodReturn()) {
+        m_currentBlock.append(context, frame, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
     }
 
     return frame;
 }
 
-library::CFGScope BlockBuilder::buildInlineBlock(ThreadContext* context, library::CFGScope parentScope,
-        library::CFGBlock predecessor, const library::BlockAST blockAST) {
-    auto scope = library::CFGScope::makeSubCFGScope(context, parentScope);
-    auto block = library::CFGBlock::makeCFGBlock(context, scope, scope.frame().numberOfBlocks());
+library::CFGScope BlockBuilder::buildInlineBlock(ThreadContext* context, library::CFGBlock predecessor,
+        const library::BlockAST blockAST) {
+    auto scope = library::CFGScope::makeCFGScope(context);
+    auto block = library::CFGBlock::makeCFGBlock(context, m_frames.top().numberOfBlocks());
     block.setPredecessors(block.predecessors().typedAdd(context, predecessor));
     scope.frame().setNumberOfBlocks(scope.frame().numberOfBlocks() + 1);
     scope.setBlocks(scope.blocks().typedAdd(context, block));
