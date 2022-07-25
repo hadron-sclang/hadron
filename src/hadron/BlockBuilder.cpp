@@ -42,15 +42,15 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
     scope.setBlocks(scope.blocks().typedAdd(context,
             library::CFGBlock::makeCFGBlock(context, frame.numberOfBlocks())));
     frame.setNumberOfBlocks(frame.numberOfBlocks() + 1);
-    m_currentBlock = scope.blocks().typedFirst();
     m_frames.push(frame);
     m_scopes.push(scope);
+    m_blocks.push(scope.blocks().typedFirst());
 
     buildFinalValue(context, blockAST.statements());
 
     // We append a return statement in the final block, if one wasn't already provided.
-    if (!m_currentBlock.hasMethodReturn()) {
-        m_currentBlock.append(context, frame, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
+    if (!m_blocks.top().hasMethodReturn()) {
+        m_blocks.top().append(context, frame, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
     }
 
     return frame;
@@ -60,33 +60,33 @@ library::CFGScope BlockBuilder::buildInlineBlock(ThreadContext* context, library
         const library::BlockAST blockAST) {
     auto scope = library::CFGScope::makeCFGScope(context);
     auto block = library::CFGBlock::makeCFGBlock(context, m_frames.top().numberOfBlocks());
-    block.setPredecessors(block.predecessors().typedAdd(context, predecessor));
-    scope.frame().setNumberOfBlocks(scope.frame().numberOfBlocks() + 1);
+    block.setPredecessors(block.predecessors().add(context, predecessor.id()));
+    m_frames.top().setNumberOfBlocks(m_frames.top().numberOfBlocks() + 1);
     scope.setBlocks(scope.blocks().typedAdd(context, block));
 
     // For now we can't handle inline blocks with arguments (other than "this")
     assert(blockAST.argumentNames().size() <= 1);
 
-    auto currentBlock = block;
-    buildFinalValue(context, currentBlock, blockAST.statements());
+    m_blocks.push(block);
+    buildFinalValue(context, blockAST.statements());
+    m_blocks.pop();
 
     return scope;
 }
 
-library::HIRId BlockBuilder::buildValue(ThreadContext* context, library::CFGBlock& currentBlock,
-        const library::AST ast) {
+library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::AST ast) {
     auto nodeValue = library::HIRId();
 
     switch(ast.className()) {
     case library::EmptyAST::nameHash():
-        nodeValue = currentBlock.append(context,
+        nodeValue = m_blocks.top().append(context, m_frames.top(),
                 library::ConstantHIR::makeConstantHIR(context, Slot::makeNil()).toBase());
         assert(nodeValue);
         break;
 
     case library::SequenceAST::nameHash(): {
         auto sequenceAST = library::SequenceAST(ast.slot());
-        nodeValue = buildFinalValue(context, currentBlock, sequenceAST);
+        nodeValue = buildFinalValue(context, sequenceAST);
         assert(nodeValue);
     } break;
 
@@ -94,15 +94,14 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, library::CFGBloc
     case library::BlockAST::nameHash(): {
         auto blockAST = library::BlockAST(ast.slot());
         auto blockHIR = library::BlockLiteralHIR::makeBlockLiteralHIR(context);
-        currentBlock.frame().setInnerBlocks(currentBlock.frame().innerBlocks().typedAdd(context, blockHIR));
-        nodeValue = currentBlock.append(context, blockHIR.toBase());
-        blockHIR.setFrame(buildFrame(context, blockAST, blockHIR));
+        m_frames.top().setInnerBlocks(m_frames.top().innerBlocks().typedAdd(context, blockHIR));
+        nodeValue = m_blocks.top().append(context, m_frames.top(), blockHIR.toBase());
         assert(nodeValue);
     } break;
 
     case library::IfAST::nameHash(): {
         auto ifAST = library::IfAST(ast.slot());
-        nodeValue = buildIf(context, currentBlock, ifAST);
+        nodeValue = buildIf(context, ifAST);
         assert(nodeValue);
     } break;
 

@@ -47,9 +47,9 @@ private:
     std::shared_ptr<ErrorReporter> m_errorReporter;
     library::Class m_owningClass;
 
-    library::CFGBlock m_currentBlock;
     std::stack<library::CFGFrame> m_frames;
     std::stack<library::CFGScope> m_scopes;
+    std::stack<library::CFGBlock> m_blocks;
 };
 
 } // namespace hadron
