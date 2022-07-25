@@ -8,7 +8,7 @@
 #include "hadron/library/Symbol.hpp"
 
 #include <memory>
-#include <stack>
+#include <vector>
 
 namespace hadron {
 
@@ -41,15 +41,14 @@ private:
     library::HIRId buildWhile(ThreadContext* context, const library::WhileAST whileAST);
 
     // If |toWrite| is nil that means this is a read operation. Returns nil if name not found.
-    library::HIR findName(ThreadContext* context, library::Symbol name, library::CFGBlock block,
-            library::HIRId toWrite);
+    library::HIR findName(ThreadContext* context, library::Symbol name, library::HIRId toWrite);
 
     std::shared_ptr<ErrorReporter> m_errorReporter;
     library::Class m_owningClass;
 
-    std::stack<library::CFGFrame> m_frames;
-    std::stack<library::CFGScope> m_scopes;
-    std::stack<library::CFGBlock> m_blocks;
+    library::CFGFrame m_frame;
+    std::vector<library::CFGScope> m_scopes;
+    std::vector<library::CFGBlock> m_blocks;
 };
 
 } // namespace hadron

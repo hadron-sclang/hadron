@@ -27,49 +27,53 @@ library::CFGFrame BlockBuilder::buildMethod(ThreadContext* context, const librar
 
 library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library::BlockAST blockAST) {
     // Build outer frame, root scope, and entry block.
-    auto frame = library::CFGFrame::makeCFGFrame(context);
-    auto scope = frame.rootScope();
+    m_frame = library::CFGFrame::makeCFGFrame(context);
+    auto scope = m_frame.rootScope();
 
     // Add arguments to the prototype frame.
-    frame.setPrototypeFrame(frame.prototypeFrame().addAll(context, blockAST.argumentDefaults()));
+    m_frame.setPrototypeFrame(m_frame.prototypeFrame().addAll(context, blockAST.argumentDefaults()));
 
     // Include the arguments in the root scope value names set.
     for (int32_t i = 0; i < blockAST.argumentNames().size(); ++i) {
-        scope.valueIndices().typedPut(context, blockAST.argumentNames().at(i), frame.prototypeFrame().size());
-        frame.setPrototypeFrame(frame.prototypeFrame().add(context, blockAST.argumentDefaults().at(i)));
+        scope.valueIndices().typedPut(context, blockAST.argumentNames().at(i), m_frame.prototypeFrame().size());
+        m_frame.setPrototypeFrame(m_frame.prototypeFrame().add(context, blockAST.argumentDefaults().at(i)));
     }
 
     scope.setBlocks(scope.blocks().typedAdd(context,
-            library::CFGBlock::makeCFGBlock(context, frame.numberOfBlocks())));
-    frame.setNumberOfBlocks(frame.numberOfBlocks() + 1);
-    m_frames.push(frame);
-    m_scopes.push(scope);
-    m_blocks.push(scope.blocks().typedFirst());
+            library::CFGBlock::makeCFGBlock(context, m_frame.numberOfBlocks())));
+    m_frame.setNumberOfBlocks(m_frame.numberOfBlocks() + 1);
+    m_scopes.push_back(scope);
+    m_blocks.push_back(scope.blocks().typedFirst());
 
     buildFinalValue(context, blockAST.statements());
 
     // We append a return statement in the final block, if one wasn't already provided.
-    if (!m_blocks.top().hasMethodReturn()) {
-        m_blocks.top().append(context, frame, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
+    if (!m_blocks.back().hasMethodReturn()) {
+        m_blocks.back().append(context, m_frame, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
     }
 
-    return frame;
+    m_blocks.pop_back();
+    m_scopes.pop_back();
+
+    return m_frame;
 }
 
 library::CFGScope BlockBuilder::buildInlineBlock(ThreadContext* context, library::CFGBlock predecessor,
         const library::BlockAST blockAST) {
     auto scope = library::CFGScope::makeCFGScope(context);
-    auto block = library::CFGBlock::makeCFGBlock(context, m_frames.top().numberOfBlocks());
+    auto block = library::CFGBlock::makeCFGBlock(context, m_frame.numberOfBlocks());
     block.setPredecessors(block.predecessors().add(context, predecessor.id()));
-    m_frames.top().setNumberOfBlocks(m_frames.top().numberOfBlocks() + 1);
+    m_frame.setNumberOfBlocks(m_frame.numberOfBlocks() + 1);
     scope.setBlocks(scope.blocks().typedAdd(context, block));
 
     // For now we can't handle inline blocks with arguments (other than "this")
     assert(blockAST.argumentNames().size() <= 1);
 
-    m_blocks.push(block);
+    m_scopes.push_back(scope);
+    m_blocks.push_back(block);
     buildFinalValue(context, blockAST.statements());
-    m_blocks.pop();
+    m_blocks.pop_back();
+    m_scopes.pop_back();
 
     return scope;
 }
@@ -79,7 +83,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
 
     switch(ast.className()) {
     case library::EmptyAST::nameHash():
-        nodeValue = m_blocks.top().append(context, m_frames.top(),
+        nodeValue = m_blocks.back().append(context, m_frame,
                 library::ConstantHIR::makeConstantHIR(context, Slot::makeNil()).toBase());
         assert(nodeValue);
         break;
@@ -94,8 +98,8 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
     case library::BlockAST::nameHash(): {
         auto blockAST = library::BlockAST(ast.slot());
         auto blockHIR = library::BlockLiteralHIR::makeBlockLiteralHIR(context);
-        m_frames.top().setInnerBlocks(m_frames.top().innerBlocks().typedAdd(context, blockHIR));
-        nodeValue = m_blocks.top().append(context, m_frames.top(), blockHIR.toBase());
+        m_frame.setInnerBlocks(m_frame.innerBlocks().typedAdd(context, blockHIR));
+        nodeValue = m_blocks.back().append(context, m_frame, blockHIR.toBase());
         assert(nodeValue);
     } break;
 
@@ -107,7 +111,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
 
     case library::WhileAST::nameHash(): {
         auto whileAST = library::WhileAST(ast.slot());
-        nodeValue = buildWhile(context, currentBlock, whileAST);
+        nodeValue = buildWhile(context, whileAST);
         assert(nodeValue);
     } break;
 
@@ -120,22 +124,22 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
         // Build arguments.
         for (int32_t i = 0; i < messageAST.arguments().sequence().size(); ++i) {
             auto argAST = library::AST::wrapUnsafe(messageAST.arguments().sequence().at(i));
-            messageHIR.addArgument(context, buildValue(context, currentBlock, argAST));
+            messageHIR.addArgument(context, buildValue(context, argAST));
         }
 
         // Build keyword argument pairs.
         for (int32_t i = 0; i < messageAST.keywordArguments().sequence().size(); ++i) {
             auto argAST = library::AST::wrapUnsafe(messageAST.keywordArguments().sequence().at(i));
-            messageHIR.addKeywordArgument(context, buildValue(context, currentBlock, argAST));
+            messageHIR.addKeywordArgument(context, buildValue(context, argAST));
         }
 
-        nodeValue = currentBlock.append(context, messageHIR.toBase());
+        nodeValue = m_blocks.back().append(context, m_frame, messageHIR.toBase());
         assert(nodeValue);
     } break;
 
     case library::NameAST::nameHash(): {
         auto nameAST = library::NameAST(ast.slot());
-        auto findHIR = findName(context, nameAST.name(context), currentBlock, library::HIRId());
+        auto findHIR = findName(context, nameAST.name(context), library::HIRId());
         assert(findHIR);
         assert(findHIR.id());
         nodeValue = findHIR.id();
@@ -143,10 +147,10 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
 
     case library::AssignAST::nameHash(): {
         auto assignAST = library::AssignAST(ast.slot());
-        nodeValue = buildValue(context, currentBlock, assignAST.value());
+        nodeValue = buildValue(context, assignAST.value());
         assert(nodeValue);
 
-        auto assign = findName(context, assignAST.name(context), currentBlock, nodeValue);
+        auto assign = findName(context, assignAST.name(context), nodeValue);
         assert(assign);
     } break;
 
@@ -154,25 +158,23 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
         auto defineAST = library::DefineAST(ast.slot());
 
         // Add the name to variable index tracking.
-        currentBlock.frame().setVariableNames(currentBlock.frame().variableNames().add(context,
-                defineAST.name(context)));
-        currentBlock.scope().valueIndices().typedPut(context, defineAST.name(context),
-                currentBlock.frame().prototypeFrame().size());
+        m_frame.setVariableNames(m_frame.variableNames().add(context, defineAST.name(context)));
+        m_scopes.back().valueIndices().typedPut(context, defineAST.name(context),
+                m_frame.prototypeFrame().size());
 
         // Simple constant definitions don't need to be saved, rather we add the value to initial values array.
         if (defineAST.value().className() == library::ConstantAST::nameHash()) {
             auto constAST = library::ConstantAST(defineAST.value().slot());
-            currentBlock.frame().setPrototypeFrame(currentBlock.frame().prototypeFrame().add(context,
-                    constAST.constant()));
+            m_frame.setPrototypeFrame(m_frame.prototypeFrame().add(context, constAST.constant()));
 
-            nodeValue = currentBlock.append(context,
+            nodeValue = m_blocks.back().append(context, m_frame,
                     library::ConstantHIR::makeConstantHIR(context, constAST.constant()).toBase());
         } else {
             // Complex value, assign nil as the prototype value, then create a write statement here to that offset.
-            currentBlock.frame().setPrototypeFrame(currentBlock.frame().prototypeFrame().add(context, Slot::makeNil()));
+            m_frame.setPrototypeFrame(m_frame.prototypeFrame().add(context, Slot::makeNil()));
 
-            nodeValue = buildValue(context, currentBlock, defineAST.value());
-            auto assign = findName(context, defineAST.name(context), currentBlock, nodeValue);
+            nodeValue = buildValue(context, defineAST.value());
+            auto assign = findName(context, defineAST.name(context), nodeValue);
             assert(assign);
         }
         assert(nodeValue);
@@ -180,24 +182,26 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
 
     case library::ConstantAST::nameHash(): {
         auto constAST = library::ConstantAST(ast.slot());
-        nodeValue = currentBlock.append(context, library::ConstantHIR::makeConstantHIR(context,
+        nodeValue = m_blocks.back().append(context, m_frame, library::ConstantHIR::makeConstantHIR(context,
                 constAST.constant()).toBase());
         assert(nodeValue);
     } break;
 
     case library::MethodReturnAST::nameHash(): {
         auto retAST = library::MethodReturnAST(ast.slot());
-        nodeValue = buildValue(context, currentBlock, retAST.value());
+        nodeValue = buildValue(context, retAST.value());
         assert(nodeValue);
 
-        currentBlock.append(context, library::StoreReturnHIR::makeStoreReturnHIR(context, nodeValue).toBase());
-        currentBlock.append(context, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
+        m_blocks.back().append(context, m_frame,
+                library::StoreReturnHIR::makeStoreReturnHIR(context, nodeValue).toBase());
+        m_blocks.back().append(context, m_frame,
+                library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
     } break;
 
     case library::MultiAssignAST::nameHash(): {
         auto multiAssignAST = library::MultiAssignAST(ast.slot());
         // Final value of multiAssign statements is the array-like type returned by the expression.
-        nodeValue = buildValue(context, currentBlock, multiAssignAST.arrayValue());
+        nodeValue = buildValue(context, multiAssignAST.arrayValue());
         assert(nodeValue);
 
         // Each assignment is now translated into a name = nodeValue.at(i) message call.
@@ -214,12 +218,12 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
 
             message.addArgument(context, nodeValue);
 
-            auto indexValue = currentBlock.append(context,
+            auto indexValue = m_blocks.back().append(context, m_frame,
                     library::ConstantHIR::makeConstantHIR(context, Slot::makeInt32(i)).toBase());
             message.addArgument(context, indexValue);
 
-            auto messageValue = currentBlock.append(context, message.toBase());
-            auto assign = findName(context, nameAST.name(context), currentBlock, messageValue);
+            auto messageValue = m_blocks.back().append(context, m_frame, message.toBase());
+            auto assign = findName(context, nameAST.name(context), messageValue);
             assert(assign);
         }
     } break;
@@ -229,41 +233,39 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
     return nodeValue;
 }
 
-library::HIRId BlockBuilder::buildFinalValue(ThreadContext* context, library::CFGBlock& currentBlock,
-        const library::SequenceAST sequenceAST) {
+library::HIRId BlockBuilder::buildFinalValue(ThreadContext* context, const library::SequenceAST sequenceAST) {
     auto finalValue = library::HIRId();
 
     if (sequenceAST.sequence().size()) {
         for (int32_t i = 0; i < sequenceAST.sequence().size(); ++i) {
             auto ast = library::AST::wrapUnsafe(sequenceAST.sequence().at(i));
-            finalValue = buildValue(context, currentBlock, ast);
-            currentBlock.setFinalValue(finalValue);
+            finalValue = buildValue(context, ast);
+            m_blocks.back().setFinalValue(finalValue);
 
             // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
-            if (currentBlock.hasMethodReturn()) { break; }
+            if (m_blocks.back().hasMethodReturn()) { break; }
         }
     } else {
-        finalValue = currentBlock.append(context,
+        finalValue = m_blocks.back().append(context, m_frame,
                 library::ConstantHIR::makeConstantHIR(context, Slot::makeNil()).toBase());
-        currentBlock.setFinalValue(finalValue);
+        m_blocks.back().setFinalValue(finalValue);
     }
 
     assert(finalValue);
     return finalValue;
 }
 
-library::HIRId BlockBuilder::buildIf(ThreadContext* context, library::CFGBlock& currentBlock,
-        const library::IfAST ifAST) {
+library::HIRId BlockBuilder::buildIf(ThreadContext* context, const library::IfAST ifAST) {
     // Compute final value of the condition.
-    auto condition = buildFinalValue(context, currentBlock, ifAST.condition());
+    auto condition = buildFinalValue(context, ifAST.condition());
 
     // Add branch to the true block if the condition is true.
     auto trueBranch = library::BranchIfTrueHIR::makeBranchIfTrueHIR(context, condition);
-    currentBlock.append(context, trueBranch.toBase());
+    m_blocks.back().append(context, m_frame, trueBranch.toBase());
 
     // Insert absolute branch to the false block.
     auto falseBranch = library::BranchHIR::makeBranchHIR(context);
-    currentBlock.append(context, falseBranch.toBase());
+    m_blocks.back().append(context, m_frame, falseBranch.toBase());
 
     // Preserve the current block and frame for insertion of the new subframes as children.
     auto parentScope = currentBlock.scope();
