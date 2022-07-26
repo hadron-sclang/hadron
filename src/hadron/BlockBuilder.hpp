@@ -48,7 +48,7 @@ private:
 
     library::CFGFrame m_frame;
     std::vector<library::CFGScope> m_scopes;
-    std::vector<library::CFGBlock> m_blocks;
+    library::CFGBlock m_block;
 };
 
 } // namespace hadron
