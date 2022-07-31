@@ -322,7 +322,7 @@ library::HIRId BlockBuilder::buildIf(ThreadContext* context, const library::IfAS
     // if statement overall.
     if ((!falseScope.blocks().typedLast().hasMethodReturn()) && (!trueScope.blocks().typedLast().hasMethodReturn())) {
         auto valuePhi = library::PhiHIR::makePhiHIR(context);
-        nodeValue = m_block.append(context, valuePhi.toBase());
+        nodeValue = m_block.append(context, m_frame, valuePhi.toBase());
         valuePhi.addInput(context, m_frame.values().typedAt(
                 trueScope.blocks().typedLast().finalValue().int32()));
         valuePhi.addInput(context, m_frame.values().typedAt(
@@ -349,40 +349,40 @@ library::HIRId BlockBuilder::buildWhile(ThreadContext* context, const library::W
     auto conditionExitBlock = conditionScope.blocks().typedLast();
 
     // Build repeat block.
-    auto repeatScope = buildInlineBlock(context, parentScope, conditionExitBlock, whileAST.repeatBlock());
+    auto repeatScope = buildInlineBlock(context, conditionExitBlock, whileAST.repeatBlock());
     parentScope.setSubScopes(parentScope.subScopes().typedAdd(context, repeatScope));
     auto repeatExitBlock = repeatScope.blocks().typedLast();
 
     // Repeat block branches to condition block.
-    repeatExitBlock.setSuccessors(repeatExitBlock.successors().typedAdd(context, conditionEntryBlock));
+    repeatExitBlock.setSuccessors(repeatExitBlock.successors().add(context, conditionEntryBlock.id()));
     conditionEntryBlock.setLoopReturnPredIndex(library::Integer(conditionEntryBlock.predecessors().size()));
-    conditionEntryBlock.setPredecessors(conditionEntryBlock.predecessors().typedAdd(context, repeatExitBlock));
+    conditionEntryBlock.setPredecessors(conditionEntryBlock.predecessors().add(context, repeatExitBlock.id()));
     auto repeatBranch = library::BranchHIR::makeBranchHIR(context);
     repeatBranch.setBlockId(conditionEntryBlock.id());
-    repeatExitBlock.append(context, repeatBranch.toBase());
+    repeatExitBlock.append(context, m_frame, repeatBranch.toBase());
 
     // Condition block conditionally jumps to loop block if true.
-    conditionExitBlock.setSuccessors(conditionExitBlock.successors().typedAdd(context,
-            repeatScope.blocks().typedFirst()));
+    conditionExitBlock.setSuccessors(conditionExitBlock.successors().add(context,
+            repeatScope.blocks().typedFirst().id()));
     auto trueBranch = library::BranchIfTrueHIR::makeBranchIfTrueHIR(context, conditionExitBlock.finalValue());
     trueBranch.setBlockId(repeatScope.blocks().typedFirst().id());
-    conditionExitBlock.append(context, trueBranch.toBase());
+    conditionExitBlock.append(context, m_frame, trueBranch.toBase());
 
     // Build continuation block.
-    auto continueBlock = library::CFGBlock::makeCFGBlock(context, parentScope, parentScope.frame().numberOfBlocks());
-    parentScope.frame().setNumberOfBlocks(parentScope.frame().numberOfBlocks() + 1);
+    auto continueBlock = library::CFGBlock::makeCFGBlock(context, m_frame.numberOfBlocks());
+    m_frame.setNumberOfBlocks(m_frame.numberOfBlocks() + 1);
     parentScope.setBlocks(parentScope.blocks().typedAdd(context, continueBlock));
 
     // Condition block unconditionally jumps to continuation block.
-    conditionExitBlock.setSuccessors(conditionExitBlock.successors().typedAdd(context, continueBlock));
-    continueBlock.setPredecessors(continueBlock.predecessors().typedAdd(context, conditionExitBlock));
+    conditionExitBlock.setSuccessors(conditionExitBlock.successors().add(context, continueBlock.id()));
+    continueBlock.setPredecessors(continueBlock.predecessors().add(context, conditionExitBlock.id()));
     auto exitBranch = library::BranchHIR::makeBranchHIR(context);
-    exitBranch.setBlockId(currentBlock.id());
-    conditionExitBlock.append(context, exitBranch.toBase());
+    exitBranch.setBlockId(m_block.id());
+    conditionExitBlock.append(context, m_frame, exitBranch.toBase());
 
-    currentBlock = continueBlock;
+    m_block = continueBlock;
     // Inlined while loops in LSC always have a value of nil. Since Hadron inlines all while loops, we do the same.
-    return currentBlock.append(context, library::ConstantHIR::makeConstantHIR(context, Slot::makeNil()).toBase());
+    return m_block.append(context, m_frame, library::ConstantHIR::makeConstantHIR(context, Slot::makeNil()).toBase());
 }
 
 library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name, library::HIRId toWrite) {
@@ -396,12 +396,12 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
             assert(false);
         }
         auto constant = library::ConstantHIR::makeConstantHIR(context, classDef.slot());
-        auto id = block.append(context, constant.toBase());
-        return block.frame().values().typedAt(id.int32());
+        auto id = m_block.append(context, m_frame, constant.toBase());
+        return m_frame.values().typedAt(id.int32());
     }
 
     // Search through local values in scope.
-    auto searchBlock = block;
+    auto searchBlock = m_block;
     size_t nestedFramesCount = 0;
 
     do {
@@ -508,9 +508,9 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
             assert(!toWrite);
             auto constant = library::ConstantHIR::makeConstantHIR(context,
                     classConstDef.constValues().at(constIndex.int32()));
-            auto id = block.append(context, constant.toBase());
+            auto id = m_block.append(context, m_frame, constant.toBase());
             assert(id);
-            return block.frame().values().typedAt(id.int32());
+            return m_frame.values().typedAt(id.int32());
         }
 
         classConstDef = context->classLibrary->findClassNamed(classConstDef.superclass(context));
