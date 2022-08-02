@@ -1084,7 +1084,7 @@ listlit : HASH listlit2 { $listlit = $listlit2; }
         ;
 
 // Same as listlit but without the hashes, for inner literal lists
-listlit2 : OPENSQUARE literallistc CLOSESQUARE {
+listlit2: OPENSQUARE literallistc CLOSESQUARE {
                 auto litList = hadron::library::CollectionNode::make(threadContext, $OPENSQUARE);
                 litList.setElements($literallistc);
                 $listlit2 = litList;

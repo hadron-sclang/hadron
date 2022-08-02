@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
     spdlog::default_logger()->set_level(spdlog::level::trace);
 
     if (argc != 2) {
-        std::cerr << "usage: hlang-test [options] input_file.sctest" << std::endl;
+        std::cerr << "usage: hlang-test [options] input-file.sctest" << std::endl;
         return -1;
     }
 
@@ -28,6 +28,12 @@ int main(int argc, char* argv[]) {
     fs::path sourcePath(argv[1]);
     auto sourceFile = hadron::SourceFile(sourcePath.string());
     if (!sourceFile.read(errorReporter)) { return -1; }
+
+    // Blank lines are ignored
+    // Lines starting with semicolons are test command lines, the following are supported:
+    // ; comment until eol
+    // ; CLASS: defines 1 or more class or class extension until next semicolon line
+    // ; CHECK: "<output>" runs the following code, compare
 
     return 0;
 }
