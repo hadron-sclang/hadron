@@ -65,11 +65,11 @@ target_link_libraries(hlangd
 
 #############
 # hlang-test
-add_executable(hlang
+add_executable(hlang-test
     hlang-test.cpp
 )
 
-target_link_libraries(hlang
+target_link_libraries(hlang-test
     gflags
     hadron
 )
