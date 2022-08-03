@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <memory>
+#include <string_view>
 #include <string>
 
 int main(int argc, char* argv[]) {
@@ -29,11 +30,25 @@ int main(int argc, char* argv[]) {
     auto sourceFile = hadron::SourceFile(sourcePath.string());
     if (!sourceFile.read(errorReporter)) { return -1; }
 
-    // Blank lines are ignored
-    // Lines starting with semicolons are test command lines, the following are supported:
-    // ; comment until eol
-    // ; CLASS: defines 1 or more class or class extension until next semicolon line
-    // ; CHECK: "<output>" runs the following code, compare
+    // Big difference between clang testing and hit is the input files are not necessarily valid as standalone sclang
+    // files. What we need are three different sections - documentation sections/comments, class defs and class exts,
+    // and interactive scripts for running and testing output from.
+    // Class Defs could also cause errors.
+
+    // Comments are just comments. Block comments are ignored.
+    // CLASSES: <name>
+
+    // RUN: <name>
+    // <code>
+
+    // In run or class fields, any of these terminate the input:
+    // EXPECTING: <results string>
+    // ERROR: <could put number here?>
+    // WARN: <could put number here?>
+
+    // Parse file extracting only line comments with supported tags.
+    // Then there's a state machine
+
 
     return 0;
 }

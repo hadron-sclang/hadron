@@ -1071,7 +1071,7 @@ litdictslotdef  : listliteral[key] COLON listliteral[value] {
 
 litdictslotlist1[target]    : litdictslotdef { $target = $litdictslotdef; }
                             | litdictslotlist1[build] COMMA litdictslotdef {
-                                    $target = append($build, $litdictslotdef); 
+                                    $target = append($build, $litdictslotdef);
                                 }
                             ;
 
