@@ -1,12 +1,21 @@
 %%{
     machine parser;
 
+    action startName { name = p; }
+
     main := |*
-        '// CLASSES:' (any - '\n')* '\n' { std::cout << "classes\n" << std::string_view(ts, te - ts); };
-        '// RUN:' (any - '\n')* '\n' { std::cout << "run\n"; };
-        '// EXPECTING:' (any - '\n')+ '\n' { std::cout << "expecting\n"; };
-        '// ERROR:' (any - '\n')+ '\n' { std::cout << "error\n"; };
-        '// WARN:' (any - '\n')+ '\n' { std::cout << "warn\n"; };
+        '// CLASSES:' space* (any - '\n' %startName)* '\n' {
+            std::cout << "classes\n" << std::string_view(ts, te - ts);
+            name = nullptr;
+         };
+        '// RUN:' space* (any - '\n' %startName)* '\n' {
+            auto runName = name ? std::string_view(name, te - name - 1) : "nada";
+            std::cout << fmt::format("run: '{}'\n", runName);
+            name = nullptr;
+        };
+        '// EXPECTING:' space* (any - '\n')+ '\n' { std::cout << "expecting\n"; };
+        '// ERROR:' space* (any - '\n')+ '\n' { std::cout << "error\n"; };
+        '// WARN:' space* (any - '\n')+ '\n' { std::cout << "warn\n"; };
 
         any { };
     *|;
@@ -56,9 +65,11 @@ int main(int argc, char* argv[]) {
         const char* pe = sourceFile.code() + sourceFile.size();
         const char* eof = pe;
         int cs;
-//        int act;
+        int act;
         const char* ts;
         const char* te;
+
+        const char* name = nullptr;
 
         %% write init;
         %% write exec;
