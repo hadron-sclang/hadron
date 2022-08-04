@@ -51,7 +51,6 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     VERBATIM
 )
 
-
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
 configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
 
