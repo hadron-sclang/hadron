@@ -63,18 +63,10 @@ target_link_libraries(hlangd
     server
 )
 
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/htest.cpp"
-    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/htest.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/htest.rl"
-    MAIN_DEPENDENCY htest.rl
-    DEPENDS ragel-install
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    VERBATIM
-)
-
 #############
-# hlang-test
+# htest
 add_executable(htest
-    "${CMAKE_CURRENT_BINARY_DIR}/htest.cpp"
+    htest.cpp
 )
 
 target_link_libraries(htest

@@ -1,7 +1,10 @@
 #ifndef SRC_HADRON_RUNTIME_HPP_
 #define SRC_HADRON_RUNTIME_HPP_
 
+#include "hadron/Slot.hpp"
+
 #include <memory>
+#include <string_view>
 
 namespace hadron {
 
@@ -22,6 +25,9 @@ public:
 
     // Compile (or re-compile) class library.
     bool compileClassLibrary();
+
+    // Compile and run the provided input string, returning the results.
+    Slot interpret(std::string_view code);
 
     ThreadContext* context() { return m_threadContext.get(); }
 

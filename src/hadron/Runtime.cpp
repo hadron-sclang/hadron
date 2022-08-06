@@ -49,6 +49,10 @@ bool Runtime::compileClassLibrary() {
     return result;
 }
 
+Slot Runtime::interpret(std::string_view code) {
+    
+}
+
 bool Runtime::buildThreadContext() {
     m_threadContext->symbolTable->preloadSymbols(m_threadContext.get());
     m_threadContext->thisProcess = library::Process::alloc(m_threadContext.get()).instance();

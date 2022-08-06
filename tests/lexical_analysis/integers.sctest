@@ -1,11 +1,16 @@
-// RUN: positive constants
+//+ RUN: positive constants
 (
     4
 )
-// EXPECTING: 4
-
-// RUN: negative constants
+//+ EXPECTING:
+4
+//+ RUN: negative constants
 (
     -23
 )
-// EXPECTING: -23
+//+ EXPECTING:
+-23
+//+ RUN:
+(
+    // empty block
+)
