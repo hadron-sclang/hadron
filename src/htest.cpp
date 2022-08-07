@@ -1,9 +1,10 @@
-// hlang, command line SuperCollider language script interpreter
+// htest, command line SuperCollider language script interpreter
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/internal/FileSystem.hpp"
 #include "hadron/Runtime.hpp"
 #include "hadron/SourceFile.hpp"
 
+#include "fmt/format.h"
 #include "gflags/gflags.h"
 #include "spdlog/spdlog.h"
 
@@ -84,12 +85,18 @@ int main(int argc, char* argv[]) {
     }
 
     std::string runResults;
+    std::string_view runName;
+    int errorCount = 0;
 
     // Execute the commands in the file, in order.
     for (const auto& command : commands) {
         switch(command.verb) {
         case kExpecting: {
-            std::cout << "expecting name: '" << command.name << "' payload: '" << command.payload << "'\n";
+            if (runResults != command.payload) {
+                std::cerr << fmt::format("ERROR: running '{}', expected '{}' got '{}'\n", runName, command.payload,
+                        runResults);
+                ++errorCount;
+            }
         } break;
 
         case kNothing:
@@ -97,11 +104,12 @@ int main(int argc, char* argv[]) {
             return -1;
 
         case kRun: {
-            std::cout << "run name: '" << command.name << "' payload: '" << command.payload << "'\n";
             auto slotResult = runtime.interpret(command.payload);
+            runResults = runtime.slotToString(slotResult);
+            runName = command.name;
         } break;
         }
     }
 
-    return 0;
+    return errorCount == 0 ? 0 : -1;
 }

@@ -6,7 +6,6 @@
 #include <functional>
 #include <cassert>
 #include <cstddef>
-#include <string>
 #include <type_traits>
 
 // Tagged pointer/double 8-byte Slot structure. Uses code and techniques borrowed from:
@@ -40,7 +39,6 @@ public:
     Slot operator=(const Slot& s) { m_bits = s.m_bits; return *this; }
     ~Slot() = default;
 
-    // TODO: could these be constexpr? And rename to fromFloat(), 'make' is confusing.
     static Slot makeFloat(double d) { return Slot(d); }
     static constexpr Slot makeNil() { return Slot(kObjectPointerTag); }
     static constexpr Slot makeInt32(int32_t i) { return Slot(kInt32Tag | (static_cast<uint64_t>(i) & (~kTagMask))); }
@@ -49,8 +47,8 @@ public:
         return Slot(kObjectPointerTag | reinterpret_cast<uint64_t>(p));
     }
     static constexpr Slot makeSymbol(Hash h) { return Slot(kSymbolTag | (static_cast<uint64_t>(h) & (~kTagMask))); }
-    static inline Slot makeChar(char c) { return Slot(kCharTag | c); }
-    static inline Slot makeRawPointer(int8_t* p) { return Slot(kRawPointerTag | reinterpret_cast<uint64_t>(p)); }
+    static constexpr Slot makeChar(char c) { return Slot(kCharTag | c); }
+    static constexpr Slot makeRawPointer(int8_t* p) { return Slot(kRawPointerTag | reinterpret_cast<uint64_t>(p)); }
 
     inline bool operator==(const Slot& s) const { return m_bits == s.m_bits; }
     inline bool operator!=(const Slot& s) const { return m_bits != s.m_bits; }

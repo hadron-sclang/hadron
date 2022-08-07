@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <string_view>
+#include <string>
 
 namespace hadron {
 
@@ -28,6 +29,7 @@ public:
 
     // Compile and run the provided input string, returning the results.
     Slot interpret(std::string_view code);
+    std::string slotToString(Slot s);
 
     ThreadContext* context() { return m_threadContext.get(); }
 
