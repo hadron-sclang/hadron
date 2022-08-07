@@ -9,7 +9,8 @@ namespace hadron {
 
 class ErrorReporter;
 
-// Represents a file of source code.
+// Represents a file of source code. Inserts a null character at the end of the loaded string, for ease of use when
+// parsing/handling.
 class SourceFile {
 public:
     SourceFile() = delete;

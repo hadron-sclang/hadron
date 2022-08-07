@@ -62,3 +62,14 @@ target_link_libraries(hlangd
     gflags
     server
 )
+
+#############
+# htest
+add_executable(htest
+    htest.cpp
+)
+
+target_link_libraries(htest
+    gflags
+    hadron
+)

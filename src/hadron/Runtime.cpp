@@ -49,6 +49,14 @@ bool Runtime::compileClassLibrary() {
     return result;
 }
 
+Slot Runtime::interpret(std::string_view /* code */) {
+    return Slot::makeNil();
+}
+
+std::string Runtime::slotToString(Slot /* s */) {
+    return "";
+}
+
 bool Runtime::buildThreadContext() {
     m_threadContext->symbolTable->preloadSymbols(m_threadContext.get());
     m_threadContext->thisProcess = library::Process::alloc(m_threadContext.get()).instance();

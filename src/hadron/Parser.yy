@@ -1030,14 +1030,14 @@ vardef  : IDENTIFIER { $vardef = hadron::library::VarDefNode::make(threadContext
             }
         ;
 
-dictslotdef  : exprseq[build] COLON exprseq[next] { $dictslotdef = append($build, $next); }
-             | KEYWORD exprseq {
+dictslotdef : exprseq[build] COLON exprseq[next] { $dictslotdef = append($build, $next); }
+            | KEYWORD exprseq {
                     auto symbol = hadron::library::SymbolNode::make(threadContext, $KEYWORD);
                     auto exprSeq = hadron::library::ExprSeqNode::make(threadContext, $KEYWORD);
                     exprSeq.setExpr(symbol.toBase());
                     $dictslotdef = append(exprSeq, $exprseq);
                 }
-             ;
+            ;
 
 dictslotlist1[target]   : dictslotdef { $target = $dictslotdef; }
                         | dictslotlist1[build] COMMA dictslotdef { $target = append($build, $dictslotdef); }
@@ -1054,7 +1054,7 @@ dictlit2: OPENPAREN litdictslotlist CLOSEPAREN {
             }
         ;
 
-litdictslotdef  : listliteral[key] ':' listliteral[value] {
+litdictslotdef  : listliteral[key] COLON listliteral[value] {
                         auto keyValue = hadron::library::KeyValueNode::make(threadContext, $key.token());
                         keyValue.setKey($key);
                         keyValue.setValue($value);
@@ -1070,7 +1070,9 @@ litdictslotdef  : listliteral[key] ':' listliteral[value] {
                 ;
 
 litdictslotlist1[target]    : litdictslotdef { $target = $litdictslotdef; }
-                            | litdictslotlist1[build] ',' litdictslotdef { $target = append($build, $litdictslotdef); }
+                            | litdictslotlist1[build] COMMA litdictslotdef {
+                                    $target = append($build, $litdictslotdef);
+                                }
                             ;
 
 litdictslotlist : %empty { $litdictslotlist = hadron::library::KeyValueNode(); }
@@ -1082,7 +1084,7 @@ listlit : HASH listlit2 { $listlit = $listlit2; }
         ;
 
 // Same as listlit but without the hashes, for inner literal lists
-listlit2 : OPENSQUARE literallistc CLOSESQUARE {
+listlit2: OPENSQUARE literallistc CLOSESQUARE {
                 auto litList = hadron::library::CollectionNode::make(threadContext, $OPENSQUARE);
                 litList.setElements($literallistc);
                 $listlit2 = litList;

@@ -281,6 +281,8 @@
         ##############
         (space - '\n') | ('\n' @newline) { /* ignore whitespace */ };
 
+        '\0' { return true; };
+
         any {
             size_t lineNumber = m_errorReporter->getLineNumber(ts);
             m_errorReporter->addError(fmt::format("Lexing error at line {} character {}: unrecognized token '{}'",
