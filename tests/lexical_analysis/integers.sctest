@@ -10,7 +10,3 @@
 )
 //+ EXPECTING:
 -23
-//+ RUN:
-(
-    // empty block
-)

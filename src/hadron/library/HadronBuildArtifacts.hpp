@@ -2,6 +2,8 @@
 #define SRC_HADRON_LIBRARY_HADRON_BUILD_ARTIFACTS_HPP_
 
 #include "hadron/library/HadronAST.hpp"
+#include "hadron/library/HadronCFG.hpp"
+#include "hadron/library/HadronLinearFrame.hpp"
 #include "hadron/library/HadronParseNode.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Object.hpp"
@@ -42,6 +44,9 @@ public:
 
     CFGFrame controlFlowGraph() const { return CFGFrame(m_instance->controlFlowGraph); }
     void setControlFlowGraph(CFGFrame f) { m_instance->controlFlowGraph = f.slot(); }
+
+    LinearFrame linearFrame() const { return LinearFrame(m_instance->linearFrame); }
+    void setLinearFrame(LinearFrame f) { m_instance->linearFrame = f.slot(); }
 };
 
 } // namespace library

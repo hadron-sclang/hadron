@@ -109,7 +109,7 @@ void RegisterAllocator::allocateRegisters(ThreadContext* context, library::Linea
     m_unhandled.reserve(linearFrame.valueLifetimes().size());
     for (int32_t i = linearFrame.valueLifetimes().size() - 1; i >= 0; --i) {
         if (!linearFrame.valueLifetimes().typedAt(i).typedAt(0).isEmpty()) {
-            m_unhandled.emplace_back(linearFrame.valueLifetimes().typedAt(i).typedAt(0));
+            m_unhandled.push_back(linearFrame.valueLifetimes().typedAt(i).typedAt(0));
             linearFrame.valueLifetimes().typedAt(i).resize(context, 0);
         }
     }
@@ -126,7 +126,7 @@ void RegisterAllocator::allocateRegisters(ThreadContext* context, library::Linea
         regLifetime.setRegisterNumber(i);
         regLifetime.usages().add(context, Slot::makeInt32(numberOfInstructions));
         regLifetime.addLiveRange(context, numberOfInstructions, numberOfInstructions + 1);
-        m_inactive[i].emplace_back(regLifetime);
+        m_inactive[i].push_back(regLifetime);
     }
     // Iterate through all instructions and add additional reservations as needed.
     for (int32_t i = 0; i < numberOfInstructions; ++i) {
@@ -145,7 +145,7 @@ void RegisterAllocator::allocateRegisters(ThreadContext* context, library::Linea
     while (m_unhandled.size()) {
         // current = pick and remove first interval from unhandled
         std::pop_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
-        m_current = std::move(m_unhandled.back());
+        m_current = m_unhandled.back();
         m_unhandled.pop_back();
         assert(!m_current.isEmpty());
 
@@ -258,7 +258,7 @@ bool RegisterAllocator::tryAllocateFreeReg(ThreadContext* context) {
     // reg = register with highest freeUntilPos
     int32_t reg = 0;
     int32_t highestFreeUntilPos = freeUntilPos[0];
-    for (size_t i = 0; i < freeUntilPos.size(); ++i) {
+    for (size_t i = 1; i < freeUntilPos.size(); ++i) {
         if (freeUntilPos[i] > highestFreeUntilPos) {
             reg = static_cast<int32_t>(i);
             highestFreeUntilPos = freeUntilPos[i];
@@ -285,7 +285,7 @@ bool RegisterAllocator::tryAllocateFreeReg(ThreadContext* context) {
         std::push_heap(m_unhandled.begin(), m_unhandled.end(), IntervalCompare());
     }
 
-    assert(m_active[reg]);
+    assert(!m_active[reg]);
     m_active[reg] = m_current;
     m_current = library::LifetimeInterval();
     return true;
@@ -392,7 +392,7 @@ void RegisterAllocator::allocateBlockedReg(ThreadContext* context, library::Line
             }
         }
 
-        m_active[reg] = std::move(m_current);
+        m_active[reg] = m_current;
         m_current = library::LifetimeInterval();
     }
 }

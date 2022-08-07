@@ -35,6 +35,9 @@ public:
     static T make(ThreadContext* context) {
         auto t = T::alloc(context);
         t.initToNil();
+        t.setReads(TypedIdentSet<VReg>::makeTypedIdentSet(context));
+        t.setLocations(TypedIdentDict<Integer, Integer>::makeTypedIdentDict(context));
+        t.setMoves(TypedIdentDict<Integer, Integer>::makeTypedIdentDict(context));
         return t;
     }
 

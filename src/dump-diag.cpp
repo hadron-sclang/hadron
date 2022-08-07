@@ -49,8 +49,15 @@ void build(hadron::ThreadContext* context, hadron::library::BuildArtifacts build
     assert(classDef);
     if (!classDef) { return; }
     hadron::BlockBuilder blockBuilder(errorReporter, classDef);
-    buildArtifacts.setControlFlowGraph(blockBuilder.buildMethod(context, buildArtifacts.abstractSyntaxTree()));
-    assert(buildArtifacts.controlFlowGraph());
+    auto cfgFrame = blockBuilder.buildMethod(context, buildArtifacts.abstractSyntaxTree());
+    if (!cfgFrame) { return; }
+    buildArtifacts.setControlFlowGraph(cfgFrame);
+
+    if (stopAfter < 4) { return; }
+
+    // TODO: The reason for Materializer is that it needs to compile inner blocks first. So this dump-diag probably
+    // fails somehow when trying to compile stuff and stopping halfway.
+    
 }
 
 int main(int argc, char* argv[]) {
