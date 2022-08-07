@@ -65,3 +65,5 @@ set(HLANG_PATH "${CMAKE_SOURCE_DIR}/classes" CACHE STRING "Path to the HLang Cla
 
 add_subdirectory(third_party)
 add_subdirectory(src)
+enable_testing()
+add_subdirectory(tests)

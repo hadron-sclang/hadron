@@ -111,5 +111,10 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    return errorCount == 0 ? 0 : -1;
+    if (errorCount > 0) {
+        std::cerr << "errors in test file " << sourcePath << std::endl;
+        return -1;
+    }
+
+    return 0;
 }
