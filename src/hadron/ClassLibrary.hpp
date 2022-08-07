@@ -43,8 +43,6 @@ public:
 
     library::Class findClassNamed(library::Symbol name) const;
 
-    library::Method interpreterContext() const { return m_interpreterContext; }
-
     library::Array classVariables() const { return m_classVariables; }
 
     library::Array classArray() const { return m_classArray; }
@@ -80,10 +78,6 @@ private:
 
     // The official array of Class objects, maintained as part of the root set.
     library::ClassArray m_classArray;
-
-    // We keep a reference to the Interpreter:functionCompileContext method, as that is the "fake method" that
-    // all Interpreter code compiles as.
-    library::Method m_interpreterContext;
 
     // All class variables are maintained in a single global array, accessible here.
     library::Array m_classVariables;

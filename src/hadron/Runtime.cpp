@@ -1,5 +1,7 @@
 #include "hadron/Runtime.hpp"
 
+#include "hadron/ASTBuilder.hpp"
+#include "hadron/BlockBuilder.hpp"
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/Heap.hpp"
@@ -7,6 +9,7 @@
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Thread.hpp"
 #include "hadron/LighteningJIT.hpp"
+#include "hadron/Materializer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/SourceFile.hpp"
@@ -49,8 +52,28 @@ bool Runtime::compileClassLibrary() {
     return result;
 }
 
-Slot Runtime::interpret(std::string_view /* code */) {
-    return Slot::makeNil();
+Slot Runtime::interpret(std::string_view code) {
+    Slot result = Slot::makeNil();
+
+    Lexer lexer(code, m_errorReporter);
+    if (!lexer.lex()) { return result; }
+
+    Parser parser(&lexer, m_errorReporter);
+    if (!parser.parse(m_threadContext.get())) { return result; }
+
+    ASTBuilder astBuilder(m_errorReporter);
+    auto ast = astBuilder.buildBlock(m_threadContext.get(), library::BlockNode(parser.root().slot()));
+    if (!ast) { return result; }
+
+    BlockBuilder blockBuilder(m_errorReporter,
+            m_threadContext->classLibrary->findClassNamed(m_threadContext->symbolTable->interpreterSymbol()));
+    auto frame = blockBuilder.buildMethod(m_threadContext.get(), ast);
+    if (!frame) { return result; }
+
+    auto bytecode = Materializer::materialize(m_threadContext.get(), frame);
+    if (!bytecode) { return result; }
+
+    return result;
 }
 
 std::string Runtime::slotToString(Slot /* s */) {

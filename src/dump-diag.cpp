@@ -1,5 +1,7 @@
 // dump-diag, utility to print compilation diagnostics to stdout in JSON.
 #include "hadron/ASTBuilder.hpp"
+#include "hadron/BlockBuilder.hpp"
+#include "hadron/BlockSerializer.hpp"
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/ErrorReporter.hpp"
 #include "hadron/internal/FileSystem.hpp"
@@ -12,6 +14,7 @@
 #include "hadron/Runtime.hpp"
 #include "hadron/SlotDumpJSON.hpp"
 #include "hadron/SourceFile.hpp"
+#include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
 
 #include "gflags/gflags.h"
@@ -20,7 +23,7 @@
 #include <iostream>
 #include <memory>
 
-DEFINE_string(sourceFile, "", "Path to the source code file to process.");
+DEFINE_bool(pretty, false, "Pretty-print the dumped JSON.");
 DEFINE_bool(dumpClassArray, false, "Dump the compiled class library data structures, then exit.");
 DEFINE_int32(stopAfter, 7, "Stop compilation after phase, a number from 1-7. Compilation phases are: \n"
                            "    1: parse\n"
@@ -41,10 +44,17 @@ void build(hadron::ThreadContext* context, hadron::library::BuildArtifacts build
             hadron::library::BlockNode(buildArtifacts.parseTree().slot())));
 
     if (stopAfter < 3) { return; }
+
+    auto classDef = context->classLibrary->findClassNamed(buildArtifacts.className(context));
+    assert(classDef);
+    if (!classDef) { return; }
+    hadron::BlockBuilder blockBuilder(errorReporter, classDef);
+    buildArtifacts.setControlFlowGraph(blockBuilder.buildMethod(context, buildArtifacts.abstractSyntaxTree()));
+    assert(buildArtifacts.controlFlowGraph());
 }
 
 int main(int argc, char* argv[]) {
-    gflags::ParseCommandLineFlags(&argc, &argv, false);
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
     spdlog::default_logger()->set_level(spdlog::level::warn);
 
     auto errorReporter = std::make_shared<hadron::ErrorReporter>();
@@ -55,12 +65,18 @@ int main(int argc, char* argv[]) {
 
     if (FLAGS_dumpClassArray) {
         auto dump = hadron::SlotDumpJSON();
-        dump.dump(runtime.context(), runtime.context()->classLibrary->classArray().slot());
+        dump.dump(runtime.context(), runtime.context()->classLibrary->classArray().slot(), FLAGS_pretty);
         std::cout << dump.json() << std::endl;
         return 0;
     }
 
-    fs::path sourcePath(FLAGS_sourceFile);
+    if (argc != 2) {
+        std::cerr << "usage: dump-diag [flags] source_file\n";
+        return -1;
+    }
+
+    std::string flagSourceFile(argv[1]);
+    fs::path sourcePath(flagSourceFile);
     bool isClassFile = sourcePath.extension() == ".sc";
 
     auto sourceFile = std::make_unique<hadron::SourceFile>(sourcePath.string());
@@ -81,7 +97,7 @@ int main(int argc, char* argv[]) {
     if (!parseResult) { return -1; }
 
     auto artifacts = hadron::library::TypedArray<hadron::library::BuildArtifacts>::typedArrayAlloc(runtime.context());
-    auto sourceFileSymbol = hadron::library::Symbol::fromView(runtime.context(), FLAGS_sourceFile);
+    auto sourceFileSymbol = hadron::library::Symbol::fromView(runtime.context(), flagSourceFile);
 
     if (isClassFile) {
         auto rootNode = parser->root();
@@ -119,14 +135,14 @@ int main(int argc, char* argv[]) {
     } else {
         auto buildArtifacts = hadron::library::BuildArtifacts::make(runtime.context());
         buildArtifacts.setSourceFile(sourceFileSymbol);
-        auto interpreterContext = runtime.context()->classLibrary->interpreterContext();
         buildArtifacts.setParseTree(parser->root());
+        buildArtifacts.setClassName(runtime.context()->symbolTable->interpreterSymbol());
         build(runtime.context(), buildArtifacts, FLAGS_stopAfter, errorReporter);
         artifacts = artifacts.typedAdd(runtime.context(), buildArtifacts);
     }
 
     auto dump = hadron::SlotDumpJSON();
-    dump.dump(runtime.context(), artifacts.slot());
+    dump.dump(runtime.context(), artifacts.slot(), FLAGS_pretty);
     std::cout << dump.json() << std::endl;
 
     return 0;

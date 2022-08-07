@@ -11,10 +11,7 @@ namespace hadron {
 
 library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const library::CFGFrame frame) {
     // Prepare the LinearFrame for recording of value lifetimes.
-    auto linearFrame = library::LinearFrame::alloc(context);
-    linearFrame.initToNil();
-    linearFrame.setBlockLabels(library::TypedArray<library::LabelLIR>::typedNewClear(context,
-            frame.numberOfBlocks()));
+    auto linearFrame = library::LinearFrame::make(context, frame.numberOfBlocks());
 
     // Map of block number (index) to Block struct, useful when recursing through control flow graph.
     std::vector<library::CFGBlock> blocks;

@@ -139,7 +139,7 @@ void RegisterAllocator::allocateRegisters(ThreadContext* context, library::Linea
         }
     }
 
-    m_activeSpills.resize(linearFrame.numberOfSpillSlots().int32());
+    m_activeSpills.resize(linearFrame.numberOfSpillSlots());
 
     // while unhandled =/= { } do
     while (m_unhandled.size()) {

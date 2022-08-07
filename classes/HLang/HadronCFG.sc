@@ -18,9 +18,6 @@ HadronCFGFrame {
     // containing frame to support search of those frames for those values.
 	var <>outerBlockHIR;
 
-	// The Method object described by this Frame.
-	var <>method;
-
     // If true, the last argument named in the list is a variable argument array.
 	var <>hasVarArgs;
 

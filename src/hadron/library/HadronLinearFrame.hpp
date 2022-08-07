@@ -20,6 +20,15 @@ public:
     explicit LinearFrame(Slot instance): Object<LinearFrame, schema::HadronLinearFrameSchema>(instance) {}
     ~LinearFrame() {}
 
+    static LinearFrame make(ThreadContext* context, int32_t numberOfBlocks) {
+        auto linearFrame = LinearFrame::alloc(context);
+        linearFrame.initToNil();
+        linearFrame.setHIRToRegMap(TypedIdentDict<HIRId, VReg>::makeTypedIdentDict(context));
+        linearFrame.setBlockLabels(TypedArray<LabelLIR>::typedNewClear(context, numberOfBlocks));
+        linearFrame.setNumberOfSpillSlots(1);
+        return linearFrame;
+    }
+
     // Convenience function, returns associated VReg in LIR or nil if no hir value found.
     inline VReg hirToReg(HIRId hirId) { return hirToRegMap().typedGet(hirId); }
 
@@ -50,8 +59,8 @@ public:
     Intervals valueLifetimes() const { return Intervals(m_instance->valueLifetimes); }
     void setValueLifetimes(Intervals ivls) { m_instance->valueLifetimes = ivls.slot(); }
 
-    Integer numberOfSpillSlots() const { return Integer(m_instance->numberOfSpillSlots); }
-    void setNumberOfSpillSlots(Integer i) { m_instance->numberOfSpillSlots = i.slot(); }
+    int32_t numberOfSpillSlots() const { return m_instance->numberOfSpillSlots.getInt32(); }
+    void setNumberOfSpillSlots(int32_t i) { m_instance->numberOfSpillSlots = Slot::makeInt32(i); }
 
     TypedIdentDict<HIRId, VReg> hirToRegMap() const { return TypedIdentDict<HIRId, VReg>(m_instance->hirToRegMap); }
     void setHIRToRegMap(TypedIdentDict<HIRId, VReg> a) { m_instance->hirToRegMap = a.slot(); }

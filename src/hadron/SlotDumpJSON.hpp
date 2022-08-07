@@ -16,7 +16,7 @@ public:
     SlotDumpJSON();
     ~SlotDumpJSON();
 
-    void dump(ThreadContext* context, Slot slot);
+    void dump(ThreadContext* context, Slot slot, bool prettyPrint);
 
     std::string_view json() const;
 

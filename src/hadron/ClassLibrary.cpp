@@ -55,7 +55,6 @@ bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_classArray = library::ClassArray::typedArrayAlloc(context, 1);
     m_methodASTs.clear();
     m_methodFrames.clear();
-    m_interpreterContext = library::Method();
     m_classVariables = library::Array();
     m_numberOfClassVariables = 0;
     return true;
@@ -133,12 +132,6 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
 
                     library::Symbol methodName = methodNode.token().snippet(context);
                     method.setName(methodName);
-
-                    // We keep a reference to the Interpreter compile context, for quick access later.
-                    if ((className == context->symbolTable->interpreterSymbol()) &&
-                        (methodName == context->symbolTable->functionCompileContextSymbol())) {
-                        m_interpreterContext = method;
-                    }
 
                     if (methodNode.primitiveToken()) {
                         library::Symbol primitiveName = methodNode.primitiveToken().snippet(context);
@@ -318,8 +311,8 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         auto astIter = classASTs->second->find(methodName);
         assert(astIter != classASTs->second->end());
 
-        BlockBuilder blockBuilder(m_errorReporter);
-        auto frame = blockBuilder.buildMethod(context, method, astIter->second);
+        BlockBuilder blockBuilder(m_errorReporter, classDef);
+        auto frame = blockBuilder.buildMethod(context, astIter->second);
         if (!frame) { return false; }
 
         // TODO: Here's where we could extract some message signatures and compute dependencies, to decide on final
