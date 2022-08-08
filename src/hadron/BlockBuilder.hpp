@@ -24,11 +24,11 @@ public:
     BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter, library::Class owningClass);
     ~BlockBuilder() = default;
 
-    library::CFGFrame buildMethod(ThreadContext* context, const library::BlockAST blockAST);
+    library::CFGFrame buildMethod(ThreadContext* context, const library::BlockAST blockAST, bool returnFinalValue);
 
 private:
     library::CFGFrame buildFrame(ThreadContext* context, const library::BlockAST blockAST,
-            library::BlockLiteralHIR outerBlockHIR);
+            library::BlockLiteralHIR outerBlockHIR, bool returnFinalValue);
 
     // Re-uses the containing stack frame but produces a new scope.
     library::CFGScope buildInlineBlock(ThreadContext* context, library::CFGScope parentScope,

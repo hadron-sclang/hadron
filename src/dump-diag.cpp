@@ -49,7 +49,8 @@ void build(hadron::ThreadContext* context, hadron::library::BuildArtifacts build
     assert(classDef);
     if (!classDef) { return; }
     hadron::BlockBuilder blockBuilder(errorReporter, classDef);
-    auto cfgFrame = blockBuilder.buildMethod(context, buildArtifacts.abstractSyntaxTree());
+    auto cfgFrame = blockBuilder.buildMethod(context, buildArtifacts.abstractSyntaxTree(),
+            !buildArtifacts.methodName(context));
     if (!cfgFrame) { return; }
     buildArtifacts.setControlFlowGraph(cfgFrame);
 

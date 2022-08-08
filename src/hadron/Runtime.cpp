@@ -67,7 +67,7 @@ Slot Runtime::interpret(std::string_view code) {
 
     BlockBuilder blockBuilder(m_errorReporter,
             m_threadContext->classLibrary->findClassNamed(m_threadContext->symbolTable->interpreterSymbol()));
-    auto frame = blockBuilder.buildMethod(m_threadContext.get(), ast);
+    auto frame = blockBuilder.buildMethod(m_threadContext.get(), ast, true);
     if (!frame) { return result; }
 
     auto bytecode = Materializer::materialize(m_threadContext.get(), frame);

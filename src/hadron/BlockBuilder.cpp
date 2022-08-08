@@ -19,12 +19,13 @@ namespace hadron {
 BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter, library::Class owningClass):
     m_errorReporter(errorReporter), m_owningClass(owningClass) { }
 
-library::CFGFrame BlockBuilder::buildMethod(ThreadContext* context, const library::BlockAST blockAST) {
-    return buildFrame(context, blockAST, library::BlockLiteralHIR());
+library::CFGFrame BlockBuilder::buildMethod(ThreadContext* context, const library::BlockAST blockAST,
+        bool returnFinalValue) {
+    return buildFrame(context, blockAST, library::BlockLiteralHIR(), returnFinalValue);
 }
 
 library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library::BlockAST blockAST,
-        library::BlockLiteralHIR outerBlockHIR) {
+        library::BlockLiteralHIR outerBlockHIR, bool returnFinalValue) {
     // Build outer frame, root scope, and entry block.
     m_frame = library::CFGFrame::makeCFGFrame(context, outerBlockHIR);
     auto scope = m_frame.rootScope();
@@ -43,10 +44,13 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
     m_frame.setNumberOfBlocks(m_frame.numberOfBlocks() + 1);
     m_block = scope.blocks().typedFirst();
 
-    buildFinalValue(context, blockAST.statements());
+    auto finalValue = buildFinalValue(context, blockAST.statements());
 
     // We append a return statement in the final block, if one wasn't already provided.
     if (!m_block.hasMethodReturn()) {
+        if (returnFinalValue) {
+            m_block.append(context, library::StoreReturnHIR::makeStoreReturnHIR(context, finalValue).toBase());
+        }
         m_block.append(context, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
     }
 
@@ -90,7 +94,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
         auto blockHIR = library::BlockLiteralHIR::makeBlockLiteralHIR(context);
         m_frame.setInnerBlocks(m_frame.innerBlocks().typedAdd(context, blockHIR));
         nodeValue = m_block.append(context, blockHIR.toBase());
-        blockHIR.setFrame(buildFrame(context, blockAST, blockHIR));
+        blockHIR.setFrame(buildFrame(context, blockAST, blockHIR, true));
         assert(nodeValue);
     } break;
 
