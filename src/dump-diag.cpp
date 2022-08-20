@@ -3,7 +3,6 @@
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/ClassLibrary.hpp"
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/internal/FileSystem.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/library/Array.hpp"
@@ -36,10 +35,9 @@ DEFINE_int32(stopAfter, 7, "Stop compilation after phase, a number from 1-7. Com
 
 // buildArtifacts should already have sourceFile, className, methodName, and parseTree specified. This function fills
 // out the rest of the buildArtifacts object, up until stopAfter.
-void build(hadron::ThreadContext* context, hadron::library::BuildArtifacts buildArtifacts, int stopAfter,
-        std::shared_ptr<hadron::ErrorReporter> errorReporter) {
+void build(hadron::ThreadContext* context, hadron::library::BuildArtifacts buildArtifacts, int stopAfter) {
     if (stopAfter < 2) { return; }
-    hadron::ASTBuilder astBuilder(errorReporter);
+    hadron::ASTBuilder astBuilder;
     buildArtifacts.setAbstractSyntaxTree(astBuilder.buildBlock(context,
             hadron::library::BlockNode(buildArtifacts.parseTree().slot())));
 
@@ -48,7 +46,7 @@ void build(hadron::ThreadContext* context, hadron::library::BuildArtifacts build
     auto classDef = context->classLibrary->findClassNamed(buildArtifacts.className(context));
     assert(classDef);
     if (!classDef) { return; }
-    hadron::BlockBuilder blockBuilder(errorReporter, classDef);
+    hadron::BlockBuilder blockBuilder(classDef);
     auto cfgFrame = blockBuilder.buildMethod(context, buildArtifacts.abstractSyntaxTree(),
             !buildArtifacts.methodName(context));
     if (!cfgFrame) { return; }
@@ -65,8 +63,7 @@ int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     spdlog::default_logger()->set_level(spdlog::level::warn);
 
-    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
-    hadron::Runtime runtime(errorReporter);
+    hadron::Runtime runtime;
     if (!runtime.initInterpreter()) {
         return -1;
     }
@@ -88,13 +85,13 @@ int main(int argc, char* argv[]) {
     bool isClassFile = sourcePath.extension() == ".sc";
 
     auto sourceFile = std::make_unique<hadron::SourceFile>(sourcePath.string());
-    if (!sourceFile->read(errorReporter)) { return -1; }
+    if (!sourceFile->read()) { return -1; }
 
-    auto lexer = std::make_unique<hadron::Lexer>(sourceFile->codeView(), errorReporter);
+    auto lexer = std::make_unique<hadron::Lexer>(sourceFile->codeView());
     bool lexResult = lexer->lex();
      if (!lexResult) { return -1; }
 
-    auto parser = std::make_unique<hadron::Parser>(lexer.get(), errorReporter);
+    auto parser = std::make_unique<hadron::Parser>(lexer.get());
     bool parseResult;
     if (isClassFile) {
         parseResult = parser->parseClass(runtime.context());
@@ -133,7 +130,7 @@ int main(int argc, char* argv[]) {
                     buildArtifacts.setMethodName(methodNode.token().snippet(runtime.context()));
                 }
                 buildArtifacts.setParseTree(methodNode.body().toBase());
-                build(runtime.context(), buildArtifacts, FLAGS_stopAfter, errorReporter);
+                build(runtime.context(), buildArtifacts, FLAGS_stopAfter);
                 artifacts = artifacts.typedAdd(runtime.context(), buildArtifacts);
                 methodNode = hadron::library::MethodNode(methodNode.next().slot());
             }
@@ -145,7 +142,7 @@ int main(int argc, char* argv[]) {
         buildArtifacts.setSourceFile(sourceFileSymbol);
         buildArtifacts.setParseTree(parser->root());
         buildArtifacts.setClassName(runtime.context()->symbolTable->interpreterSymbol());
-        build(runtime.context(), buildArtifacts, FLAGS_stopAfter, errorReporter);
+        build(runtime.context(), buildArtifacts, FLAGS_stopAfter);
         artifacts = artifacts.typedAdd(runtime.context(), buildArtifacts);
     }
 

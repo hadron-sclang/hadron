@@ -1,7 +1,6 @@
 #include "hadron/BlockBuilder.hpp"
 
 #include "hadron/ClassLibrary.hpp"
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/SymbolTable.hpp"
@@ -16,8 +15,7 @@
 
 namespace hadron {
 
-BlockBuilder::BlockBuilder(std::shared_ptr<ErrorReporter> errorReporter, library::Class owningClass):
-    m_errorReporter(errorReporter), m_owningClass(owningClass) { }
+BlockBuilder::BlockBuilder(library::Class owningClass): m_owningClass(owningClass) { }
 
 library::CFGFrame BlockBuilder::buildMethod(ThreadContext* context, const library::BlockAST blockAST,
         bool returnFinalValue) {
@@ -30,6 +28,7 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
     m_frame = library::CFGFrame::makeCFGFrame(context, outerBlockHIR);
     auto scope = m_frame.rootScope();
 
+    m_frame.setArgumentNames(blockAST.argumentNames());
     // Add arguments to the prototype frame.
     m_frame.setPrototypeFrame(m_frame.prototypeFrame().addAll(context, blockAST.argumentDefaults()));
 

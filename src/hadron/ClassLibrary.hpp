@@ -18,15 +18,13 @@
 
 namespace hadron {
 
-class ErrorReporter;
 class Parser;
 class SourceFile;
 struct ThreadContext;
 
 class ClassLibrary {
 public:
-    ClassLibrary() = delete;
-    explicit ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter);
+    ClassLibrary();
     ~ClassLibrary() = default;
 
     // Load some minimal information from the classes parsed by schemac during compile time. This allows for fast
@@ -69,7 +67,6 @@ private:
     // Clean up any temporary data structures
     bool cleanUp();
 
-    std::shared_ptr<ErrorReporter> m_errorReporter;
     // We keep the normalized paths in a set to prevent duplicate additions of the same path.
     std::unordered_set<std::string> m_libraryPaths;
 

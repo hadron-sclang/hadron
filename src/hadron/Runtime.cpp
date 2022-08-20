@@ -1,16 +1,10 @@
 #include "hadron/Runtime.hpp"
 
-#include "hadron/ASTBuilder.hpp"
-#include "hadron/BlockBuilder.hpp"
 #include "hadron/ClassLibrary.hpp"
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/Heap.hpp"
-#include "hadron/Lexer.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Thread.hpp"
 #include "hadron/LighteningJIT.hpp"
-#include "hadron/Materializer.hpp"
-#include "hadron/Parser.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/SourceFile.hpp"
 #include "hadron/SymbolTable.hpp"
@@ -23,14 +17,13 @@
 
 namespace hadron {
 
-Runtime::Runtime(std::shared_ptr<ErrorReporter> errorReporter):
-    m_errorReporter(errorReporter),
+Runtime::Runtime():
     m_heap(std::make_shared<Heap>()),
     m_threadContext(std::make_unique<ThreadContext>()) {
     LighteningJIT::initJITGlobals();
     m_threadContext->heap = m_heap;
     m_threadContext->symbolTable = std::make_unique<SymbolTable>();
-    m_threadContext->classLibrary = std::make_unique<ClassLibrary>(m_errorReporter);
+    m_threadContext->classLibrary = std::make_unique<ClassLibrary>();
 }
 
 Runtime::~Runtime() {}
@@ -39,6 +32,9 @@ bool Runtime::initInterpreter() {
     if (!buildThreadContext()) return false;
     if (!buildTrampolines()) return false;
     m_threadContext->classLibrary->bootstrapLibrary(m_threadContext.get());
+    m_interpreter = library::Interpreter::alloc(m_threadContext.get());
+    m_interpreter.initToNil();
+
     return true;
 }
 
@@ -53,27 +49,34 @@ bool Runtime::compileClassLibrary() {
 }
 
 Slot Runtime::interpret(std::string_view code) {
-    Slot result = Slot::makeNil();
+    // TODO: refactor to avoid this needless copy
+    auto codeString = library::String::fromView(m_threadContext.get(), code);
+    auto function = m_interpreter.compile(m_threadContext.get(), codeString);
 
-    Lexer lexer(code, m_errorReporter);
-    if (!lexer.lex()) { return result; }
+    auto callerFrame = library::Frame::alloc(m_threadContext.get());
+    callerFrame.initToNil();
+    callerFrame.setIp(reinterpret_cast<int8_t*>(m_exitTrampoline));
+    m_threadContext->framePointer = callerFrame.instance();
 
-    Parser parser(&lexer, m_errorReporter);
-    if (!parser.parse(m_threadContext.get())) { return result; }
+    auto calleeFrame = library::Frame::alloc(m_threadContext.get(),
+            std::max(function.def().prototypeFrame().size() - 1, 0));
+    calleeFrame.initToNil();
+//    calleeFrame.setMethod(method);
+    calleeFrame.setCaller(callerFrame);
+    calleeFrame.setContext(calleeFrame);
+    calleeFrame.setHomeContext(calleeFrame);
+    calleeFrame.setArg0(m_interpreter.slot());
+    calleeFrame.copyPrototypeAfterThis(function.def().prototypeFrame());
 
-    ASTBuilder astBuilder(m_errorReporter);
-    auto ast = astBuilder.buildBlock(m_threadContext.get(), library::BlockNode(parser.root().slot()));
-    if (!ast) { return result; }
+    m_threadContext->stackPointer = calleeFrame.instance();
 
-    BlockBuilder blockBuilder(m_errorReporter,
-            m_threadContext->classLibrary->findClassNamed(m_threadContext->symbolTable->interpreterSymbol()));
-    auto frame = blockBuilder.buildMethod(m_threadContext.get(), ast, true);
-    if (!frame) { return result; }
+    // Hit the trampoline.
+    SPDLOG_INFO("Machine code entry.");
+    m_entryTrampoline(m_threadContext.get(), function.def().code().start());
+    SPDLOG_INFO("Machine code exit.");
 
-    auto bytecode = Materializer::materialize(m_threadContext.get(), frame);
-    if (!bytecode) { return result; }
-
-    return result;
+    // Extract return value from frame pointer
+    return m_threadContext->framePointer->arg0;
 }
 
 std::string Runtime::slotToString(Slot /* s */) {
@@ -92,62 +95,43 @@ bool Runtime::buildTrampolines() {
     size_t jitBufferSize = 0;
     library::Int8Array jitArray = library::Int8Array::arrayAllocJIT(m_threadContext.get(), Heap::kSmallObjectSize,
             jitBufferSize);
-    m_heap->addToRootSet(jitArray.slot());
     LighteningJIT jit;
     jit.begin(jitArray.start(), jitArray.capacity(m_threadContext.get()));
     auto align = jit.enterABI();
-    // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* m_threadContext and a uint8_t*
+    // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* m_threadContext and a int8_t*
     // machineCode pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded into
     // Reg 0. As Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register, I have
     // taken some care to ensure that GPR(2)/Reg 0 is not the stack pointer on any of the supported architectures.
     jit.loadCArgs2(JIT::kContextPointerReg, JIT::Reg(0));
     // Save the C stack pointer, this pointer is *not* tagged as it does not point into Hadron-allocated heap.
     jit.stxi_w(offsetof(ThreadContext, cStackPointer), JIT::kContextPointerReg, jit.getCStackPointerRegister());
+    // Restore the Hadron frame pointer.
+    jit.ldxi_w(JIT::kFramePointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, framePointer));
     // Restore the Hadron stack pointer.
     jit.ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, stackPointer));
-    // Remove tag from stack pointer.
-    jit.andi(JIT::kStackPointerReg, JIT::kStackPointerReg, ~Slot::kTagMask);
     // Jump into the calling code.
     jit.jmpr(JIT::Reg(0));
 
     m_exitTrampoline = jit.addressToFunctionPointer(jit.address());
+
+    // Save frame and stack pointers back to thread context
+    jit.stxi_w(offsetof(ThreadContext, framePointer), JIT::kContextPointerReg, JIT::kFramePointerReg);
+    jit.stxi_w(offsetof(ThreadContext, stackPointer), JIT::kContextPointerReg, JIT::kStackPointerReg);
+
     // Restore the C stack pointer.
     jit.ldxi_w(jit.getCStackPointerRegister(), JIT::kContextPointerReg, offsetof(ThreadContext, cStackPointer));
     jit.leaveABI(align);
     jit.ret();
+
     assert(!jit.hasJITBufferOverflow());
     size_t trampolineSize = 0;
     auto entryAddr = jit.end(&trampolineSize);
-    m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const uint8_t*)>(
+    m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const int8_t*)>(
             jit.addressToFunctionPointer(entryAddr));
     jitArray.resize(m_threadContext.get(), trampolineSize);
 
+    m_threadContext->exitMachineCode = reinterpret_cast<int8_t*>(m_entryTrampoline);
     return true;
-}
-
-void Runtime::enterMachineCode(const uint8_t* machineCode) {
-/*
-    // Set machine return address as the exit trampoline into Hadron stack frame.
-    *(m_threadContext->framePointer) = Slot::makeRawPointer(m_threadContext->framePointer);
-    --(m_threadContext->framePointer);
-    *(m_threadContext->framePointer) = Slot::makeRawPointer(m_threadContext->stackPointer);
-    --(m_threadContext->framePointer);
-    *(m_threadContext->framePointer) = Slot::makeRawPointer(reinterpret_cast<int8_t*>(m_exitTrampoline));
-    --(m_threadContext->framePointer);
-
-    // Initialize return value.
-    *(m_threadContext->framePointer) = Slot::makeNil();
-    // No arguments means stack pointer == frame pointer.
-    m_threadContext->stackPointer = m_threadContext->framePointer;
-
-    // Set up exit state.
-    m_threadContext->exitMachineCode = reinterpret_cast<uint8_t*>(m_exitTrampoline);
-    m_threadContext->machineCodeStatus = 0;
-*/
-    // Hit the trampoline.
-    SPDLOG_INFO("Machine code entry.");
-    m_entryTrampoline(m_threadContext.get(), machineCode);
-    SPDLOG_INFO("Machine code exit.");
 }
 
 } // namespace hadron

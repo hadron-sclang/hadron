@@ -58,6 +58,9 @@ HadronPhiLIR : HadronLIR {
 	var <>inputs;
 }
 
+HadronPopFrameLIR : HadronLIR {
+}
+
 HadronStoreToPointerLIR : HadronLIR {
 	var <>pointer;
 	var <>offset;

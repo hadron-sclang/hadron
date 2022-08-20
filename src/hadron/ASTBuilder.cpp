@@ -1,6 +1,5 @@
 #include "hadron/ASTBuilder.hpp"
 
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/library/HadronAST.hpp"
 #include "hadron/library/String.hpp"
 #include "hadron/library/Symbol.hpp"
@@ -13,10 +12,6 @@
 #include <cassert>
 
 namespace hadron {
-
-ASTBuilder::ASTBuilder(): m_errorReporter(std::make_shared<ErrorReporter>()) {}
-
-ASTBuilder::ASTBuilder(std::shared_ptr<ErrorReporter> errorReporter): m_errorReporter(errorReporter) {}
 
 library::BlockAST ASTBuilder::buildBlock(ThreadContext* context, const library::BlockNode blockNode) {
     auto blockAST = library::BlockAST::makeBlock(context);

@@ -152,6 +152,15 @@ public:
         t.m_instance->hasVarArgs = Slot::makeBool(b);
     }
 
+    SymbolArray argumentNames() const {
+        const T& t = static_cast<const T&>(*this);
+        return SymbolArray(t.m_instance->argumentNames);
+    }
+    void setArgumentNames(SymbolArray a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->argumentNames = a.slot();
+    }
+
     SymbolArray variableNames() const {
         const T& t = static_cast<const T&>(*this);
         return SymbolArray(t.m_instance->variableNames);

@@ -284,9 +284,8 @@
         '\0' { return true; };
 
         any {
-            size_t lineNumber = m_errorReporter->getLineNumber(ts);
-            m_errorReporter->addError(fmt::format("Lexing error at line {} character {}: unrecognized token '{}'",
-                lineNumber, ts - m_errorReporter->getLineStart(lineNumber), std::string(ts, te - ts)));
+            auto loc = getLocation(ts);
+            SPDLOG_ERROR("Lexer error near line {} char {}.", loc.lineNumber, loc.characterNumber);
             return false;
         };
     *|;
@@ -296,7 +295,6 @@
 
 #include "hadron/Lexer.hpp"
 
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/Slot.hpp"
 
 #include "fmt/core.h"
@@ -318,15 +316,7 @@ namespace {
 
 namespace hadron {
 
-Lexer::Lexer(std::string_view code):
-    m_code(code), m_errorReporter(std::make_shared<ErrorReporter>(true)) {
-    m_errorReporter->setCode(m_code.data());
-}
-
-Lexer::Lexer(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter):
-    m_code(code), m_errorReporter(errorReporter) {
-        m_errorReporter->setCode(m_code.data());
-    }
+Lexer::Lexer(std::string_view code): m_code(code) {}
 
 bool Lexer::lex() {
     // Ragel-required state variables.

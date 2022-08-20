@@ -14,9 +14,7 @@ class ErrorReporter;
 
 class Lexer {
 public:
-    // For testing, builds its own ErrorReporter
     Lexer(std::string_view code);
-    Lexer(std::string_view code, std::shared_ptr<ErrorReporter> errorReporter);
 
     ~Lexer() = default;
 
@@ -25,7 +23,6 @@ public:
     const std::vector<Token>& tokens() const { return m_tokens; }
 
     // Access for testing
-    std::shared_ptr<ErrorReporter> errorReporter() { return m_errorReporter; }
     std::string_view code() const { return m_code; }
 
 private:
@@ -34,8 +31,6 @@ private:
     std::string_view m_code;
     std::vector<Token> m_tokens;
     std::set<size_t> m_lineEndings;
-
-    std::shared_ptr<ErrorReporter> m_errorReporter;
 };
 
 } // namespace hadron

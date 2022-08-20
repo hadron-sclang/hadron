@@ -1,5 +1,4 @@
 // htest, command line SuperCollider language script interpreter
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/internal/FileSystem.hpp"
 #include "hadron/Runtime.hpp"
 #include "hadron/SourceFile.hpp"
@@ -24,13 +23,12 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
-    hadron::Runtime runtime(errorReporter);
+    hadron::Runtime runtime;
     if (!runtime.initInterpreter()) { return -1; }
 
     fs::path sourcePath(argv[1]);
     auto sourceFile = hadron::SourceFile(sourcePath.string());
-    if (!sourceFile.read(errorReporter)) { return -1; }
+    if (!sourceFile.read()) { return -1; }
 
     auto tokenRegex = std::regex("(^|\\n)//[+][ ]*([A-Z]+):[ ]*([^ \\n]+[^\\n]*)?\\n");
     auto iter = std::cregex_iterator(sourceFile.code(), sourceFile.code() + sourceFile.size(), tokenRegex);

@@ -1,6 +1,5 @@
 #include "hadron/Lexer.hpp"
 
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 
 #include "doctest/doctest.h"

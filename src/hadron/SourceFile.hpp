@@ -7,8 +7,6 @@
 
 namespace hadron {
 
-class ErrorReporter;
-
 // Represents a file of source code. Inserts a null character at the end of the loaded string, for ease of use when
 // parsing/handling.
 class SourceFile {
@@ -17,7 +15,7 @@ public:
     SourceFile(std::string path);
     ~SourceFile() = default;
 
-    bool read(std::shared_ptr<ErrorReporter> errorReporter);
+    bool read();
 
     const char* code() const { return m_code.get(); }
     size_t size() const { return m_codeSize; }

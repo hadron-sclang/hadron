@@ -61,8 +61,6 @@ set(HADRON_FRONTEND_FILES
     internal/FileSystem.cpp
     internal/FileSystem.hpp
 
-    ErrorReporter.cpp
-    ErrorReporter.hpp
     Hash.cpp
     Hash.hpp
     Lexer.hpp
@@ -204,6 +202,7 @@ add_library(hadron STATIC
     library/HadronLIR.hpp
     library/HadronParseNode.hpp
     library/Integer.hpp
+    library/Interpreter.cpp
     library/Kernel.hpp
     library/Object.hpp
     library/Schema.hpp
@@ -261,7 +260,6 @@ add_library(hadron STATIC
 )
 
 set(HADRON_COMPILER_UNITTESTS
-    ${CMAKE_CURRENT_SOURCE_DIR}/ErrorReporter_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Lexer_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MoveScheduler_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/OpcodeIterator_unittests.cpp

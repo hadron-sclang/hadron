@@ -62,17 +62,16 @@
 %{
 #include "hadron/Parser.hpp"
 
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
 #include "hadron/Token.hpp"
 
-#include <cmath>
-
 #include "fmt/format.h"
 #include "spdlog/spdlog.h"
+
+#include <cmath>
 %}
 
 %code{
@@ -1466,25 +1465,22 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContex
 }
 
 void yy::parser::error(const hadron::Token::Location& location, const std::string& errorString) {
-    auto locError = fmt::format("line {} col {}: {}", location.lineNumber + 1, location.characterNumber + 1,
+    SPDLOG_ERROR("Parse error on line {} col {}: {}", location.lineNumber + 1, location.characterNumber + 1,
             errorString);
-    hadronParser->errorReporter()->addError(locError);
 }
 
 namespace hadron {
 
-Parser::Parser(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter):
+Parser::Parser(Lexer* lexer):
     m_lexer(lexer),
     m_tokenIndex(0),
-    m_sendInterpret(false),
-    m_errorReporter(errorReporter) { }
+    m_sendInterpret(false) { }
 
 Parser::Parser(std::string_view code):
     m_ownLexer(std::make_unique<Lexer>(code)),
     m_lexer(m_ownLexer.get()),
     m_tokenIndex(0),
-    m_sendInterpret(false),
-    m_errorReporter(m_ownLexer->errorReporter()) { }
+    m_sendInterpret(false) { }
 
 Parser::~Parser() {}
 
@@ -1536,7 +1532,7 @@ bool Parser::innerParse(ThreadContext* context) {
         m_root = hadron::library::EmptyNode::make(context, hadron::library::Token()).toBase();
     }
 
-    return m_errorReporter->errorCount() == 0;
+    return true;
 }
 
 } // namespace hadron

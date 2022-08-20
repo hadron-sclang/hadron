@@ -24,14 +24,21 @@ struct Schema {
     // TODO(https://github.com/hadron-sclang/hadron/issues/108): can we shrink this to 8 bytes?
 
     // Underscores as prefixes for these members so they don't collide with instance variables derived from scanning the
-    // SuperCollider class files. This is always a symbol.
+    // SuperCollider class files.
+    
+    // A symbol hash of the class name.
     Hash _className;
-    // This is absolute size, including this header.
-    uint64_t _sizeInBytes;
+    // Absolute size, including this header.
+    uint32_t _sizeInBytes;
+
+    // could also consider:
+    // uint32_t _allocationSize;
+    // uint32_t _flags;
 };
 
 // Important we not have a vtable in these objects, so no virtual functions.
 static_assert(std::is_standard_layout<Schema>::value);
+static_assert(sizeof(Schema) == 8);
 
 } // namespace library
 } // namespace hadron

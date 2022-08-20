@@ -19,6 +19,7 @@ bool LIR::producesValue() const {
     case BranchToRegisterLIR::nameHash():
     case InterruptLIR::nameHash():
     case LabelLIR::nameHash():
+    case PopFrameLIR::nameHash():
     case StoreToPointerLIR::nameHash():
         return false;
     }

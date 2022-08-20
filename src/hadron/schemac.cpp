@@ -1,5 +1,4 @@
 // schema, parses a SuperCollider input class file and generates a Schema C++ output file
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/SourceFile.hpp"
@@ -119,7 +118,6 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
     // Map of class names to info.
     std::unordered_map<std::string, ClassInfo> classes;
     // Map of paths to in-order class names to define.
@@ -130,15 +128,14 @@ int main(int argc, char* argv[]) {
         auto schemaPath = fs::path(ioPair.second);
 
         hadron::SourceFile sourceFile(classFile);
-        if (!sourceFile.read(errorReporter)) {
+        if (!sourceFile.read()) {
             std::cerr << "Failed to read input class file: " << classFile << std::endl;
             return -1;
         }
         auto code = sourceFile.codeView();
-        errorReporter->setCode(code.data());
 
-        hadron::Lexer lexer(code, errorReporter);
-        if (!lexer.lex() || !errorReporter->ok()) {
+        hadron::Lexer lexer(code);
+        if (!lexer.lex()) {
             std::cerr << "Failed to lex input class file: " << classFile << std::endl;
             return -1;
         }

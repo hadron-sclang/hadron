@@ -4,6 +4,7 @@
 #include "hadron/library/Function.hpp"
 #include "hadron/library/HadronHIR.hpp"
 #include "hadron/library/HadronLIR.hpp"
+#include "hadron/library/Integer.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/ThreadContext.hpp"
 
@@ -185,9 +186,15 @@ library::LinearFrame BlockSerializer::serialize(ThreadContext* context, const li
             } break;
 
             case library::MethodReturnHIR::nameHash(): {
-                // Raise return interrupt.
-                linearFrame.append(context, library::HIRId(), library::InterruptLIR::makeInterrupt(context,
-                        ThreadContext::InterruptCode::kReturn).toBase(), instructions);
+                // Move frame pointer back to stack pointer, then load caller frame into stack pointer.
+                linearFrame.append(context, library::HIRId(), library::PopFrameLIR::make(context).toBase(),
+                        instructions);
+                auto returnAddress = linearFrame.append(context, library::HIRId(),
+                        library::LoadFromPointerLIR::makeLoadFromPointer(context, library::kFramePointerVReg,
+                        offsetof(schema::FramePrivateSchema, ip)).toBase(), instructions);
+                linearFrame.append(context, library::HIRId(),
+                        library::BranchToRegisterLIR::makeBranchToRegisterLIR(context, returnAddress).toBase(),
+                        instructions);
             } break;
 
             case library::PhiHIR::nameHash(): {
