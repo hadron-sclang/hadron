@@ -61,6 +61,10 @@ HadronPhiLIR : HadronLIR {
 HadronPopFrameLIR : HadronLIR {
 }
 
+HadronRemoveTagLIR : HadronLIR {
+	var <>taggedVReg;
+}
+
 HadronStoreToPointerLIR : HadronLIR {
 	var <>pointer;
 	var <>offset;

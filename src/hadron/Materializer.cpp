@@ -3,13 +3,13 @@
 #include "hadron/Arch.hpp"
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
+#include "hadron/LighteningJIT.hpp"
 #include "hadron/library/HadronHIR.hpp"
 #include "hadron/library/HadronLinearFrame.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
 #include "hadron/ThreadContext.hpp"
-#include "hadron/VirtualJIT.hpp"
 
 namespace hadron {
 
@@ -43,18 +43,19 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
     resolver.resolve(context, linearFrame);
 
     size_t bytecodeSize = linearFrame.instructions().size() * 16;
-    auto bytecode = library::Int8Array::arrayAlloc(context, bytecodeSize);
-    bytecodeSize = bytecode.capacity(context);
+    auto bytecode = library::Int8Array::arrayAllocJIT(context, bytecodeSize, bytecodeSize);
 
-    hadron::VirtualJIT jit;
+    hadron::LighteningJIT jit;
     jit.begin(bytecode.start(), bytecodeSize);
 
     hadron::Emitter emitter;
     emitter.emit(context, linearFrame, &jit);
 
+    assert(!jit.hasJITBufferOverflow());
     size_t finalSize = 0;
     jit.end(&finalSize);
     assert(finalSize < bytecodeSize);
+    bytecode.resize(context, finalSize);
 
     return bytecode;
 }

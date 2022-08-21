@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (payloadStart) {
-        auto payload = std::string_view(payloadStart, sourceFile.code() + sourceFile.size() - payloadStart);
+        auto payload = std::string_view(payloadStart, sourceFile.code() + sourceFile.size() - payloadStart - 1);
         commands.emplace_back(TestCommand{verb, name, payload});
     }
 

@@ -49,6 +49,8 @@ bool Runtime::compileClassLibrary() {
 }
 
 Slot Runtime::interpret(std::string_view code) {
+    LighteningJIT::markThreadForJITCompilation();
+
     // TODO: refactor to avoid this needless copy
     auto codeString = library::String::fromView(m_threadContext.get(), code);
     auto function = m_interpreter.compile(m_threadContext.get(), codeString);
@@ -56,7 +58,7 @@ Slot Runtime::interpret(std::string_view code) {
     auto callerFrame = library::Frame::alloc(m_threadContext.get());
     callerFrame.initToNil();
     callerFrame.setIp(reinterpret_cast<int8_t*>(m_exitTrampoline));
-    m_threadContext->framePointer = callerFrame.instance();
+//    m_threadContext->framePointer = callerFrame.instance();
 
     auto calleeFrame = library::Frame::alloc(m_threadContext.get(),
             std::max(function.def().prototypeFrame().size() - 1, 0));
@@ -68,7 +70,12 @@ Slot Runtime::interpret(std::string_view code) {
     calleeFrame.setArg0(m_interpreter.slot());
     calleeFrame.copyPrototypeAfterThis(function.def().prototypeFrame());
 
-    m_threadContext->stackPointer = calleeFrame.instance();
+    m_threadContext->framePointer = calleeFrame.instance();
+    m_threadContext->stackPointer = nullptr;
+
+  //  m_threadContext->stackPointer = calleeFrame.instance();
+
+    LighteningJIT::markThreadForJITExecution();
 
     // Hit the trampoline.
     SPDLOG_INFO("Machine code entry.");
@@ -76,11 +83,16 @@ Slot Runtime::interpret(std::string_view code) {
     SPDLOG_INFO("Machine code exit.");
 
     // Extract return value from frame pointer
-    return m_threadContext->framePointer->arg0;
+    return m_threadContext->stackPointer->arg0;
 }
 
-std::string Runtime::slotToString(Slot /* s */) {
-    return "";
+std::string Runtime::slotToString(Slot s) {
+    switch(s.getType()) {
+    case TypeFlags::kIntegerFlag:
+        return fmt::format("{}", s.getInt32());
+    default:
+        return "";
+    }
 }
 
 bool Runtime::buildThreadContext() {

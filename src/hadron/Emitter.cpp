@@ -115,6 +115,11 @@ void Emitter::emit(ThreadContext* /* context */, library::LinearFrame linearFram
             jit->andi(JIT::kFramePointerReg, JIT::kFramePointerReg, ~(Slot::kTagMask));
         } break;
 
+        case library::RemoveTagLIR::nameHash(): {
+            auto removeTagLIR = library::RemoveTagLIR(lir.slot());
+            jit->andi(locate(lir, removeTagLIR.vReg()), locate(lir, removeTagLIR.taggedVReg()), ~(Slot::kTagMask));
+        } break;
+
         case library::StoreToPointerLIR::nameHash(): {
             auto storeToPointerLIR = library::StoreToPointerLIR(lir.slot());
             jit->stxi_w(storeToPointerLIR.offset().int32(), locate(lir, storeToPointerLIR.pointer()),

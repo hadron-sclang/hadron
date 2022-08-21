@@ -288,6 +288,25 @@ public:
     void setOffset(Integer off) { m_instance->offset = off.slot(); }
 };
 
+class RemoveTagLIR : public LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR> {
+public:
+    RemoveTagLIR(): LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>() {}
+    explicit RemoveTagLIR(schema::HadronRemoveTagLIRSchema* instance):
+            LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>(instance) {}
+    explicit RemoveTagLIR(Slot instance): LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>(instance) {}
+    ~RemoveTagLIR() {}
+
+    static RemoveTagLIR makeRemoveTagLIR(ThreadContext* context, VReg tag) {
+        auto removeTagLIR = RemoveTagLIR::make(context);
+        removeTagLIR.setTaggedVReg(tag);
+        removeTagLIR.reads().typedAdd(context, tag);
+        return removeTagLIR;
+    }
+
+    VReg taggedVReg() const { return VReg(m_instance->taggedVReg); }
+    void setTaggedVReg(VReg t) { m_instance->taggedVReg = t.slot(); }
+};
+
 class StoreToPointerLIR : public LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR> {
 public:
     StoreToPointerLIR(): LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR>() {}

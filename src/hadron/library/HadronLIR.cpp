@@ -12,6 +12,7 @@ bool LIR::producesValue() const {
     case LoadConstantLIR::nameHash():
     case LoadFromPointerLIR::nameHash():
     case PhiLIR::nameHash():
+    case RemoveTagLIR::nameHash():
         return true;
 
     case BranchIfTrueLIR::nameHash():
