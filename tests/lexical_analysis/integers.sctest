@@ -1,12 +1,36 @@
-//+ RUN: positive constants
+//+ RUN: positive integer literal
 (
-    4
+4
 )
 //+ EXPECTING:
 4
-//+ RUN: negative constants
+//+ RUN: negative integer literal
 (
-    -23
+-23
 )
 //+ EXPECTING:
 -23
+//+ RUN: positive hex integer literal
+(
+0x1f
+)
+//+ EXPECTING:
+31
+//+ RUN: negative hex integer literal
+(
+-0xc
+)
+//+ EXPECTING:
+-12
+//+ RUN: positive radix integer literal
+(
+36rZOOM
+)
+//+ EXPECTING:
+1664950
+//+ RUN: negative radix integer literal
+(
+-17rgg
+)
+//+ EXPECTING:
+-288

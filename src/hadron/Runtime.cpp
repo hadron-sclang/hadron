@@ -58,12 +58,10 @@ Slot Runtime::interpret(std::string_view code) {
     auto callerFrame = library::Frame::alloc(m_threadContext.get());
     callerFrame.initToNil();
     callerFrame.setIp(reinterpret_cast<int8_t*>(m_exitTrampoline));
-//    m_threadContext->framePointer = callerFrame.instance();
 
     auto calleeFrame = library::Frame::alloc(m_threadContext.get(),
             std::max(function.def().prototypeFrame().size() - 1, 0));
     calleeFrame.initToNil();
-//    calleeFrame.setMethod(method);
     calleeFrame.setCaller(callerFrame);
     calleeFrame.setContext(calleeFrame);
     calleeFrame.setHomeContext(calleeFrame);
@@ -73,14 +71,9 @@ Slot Runtime::interpret(std::string_view code) {
     m_threadContext->framePointer = calleeFrame.instance();
     m_threadContext->stackPointer = nullptr;
 
-  //  m_threadContext->stackPointer = calleeFrame.instance();
-
     LighteningJIT::markThreadForJITExecution();
-
     // Hit the trampoline.
-    SPDLOG_INFO("Machine code entry.");
     m_entryTrampoline(m_threadContext.get(), function.def().code().start());
-    SPDLOG_INFO("Machine code exit.");
 
     // Extract return value from frame pointer
     return m_threadContext->stackPointer->arg0;
