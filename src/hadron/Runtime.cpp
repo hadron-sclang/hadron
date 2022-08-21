@@ -13,8 +13,6 @@
 
 #include "spdlog/spdlog.h"
 
-#include <array>
-
 namespace hadron {
 
 Runtime::Runtime():
@@ -71,8 +69,8 @@ Slot Runtime::interpret(std::string_view code) {
     m_threadContext->framePointer = calleeFrame.instance();
     m_threadContext->stackPointer = nullptr;
 
-    LighteningJIT::markThreadForJITExecution();
     // Hit the trampoline.
+    LighteningJIT::markThreadForJITExecution();
     m_entryTrampoline(m_threadContext.get(), function.def().code().start());
 
     // Extract return value from frame pointer

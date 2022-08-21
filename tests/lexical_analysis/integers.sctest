@@ -22,6 +22,18 @@
 )
 //+ EXPECTING:
 -12
+//+ RUN: positive binary integer literal
+(
+2r1010
+)
+//+ EXPECTING:
+10
+//+ RUN: negative binary integer literal
+(
+- 2r0111
+)
+//+EXPECTING:
+-7
 //+ RUN: positive radix integer literal
 (
 36rZOOM
