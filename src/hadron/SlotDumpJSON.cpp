@@ -11,6 +11,7 @@
 #include "fmt/format.h"
 #include "rapidjson/document.h"
 #include "rapidjson/pointer.h"
+#include "rapidjson/prettywriter.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 #include "spdlog/spdlog.h"
@@ -23,11 +24,17 @@ class SlotDumpJSON::Impl {
 public:
     ~Impl() = default;
 
-    void dump(ThreadContext* context, Slot slot) {
+    void dump(ThreadContext* context, Slot slot, bool prettyPrint) {
         encodeSlot(context, slot, m_doc);
 
-        rapidjson::Writer<rapidjson::StringBuffer> writer(m_buffer);
-        bool result = m_doc.Accept(writer);
+        bool result = false;
+        if (prettyPrint) {
+            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(m_buffer);
+            result = m_doc.Accept(writer);
+        } else {
+            rapidjson::Writer<rapidjson::StringBuffer> writer(m_buffer);
+            result = m_doc.Accept(writer);
+        }
         assert(result);
     }
 
@@ -156,6 +163,44 @@ private:
             return;
         }
 
+        if (slotObject.className() == library::IdentityDictionary::nameHash()) {
+            rapidjson::Value elements;
+            elements.SetArray();
+            auto identityDict = library::IdentityDictionary(slot);
+            Slot key = identityDict.nextKey(Slot::makeNil());
+            while (key) {
+                Slot value = identityDict.get(key);
+                assert(value);
+                rapidjson::Value keyValPair;
+                keyValPair.SetObject();
+                rapidjson::Value keyJson;
+                encodeSlot(context, key, keyJson);
+                keyValPair.AddMember("_key", keyJson, alloc);
+                rapidjson::Value valueJson;
+                encodeSlot(context, value, valueJson);
+                keyValPair.AddMember("_value", valueJson, alloc);
+                elements.PushBack(keyValPair, alloc);
+                key = identityDict.nextKey(key);
+            }
+            value.AddMember("_elements", elements, alloc);
+            return;
+        }
+
+        if (slotObject.className() == library::IdentitySet::nameHash()) {
+            rapidjson::Value setElements;
+            setElements.SetArray();
+            auto identitySet = library::IdentitySet(slot);
+            Slot item = identitySet.next(Slot::makeNil());
+            while (item) {
+                rapidjson::Value element;
+                encodeSlot(context, item, element);
+                setElements.PushBack(element, alloc);
+                item = identitySet.next(item);
+            }
+            value.AddMember("_elements", setElements, alloc);
+            return;
+        }
+
         if (slotObject.className() == library::Int8Array::nameHash()) {
             rapidjson::Value arrayElements;
             arrayElements.SetArray();
@@ -210,7 +255,9 @@ SlotDumpJSON::SlotDumpJSON(): m_impl(std::make_unique<SlotDumpJSON::Impl>()) {}
 
 SlotDumpJSON::~SlotDumpJSON() {}
 
-void SlotDumpJSON::dump(ThreadContext* context, Slot slot) { m_impl->dump(context, slot); }
+void SlotDumpJSON::dump(ThreadContext* context, Slot slot, bool prettyPrint) {
+    m_impl->dump(context, slot, prettyPrint);
+}
 
 std::string_view SlotDumpJSON::json() const { return m_impl->json(); }
 

@@ -9,7 +9,6 @@
 
 namespace hadron {
 
-class ErrorReporter;
 struct ThreadContext;
 
 // The Abstract Syntax Tree (or AST) is a lowering and simplification of the parse tree. Where the parse tree is
@@ -21,8 +20,7 @@ struct ThreadContext;
 
 class ASTBuilder {
 public:
-    ASTBuilder();
-    ASTBuilder(std::shared_ptr<ErrorReporter> errorReporter);
+    ASTBuilder() = default;
     ~ASTBuilder() = default;
 
     // We only build AST from Blocks, leaving the higher-level language constructs (like Classes) behind.
@@ -41,8 +39,6 @@ private:
     library::BlockAST buildPartialBlock(ThreadContext* context, int32_t numberOfArguments);
     library::AST transformCallNode(ThreadContext* context, const library::CallNode callNode,
             library::Symbol selector, int32_t& curryCount);
-
-    std::shared_ptr<ErrorReporter> m_errorReporter;
 };
 
 } // namespace hadron

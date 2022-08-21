@@ -1,5 +1,4 @@
 // hlang, command line SuperCollider language script interpreter
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/Runtime.hpp"
 
 #include "gflags/gflags.h"
@@ -15,8 +14,7 @@ int main(int argc, char* argv[]) {
 
     spdlog::default_logger()->set_level(spdlog::level::trace);
 
-    auto errorReporter = std::make_shared<hadron::ErrorReporter>();
-    hadron::Runtime runtime(errorReporter);
+    hadron::Runtime runtime;
     if (!runtime.initInterpreter()) { return -1; }
     if (!runtime.compileClassLibrary()) { return -1; }
 

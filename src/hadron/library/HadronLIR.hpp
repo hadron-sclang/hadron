@@ -35,6 +35,9 @@ public:
     static T make(ThreadContext* context) {
         auto t = T::alloc(context);
         t.initToNil();
+        t.setReads(TypedIdentSet<VReg>::makeTypedIdentSet(context));
+        t.setLocations(TypedIdentDict<Integer, Integer>::makeTypedIdentDict(context));
+        t.setMoves(TypedIdentDict<Integer, Integer>::makeTypedIdentDict(context));
         return t;
     }
 
@@ -138,6 +141,7 @@ public:
     static BranchIfTrueLIR makeBranchIfTrue(ThreadContext* context, VReg cond, LabelId lblId) {
         auto branchLIR = library::BranchIfTrueLIR::make(context);
         branchLIR.setCondition(cond);
+        branchLIR.reads().typedAdd(context, cond);
         branchLIR.setLabelId(lblId);
         return branchLIR;
     }
@@ -157,6 +161,13 @@ public:
     explicit BranchToRegisterLIR(Slot instance):
             LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR>(instance) {}
     ~BranchToRegisterLIR() {}
+
+    static BranchToRegisterLIR makeBranchToRegisterLIR(ThreadContext* context, VReg addr) {
+        auto branchLIR = BranchToRegisterLIR::make(context);
+        branchLIR.setAddress(addr);
+        branchLIR.reads().typedAdd(context, addr);
+        return branchLIR;
+    }
 
     VReg address() const { return VReg(m_instance->address); }
     void setAddress(VReg addr) { m_instance->address = addr.slot(); }
@@ -178,6 +189,16 @@ public:
 
     Integer interruptCode() const { return Integer(m_instance->interruptCode); }
     void setInterruptCode(Integer code) { m_instance->interruptCode = code.slot(); }
+};
+
+class PopFrameLIR : public LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR> {
+public:
+    PopFrameLIR(): LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR>() {}
+    explicit PopFrameLIR(schema::HadronPopFrameLIRSchema* instance):
+            LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR>(instance) {}
+    explicit PopFrameLIR(Slot instance):
+            LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR>(instance) {}
+    ~PopFrameLIR() {}
 };
 
 class PhiLIR : public LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR> {
@@ -255,6 +276,7 @@ public:
     static LoadFromPointerLIR makeLoadFromPointer(ThreadContext* context, VReg ptr, int32_t off) {
         auto loadFromPointerLIR = LoadFromPointerLIR::make(context);
         loadFromPointerLIR.setPointer(ptr);
+        loadFromPointerLIR.reads().typedAdd(context, ptr);
         loadFromPointerLIR.setOffset(Integer(off));
         return loadFromPointerLIR;
     }
@@ -264,6 +286,25 @@ public:
 
     Integer offset() const { return Integer(m_instance->offset); }
     void setOffset(Integer off) { m_instance->offset = off.slot(); }
+};
+
+class RemoveTagLIR : public LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR> {
+public:
+    RemoveTagLIR(): LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>() {}
+    explicit RemoveTagLIR(schema::HadronRemoveTagLIRSchema* instance):
+            LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>(instance) {}
+    explicit RemoveTagLIR(Slot instance): LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>(instance) {}
+    ~RemoveTagLIR() {}
+
+    static RemoveTagLIR makeRemoveTagLIR(ThreadContext* context, VReg tag) {
+        auto removeTagLIR = RemoveTagLIR::make(context);
+        removeTagLIR.setTaggedVReg(tag);
+        removeTagLIR.reads().typedAdd(context, tag);
+        return removeTagLIR;
+    }
+
+    VReg taggedVReg() const { return VReg(m_instance->taggedVReg); }
+    void setTaggedVReg(VReg t) { m_instance->taggedVReg = t.slot(); }
 };
 
 class StoreToPointerLIR : public LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR> {
@@ -278,8 +319,10 @@ public:
     static StoreToPointerLIR makeStoreToPointer(ThreadContext* context, VReg ptr, int32_t off, VReg store) {
         auto storeLIR = StoreToPointerLIR::make(context);
         storeLIR.setPointer(ptr);
+        storeLIR.reads().typedAdd(context, ptr);
         storeLIR.setOffset(Integer(off));
         storeLIR.setToStore(store);
+        storeLIR.reads().typedAdd(context, store);
         return storeLIR;
     }
 

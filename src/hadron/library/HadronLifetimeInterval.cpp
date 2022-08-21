@@ -52,7 +52,7 @@ void LifetimeInterval::addLiveRange(ThreadContext* context, int32_t from, int32_
 
 LifetimeInterval LifetimeInterval::splitAt(ThreadContext* context, int32_t splitTime) {
     auto split = LifetimeInterval::makeLifetimeInterval(context, valueNumber());
-    split.setIsSplit(Boolean(true));
+    split.setIsSplit(true);
 
     if (isEmpty() || end().int32() <= splitTime) {
         return split;

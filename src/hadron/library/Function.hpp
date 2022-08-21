@@ -9,6 +9,7 @@ namespace hadron {
 namespace library {
 
 class Function : public Object<Function, schema::FunctionSchema> {
+public:
     Function(): Object<Function, schema::FunctionSchema>() {}
     explicit Function(schema::FunctionSchema* instance): Object<Function, schema::FunctionSchema>(instance) {}
     explicit Function(Slot instance): Object<Function, schema::FunctionSchema>(instance) {}

@@ -10,6 +10,7 @@
 namespace hadron {
 namespace schema {
 struct ArraySchema;
+struct FramePrivateSchema;
 struct ProcessSchema;
 struct ThreadSchema;
 }
@@ -23,13 +24,9 @@ struct ThreadContext {
     ~ThreadContext() = default;
 
     // We keep a separate stack for Hadron JIT from the main C/C++ application stack.
-    size_t stackSize = 0;
-    int8_t* hadronStack = nullptr;
-    int8_t* framePointer = nullptr;
-    int8_t* stackPointer = nullptr;
-
-    // The return address to restore the C stack and exit the machine code ABI.
-    const int8_t* exitMachineCode = nullptr;
+    uint32_t stackSize = 0;
+    schema::FramePrivateSchema* framePointer = nullptr;
+    schema::FramePrivateSchema* stackPointer = nullptr;
 
     enum InterruptCode : int32_t {
         kAllocateMemory,
@@ -37,6 +34,8 @@ struct ThreadContext {
         kReturn
     };
     InterruptCode interruptCode = InterruptCode::kReturn;
+    // The return address to restore the C stack and exit the machine code ABI.
+    const int8_t* exitMachineCode = nullptr;
 
     // The stack pointer as preserved on entry into machine code.
     void* cStackPointer = nullptr;

@@ -12,6 +12,7 @@ bool LIR::producesValue() const {
     case LoadConstantLIR::nameHash():
     case LoadFromPointerLIR::nameHash():
     case PhiLIR::nameHash():
+    case RemoveTagLIR::nameHash():
         return true;
 
     case BranchIfTrueLIR::nameHash():
@@ -19,6 +20,7 @@ bool LIR::producesValue() const {
     case BranchToRegisterLIR::nameHash():
     case InterruptLIR::nameHash():
     case LabelLIR::nameHash():
+    case PopFrameLIR::nameHash():
     case StoreToPointerLIR::nameHash():
         return false;
     }

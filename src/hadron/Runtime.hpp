@@ -2,6 +2,7 @@
 #define SRC_HADRON_RUNTIME_HPP_
 
 #include "hadron/Slot.hpp"
+#include "hadron/library/Interpreter.hpp"
 
 #include <memory>
 #include <string_view>
@@ -16,8 +17,7 @@ struct ThreadContext;
 // Owns all of the objects required to compile and run SC code, including the Heap, ThreadContext, and ClassLibrary.
 class Runtime {
 public:
-    Runtime() = delete;
-    explicit Runtime(std::shared_ptr<ErrorReporter> errorReporter);
+    Runtime();
     ~Runtime();
 
     // Finalize members in ThreadContext, bootstraps class library, initializes language globals needed for the
@@ -36,14 +36,15 @@ public:
 private:
     bool buildThreadContext();
     bool buildTrampolines();
-    void enterMachineCode(const uint8_t* machineCode);
 
-    std::shared_ptr<ErrorReporter> m_errorReporter;
     std::shared_ptr<Heap> m_heap;
     std::unique_ptr<ThreadContext> m_threadContext;
 
+    // The interpreter instance.
+    library::Interpreter m_interpreter;
+
     // Saves registers, initializes thread context and stack pointer registers, and jumps into the machine code pointer.
-    void (*m_entryTrampoline)(ThreadContext* context, const uint8_t* machineCode);
+    void (*m_entryTrampoline)(ThreadContext* context, const int8_t* machineCode);
     // Restores registers and returns control to C++ code.
     void (*m_exitTrampoline)();
 };

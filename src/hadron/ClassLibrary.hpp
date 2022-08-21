@@ -18,15 +18,13 @@
 
 namespace hadron {
 
-class ErrorReporter;
 class Parser;
 class SourceFile;
 struct ThreadContext;
 
 class ClassLibrary {
 public:
-    ClassLibrary() = delete;
-    explicit ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter);
+    ClassLibrary();
     ~ClassLibrary() = default;
 
     // Load some minimal information from the classes parsed by schemac during compile time. This allows for fast
@@ -42,8 +40,6 @@ public:
     bool compileLibrary(ThreadContext* context);
 
     library::Class findClassNamed(library::Symbol name) const;
-
-    library::Method interpreterContext() const { return m_interpreterContext; }
 
     library::Array classVariables() const { return m_classVariables; }
 
@@ -71,7 +67,6 @@ private:
     // Clean up any temporary data structures
     bool cleanUp();
 
-    std::shared_ptr<ErrorReporter> m_errorReporter;
     // We keep the normalized paths in a set to prevent duplicate additions of the same path.
     std::unordered_set<std::string> m_libraryPaths;
 
@@ -80,10 +75,6 @@ private:
 
     // The official array of Class objects, maintained as part of the root set.
     library::ClassArray m_classArray;
-
-    // We keep a reference to the Interpreter:functionCompileContext method, as that is the "fake method" that
-    // all Interpreter code compiles as.
-    library::Method m_interpreterContext;
 
     // All class variables are maintained in a single global array, accessible here.
     library::Array m_classVariables;

@@ -8,14 +8,13 @@
 
 namespace hadron {
 
-class ErrorReporter;
 class Lexer;
 struct ThreadContext;
 
 class Parser {
 public:
     // Builds a parse tree from an external lexer that has already successfully lexed the source code.
-    Parser(Lexer* lexer, std::shared_ptr<ErrorReporter> errorReporter);
+    Parser(Lexer* lexer);
 
     // Used for testing, lexes the code itself with an owned Lexer first.
     Parser(std::string_view code);
@@ -28,7 +27,6 @@ public:
 
     const library::Node root() const { return m_root; }
     Lexer* lexer() const { return m_lexer; }
-    std::shared_ptr<ErrorReporter> errorReporter() { return m_errorReporter; }
 
     // Access to parser from Bison Parser
     void addRoot(library::Node root);
@@ -46,7 +44,6 @@ private:
     size_t m_tokenIndex;
     bool m_sendInterpret;
 
-    std::shared_ptr<ErrorReporter> m_errorReporter;
     library::Node m_root;
 };
 

@@ -6,7 +6,6 @@
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/Emitter.hpp"
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/LighteningJIT.hpp"
@@ -26,8 +25,7 @@ namespace server {
 HadronServer::HadronServer(std::unique_ptr<JSONTransport> jsonTransport):
         m_jsonTransport(std::move(jsonTransport)),
         m_state(kUninitialized),
-        m_errorReporter(std::make_shared<hadron::ErrorReporter>()),
-        m_runtime(std::make_unique<hadron::Runtime>(m_errorReporter)) {
+        m_runtime(std::make_unique<hadron::Runtime>()) {
     m_jsonTransport->setServer(this);
 }
 
@@ -48,15 +46,15 @@ void HadronServer::initialize(std::optional<lsp::ID> id) {
 
 void HadronServer::semanticTokensFull(const std::string& filePath) {
     hadron::SourceFile sourceFile(filePath);
-    if (!sourceFile.read(m_errorReporter)) {
+    if (!sourceFile.read()) {
         m_jsonTransport->sendErrorResponse(std::nullopt, JSONTransport::ErrorCode::kFileReadError,
                 fmt::format("Failed to read file {} for lexing.", filePath));
         return;
     }
 
     auto code = sourceFile.codeView();
-    hadron::Lexer lexer(code, m_errorReporter);
-    if (!lexer.lex() || !m_errorReporter->ok()) {
+    hadron::Lexer lexer(code);
+    if (!lexer.lex()) {
         // TODO: error reporting
         return;
     }

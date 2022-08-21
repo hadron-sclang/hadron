@@ -3,7 +3,9 @@
 
 #include "hadron/library/Array.hpp"
 #include "hadron/library/HadronCFG.hpp"
+#include "hadron/library/HadronHIR.hpp"
 #include "hadron/library/HadronLinearFrame.hpp"
+#include "hadron/library/HadronLIR.hpp"
 #include "hadron/library/Integer.hpp"
 
 #include <list>
@@ -29,6 +31,9 @@ private:
     // Performs a recursive postorder traversal of the blocks and saves the output in |blockOrder|.
     void orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
             library::TypedArray<library::LabelId> blockOrder);
+
+    void lower(ThreadContext* context, library::HIR hir, library::LinearFrame linearFrame, 
+            library::TypedArray<library::LIR> instructions);
 
 };
 

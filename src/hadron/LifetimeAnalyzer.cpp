@@ -143,13 +143,15 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
             // for each input operand opd of op do
             opd = lir.reads().typedNext(library::VReg());
             while (opd) {
-                // intervals[opd].addRange(b.from, op.id)
-                blockVariableRanges[opd.int32()].first = std::min(blockVariableRanges[opd.int32()].first,
-                        blockRange.from().int32());
-                blockVariableRanges[opd.int32()].second = std::max(j + 1, blockVariableRanges[opd.int32()].second);
-                valueLifetimes.typedAt(opd.int32()).typedAt(0).usages().add(context, library::Integer(j).slot());
-                // live.add(opd)
-                live.typedAdd(context, opd.int32());
+                if (opd.int32() >= 0) {
+                    // intervals[opd].addRange(b.from, op.id)
+                    blockVariableRanges[opd.int32()].first = std::min(blockVariableRanges[opd.int32()].first,
+                            blockRange.from().int32());
+                    blockVariableRanges[opd.int32()].second = std::max(j + 1, blockVariableRanges[opd.int32()].second);
+                    valueLifetimes.typedAt(opd.int32()).typedAt(0).usages().add(context, library::Integer(j).slot());
+                    // live.add(opd)
+                    live.typedAdd(context, opd.int32());
+                }
 
                 opd = lir.reads().typedNext(opd);
             }

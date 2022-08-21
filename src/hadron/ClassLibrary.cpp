@@ -4,7 +4,6 @@
 #include "hadron/ASTBuilder.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/Emitter.hpp"
-#include "hadron/ErrorReporter.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/internal/FileSystem.hpp"
@@ -26,9 +25,7 @@
 
 namespace hadron {
 
-ClassLibrary::ClassLibrary(std::shared_ptr<ErrorReporter> errorReporter):
-        m_errorReporter(errorReporter),
-        m_numberOfClassVariables(0) {}
+ClassLibrary::ClassLibrary(): m_numberOfClassVariables(0) {}
 
 void ClassLibrary::addClassDirectory(const std::string& path) {
     m_libraryPaths.emplace(fs::absolute(path));
@@ -55,7 +52,6 @@ bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_classArray = library::ClassArray::typedArrayAlloc(context, 1);
     m_methodASTs.clear();
     m_methodFrames.clear();
-    m_interpreterContext = library::Method();
     m_classVariables = library::Array();
     m_numberOfClassVariables = 0;
     return true;
@@ -73,12 +69,12 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                 continue;
 
             auto sourceFile = std::make_unique<SourceFile>(path.string());
-            if (!sourceFile->read(m_errorReporter)) { return false; }
+            if (!sourceFile->read()) { return false; }
 
-            auto lexer = std::make_unique<Lexer>(sourceFile->codeView(), m_errorReporter);
+            auto lexer = std::make_unique<Lexer>(sourceFile->codeView());
             if (!lexer->lex()) { return false; }
 
-            auto parser = std::make_unique<Parser>(lexer.get(), m_errorReporter);
+            auto parser = std::make_unique<Parser>(lexer.get());
             if (!parser->parseClass(context)) { return false; }
 
             auto filename = library::Symbol::fromView(context, path.string());
@@ -134,18 +130,12 @@ bool ClassLibrary::scanFiles(ThreadContext* context) {
                     library::Symbol methodName = methodNode.token().snippet(context);
                     method.setName(methodName);
 
-                    // We keep a reference to the Interpreter compile context, for quick access later.
-                    if ((className == context->symbolTable->interpreterSymbol()) &&
-                        (methodName == context->symbolTable->functionCompileContextSymbol())) {
-                        m_interpreterContext = method;
-                    }
-
                     if (methodNode.primitiveToken()) {
                         library::Symbol primitiveName = methodNode.primitiveToken().snippet(context);
                         method.setPrimitiveName(primitiveName);
                     } else {
                         // Build the AST from the MethodNode block.
-                        ASTBuilder astBuilder(m_errorReporter);
+                        ASTBuilder astBuilder;
                         auto ast = astBuilder.buildBlock(context, methodNode.body());
                         if (ast.isNil()) { return false; }
 
@@ -217,7 +207,7 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
         while (varDef) {
             nameArray = nameArray.add(context, varDef.token().snippet(context));
             if (varDef.initialValue()) {
-                ASTBuilder builder(m_errorReporter);
+                ASTBuilder builder;
                 Slot literal = Slot::makeNil();
                 auto wasLiteral = builder.buildLiteral(context, varDef.initialValue(), literal);
                 assert(wasLiteral);
@@ -318,8 +308,8 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         auto astIter = classASTs->second->find(methodName);
         assert(astIter != classASTs->second->end());
 
-        BlockBuilder blockBuilder(m_errorReporter);
-        auto frame = blockBuilder.buildMethod(context, method, astIter->second);
+        BlockBuilder blockBuilder(classDef);
+        auto frame = blockBuilder.buildMethod(context, astIter->second, false);
         if (!frame) { return false; }
 
         // TODO: Here's where we could extract some message signatures and compute dependencies, to decide on final

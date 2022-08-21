@@ -10,7 +10,6 @@
 #include <vector>
 
 namespace hadron {
-class ErrorReporter;
 class Lexer;
 class Parser;
 class Runtime;
@@ -41,7 +40,6 @@ public:
 private:
     std::unique_ptr<JSONTransport> m_jsonTransport;
     ServerState m_state;
-    std::shared_ptr<hadron::ErrorReporter> m_errorReporter;
 
     std::unique_ptr<hadron::Runtime> m_runtime;
 };

@@ -5,6 +5,7 @@
 #include "hadron/MoveScheduler.hpp"
 #include "hadron/ThreadContext.hpp"
 
+#include "hadron/library/Kernel.hpp"
 #include "spdlog/spdlog.h"
 
 #include <unordered_map>
@@ -15,6 +16,7 @@ namespace {
 hadron::JIT::Reg locate(hadron::library::LIR lir, hadron::library::VReg vReg) {
     if (vReg.int32() >= 0) {
         auto loc = lir.locations().typedGet(vReg);
+        assert(loc);
         return hadron::JIT::Reg(loc.int32());
     }
 
@@ -105,6 +107,17 @@ void Emitter::emit(ThreadContext* /* context */, library::LinearFrame linearFram
 
         case library::PhiLIR::nameHash(): {
             assert(false);
+        } break;
+
+        case library::PopFrameLIR::nameHash(): {
+            jit->movr(JIT::kStackPointerReg, JIT::kFramePointerReg);
+            jit->ldxi_w(JIT::kFramePointerReg, JIT::kStackPointerReg, offsetof(schema::FramePrivateSchema, caller));
+            jit->andi(JIT::kFramePointerReg, JIT::kFramePointerReg, ~(Slot::kTagMask));
+        } break;
+
+        case library::RemoveTagLIR::nameHash(): {
+            auto removeTagLIR = library::RemoveTagLIR(lir.slot());
+            jit->andi(locate(lir, removeTagLIR.vReg()), locate(lir, removeTagLIR.taggedVReg()), ~(Slot::kTagMask));
         } break;
 
         case library::StoreToPointerLIR::nameHash(): {

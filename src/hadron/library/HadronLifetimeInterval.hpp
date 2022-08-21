@@ -89,11 +89,11 @@ public:
     Integer registerNumber() const { return Integer(m_instance->registerNumber); }
     void setRegisterNumber(Integer r) { m_instance->registerNumber = r.slot(); }
 
-    Boolean isSplit() const { return Boolean(m_instance->isSplit); }
-    void setIsSplit(Boolean b) { m_instance->isSplit = b.slot(); }
+    bool isSplit() const { return m_instance->isSplit.getBool(); }
+    void setIsSplit(bool b) { m_instance->isSplit = Slot::makeBool(b); }
 
-    Boolean isSpill() const { return Boolean(m_instance->isSpill); }
-    void setIsSpill(Boolean b) { m_instance->isSpill = b.slot(); }
+    bool isSpill() const { return m_instance->isSpill.getBool(); }
+    void setIsSpill(bool b) { m_instance->isSpill = Slot::makeBool(b); }
 
     Integer spillSlot() const { return Integer(m_instance->spillSlot); }
     void setSpillSlot(Integer i) { m_instance->spillSlot = i.slot(); }

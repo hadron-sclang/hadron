@@ -124,11 +124,10 @@ public:
     explicit CFGFrameT(Slot instance): Object<T, schema::HadronCFGFrameSchema>(instance) {}
     ~CFGFrameT() {}
 
-    static T makeCFGFrame(ThreadContext* context, BlockLiteralHIRT outerBlock, Method method) {
+    static T makeCFGFrame(ThreadContext* context, BlockLiteralHIRT outerBlock) {
         auto frame = T::alloc(context);
         frame.initToNil();
         frame.setOuterBlockHIR(outerBlock);
-        frame.setMethod(method);
         frame.setHasVarArgs(false);
         frame.setRootScope(ScopeT::makeRootCFGScope(context, frame));
         frame.setNumberOfBlocks(0);
@@ -144,15 +143,6 @@ public:
         t.m_instance->outerBlockHIR = b.slot();
     }
 
-    Method method() const {
-        const T& t = static_cast<const T&>(*this);
-        return Method(t.m_instance->method);
-    }
-    void setMethod(Method m) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->method = m.slot();
-    }
-
     bool hasVarArgs() const {
         const T& t = static_cast<const T&>(*this);
         return t.m_instance->hasVarArgs.getBool();
@@ -160,6 +150,15 @@ public:
     void setHasVarArgs(bool b) {
         T& t = static_cast<T&>(*this);
         t.m_instance->hasVarArgs = Slot::makeBool(b);
+    }
+
+    SymbolArray argumentNames() const {
+        const T& t = static_cast<const T&>(*this);
+        return SymbolArray(t.m_instance->argumentNames);
+    }
+    void setArgumentNames(SymbolArray a) {
+        T& t = static_cast<T&>(*this);
+        t.m_instance->argumentNames = a.slot();
     }
 
     SymbolArray variableNames() const {
