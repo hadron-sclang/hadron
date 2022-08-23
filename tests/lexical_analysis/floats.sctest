@@ -1,0 +1,487 @@
+//+//: Float Literals Tests
+
+//+ RUN: float zero
+(
+0.0
+)
+//+ EXPECTING:
+0.0
+//+//:
+
+//+ RUN: positive float literal
+(
+10.0
+)
+//+ EXPECTING:
+10.0
+//+//:
+
+//+ RUN: negative float literal
+(
+-777.7
+)
+//+ EXPECTING:
+-777.7
+//+//:
+
+//+//: -------------------- scientific notation --------------------
+//+ RUN: positive scientific notation unspecified exponent float literal
+(
+4.33e17
+)
+//+ EXPECTING:
+4.33e+17
+//+//:
+
+//+ RUN: positive scientific notation positive exponent float literal
+(
+237.0e+4
+)
+//+ EXPECTING:
+2370000.0
+//+//:
+
+//+ RUN: positive scientific notation negative exponent float literal
+(
+3.14e-10
+)
+//+ EXPECTING:
+3.14e-10
+//+//:
+
+//+ RUN: positive scientific notation no decimal float literal
+(
+1e77
+)
+//+ EXPECTING:
+1e+77
+//+//:
+
+//+ RUN: positive scientific notation no decimal negative exponent float literal
+(
+23e-23
+)
+//+ EXPECTING:
+2.3e-22
+//+//:
+
+//+ RUN: positive scientific notation zero exponent float literal
+(
+1e0
+)
+//+ EXPECTING:
+1.0
+//+//:
+
+//+ RUN: negative scientific notation unspecified exponent float literal
+(
+-3.44e1
+)
+//+ EXPECTING:
+-34.4
+//+//:
+
+//+ RUN: negative scientific notation positive exponent float literal
+(
+-0.0001e+4
+)
+//+ EXPECTING:
+-1.0
+//+//:
+
+//+ RUN: negative scientific notation negative exponent float literal
+(
+-6.28e-1
+)
+//+ EXPECTING:
+-0.628
+//+//:
+
+//+ RUN: negative scientific notation no decimal float literal
+(
+-1e128
+)
+//+ EXPECTING:
+-1e+128
+//+//:
+
+//+ RUN: negative scientific notation no decimal negative exponent float literal
+(
+-23e-23
+)
+//+ EXPECTING:
+-2.3e-22
+//+//:
+
+//+ RUN: negative scientific notation zero exponent float literal
+(
+-17e0
+)
+//+ EXPECTING:
+-17.0
+//+//:
+
+//+//: -------------------- pi --------------------
+//+ RUN: positive pi no multiple float literal
+(
+pi
+)
+//+ EXPECTING:
+3.1415926535898
+//+//:
+
+//+ RUN: negative pi no multiple float literal
+(
+-pi;
+)
+//+ EXPECTING:
+-3.1415926535898
+//+//:
+
+//+ RUN: positive pi integer multiple float literal
+(
+6pi
+)
+//+ EXPECTING:
+18.849555921539
+//+//:
+
+//+ RUN: negative pi integer multiple float literal
+(
+-2pi
+)
+//+ EXPECTING:
+-6.2831853071796
+//+//:
+
+//+ RUN: integer zero pi float literal
+(
+0pi
+)
+//+ EXPECTING:
+0.0
+//+//:
+
+//+ RUN: positive pi float multiple float literal
+(
+2.1pi
+)
+//+ EXPECTING:
+6.5973445725386
+//+//:
+
+//+ RUN: negative pi float multiple float literal
+(
+-1.1 pi
+)
+//+ EXPECTING:
+-3.4557519189488
+//+//:
+
+//+ RUN: integer zero pi float literal
+(
+0 pi
+)
+//+ EXPECTING:
+0.0
+//+//:
+
+//+ RUN: scientific notation with pi
+(
+1e4 pi
+)
+//+ EXPECTING:
+31415.926535898
+//+//:
+
+//+//: -------------------- radix notation --------------------
+//+ RUN: positive radix float literal
+(
+32r4.4
+)
+//+ EXPECTING:
+4.125
+//+//:
+
+//+ RUN: negative radix float literal
+(
+-36rDEAD.TAC0
+)
+//+ EXPECTING:
+-625045.81352881
+//+//:
+
+//+//: -------------------- accidentals --------------------
+//+ RUN: positive one flat float literal
+(
+1b
+)
+//+ EXPECTING:
+0.9
+//+//:
+
+//+ RUN: positive two flats float literal
+(
+2bb
+)
+//+ EXPECTING:
+1.8
+//+//:
+
+//+ RUN: positive three flats float literal
+(
+3bbb
+)
+//+ EXPECTING:
+2.7
+//+//:
+
+//+ RUN: positive four flats float literal
+(
+4bbbb
+)
+//+ EXPECTING:
+3.6
+//+//:
+
+//+ RUN: positive more than four flats are ignored float literal
+(
+5bbbbb
+)
+//+ EXPECTING:
+4.6
+//+//:
+
+//+ RUN: positive flat cents single digit float literal
+(
+10b1
+)
+//+ EXPECTING:
+9.999
+//+//:
+
+//+ RUN: positive flat cents double digit float literal
+(
+0b99
+)
+//+ EXPECTING:
+-0.099
+//+//:
+
+//+ RUN: positive flat cents triple digit float literal
+(
+200b275
+)
+//+ EXPECTING:
+199.725
+//+//:
+
+//+ RUN: positive flat cents triple digit max float literal
+(
+1b7995  // flat is capped at 499 cents
+)
+//+ EXPECTING:
+0.501
+//+//:
+
+//+ RUN: negative one flat float literal
+(
+-4b
+)
+//+ EXPECTING:
+-4.1
+//+//:
+
+//+ RUN: negative two flat float literal
+(
+-77bb
+)
+//+ EXPECTING:
+-77.2
+//+//:
+
+//+ RUN: negative three flat float literal
+(
+-1bbb
+)
+//+ EXPECTING:
+-1.3
+//+//:
+
+//+ RUN: negative four flat float literal
+(
+-9999bbbb
+)
+//+ EXPECTING:
+-9999.4
+//+//:
+
+//+ RUN: negative more than four flats are ignored float literal
+(
+-1bbbbbbbbbbbbbbbbbb
+)
+//+ EXPECTING:
+-1.4
+//+//:
+
+//+ RUN: negative flat cents float literal
+(
+-1b321
+)
+//+ EXPECTING:
+-1.321
+//+//:
+
+//+ RUN: negative flat cents float literal
+(
+-1b788
+)
+//+ EXPECTING:
+-1.499
+//+//:
+
+//+ RUN: positive one sharp float literal
+(
+1s
+)
+//+ EXPECTING:
+1.1
+//+//:
+
+//+ RUN: positive two sharps float literal
+(
+2ss
+)
+//+ EXPECTING:
+2.2
+//+//:
+
+//+ RUN: positive three sharps float literal
+(
+3sss
+)
+//+ EXPECTING:
+3.3
+//+//:
+
+//+ RUN: positive four sharps float literal
+(
+4ssss
+)
+//+ EXPECTING:
+4.4
+//+//:
+
+//+ RUN: positive more than four sharps are ignored float literal
+(
+5ssssssssssss
+)
+//+ EXPECTING:
+5.4
+//+//:
+
+//+ RUN: positive sharp cents single digit float literal
+(
+10s1
+)
+//+ EXPECTING:
+10.001
+//+//:
+
+//+ RUN: positive sharp cents double digit float literal
+(
+0s99
+)
+//+ EXPECTING:
+0.099
+//+//:
+
+//+ RUN: positive sharp cents triple digit float literal
+(
+200s275
+)
+//+ EXPECTING:
+200.275
+//+//:
+
+//+ RUN: positive sharp cents triple digit max float literal
+(
+1s7995  // sharp is capped at 499 cents
+)
+//+ EXPECTING:
+1.499
+//+//:
+
+//+ RUN: negative one sharp float literal
+(
+-4s
+)
+//+ EXPECTING:
+-3.9
+//+//:
+
+//+ RUN: negative two sharp float literal
+(
+-77ss
+)
+//+ EXPECTING:
+-76.8
+//+//:
+
+//+ RUN: negative three sharp float literal
+(
+-1sss
+)
+//+ EXPECTING:
+-0.7
+//+//:
+
+//+ RUN: negative four sharp float literal
+(
+-9999ssss
+)
+//+ EXPECTING:
+-9998.6
+//+//:
+
+//+ RUN: negative more than four sharps are ignored float literal
+(
+-1sssss
+)
+//+ EXPECTING:
+-0.6
+//+//:
+
+//+ RUN: negative sharp cents float literal
+(
+-1s321
+)
+//+ EXPECTING:
+-0.679
+//+//:
+
+//+ RUN: negative sharp cents float literal
+(
+-1s788
+)
+//+ EXPECTING:
+-0.501
+//+//:
+
+//+//: -------------------- infinity --------------------
+//+ RUN: positive infinity float literal
+(
+inf
+)
+//+ EXPECTING:
+inf
+//+//:
+
+//+ RUN: positive infinity float literal
+(
+-inf
+)
+//+ EXPECTING:
+-inf
+//+//:
+

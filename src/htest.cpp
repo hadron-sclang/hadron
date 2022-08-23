@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
     auto sourceFile = hadron::SourceFile(sourcePath.string());
     if (!sourceFile.read()) { return -1; }
 
-    auto tokenRegex = std::regex("(^|\\n)//[+][ ]*([A-Z]+):[ ]*([^ \\n]+[^\\n]*)?\\n");
+    auto tokenRegex = std::regex("(^|\\n)//[+][ ]*([/A-Z]+):[ ]*([^ \\n]+[^\\n]*)?");
     auto iter = std::cregex_iterator(sourceFile.code(), sourceFile.code() + sourceFile.size(), tokenRegex);
     auto endIter = std::cregex_iterator();
 
@@ -59,18 +59,25 @@ int main(int argc, char* argv[]) {
         }
 
         // process whatever was already in the buffer as input to the last token
-        if (payloadStart) {
+        if (verb != kNothing) {
             auto payload = std::string_view(payloadStart, match[0].first - payloadStart);
+
+//            std::string verbName = verb == kExpecting ? "expect" : "run";
+//            std::cout << fmt::format("verb: '{}', name: '{}', payload: '{}'\n", verbName, name, payload);
+
             commands.emplace_back(TestCommand{verb, name, payload});
         }
 
         name = std::string_view(match[3].first, match[3].second - match[3].first);
-        payloadStart = match[0].second;
+        // Payload starts after the newline at the end of the match.
+        payloadStart = match[0].second + 1;
 
         if (match[2].compare("EXPECTING") == 0) {
             verb = kExpecting;
         } else if (match[2].compare("RUN") == 0) {
             verb = kRun;
+        } else if (match[2].compare("//") == 0) {
+            verb = kNothing;
         } else {
             std::cerr << "unknown test command: " << match[2] << "\n";
             return -1;
@@ -97,9 +104,8 @@ int main(int argc, char* argv[]) {
             }
         } break;
 
-        case kNothing:
-            std::cerr << "encountered nothing command after parsing\n";
-            return -1;
+        case kNothing: // no-op
+            break;
 
         case kRun: {
             auto slotResult = runtime.interpret(command.payload);

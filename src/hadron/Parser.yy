@@ -17,7 +17,7 @@
 %token <hadron::library::Token> LEFTARROW OPENPAREN CLOSEPAREN OPENCURLY CLOSECURLY OPENSQUARE CLOSESQUARE COMMA
 %token <hadron::library::Token> READWRITEVAR SEMICOLON COLON CARET TILDE HASH GRAVE VAR ARG CONST CLASSVAR DOT DOTDOT
 %token <hadron::library::Token> ELLIPSES CURRYARGUMENT IF WHILE STRING SYMBOL BINOP KEYWORD IDENTIFIER CLASSNAME
-%token <hadron::library::Token> BEGINCLOSEDFUNC PI
+%token <hadron::library::Token> BEGINCLOSEDFUNC PI ACCIDENTAL
 
 %type <hadron::library::ArgListNode> argdecls
 %type <hadron::library::BlockNode> cmdlinecode block blockliteral optblock
@@ -51,7 +51,7 @@
 %type <std::pair<bool, bool>> rwspec
 %type <bool> rspec
 %type <std::pair<hadron::library::Token, int32_t>> integer
-%type <std::pair<hadron::library::Token, double>> floatr float
+%type <std::pair<hadron::library::Token, double>> floatr float accidental
 %type <hadron::library::Token> binop binop2
 
 %precedence ASSIGN
@@ -1231,9 +1231,20 @@ floatr  : FLOAT { $floatr = std::make_pair($FLOAT, $FLOAT.value().getFloat()); }
         | MINUS FLOAT %prec MINUS { $floatr = std::make_pair($FLOAT, -$FLOAT.value().getFloat()); }
         ;
 
+accidental  : ACCIDENTAL { $accidental = std::make_pair($ACCIDENTAL, $ACCIDENTAL.value().getFloat()); }
+            | MINUS ACCIDENTAL %prec MINUS {
+                    double value = $ACCIDENTAL.value().getFloat();
+                    double wholeNumber = floor(value + 0.5);
+                    double fraction = value - wholeNumber;
+                    value = (-wholeNumber) + fraction;
+                    $accidental = std::make_pair($ACCIDENTAL, value);
+                }
+            ;
+
 float   : floatr { $float = $floatr; }
         | floatr PI { $float = std::make_pair($floatr.first, $floatr.second * M_PI); }
         | integer PI { $float = std::make_pair($integer.first, static_cast<double>($integer.second) * M_PI); }
+        | accidental { $float = $accidental; }
         | PI { $float = std::make_pair($PI, M_PI); }
         | MINUS PI { $float = std::make_pair($PI, -M_PI); }
         ;
@@ -1295,6 +1306,10 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContex
             return  yy::parser::make_FLOAT(scToken, token.location);
         }
         return yy::parser::make_LITERAL(scToken, token.location);
+
+    case hadron::Token::Name::kAccidental:
+        scToken.setName(hadron::library::Symbol::fromView(threadContext, "accidental"));
+        return yy::parser::make_ACCIDENTAL(scToken, token.location);
 
     case hadron::Token::Name::kPi:
         scToken.setName(hadron::library::Symbol::fromView(threadContext, "pi"));

@@ -43,13 +43,41 @@
             m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
         # Float radix
-        digit+ ('r' %marker) [a-zA-Z0-9]+ '.' [A-Z]+ {
+        digit+ ('r' %marker) [a-zA-Z0-9]+ '.' [A-Z0-9]+ {
             int32_t radix = strtol(ts, nullptr, 10);
             char* dot = nullptr;
             double value = static_cast<double>(strtoll(marker, &dot, radix));
             double decimal = static_cast<double>(strtoll(dot + 1, nullptr, radix));
             value += decimal / pow(static_cast<double>(radix), static_cast<double>(te - dot - 1));
             m_tokens.emplace_back(Token::makeFloatLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
+        };
+        # Float accidental flats
+        digit+ %marker 'b'+ {
+            double numberOfFlats = std::min(static_cast<double>(te - marker), 4.0);
+            double value = static_cast<double>(strtoll(ts, nullptr, 10));
+            value = value - (0.1 * numberOfFlats);
+            m_tokens.emplace_back(Token::makeAccidentalLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
+        };
+        digit+ 'b' %marker [0-9]+ {
+            double cents = static_cast<double>(strtoll(marker, nullptr, 10));
+            cents = std::min(cents, 499.0) / 1000.0;
+            double value = static_cast<double>(strtoll(ts, nullptr, 10));
+            value = value - cents;
+            m_tokens.emplace_back(Token::makeAccidentalLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
+        };
+        # Float accidental sharps
+        digit+ %marker 's'+ {
+            double numberOfFlats = std::min(static_cast<double>(te - marker), 4.0);
+            double value = static_cast<double>(strtoll(ts, nullptr, 10));
+            value = value + (0.1 * numberOfFlats);
+            m_tokens.emplace_back(Token::makeAccidentalLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
+        };
+        digit+ 's' %marker [0-9]+ {
+            double cents = static_cast<double>(strtoll(marker, nullptr, 10));
+            cents = std::min(cents, 499.0) / 1000.0;
+            double value = static_cast<double>(strtoll(ts, nullptr, 10));
+            value = value + cents;
+            m_tokens.emplace_back(Token::makeAccidentalLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
 
         ###################
