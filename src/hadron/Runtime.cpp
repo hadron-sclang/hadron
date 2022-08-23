@@ -53,6 +53,8 @@ Slot Runtime::interpret(std::string_view code) {
     auto codeString = library::String::fromView(m_threadContext.get(), code);
     auto function = m_interpreter.compile(m_threadContext.get(), codeString);
 
+    if (!function) { return Slot::makeNil(); }
+
     auto callerFrame = library::Frame::alloc(m_threadContext.get());
     callerFrame.initToNil();
     callerFrame.setIp(reinterpret_cast<int8_t*>(m_exitTrampoline));
@@ -81,6 +83,15 @@ std::string Runtime::slotToString(Slot s) {
     switch(s.getType()) {
     case TypeFlags::kIntegerFlag:
         return fmt::format("{}", s.getInt32());
+    case TypeFlags::kFloatFlag: {
+        auto doubleStr = fmt::format("{:.14g}", s.getFloat());
+        if (doubleStr.find_first_not_of("-0123456789") == std::string::npos) {
+            doubleStr += ".0";
+        }
+        return doubleStr;
+    } break;
+    case TypeFlags::kNilFlag:
+        return "nil";
     default:
         return "";
     }

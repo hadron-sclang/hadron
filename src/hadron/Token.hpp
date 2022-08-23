@@ -21,54 +21,55 @@ struct Token {
                         // other ways to resolve this ambiguity but they will likely require some changes to the
                         // grammar.
         kLiteral = 2,
-        kPi = 3,
-        kString = 4,    // Strings are lexed differently from other literals to allow support for concatenating literal
+        kAccidental = 3,
+        kPi = 4,
+        kString = 5,    // Strings are lexed differently from other literals to allow support for concatenating literal
                         // strings at compile time, e.g. "line1" "line2" "line3" should end up as one string in the AST.
-        kSymbol = 5,
-        kPrimitive = 6,
+        kSymbol = 6,
+        kPrimitive = 7,
 
         // <<< all below could also be binops >>>
-        kPlus = 7,         // so named because it could be an addition or a class extension
-        kMinus = 8,        // Could be unary negation so handled separately
-        kAsterisk = 9,     // so named because it could be a multiply or a class method
-        kAssign = 10,
-        kLessThan = 11,
-        kGreaterThan = 12,
-        kPipe = 13,
-        kReadWriteVar = 14,
-        kLeftArrow = 15,
-        kBinop = 16,  // TODO: rename kGenericBinop, this is some arbitrary collection of the valid binop characters.
-        kKeyword = 17,      // Any identifier with a colon after it.
+        kPlus = 8,         // so named because it could be an addition or a class extension
+        kMinus = 9,        // Could be unary negation so handled separately
+        kAsterisk = 10,     // so named because it could be a multiply or a class method
+        kAssign = 11,
+        kLessThan = 12,
+        kGreaterThan = 13,
+        kPipe = 14,
+        kReadWriteVar = 15,
+        kLeftArrow = 16,
+        kBinop = 17,  // TODO: rename kGenericBinop, this is some arbitrary collection of the valid binop characters.
+        kKeyword = 18,      // Any identifier with a colon after it.
         // <<< all above could also be binops >>>
 
-        kOpenParen = 18,
-        kCloseParen = 19,
-        kOpenCurly = 20,
-        kCloseCurly = 21,
-        kOpenSquare = 22,
-        kCloseSquare = 23,
-        kComma = 24,
-        kSemicolon = 25,
-        kColon = 26,
-        kCaret = 27,
-        kTilde = 28,
-        kHash = 29,
-        kGrave = 30,
-        kVar = 31,
-        kArg = 32,
-        kConst = 33,
-        kClassVar = 34,
-        kIdentifier = 35,
-        kClassName = 36,
-        kDot = 37,
-        kDotDot = 38,
-        kEllipses = 39,
-        kCurryArgument = 40,
-        kBeginClosedFunction = 41, // #{
+        kOpenParen = 19,
+        kCloseParen = 20,
+        kOpenCurly = 21,
+        kCloseCurly = 22,
+        kOpenSquare = 23,
+        kCloseSquare = 24,
+        kComma = 25,
+        kSemicolon = 26,
+        kColon = 27,
+        kCaret = 28,
+        kTilde = 29,
+        kHash = 30,
+        kGrave = 31,
+        kVar = 32,
+        kArg = 33,
+        kConst = 34,
+        kClassVar = 35,
+        kIdentifier = 36,
+        kClassName = 37,
+        kDot = 38,
+        kDotDot = 39,
+        kEllipses = 40,
+        kCurryArgument = 41,
+        kBeginClosedFunction = 42, // #{
 
         // Control Flow
-        kIf = 42,
-        kWhile = 43
+        kIf = 43,
+        kWhile = 44
     };
 
     Name name;
@@ -92,6 +93,9 @@ struct Token {
     }
     static inline Token makeFloatLiteral(double f, std::string_view r, Location loc) {
         return Token(kLiteral, r, Slot::makeFloat(f), false, false, loc);
+    }
+    static inline Token makeAccidentalLiteral(double f, std::string_view r, Location loc) {
+        return Token(kAccidental, r, Slot::makeFloat(f), false, false, loc);
     }
     static inline Token makePi(std::string_view r, Location loc) {
         return Token(kPi, r, Slot::makeNil(), false, false, loc);
