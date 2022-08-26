@@ -83,13 +83,20 @@ std::string Runtime::slotToString(Slot s) {
     switch(s.getType()) {
     case TypeFlags::kIntegerFlag:
         return fmt::format("{}", s.getInt32());
+
     case TypeFlags::kFloatFlag: {
         auto doubleStr = fmt::format("{:.14g}", s.getFloat());
         if (doubleStr.find_first_not_of("-0123456789") == std::string::npos) {
             doubleStr += ".0";
         }
         return doubleStr;
-    } break;
+    }
+
+    case TypeFlags::kObjectFlag: {
+        auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(s.getPointer()->_className));
+        return fmt::format("a {}", className.view(m_threadContext.get()));
+    }
+
     case TypeFlags::kNilFlag:
         return "nil";
     default:

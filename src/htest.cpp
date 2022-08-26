@@ -37,6 +37,7 @@ int main(int argc, char* argv[]) {
     std::string_view name;
     const char* payloadStart = nullptr;
     enum Verb {
+        kClasses,
         kExpecting,
         kNothing,
         kRun
@@ -72,7 +73,9 @@ int main(int argc, char* argv[]) {
         // Payload starts after the newline at the end of the match.
         payloadStart = match[0].second + 1;
 
-        if (match[2].compare("EXPECTING") == 0) {
+        if (match[2].compare("CLASSES") == 0) {
+            verb = kClasses;
+        } else if (match[2].compare("EXPECTING") == 0) {
             verb = kExpecting;
         } else if (match[2].compare("RUN") == 0) {
             verb = kRun;
@@ -96,6 +99,11 @@ int main(int argc, char* argv[]) {
     // Execute the commands in the file, in order.
     for (const auto& command : commands) {
         switch(command.verb) {
+        case kClasses: {
+            std::cerr << "WRITEME\n";
+            return -1;
+        } break;
+
         case kExpecting: {
             if (runResults != command.payload) {
                 std::cerr << fmt::format("ERROR: running '{}', expected '{}' got '{}'\n", runName, command.payload,

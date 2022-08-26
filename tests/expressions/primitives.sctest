@@ -1,0 +1,14 @@
+//+//: Primitives Tests
+//+ CLASSES:
+PrimitivesTest {
+    *a {
+        _ReturnZero;
+    }
+}
+//+ RUN: Empty function declaration
+(
+    PrimitivesTest.a;
+)
+//+ EXPECTING:
+0
+//+//:

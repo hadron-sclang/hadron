@@ -93,7 +93,8 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
         auto blockHIR = library::BlockLiteralHIR::makeBlockLiteralHIR(context);
         m_frame.setInnerBlocks(m_frame.innerBlocks().typedAdd(context, blockHIR));
         nodeValue = m_block.append(context, blockHIR.toBase());
-        blockHIR.setFrame(buildFrame(context, blockAST, blockHIR, true));
+        BlockBuilder subFrameBuilder(m_owningClass);
+        blockHIR.setFrame(subFrameBuilder.buildFrame(context, blockAST, blockHIR, true));
         assert(nodeValue);
     } break;
 
