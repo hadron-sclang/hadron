@@ -16,7 +16,9 @@ int main(int argc, char* argv[]) {
 
     hadron::Runtime runtime;
     if (!runtime.initInterpreter()) { return -1; }
-    if (!runtime.compileClassLibrary()) { return -1; }
+    runtime.addDefaultPaths();
+    if (!runtime.scanClassFiles()) { return -1; }
+    if (!runtime.finalizeClassLibrary()) { return -1; }
 
     return 0;
 }

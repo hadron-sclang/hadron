@@ -183,12 +183,12 @@ public:
 
     static InterruptLIR makeInterrupt(ThreadContext* context, int32_t code) {
         auto interruptLIR = InterruptLIR::make(context);
-        interruptLIR.setInterruptCode(Integer(code));
+        interruptLIR.setInterruptCode(code);
         return interruptLIR;
     }
 
-    Integer interruptCode() const { return Integer(m_instance->interruptCode); }
-    void setInterruptCode(Integer code) { m_instance->interruptCode = code.slot(); }
+    int32_t interruptCode() const { return m_instance->interruptCode.getInt32(); }
+    void setInterruptCode(int32_t code) { m_instance->interruptCode = Slot::makeInt32(code); }
 };
 
 class PopFrameLIR : public LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR> {

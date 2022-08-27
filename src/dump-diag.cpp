@@ -46,7 +46,15 @@ void build(hadron::ThreadContext* context, hadron::library::BuildArtifacts build
     auto classDef = context->classLibrary->findClassNamed(buildArtifacts.className(context));
     assert(classDef);
     if (!classDef) { return; }
-    hadron::BlockBuilder blockBuilder(classDef);
+    auto method = hadron::library::Method();
+    for (int32_t i = 0; i < classDef.methods().size(); ++i) {
+        if (classDef.methods().typedAt(i).name(context) == buildArtifacts.methodName(context)) {
+            method = classDef.methods().typedAt(i);
+            break;
+        }
+    }
+    if (!method) { return; }
+    hadron::BlockBuilder blockBuilder(method);
     auto cfgFrame = blockBuilder.buildMethod(context, buildArtifacts.abstractSyntaxTree(),
             !buildArtifacts.methodName(context));
     if (!cfgFrame) { return; }
@@ -142,6 +150,7 @@ int main(int argc, char* argv[]) {
         buildArtifacts.setSourceFile(sourceFileSymbol);
         buildArtifacts.setParseTree(parser->root());
         buildArtifacts.setClassName(runtime.context()->symbolTable->interpreterSymbol());
+        buildArtifacts.setMethodName(runtime.context()->symbolTable->functionCompileContextSymbol());
         build(runtime.context(), buildArtifacts, FLAGS_stopAfter);
         artifacts = artifacts.typedAdd(runtime.context(), buildArtifacts);
     }

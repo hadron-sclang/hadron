@@ -11,6 +11,7 @@ void SymbolTable::preloadSymbols(ThreadContext* context) {
     m_copySeries = library::Symbol::fromView(context, "copySeries");
     m_currentEnvironment = library::Symbol::fromView(context, "currentEnvironment");
     m_Event = library::Symbol::fromView(context, "Event");
+    m_Function = library::Symbol::fromView(context, "Function");
     m_functionCompileContext = library::Symbol::fromView(context, "functionCompileContext");
     m_Interpreter = library::Symbol::fromView(context, "Interpreter");
     m_isNil = library::Symbol::fromView(context, "isNil");
@@ -53,13 +54,22 @@ Hash SymbolTable::addSymbol(library::String s) {
     return h;
 }
 
-library::String SymbolTable::getString(library::Symbol s) {
+library::String SymbolTable::getString(library::Symbol s) const {
     auto mapIter = m_symbolMap.find(s.hash());
     if (mapIter == m_symbolMap.end()) {
         assert(false);
         return library::String();
     }
     return mapIter->second;
+}
+
+std::string_view SymbolTable::lookup(Hash h) const {
+    auto mapIter = m_symbolMap.find(h);
+    if (mapIter == m_symbolMap.end()) {
+        assert(false);
+        return std::string_view();
+    }
+    return mapIter->second.view();
 }
 
 } // namespace hadron

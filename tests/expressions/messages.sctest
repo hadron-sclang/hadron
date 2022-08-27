@@ -1,0 +1,12 @@
+//+//: Messages Tests
+//+ CLASSES:
+A {
+    *a { ^0; }
+}
+//+ RUN: Empty function declaration
+(
+A.a();
+)
+//+ EXPECTING:
+0
+//+//:

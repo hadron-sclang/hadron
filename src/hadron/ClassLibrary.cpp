@@ -27,16 +27,120 @@ namespace hadron {
 
 ClassLibrary::ClassLibrary(): m_numberOfClassVariables(0) {}
 
-void ClassLibrary::addClassDirectory(const std::string& path) {
-    m_libraryPaths.emplace(fs::absolute(path));
+void ClassLibrary::bootstrapLibrary(ThreadContext* context) {
+    {
+        #include "hadron/ClassLibraryBootstrap.cpp"
+    }
+
+    // Construct an empty Method object for the Interpreter to serve as a compilation context for interpreted code.
+    auto interpreterClass = findClassNamed(context->symbolTable->interpreterSymbol());
+    assert(interpreterClass);
+    m_functionCompileContext = library::Method::alloc(context);
+    m_functionCompileContext.initToNil();
+    m_functionCompileContext.setOwnerClass(interpreterClass);
+    m_functionCompileContext.setName(context->symbolTable->functionCompileContextSymbol());
+    interpreterClass.setMethods(interpreterClass.methods().typedAdd(context, m_functionCompileContext));
 }
 
-bool ClassLibrary::compileLibrary(ThreadContext* context) {
-    if (!resetLibrary(context)) { return false; }
-    bootstrapLibrary(context);
-    if (!scanFiles(context)) { return false; }
+bool ClassLibrary::scanString(ThreadContext* context, std::string_view input, library::Symbol filename) {
+    auto lexer = Lexer(input);
+    if (!lexer.lex()) { return false; }
+
+    auto parser = Parser(&lexer);
+    if (!parser.parseClass(context)) { return false; }
+
+    library::Node node = parser.root();
+    while (node) {
+        if (node.className() != library::ClassNode::nameHash() &&
+            node.className() != library::ClassExtNode::nameHash()) {
+            SPDLOG_ERROR("Expecting either Class or Class Extensions only at top level in class file {}",
+                    filename.view(context));
+            return false;
+        }
+
+        library::Symbol className = node.token().snippet(context);
+        library::Class classDef = findOrInitClass(context, className);
+
+        library::Symbol metaClassName = library::Symbol::fromView(context, fmt::format("Meta_{}",
+                className.view(context)));
+        library::Class metaClassDef = findOrInitClass(context, metaClassName);
+
+        auto methodNode = library::MethodNode();
+
+        if (node.className() == library::ClassNode::nameHash()) {
+            const auto classNode = library::ClassNode(node.slot());
+
+            int32_t charPos = classNode.token().offset();
+            classDef.setFilenameSymbol(filename);
+            classDef.setCharPos(charPos);
+            metaClassDef.setFilenameSymbol(filename);
+            metaClassDef.setCharPos(charPos);
+
+            if (!scanClass(context, classDef, metaClassDef, classNode)) {
+                return false;
+            }
+
+            methodNode = classNode.methods();
+        } else {
+            assert(node.className() == library::ClassExtNode::nameHash());
+            const auto classExtNode = library::ClassExtNode(node.slot());
+            methodNode = classExtNode.methods();
+        }
+
+        while (methodNode) {
+            library::Symbol methodName = methodNode.token().snippet(context);
+            if (className == context->symbolTable->interpreterSymbol() &&
+                methodName == context->symbolTable->functionCompileContextSymbol()) {
+                // Avoid re-defining the interpreter compile context special method.
+                methodNode = library::MethodNode(methodNode.next().slot());
+                continue;
+            }
+
+            library::Method method = library::Method::alloc(context);
+            method.initToNil();
+
+            library::Class methodClassDef = methodNode.isClassMethod() ? metaClassDef : classDef;
+            method.setOwnerClass(methodClassDef);
+
+            library::MethodArray methodArray = methodClassDef.methods();
+            methodArray = methodArray.typedAdd(context, method);
+            methodClassDef.setMethods(methodArray);
+
+            method.setName(methodName);
+
+            if (methodNode.primitiveToken()) {
+                library::Symbol primitiveName = methodNode.primitiveToken().snippet(context);
+                method.setPrimitiveName(primitiveName);
+            }
+
+            // Build the AST from the MethodNode block.
+            ASTBuilder astBuilder;
+            auto ast = astBuilder.buildBlock(context, methodNode.body());
+            if (ast.isNil()) { return false; }
+
+            // Attach argument names from AST to the method definition.
+            method.setArgNames(ast.argumentNames());
+
+            auto methodIter = m_methodASTs.find(methodClassDef.name(context));
+            assert(methodIter != m_methodASTs.end());
+            methodIter->second->emplace(std::make_pair(methodName, std::move(ast)));
+
+            method.setFilenameSymbol(filename);
+
+            method.setCharPos(methodNode.token().offset());
+
+            methodNode = library::MethodNode(methodNode.next().slot());
+        }
+
+        node = node.next();
+    }
+
+    return true;
+}
+
+bool ClassLibrary::finalizeLibrary(ThreadContext* context) {
     if (!finalizeHeirarchy(context)) { return false; }
-//    if (!materializeFrames(context)) { return false; }
+    if (!materializeFrames(context)) { return false; }
     return cleanUp();
 }
 
@@ -54,111 +158,6 @@ bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_methodFrames.clear();
     m_classVariables = library::Array();
     m_numberOfClassVariables = 0;
-    return true;
-}
-
-void ClassLibrary::bootstrapLibrary(ThreadContext* context) {
-    #include "hadron/ClassLibraryBootstrap.cpp"
-}
-
-bool ClassLibrary::scanFiles(ThreadContext* context) {
-    for (const auto& classLibPath : m_libraryPaths) {
-        for (auto& entry : fs::recursive_directory_iterator(classLibPath)) {
-            const auto& path = fs::absolute(entry.path());
-            if (!fs::is_regular_file(path) || path.extension() != ".sc")
-                continue;
-
-            auto sourceFile = std::make_unique<SourceFile>(path.string());
-            if (!sourceFile->read()) { return false; }
-
-            auto lexer = std::make_unique<Lexer>(sourceFile->codeView());
-            if (!lexer->lex()) { return false; }
-
-            auto parser = std::make_unique<Parser>(lexer.get());
-            if (!parser->parseClass(context)) { return false; }
-
-            auto filename = library::Symbol::fromView(context, path.string());
-            library::Node node = parser->root();
-            while (node) {
-                if (node.className() != library::ClassNode::nameHash() &&
-                    node.className() != library::ClassExtNode::nameHash()) {
-                    SPDLOG_ERROR("Expecting either Class or Class Extensions only at top level in class file {}",
-                            path.c_str());
-                    return false;
-                }
-
-                library::Symbol className = node.token().snippet(context);
-                library::Class classDef = findOrInitClass(context, className);
-
-                library::Symbol metaClassName = library::Symbol::fromView(context, fmt::format("Meta_{}",
-                        className.view(context)));
-                library::Class metaClassDef = findOrInitClass(context, metaClassName);
-
-                auto methodNode = library::MethodNode();
-
-                if (node.className() == library::ClassNode::nameHash()) {
-                    const auto classNode = library::ClassNode(node.slot());
-
-                    int32_t charPos = classNode.token().offset();
-                    classDef.setFilenameSymbol(filename);
-                    classDef.setCharPos(charPos);
-                    metaClassDef.setFilenameSymbol(filename);
-                    metaClassDef.setCharPos(charPos);
-
-                    if (!scanClass(context, classDef, metaClassDef, classNode)) {
-                        return false;
-                    }
-
-                    methodNode = classNode.methods();
-                } else {
-                    assert(node.className() == library::ClassExtNode::nameHash());
-                    const auto classExtNode = library::ClassExtNode(node.slot());
-                    methodNode = classExtNode.methods();
-                }
-
-                while (methodNode) {
-                    library::Method method = library::Method::alloc(context);
-                    method.initToNil();
-
-                    library::Class methodClassDef = methodNode.isClassMethod() ? metaClassDef : classDef;
-                    method.setOwnerClass(methodClassDef);
-
-                    library::MethodArray methodArray = methodClassDef.methods();
-                    methodArray = methodArray.typedAdd(context, method);
-                    methodClassDef.setMethods(methodArray);
-
-                    library::Symbol methodName = methodNode.token().snippet(context);
-                    method.setName(methodName);
-
-                    if (methodNode.primitiveToken()) {
-                        library::Symbol primitiveName = methodNode.primitiveToken().snippet(context);
-                        method.setPrimitiveName(primitiveName);
-                    } else {
-                        // Build the AST from the MethodNode block.
-                        ASTBuilder astBuilder;
-                        auto ast = astBuilder.buildBlock(context, methodNode.body());
-                        if (ast.isNil()) { return false; }
-
-                        // Attach argument names from AST to the method definition.
-                        method.setArgNames(ast.argumentNames());
-
-                        auto methodIter = m_methodASTs.find(methodClassDef.name(context));
-                        assert(methodIter != m_methodASTs.end());
-                        methodIter->second->emplace(std::make_pair(methodName, std::move(ast)));
-                    }
-
-                    method.setFilenameSymbol(filename);
-
-                    method.setCharPos(methodNode.token().offset());
-
-                    methodNode = library::MethodNode(methodNode.next().slot());
-                }
-
-                node = node.next();
-            }
-        }
-    }
-
     return true;
 }
 
@@ -308,7 +307,7 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         auto astIter = classASTs->second->find(methodName);
         assert(astIter != classASTs->second->end());
 
-        BlockBuilder blockBuilder(classDef);
+        BlockBuilder blockBuilder(method);
         auto frame = blockBuilder.buildMethod(context, astIter->second, false);
         if (!frame) { return false; }
 

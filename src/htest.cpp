@@ -95,13 +95,16 @@ int main(int argc, char* argv[]) {
     std::string runResults;
     std::string_view runName;
     int errorCount = 0;
+    bool finalizedLibrary = false;
 
     // Execute the commands in the file, in order.
     for (const auto& command : commands) {
         switch(command.verb) {
         case kClasses: {
-            std::cerr << "WRITEME\n";
-            return -1;
+            if (!runtime.scanClassString(command.payload, sourcePath.string())) {
+                std::cerr << "failed to scan class input string.\n";
+                ++errorCount;
+            }
         } break;
 
         case kExpecting: {
@@ -116,6 +119,10 @@ int main(int argc, char* argv[]) {
             break;
 
         case kRun: {
+            if (!finalizedLibrary) {
+                runtime.finalizeClassLibrary();
+                finalizedLibrary = true;
+            }
             auto slotResult = runtime.interpret(command.payload);
             runResults = runtime.slotToString(slotResult);
             runName = command.name;

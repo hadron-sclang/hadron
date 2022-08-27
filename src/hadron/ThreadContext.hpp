@@ -24,21 +24,22 @@ struct ThreadContext {
     ~ThreadContext() = default;
 
     // We keep a separate stack for Hadron JIT from the main C/C++ application stack.
-    uint32_t stackSize = 0;
     schema::FramePrivateSchema* framePointer = nullptr;
     schema::FramePrivateSchema* stackPointer = nullptr;
 
-    enum InterruptCode : int32_t {
-        kAllocateMemory,
-        kDispatch,
-        kReturn
-    };
-    InterruptCode interruptCode = InterruptCode::kReturn;
     // The return address to restore the C stack and exit the machine code ABI.
     const int8_t* exitMachineCode = nullptr;
 
     // The stack pointer as preserved on entry into machine code.
     void* cStackPointer = nullptr;
+
+    enum InterruptCode : int32_t {
+        kDispatch,
+        kFatalError,
+        kNewObject,
+        kPrimitive
+    };
+    InterruptCode interruptCode = InterruptCode::kFatalError;
 
     std::shared_ptr<Heap> heap;
     std::unique_ptr<SymbolTable> symbolTable;

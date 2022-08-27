@@ -7,6 +7,7 @@
 #include <memory>
 #include <string_view>
 #include <string>
+#include <unordered_set>
 
 namespace hadron {
 
@@ -24,8 +25,19 @@ public:
     // Interpreter.
     bool initInterpreter();
 
-    // Compile (or re-compile) class library.
-    bool compileClassLibrary();
+    // Adds the default class library directory and the Hadron HLang class directory to the search path.
+    void addDefaultPaths();
+
+    // Adds a directory to the list of directories to scan for library classes.
+    void addClassDirectory(const std::string& path);
+
+    // Scans any directories provided for .sc files, provides those files to the class library for scanning.
+    bool scanClassFiles();
+
+    // Scan a class input string for class definitions.
+    bool scanClassString(std::string_view input, std::string_view filename);
+
+    bool finalizeClassLibrary();
 
     // Compile and run the provided input string, returning the results.
     Slot interpret(std::string_view code);
@@ -36,6 +48,9 @@ public:
 private:
     bool buildThreadContext();
     bool buildTrampolines();
+
+    // We keep the normalized paths in a set to prevent duplicate additions of the same path.
+    std::unordered_set<std::string> m_libraryPaths;
 
     std::shared_ptr<Heap> m_heap;
     std::unique_ptr<ThreadContext> m_threadContext;
