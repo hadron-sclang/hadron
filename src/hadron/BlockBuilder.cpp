@@ -388,9 +388,10 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
     if (name.isClassName(context)) {
         // Class names are read-only.
         assert(!toWrite);
-        auto classDef = context->classLibrary->findClassNamed(name);
+        auto metaName = library::Symbol::fromView(context, fmt::format("Meta_{}", name.view(context)));
+        auto classDef = context->classLibrary->findClassNamed(metaName);
         if (classDef.isNil()) {
-            SPDLOG_CRITICAL("failed to find class named: {}", name.view(context));
+            SPDLOG_CRITICAL("failed to find class named: {}", metaName.view(context));
             assert(false);
         }
         auto constant = library::ConstantHIR::makeConstantHIR(context, classDef.slot());

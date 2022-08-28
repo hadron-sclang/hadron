@@ -2,39 +2,39 @@
 //+ CLASSES:
 A {
     *a { ^\a }
+	*me { ^\a }
 }
 B : A {
-    *a { ^\b }
     *b { ^\b }
+	*me { ^\b }
 }
 C : B {
-    *a { ^\c }
-    *b { ^\c }
     *c { ^\c }
+	*me { ^\c }
 }
+//+//: CHECK: Meta_A.methods.size
+//+//: GIVES: 2
 //+ CHECK: A.a
-//+ EXPECTING:
-a
-//+//:
+//+ GIVES: a
+//+ CHECK: A.me
+//+ GIVES: a
 
+//+//: CHECK: Meta_B.methods.size
+//+//: GIVES: 2
 //+ CHECK: B.a
-//+ EXPECTING:
-b
-//+//:
+//+ GIVES: a
 //+ CHECK: B.b
-//+ EXPECTING:
-b
-//+//:
+//+ GIVES: b
+//+ CHECK: B.me
+//+ GIVES: b
 
+//+//: CHECK: Meta_C.methods.size
+//+//: GIVES: 2
 //+ CHECK: C.a
-//+ EXPECTING:
-c
-//+//:
+//+ GIVES: a
 //+ CHECK: C.b
-//+ EXPECTING:
-c
-//+//:
+//+ GIVES: b
 //+ CHECK: C.c
-//+ EXPECTING:
-c
-//+//:
+//+ GIVES: c
+//+ CHECK: C.me
+//+ GIVES: c

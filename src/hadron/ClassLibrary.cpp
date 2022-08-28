@@ -257,7 +257,7 @@ library::Class ClassLibrary::findOrInitClass(ThreadContext* context, library::Sy
     m_classMap.emplace(std::make_pair(className, classDef));
 
     if (m_classArray.size()) {
-        classDef.setNextclass(m_classArray.typedAt(m_classArray.size() - 1));
+//        classDef.setNextclass(m_classArray.typedAt(m_classArray.size() - 1));
     }
     m_classArray = m_classArray.typedAdd(context, classDef);
 

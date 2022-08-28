@@ -1,6 +1,9 @@
 // htest, command line SuperCollider language script interpreter
+#include "hadron/ClassLibrary.hpp"
 #include "hadron/internal/FileSystem.hpp"
 #include "hadron/Runtime.hpp"
+#include "hadron/SlotDumpJSON.hpp"
+#include "hadron/SlotDumpJSON.hpp"
 #include "hadron/SourceFile.hpp"
 
 #include "fmt/format.h"
@@ -13,6 +16,8 @@
 #include <string_view>
 #include <string>
 #include <vector>
+
+DEFINE_bool(dumpClassArray, false, "After finalizing, dump class array to JSON");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -40,6 +45,7 @@ int main(int argc, char* argv[]) {
         kCheck,
         kClasses,
         kExpecting,
+        kGives,
         kNothing,
         kRun
     };
@@ -80,6 +86,8 @@ int main(int argc, char* argv[]) {
             verb = kClasses;
         } else if (match[2].compare("EXPECTING") == 0) {
             verb = kExpecting;
+        } else if (match[2].compare("GIVES") == 0) {
+            verb = kGives;
         } else if (match[2].compare("RUN") == 0) {
             verb = kRun;
         } else if (match[2].compare("//") == 0) {
@@ -105,7 +113,11 @@ int main(int argc, char* argv[]) {
         switch(command.verb) {
         case kCheck: {
             if (!finalizedLibrary) {
-                runtime.finalizeClassLibrary();
+                if (FLAGS_dumpClassArray) {
+                    auto dump = hadron::SlotDumpJSON();
+                    dump.dump(runtime.context(), runtime.context()->classLibrary->classArray().slot(), true);
+                    std::cout << dump.json() << std::endl;
+                }
                 finalizedLibrary = true;
             }
             auto slotResult = runtime.interpret(command.name);
@@ -128,12 +140,25 @@ int main(int argc, char* argv[]) {
             }
         } break;
 
+        case kGives: {
+            if (runResults != command.name) {
+                std::cerr << fmt::format("ERROR: running '{}', expected '{}' got '{}'\n", runName, command.name,
+                        runResults);
+                ++errorCount;
+            }
+        } break;
+
         case kNothing: // no-op
             break;
 
         case kRun: {
             if (!finalizedLibrary) {
                 runtime.finalizeClassLibrary();
+                if (FLAGS_dumpClassArray) {
+                    auto dump = hadron::SlotDumpJSON();
+                    dump.dump(runtime.context(), runtime.context()->classLibrary->classArray().slot(), true);
+                    std::cout << dump.json() << std::endl;
+                }
                 finalizedLibrary = true;
             }
             auto slotResult = runtime.interpret(command.payload);
