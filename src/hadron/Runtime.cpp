@@ -117,32 +117,42 @@ Slot Runtime::interpret(std::string_view code) {
 
         // This is an interrupt call
         switch (m_threadContext->interruptCode) {
-        case ThreadContext::InterruptCode::kDispatch:
-            SPDLOG_CRITICAL("Dispatch selector: {}, target: {}",
-                    m_threadContext->symbolTable->lookup(m_threadContext->stackPointer->method.getSymbolHash()),
-                    slotToString(m_threadContext->stackPointer->arg0));
-            break;
+        case ThreadContext::InterruptCode::kDispatch: {
+            auto selector = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->method);
+            auto target = m_threadContext->stackPointer->arg0;
+            assert(target.isPointer());
+            auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(target.getPointer()->_className));
+            auto classDef = m_threadContext->classLibrary->findClassNamed(className);
+            assert(classDef);
+            auto method = library::Method();
+            for (int32_t i = 0; i < classDef.methods().size(); ++i) {
+                if (classDef.methods().typedAt(i).name(m_threadContext.get()) == selector) {
+                    method = classDef.methods().typedAt(i);
+                    break;
+                }
+            }
+            if (!method) {
+                SPDLOG_ERROR("Failed to find method {} in class {}", selector.view(m_threadContext.get()),
+                        classDef.name(m_threadContext.get()).view(m_threadContext.get()));
+                return Slot::makeNil();
+            }
+
+            return Slot::makeNil();
+        } break;
 
         case ThreadContext::InterruptCode::kFatalError:
             SPDLOG_CRITICAL("Fatal Error");
-            break;
+            return Slot::makeNil();
 
         case ThreadContext::InterruptCode::kNewObject:
             SPDLOG_CRITICAL("New Object");
-            break;
+            return Slot::makeNil();
 
         case ThreadContext::InterruptCode::kPrimitive:
             SPDLOG_CRITICAL("Primitive");
-            break;
+            return Slot::makeNil();
         }
-
-        break;
     }
-
-    SPDLOG_CRITICAL("frame pointer: {}, calleeFrame: {}, callerFrame: {}",
-            reinterpret_cast<void*>(m_threadContext->framePointer),
-            reinterpret_cast<void*>(calleeFrame.instance()),
-            reinterpret_cast<void*>(callerFrame.instance()));
 
     return Slot::makeNil();
 }

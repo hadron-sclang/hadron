@@ -1,12 +1,40 @@
 //+//: Messages Tests
 //+ CLASSES:
 A {
-    *a { ^0; }
+    *a { ^\a }
 }
-//+ RUN: Empty function declaration
-(
-A.a();
-)
+B : A {
+    *a { ^\b }
+    *b { ^\b }
+}
+C : B {
+    *a { ^\c }
+    *b { ^\c }
+    *c { ^\c }
+}
+//+ CHECK: A.a
 //+ EXPECTING:
-0
+a
+//+//:
+
+//+ CHECK: B.a
+//+ EXPECTING:
+b
+//+//:
+//+ CHECK: B.b
+//+ EXPECTING:
+b
+//+//:
+
+//+ CHECK: C.a
+//+ EXPECTING:
+c
+//+//:
+//+ CHECK: C.b
+//+ EXPECTING:
+c
+//+//:
+//+ CHECK: C.c
+//+ EXPECTING:
+c
 //+//:
