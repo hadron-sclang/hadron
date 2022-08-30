@@ -65,8 +65,8 @@ private:
     // Clean up any temporary data structures
     bool cleanUp();
 
-    // A map maintained for quick(er) access to Class objects via Hash.
-    std::unordered_map<library::Symbol, library::Class> m_classMap;
+    // A map maintained for quick(er) access to Class objects via Hash. Because the Class objects themselves 
+    std::unordered_map<library::Symbol, Slot> m_classMap;
 
     // The official array of Class objects, maintained as part of the root set.
     library::ClassArray m_classArray;

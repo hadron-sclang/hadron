@@ -26,10 +26,17 @@ std::string_view Symbol::view(ThreadContext* context) const {
 
 bool Symbol::isClassName(ThreadContext* context) const {
     if (m_slot.isNil()) { return false; }
-    std::string_view v = view(context);
+    auto v = view(context);
     if (v.size() == 0) { return false; }
     const char* c = v.data();
     return ('A' <= *c) && (*c <= 'Z');
+}
+
+bool Symbol::isMetaClassName(ThreadContext* context) const {
+    if (m_slot.isNil()) { return false; }
+    auto v = view(context);
+    if (v.size() <= 5) { return false; }
+    return v.substr(0, 5).compare("Meta_") == 0;
 }
 
 } // namespace library

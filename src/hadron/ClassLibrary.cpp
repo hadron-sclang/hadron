@@ -148,7 +148,7 @@ library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
     if (!name) { return library::Class(); }
     auto classIter = m_classMap.find(name);
     if (classIter == m_classMap.end()) { return library::Class(); }
-    return classIter->second;
+    return library::Class::wrapUnsafe(classIter->second);
 }
 
 bool ClassLibrary::resetLibrary(ThreadContext* context) {
@@ -246,15 +246,20 @@ bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, li
 library::Class ClassLibrary::findOrInitClass(ThreadContext* context, library::Symbol className) {
     auto iter = m_classMap.find(className);
     if (iter != m_classMap.end()) {
-        return iter->second;
+        return library::Class::wrapUnsafe(iter->second);
     }
 
     library::Class classDef = library::Class::alloc(context);
     classDef.initToNil();
 
+    // We change the tags on the class objects to reflect the sclang requriements.
+    if (className.isMetaClassName(context)) {
+        #error here
+    } else {
+    }
     classDef.setName(className);
 
-    m_classMap.emplace(std::make_pair(className, classDef));
+    m_classMap.emplace(std::make_pair(className, classDef.slot()));
 
     if (m_classArray.size()) {
 //        classDef.setNextclass(m_classArray.typedAt(m_classArray.size() - 1));
@@ -277,7 +282,7 @@ bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
 
     // We start at the root of the class heirarchy with Object.
     auto objectClassDef = objectIter->second;
-    bool success = composeSubclassesFrom(context, objectClassDef);
+    bool success = composeSubclassesFrom(context, library::Class::wrapUnsafe(objectClassDef));
 
     // We've converted all the ASTs to Frames, so we can free up the RAM.
     m_methodASTs.clear();
@@ -342,7 +347,7 @@ bool ClassLibrary::materializeFrames(ThreadContext* context) {
     for (auto& methodMap : m_methodFrames) {
         auto className = methodMap.first;
         assert(m_classMap.find(className) != m_classMap.end());
-        auto classDef = m_classMap.at(className);
+        auto classDef = library::Class::wrapUnsafe(m_classMap.at(className));
         auto methods = classDef.methods();
 
         for (int32_t i = 0; i < methods.size(); ++i) {

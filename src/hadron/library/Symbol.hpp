@@ -38,6 +38,7 @@ public:
     std::string_view view(ThreadContext* context) const;
 
     bool isClassName(ThreadContext* context) const;
+    bool isMetaClassName(ThreadContext* context) const;
 
     inline bool operator==(const Symbol& s) const { return m_slot == s.m_slot; }
     inline bool operator!=(const Symbol& s) const { return m_slot != s.m_slot; }
