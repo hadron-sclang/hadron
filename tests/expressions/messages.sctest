@@ -12,7 +12,7 @@ Heirarchy
 Object
 |
 v
-Class ----------
+Class ---------\
 |              |
 v              v
 Meta_Object    A
@@ -26,7 +26,17 @@ Meta_B         C
 v
 Meta_C
 
-Meta_Class is an instance of Class, Class is an intance of Meta_Class
+Instances
+---------
+
+A <== Meta_A <== Class <== Meta_Class
+                  ||           ^
+                  \\==========//
+
+A is an instance of Meta_A
+Meta_A is an instance of Class
+Class is an instance of Meta_Class
+Meta_Class is an instance of Class
 
 //+ CLASSES:
 A {
