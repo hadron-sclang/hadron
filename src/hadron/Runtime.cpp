@@ -122,15 +122,17 @@ Slot Runtime::interpret(std::string_view code) {
             auto target = m_threadContext->stackPointer->arg0;
             assert(target.isPointer());
             auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(target.getPointer()->_className));
-            SPDLOG_CRITICAL("className: {}", className.view(m_threadContext.get()));
             auto classDef = m_threadContext->classLibrary->findClassNamed(className);
-            assert(classDef);
+
             auto method = library::Method();
-            for (int32_t i = 0; i < classDef.methods().size(); ++i) {
-                if (classDef.methods().typedAt(i).name(m_threadContext.get()) == selector) {
-                    method = classDef.methods().typedAt(i);
-                    break;
+            while (classDef) {
+                for (int32_t i = 0; i < classDef.methods().size(); ++i) {
+                    if (classDef.methods().typedAt(i).name(m_threadContext.get()) == selector) {
+                        method = classDef.methods().typedAt(i);
+                        break;
+                    }
                 }
+                classDef = m_threadContext->classLibrary->findClassNamed(classDef.superclass(m_threadContext.get()));
             }
             if (!method) {
                 SPDLOG_ERROR("Failed to find method {} in class {}", selector.view(m_threadContext.get()),
@@ -138,7 +140,15 @@ Slot Runtime::interpret(std::string_view code) {
                 return Slot::makeNil();
             }
 
-            return Slot::makeNil();
+            // Stack pointer has saved frame pointer, safe to clobber frame pointer with stack.
+            m_threadContext->framePointer = m_threadContext->stackPointer;
+            // TODO: does the new frame need anything else?
+            spareFrame = library::Frame::alloc(m_threadContext.get(), 16);
+            spareFrame.initToNil();
+            m_threadContext->stackPointer = spareFrame.instance();
+
+            assert(method.code());
+            machineCode = method.code().start();
         } break;
 
         case ThreadContext::InterruptCode::kFatalError:

@@ -54,6 +54,7 @@ public:
     void movr(Reg target, Reg value) override;
     void movi(Reg target, Word value) override;
     void movi_u(Reg target, UWord value) override;
+    Label mov_addr(Reg target) override;
     Label bgei(Reg a, Word b) override;
     Label beqi(Reg a, Word b) override;
     Label jmp() override;

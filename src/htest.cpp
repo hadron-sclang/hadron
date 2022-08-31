@@ -113,6 +113,10 @@ int main(int argc, char* argv[]) {
         switch(command.verb) {
         case kCheck: {
             if (!finalizedLibrary) {
+                if (!runtime.finalizeClassLibrary()) {
+                    std::cerr << "class library compile failed\n";
+                    ++errorCount;
+                }
                 if (FLAGS_dumpClassArray) {
                     auto dump = hadron::SlotDumpJSON();
                     dump.dump(runtime.context(), runtime.context()->classLibrary->classArray().slot(), true);
@@ -153,7 +157,10 @@ int main(int argc, char* argv[]) {
 
         case kRun: {
             if (!finalizedLibrary) {
-                runtime.finalizeClassLibrary();
+                if (!runtime.finalizeClassLibrary()) {
+                    std::cerr << "class library compile failed\n";
+                    ++errorCount;
+                }
                 if (FLAGS_dumpClassArray) {
                     auto dump = hadron::SlotDumpJSON();
                     dump.dump(runtime.context(), runtime.context()->classLibrary->classArray().slot(), true);

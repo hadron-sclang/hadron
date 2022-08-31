@@ -79,6 +79,15 @@ bool OpcodeWriteIterator::movi_u(JIT::Reg target, UWord value) {
     return !hasOverflow();
 }
 
+int8_t* OpcodeWriteIterator::mov_addr(JIT::Reg target) {
+    addByte(Opcode::kMovAddr);
+    addByte(reg(target));
+    auto address = getCurrent();
+    addWord(0xdeadbeef);
+    if (hasOverflow()) { return nullptr; }
+    return address;
+}
+
 int8_t* OpcodeWriteIterator::bgei(JIT::Reg a, Word b) {
     addByte(Opcode::kBgei);
     addByte(reg(a));
@@ -345,6 +354,14 @@ bool OpcodeReadIterator::movi_u(JIT::Reg& target, UWord& value) {
     ++m_currentBytecode; // kMoviU
     target = reg(readByte());
     value = readUWord();
+    return !hasOverflow();
+}
+
+bool OpcodeReadIterator::mov_addr(JIT::Reg& target, const int8_t*& address) {
+    assert(peek() == Opcode::kMovAddr);
+    ++m_currentBytecode; // kMovAddr
+    target = reg(readByte());
+    address = reinterpret_cast<const int8_t*>(readUWord());
     return !hasOverflow();
 }
 

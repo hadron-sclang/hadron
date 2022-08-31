@@ -40,6 +40,19 @@ void ClassLibrary::bootstrapLibrary(ThreadContext* context) {
     m_functionCompileContext.setOwnerClass(interpreterClass);
     m_functionCompileContext.setName(context->symbolTable->functionCompileContextSymbol());
     interpreterClass.setMethods(interpreterClass.methods().typedAdd(context, m_functionCompileContext));
+
+    // Make the connection between "Class" and "Object" or the tree won't be specified correctly
+    auto objectClass = findClassNamed(context->symbolTable->objectSymbol());
+    assert(objectClass);
+    auto classClass = findClassNamed(context->symbolTable->classSymbol());
+    assert(classClass);
+    objectClass.setSubclasses(objectClass.subclasses().typedAdd(context, classClass));
+    classClass.setSuperclass(context->symbolTable->objectSymbol());
+    // Add connection between "Meta_Object" and "Class" also to support tree
+    auto metaObjectClass = findOrInitClass(context, library::Symbol::fromView(context, "Meta_Object"));
+    assert(metaObjectClass);
+    classClass.setSubclasses(classClass.subclasses().typedAdd(context, metaObjectClass));
+    metaObjectClass.setSuperclass(context->symbolTable->classSymbol());
 }
 
 bool ClassLibrary::scanString(ThreadContext* context, std::string_view input, library::Symbol filename) {
@@ -89,6 +102,7 @@ bool ClassLibrary::scanString(ThreadContext* context, std::string_view input, li
 
         while (methodNode) {
             library::Symbol methodName = methodNode.token().snippet(context);
+
             if (className == context->symbolTable->interpreterSymbol() &&
                 methodName == context->symbolTable->functionCompileContextSymbol()) {
                 // Avoid re-defining the interpreter compile context special method.
@@ -254,15 +268,17 @@ library::Class ClassLibrary::findOrInitClass(ThreadContext* context, library::Sy
 
     // We change the tags on the class objects to reflect the sclang requriements.
     if (className.isMetaClassName(context)) {
-        #error here
+        classDef.instance()->schema._className = context->symbolTable->classSymbol().hash();
     } else {
+        auto metaClassName = library::Symbol::fromView(context, fmt::format("Meta_{}", className.view(context)));
+        classDef.instance()->schema._className = metaClassName.hash();
     }
     classDef.setName(className);
 
     m_classMap.emplace(std::make_pair(className, classDef.slot()));
 
     if (m_classArray.size()) {
-//        classDef.setNextclass(m_classArray.typedAt(m_classArray.size() - 1));
+        classDef.setNextclass(m_classArray.typedAt(m_classArray.size() - 1));
     }
     m_classArray = m_classArray.typedAdd(context, classDef);
 
@@ -301,13 +317,17 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
     classDef.setClassVarIndex(m_classVariables.size());
     m_classVariables = m_classVariables.addAll(context, classDef.cprototype());
 
+    SPDLOG_CRITICAL("class: {} has {} methods", classDef.name(context).view(context), classDef.methods().size());
+
     for (int32_t i = 0; i < classDef.methods().size(); ++i) {
         auto method = classDef.methods().typedAt(i);
 
         // We don't compile methods that include primitives.
-        if (!method.primitiveName(context).isNil()) { continue; }
+        if (method.primitiveName(context)) { continue; }
 
         auto methodName = method.name(context);
+
+        SPDLOG_CRITICAL("composing {}:{}", classDef.name(context).view(context), methodName.view(context));
 
         auto astIter = classASTs->second->find(methodName);
         assert(astIter != classASTs->second->end());
@@ -358,7 +378,10 @@ bool ClassLibrary::materializeFrames(ThreadContext* context) {
             auto frameIter = methodMap.second->find(methodName);
             if (frameIter == methodMap.second->end()) { continue; }
 
+            SPDLOG_CRITICAL("materializing {}:{}", className.view(context), methodName.view(context));
+
             auto bytecode = Materializer::materialize(context, frameIter->second);
+            assert(bytecode);
             method.setCode(bytecode);
         }
     }

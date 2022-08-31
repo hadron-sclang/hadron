@@ -86,9 +86,15 @@ void Emitter::emit(ThreadContext* /* context */, library::LinearFrame linearFram
             // Note this is only the 32-bit integer.
             jit->stxi_i(offsetof(ThreadContext, interruptCode), JIT::kContextPointerReg, JIT::Reg(0));
 
+            // Load the return address into a register and save it in the frame pointer.
+            auto returnAddress = jit->mov_addr(JIT::Reg(0));
+            jit->stxi_i(offsetof(schema::FramePrivateSchema, ip), JIT::kFramePointerReg, JIT::Reg(0));
+
             // Jump to the exitMachineCode address stored in the threadContext.
             jit->ldxi_w(JIT::Reg(0), JIT::kContextPointerReg, offsetof(ThreadContext, exitMachineCode));
             jit->jmpr(JIT::Reg(0));
+
+            jit->patchHere(returnAddress);
         } break;
 
         case library::LabelLIR::nameHash(): {

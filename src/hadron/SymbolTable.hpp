@@ -34,6 +34,8 @@ public:
     inline library::Symbol arraySymbol() const { return m_Array; }
     // 'at'
     inline library::Symbol atSymbol() const { return m_at; }
+    // 'Class'
+    inline library::Symbol classSymbol() const { return m_Class; }
     // 'classvar'
     inline library::Symbol classvarSymbol() const { return m_classvar; }
     // 'const'
@@ -52,6 +54,8 @@ public:
     inline library::Symbol interpreterSymbol() const { return m_Interpreter; }
     // 'isNil'
     inline library::Symbol isNilSymbol() const { return m_isNil; }
+    // 'Meta_Class'
+    inline library::Symbol metaClassSymbol() const { return m_Meta_Class; }
     // 'new'
     inline library::Symbol newSymbol() const { return m_new; }
     // 'Object'
@@ -87,6 +91,7 @@ private:
     library::Symbol m_add;
     library::Symbol m_Array;
     library::Symbol m_at;
+    library::Symbol m_Class;
     library::Symbol m_classvar;
     library::Symbol m_const;
     library::Symbol m_copySeries;
@@ -96,6 +101,7 @@ private:
     library::Symbol m_functionCompileContext;
     library::Symbol m_Interpreter;
     library::Symbol m_isNil;
+    library::Symbol m_Meta_Class;
     library::Symbol m_new;
     library::Symbol m_Object;
     library::Symbol m_performList;

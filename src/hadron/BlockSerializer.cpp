@@ -181,6 +181,11 @@ void BlockSerializer::lower(ThreadContext* context, library::HIR hir, library::L
                 library::kStackPointerVReg, offsetof(schema::FramePrivateSchema, method), selectorVReg).toBase(),
                 instructions);
 
+        // Save caller frame pointer in stack frame.
+        linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                library::kStackPointerVReg, offsetof(schema::FramePrivateSchema, caller),
+                library::kFramePointerVReg).toBase(), instructions);
+
         // Save number of arguments to stack.
         auto numberOfArgsVReg = linearFrame.append(context, library::HIRId(),
                 library::LoadConstantLIR::makeLoadConstant(context,
