@@ -317,8 +317,6 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
     classDef.setClassVarIndex(m_classVariables.size());
     m_classVariables = m_classVariables.addAll(context, classDef.cprototype());
 
-    SPDLOG_CRITICAL("class: {} has {} methods", classDef.name(context).view(context), classDef.methods().size());
-
     for (int32_t i = 0; i < classDef.methods().size(); ++i) {
         auto method = classDef.methods().typedAt(i);
 
@@ -326,8 +324,6 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         if (method.primitiveName(context)) { continue; }
 
         auto methodName = method.name(context);
-
-        SPDLOG_CRITICAL("composing {}:{}", classDef.name(context).view(context), methodName.view(context));
 
         auto astIter = classASTs->second->find(methodName);
         assert(astIter != classASTs->second->end());
@@ -339,7 +335,7 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         // TODO: Here's where we could extract some message signatures and compute dependencies, to decide on final
         // ordering of compilation of methods to support inlining.
 
-        classMethods->second->emplace(std::make_pair(method.name(context), std::move(frame)));
+        classMethods->second->emplace(std::make_pair(method.name(context), frame));
     }
 
     for (int32_t i = 0; i < classDef.subclasses().size(); ++i) {
@@ -377,8 +373,6 @@ bool ClassLibrary::materializeFrames(ThreadContext* context) {
             // Methods that call a primitive have no Frame and should not be compiled.
             auto frameIter = methodMap.second->find(methodName);
             if (frameIter == methodMap.second->end()) { continue; }
-
-            SPDLOG_CRITICAL("materializing {}:{}", className.view(context), methodName.view(context));
 
             auto bytecode = Materializer::materialize(context, frameIter->second);
             assert(bytecode);

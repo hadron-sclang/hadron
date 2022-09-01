@@ -108,7 +108,9 @@ Slot Runtime::interpret(std::string_view code) {
 
     const int8_t* machineCode = function.def().code().start();
     while (true) {
+
         m_entryTrampoline(m_threadContext.get(), machineCode);
+
         // If this was a normal completion of the Hadron stack the frame pointer will be pointing at the callerFrame.
         if (m_threadContext->framePointer == callerFrame.instance()) {
             // Extract return value from callee frame pointer, which is our stack pointer.
@@ -125,7 +127,7 @@ Slot Runtime::interpret(std::string_view code) {
             auto classDef = m_threadContext->classLibrary->findClassNamed(className);
 
             auto method = library::Method();
-            while (classDef) {
+            while (classDef && !method) {
                 for (int32_t i = 0; i < classDef.methods().size(); ++i) {
                     if (classDef.methods().typedAt(i).name(m_threadContext.get()) == selector) {
                         method = classDef.methods().typedAt(i);
