@@ -113,20 +113,21 @@ void BlockSerializer::lower(ThreadContext* context, library::HIR hir, library::L
         assert(!blockLiteralHIR.functionDef().isNil());
 
         // Interrupt to allocate memory for the Function object.
-        auto functionClassDef = context->classLibrary->findClassNamed(context->symbolTable->functionSymbol());
-        assert(functionClassDef);
-        auto classVReg = linearFrame.append(context, library::HIRId(),
-                library::LoadConstantLIR::makeLoadConstant(context, functionClassDef.slot()).toBase(), instructions);
+        auto functionSymbolVReg = linearFrame.append(context, library::HIRId(),
+                library::LoadConstantLIR::makeLoadConstant(context,
+                context->symbolTable->functionSymbol().slot()).toBase(), instructions);
         linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
-                library::kStackPointerVReg, offsetof(schema::FramePrivateSchema, arg0), classVReg).toBase(),
+                library::kStackPointerVReg, offsetof(schema::FramePrivateSchema, arg0), functionSymbolVReg).toBase(),
                 instructions);
 
         linearFrame.append(context, library::HIRId(), library::InterruptLIR::makeInterrupt(context,
                 ThreadContext::InterruptCode::kNewObject).toBase(), instructions);
 
-        auto functionVReg = linearFrame.append(context, blockLiteralHIR.id(),
+        auto functionVRegTagged = linearFrame.append(context, blockLiteralHIR.id(),
                 library::LoadFromPointerLIR::makeLoadFromPointer(context, library::kStackPointerVReg,
                 offsetof(schema::FramePrivateSchema, arg0)).toBase(), instructions);
+        auto functionVReg = linearFrame.append(context, library::HIRId(),
+                library::RemoveTagLIR::makeRemoveTagLIR(context, functionVRegTagged).toBase(), instructions);
 
         // Set the Function context to the current context pointer.
         // TODO: Add the pointer flagging

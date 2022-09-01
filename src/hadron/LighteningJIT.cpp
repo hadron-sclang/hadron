@@ -292,7 +292,7 @@ void LighteningJIT::initJITGlobals() {
 
 jit_gpr_t LighteningJIT::reg(Reg r) const {
     assert(r < getRegisterCount());
-    // Account for the two reserved registers.
+    // Account for the reserved registers.
     r = r + kNumberOfReservedRegisters;
     jit_gpr gpr;
     gpr.regno = r;

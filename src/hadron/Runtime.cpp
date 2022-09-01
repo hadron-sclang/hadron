@@ -3,6 +3,8 @@
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/library/Kernel.hpp"
+#include "hadron/library/Object.hpp"
+#include "hadron/library/Schema.hpp"
 #include "hadron/library/Symbol.hpp"
 #include "hadron/library/Thread.hpp"
 #include "hadron/LighteningJIT.hpp"
@@ -157,9 +159,21 @@ Slot Runtime::interpret(std::string_view code) {
             SPDLOG_CRITICAL("Fatal Error");
             return Slot::makeNil();
 
-        case ThreadContext::InterruptCode::kNewObject:
-            SPDLOG_CRITICAL("New Object");
-            return Slot::makeNil();
+        case ThreadContext::InterruptCode::kNewObject: {
+            auto className = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->arg0);
+            SPDLOG_CRITICAL("Making a {}", className.view(m_threadContext.get()));
+            auto classDef = m_threadContext->classLibrary->findClassNamed(className);
+            assert(classDef);
+            size_t sizeInBytes = sizeof(library::Schema) + (classDef.iprototype().size() * kSlotSize);
+            auto* instance = reinterpret_cast<library::Schema*>(m_heap->allocateNew(sizeInBytes));
+            instance->_className = className.hash();
+            instance->_sizeInBytes = sizeInBytes;
+            auto slot = Slot::makePointer(instance);
+            auto object = library::ObjectBase::wrapUnsafe(slot);
+            object.initToNil();
+            m_threadContext->stackPointer->arg0 = slot;
+            machineCode = m_threadContext->framePointer->ip.getRawPointer();
+        } break;
 
         case ThreadContext::InterruptCode::kPrimitive:
             SPDLOG_CRITICAL("Primitive");

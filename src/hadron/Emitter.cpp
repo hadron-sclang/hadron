@@ -88,7 +88,8 @@ void Emitter::emit(ThreadContext* /* context */, library::LinearFrame linearFram
 
             // Load the return address into a register and save it in the frame pointer.
             auto returnAddress = jit->mov_addr(JIT::Reg(0));
-            jit->stxi_i(offsetof(schema::FramePrivateSchema, ip), JIT::kFramePointerReg, JIT::Reg(0));
+            jit->ori(JIT::Reg(0), JIT::Reg(0), Slot::kRawPointerTag);
+            jit->stxi_w(offsetof(schema::FramePrivateSchema, ip), JIT::kFramePointerReg, JIT::Reg(0));
 
             // Jump to the exitMachineCode address stored in the threadContext.
             jit->ldxi_w(JIT::Reg(0), JIT::kContextPointerReg, offsetof(ThreadContext, exitMachineCode));
