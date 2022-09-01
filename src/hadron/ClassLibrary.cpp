@@ -23,6 +23,42 @@
 
 #include <cassert>
 
+/*
+
+Heirarchy
+---------
+
+Object
+|
+v
+Class ---------\
+|              |
+v              v
+Meta_Object    A
+|              |
+v              v
+Meta_A         B
+|              |
+v              v
+Meta_B         C
+|
+v
+Meta_C
+
+Instances
+---------
+
+A <== Meta_A <== Class <== Meta_Class
+                  ||           ^
+                  \\==========//
+
+A is an instance of Meta_A
+Meta_A is an instance of Class
+Class is an instance of Meta_Class
+Meta_Class is an instance of Class
+
+*/
+
 namespace hadron {
 
 ClassLibrary::ClassLibrary(): m_numberOfClassVariables(0) {}
