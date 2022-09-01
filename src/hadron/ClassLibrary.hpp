@@ -14,7 +14,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace hadron {
 
@@ -32,14 +31,15 @@ public:
     // allows the interpreter to partially function if the class library compilation is broken.
     void bootstrapLibrary(ThreadContext* context);
 
-    // Adds a directory to the list of directories to scan for library classes.
-    void addClassDirectory(const std::string& path);
+    // Scan the input string for class definitions and extensions, performing the first pass of class library
+    // compilation. |input| must be valid only for the lifetime of the call. After providing all class definition
+    // inputs, call finalizeLibrary() to finish class library compilation.
+    bool scanString(ThreadContext* context, std::string_view input, library::Symbol filename);
 
-    // Compile the class library by scanning all directories added with addClassDirectory() and compile all class files
-    // found within.
-    bool compileLibrary(ThreadContext* context);
+    bool finalizeLibrary(ThreadContext* context);
 
     library::Class findClassNamed(library::Symbol name) const;
+    library::Method functionCompileContext() const { return m_functionCompileContext; }
 
     library::Array classVariables() const { return m_classVariables; }
 
@@ -49,8 +49,6 @@ private:
     // Call to delete any existing class libary compilation structures and start fresh.
     bool resetLibrary(ThreadContext* context);
 
-    // Scans the provided class directories, builds class inheritance structure. First pass of library compilation.
-    bool scanFiles(ThreadContext* context);
     bool scanClass(ThreadContext* context, library::Class classDef, library::Class metaClassDef,
             const library::ClassNode classNode);
     // Either create a new Class object with the provided name, or return the existing one.
@@ -67,11 +65,8 @@ private:
     // Clean up any temporary data structures
     bool cleanUp();
 
-    // We keep the normalized paths in a set to prevent duplicate additions of the same path.
-    std::unordered_set<std::string> m_libraryPaths;
-
-    // A map maintained for quick(er) access to Class objects via Hash.
-    std::unordered_map<library::Symbol, library::Class> m_classMap;
+    // A map maintained for quick(er) access to Class objects via Hash. Because the Class objects themselves 
+    std::unordered_map<library::Symbol, Slot> m_classMap;
 
     // The official array of Class objects, maintained as part of the root set.
     library::ClassArray m_classArray;
@@ -89,6 +84,8 @@ private:
 
     // Set of class names that are bootstrapped from schema generation, before class library compilation.
     std::unordered_set<library::Symbol> m_bootstrapClasses;
+
+    library::Method m_functionCompileContext;
 };
 
 } // namespace hadron

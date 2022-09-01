@@ -22,6 +22,16 @@ public:
     explicit Thread(schema::ThreadSchema* instance): ThreadBase<Thread, schema::ThreadSchema>(instance) {}
     explicit Thread(Slot instance): ThreadBase<Thread, schema::ThreadSchema>(instance) {}
     ~Thread() {}
+
+    enum ThreadState : int32_t {
+        kNotStarted = 0,
+        kRunning = 7,
+        kStopped = 8
+    };
+    ThreadState state() const { return static_cast<ThreadState>(m_instance->state.getInt32()); }
+    void setState(ThreadState ts) { m_instance->state = Slot::makeInt32(static_cast<int32_t>(ts)); }
+
+    
 };
 
 } // namespace library

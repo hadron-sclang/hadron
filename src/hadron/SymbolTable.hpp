@@ -24,7 +24,9 @@ public:
     bool isDefined(Hash h) const { return m_symbolMap.find(h) != m_symbolMap.end(); }
 
     // String can be nil if hash not found.
-    library::String getString(const library::Symbol s);
+    library::String getString(const library::Symbol s) const;
+
+    std::string_view lookup(Hash h) const;
 
     // 'add'
     inline library::Symbol addSymbol() const { return m_add; }
@@ -32,6 +34,8 @@ public:
     inline library::Symbol arraySymbol() const { return m_Array; }
     // 'at'
     inline library::Symbol atSymbol() const { return m_at; }
+    // 'Class'
+    inline library::Symbol classSymbol() const { return m_Class; }
     // 'classvar'
     inline library::Symbol classvarSymbol() const { return m_classvar; }
     // 'const'
@@ -42,12 +46,16 @@ public:
     inline library::Symbol currentEnvironmentSymbol() const { return m_currentEnvironment; }
     // 'Event'
     inline library::Symbol eventSymbol() const { return m_Event; }
+    // 'Function'
+    inline library::Symbol functionSymbol() const { return m_Function; }
     // 'functionCompileContext'
     inline library::Symbol functionCompileContextSymbol() const { return m_functionCompileContext; }
     // 'Interpreter'
     inline library::Symbol interpreterSymbol() const { return m_Interpreter; }
     // 'isNil'
     inline library::Symbol isNilSymbol() const { return m_isNil; }
+    // 'Meta_Class'
+    inline library::Symbol metaClassSymbol() const { return m_Meta_Class; }
     // 'new'
     inline library::Symbol newSymbol() const { return m_new; }
     // 'Object'
@@ -83,14 +91,17 @@ private:
     library::Symbol m_add;
     library::Symbol m_Array;
     library::Symbol m_at;
+    library::Symbol m_Class;
     library::Symbol m_classvar;
     library::Symbol m_const;
     library::Symbol m_copySeries;
     library::Symbol m_currentEnvironment;
     library::Symbol m_Event;
+    library::Symbol m_Function;
     library::Symbol m_functionCompileContext;
     library::Symbol m_Interpreter;
     library::Symbol m_isNil;
+    library::Symbol m_Meta_Class;
     library::Symbol m_new;
     library::Symbol m_Object;
     library::Symbol m_performList;

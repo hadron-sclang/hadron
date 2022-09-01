@@ -1,11 +1,15 @@
 #include "hadron/BlockSerializer.hpp"
 
+#include "hadron/ClassLibrary.hpp"
 #include "hadron/library/Array.hpp"
 #include "hadron/library/Function.hpp"
 #include "hadron/library/HadronLIR.hpp"
 #include "hadron/library/Integer.hpp"
 #include "hadron/library/Kernel.hpp"
+#include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
+
+#include <cstddef>
 
 namespace hadron {
 
@@ -109,13 +113,21 @@ void BlockSerializer::lower(ThreadContext* context, library::HIR hir, library::L
         assert(!blockLiteralHIR.functionDef().isNil());
 
         // Interrupt to allocate memory for the Function object.
-        linearFrame.append(context, library::HIRId(), library::InterruptLIR::makeInterrupt(context,
-                ThreadContext::InterruptCode::kAllocateMemory).toBase(), instructions);
+        auto functionSymbolVReg = linearFrame.append(context, library::HIRId(),
+                library::LoadConstantLIR::makeLoadConstant(context,
+                context->symbolTable->functionSymbol().slot()).toBase(), instructions);
+        linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                library::kStackPointerVReg, offsetof(schema::FramePrivateSchema, arg0), functionSymbolVReg).toBase(),
+                instructions);
 
-        // TODO: actual useful stack frame offset
-        auto functionVReg = linearFrame.append(context, blockLiteralHIR.id(),
-                library::LoadFromPointerLIR::makeLoadFromPointer(context,
-                library::kStackPointerVReg, 0).toBase(), instructions);
+        linearFrame.append(context, library::HIRId(), library::InterruptLIR::makeInterrupt(context,
+                ThreadContext::InterruptCode::kNewObject).toBase(), instructions);
+
+        auto functionVRegTagged = linearFrame.append(context, blockLiteralHIR.id(),
+                library::LoadFromPointerLIR::makeLoadFromPointer(context, library::kStackPointerVReg,
+                offsetof(schema::FramePrivateSchema, arg0)).toBase(), instructions);
+        auto functionVReg = linearFrame.append(context, library::HIRId(),
+                library::RemoveTagLIR::makeRemoveTagLIR(context, functionVRegTagged).toBase(), instructions);
 
         // Set the Function context to the current context pointer.
         // TODO: Add the pointer flagging
@@ -161,29 +173,38 @@ void BlockSerializer::lower(ThreadContext* context, library::HIR hir, library::L
 
     case library::MessageHIR::nameHash(): {
         auto messageHIR = library::MessageHIR(hir.slot());
+
         // Save selector to stack.
         auto selectorVReg = linearFrame.append(context, library::HIRId(),
                 library::LoadConstantLIR::makeLoadConstant(context,
                 messageHIR.selector(context).slot()).toBase(), instructions);
         linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
-                library::kStackPointerVReg, 0, selectorVReg).toBase(), instructions);
+                library::kStackPointerVReg, offsetof(schema::FramePrivateSchema, method), selectorVReg).toBase(),
+                instructions);
+
+        // Save caller frame pointer in stack frame.
+        linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
+                library::kStackPointerVReg, offsetof(schema::FramePrivateSchema, caller),
+                library::kFramePointerVReg).toBase(), instructions);
 
         // Save number of arguments to stack.
         auto numberOfArgsVReg = linearFrame.append(context, library::HIRId(),
                 library::LoadConstantLIR::makeLoadConstant(context,
                 Slot::makeInt32(messageHIR.arguments().size())).toBase(), instructions);
         linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
-                library::kStackPointerVReg, kSlotSize, numberOfArgsVReg).toBase(), instructions);
+                library::kStackPointerVReg, offsetof(schema::FramePrivateSchema, context), numberOfArgsVReg).toBase(),
+                instructions);
 
         // Save number of keyword arguments to stack.
         auto numberOfKeyArgsVReg = linearFrame.append(context, library::HIRId(),
                 library::LoadConstantLIR::makeLoadConstant(context,
                 Slot::makeInt32(messageHIR.keywordArguments().size())).toBase(), instructions);
         linearFrame.append(context, library::HIRId(), library::StoreToPointerLIR::makeStoreToPointer(context,
-                library::kStackPointerVReg, 2 * kSlotSize, numberOfKeyArgsVReg).toBase(), instructions);
+                library::kStackPointerVReg, offsetof(schema::FramePrivateSchema, homeContext),
+                numberOfKeyArgsVReg).toBase(), instructions);
 
         // Save arguments to stack.
-        int32_t offset = 3 * kSlotSize;
+        int32_t offset = offsetof(schema::FramePrivateSchema, arg0);
         for (int32_t i = 0; i < messageHIR.arguments().size(); ++i) {
             auto argVReg = linearFrame.hirToReg(messageHIR.arguments().typedAt(i));
             assert(argVReg);
@@ -209,11 +230,11 @@ void BlockSerializer::lower(ThreadContext* context, library::HIR hir, library::L
 
         // Load return value.
         linearFrame.append(context, messageHIR.id(), library::LoadFromPointerLIR::makeLoadFromPointer(context,
-                library::kStackPointerVReg, 0).toBase(), instructions);
+                library::kStackPointerVReg, offsetof(schema::FramePrivateSchema, arg0)).toBase(), instructions);
     } break;
 
     case library::MethodReturnHIR::nameHash(): {
-        // Move frame pointer back to stack pointer, then load caller frame into stack pointer.
+        // Move callee frame pointer back to stack pointer, then load caller frame into frame pointer.
         linearFrame.append(context, library::HIRId(), library::PopFrameLIR::make(context).toBase(),
                 instructions);
         auto returnAddressTagged = linearFrame.append(context, library::HIRId(),

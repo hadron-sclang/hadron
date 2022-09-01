@@ -1,6 +1,9 @@
 // htest, command line SuperCollider language script interpreter
+#include "hadron/ClassLibrary.hpp"
 #include "hadron/internal/FileSystem.hpp"
 #include "hadron/Runtime.hpp"
+#include "hadron/SlotDumpJSON.hpp"
+#include "hadron/SlotDumpJSON.hpp"
 #include "hadron/SourceFile.hpp"
 
 #include "fmt/format.h"
@@ -13,6 +16,8 @@
 #include <string_view>
 #include <string>
 #include <vector>
+
+DEFINE_bool(dumpClassArray, false, "After finalizing, dump class array to JSON");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -37,7 +42,10 @@ int main(int argc, char* argv[]) {
     std::string_view name;
     const char* payloadStart = nullptr;
     enum Verb {
+        kCheck,
+        kClasses,
         kExpecting,
+        kGives,
         kNothing,
         kRun
     };
@@ -72,8 +80,14 @@ int main(int argc, char* argv[]) {
         // Payload starts after the newline at the end of the match.
         payloadStart = match[0].second + 1;
 
-        if (match[2].compare("EXPECTING") == 0) {
+        if (match[2].compare("CHECK") == 0) {
+            verb = kCheck;
+        } else if (match[2].compare("CLASSES") == 0) {
+            verb = kClasses;
+        } else if (match[2].compare("EXPECTING") == 0) {
             verb = kExpecting;
+        } else if (match[2].compare("GIVES") == 0) {
+            verb = kGives;
         } else if (match[2].compare("RUN") == 0) {
             verb = kRun;
         } else if (match[2].compare("//") == 0) {
@@ -92,13 +106,47 @@ int main(int argc, char* argv[]) {
     std::string runResults;
     std::string_view runName;
     int errorCount = 0;
+    bool finalizedLibrary = false;
 
     // Execute the commands in the file, in order.
     for (const auto& command : commands) {
         switch(command.verb) {
+        case kCheck: {
+            if (!finalizedLibrary) {
+                if (!runtime.finalizeClassLibrary()) {
+                    std::cerr << "class library compile failed\n";
+                    ++errorCount;
+                }
+                if (FLAGS_dumpClassArray) {
+                    auto dump = hadron::SlotDumpJSON();
+                    dump.dump(runtime.context(), runtime.context()->classLibrary->classArray().slot(), true);
+                    std::cout << dump.json() << std::endl;
+                }
+                finalizedLibrary = true;
+            }
+            auto slotResult = runtime.interpret(command.name);
+            runResults = runtime.slotToString(slotResult);
+            runName = command.name;
+        } break;
+
+        case kClasses: {
+            if (!runtime.scanClassString(command.payload, sourcePath.string())) {
+                std::cerr << "failed to scan class input string.\n";
+                ++errorCount;
+            }
+        } break;
+
         case kExpecting: {
             if (runResults != command.payload) {
                 std::cerr << fmt::format("ERROR: running '{}', expected '{}' got '{}'\n", runName, command.payload,
+                        runResults);
+                ++errorCount;
+            }
+        } break;
+
+        case kGives: {
+            if (runResults != command.name) {
+                std::cerr << fmt::format("ERROR: running '{}', expected '{}' got '{}'\n", runName, command.name,
                         runResults);
                 ++errorCount;
             }
@@ -108,6 +156,18 @@ int main(int argc, char* argv[]) {
             break;
 
         case kRun: {
+            if (!finalizedLibrary) {
+                if (!runtime.finalizeClassLibrary()) {
+                    std::cerr << "class library compile failed\n";
+                    ++errorCount;
+                }
+                if (FLAGS_dumpClassArray) {
+                    auto dump = hadron::SlotDumpJSON();
+                    dump.dump(runtime.context(), runtime.context()->classLibrary->classArray().slot(), true);
+                    std::cout << dump.json() << std::endl;
+                }
+                finalizedLibrary = true;
+            }
             auto slotResult = runtime.interpret(command.payload);
             runResults = runtime.slotToString(slotResult);
             runName = command.name;

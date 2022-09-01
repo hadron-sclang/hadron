@@ -82,12 +82,20 @@ void Emitter::emit(ThreadContext* /* context */, library::LinearFrame linearFram
             auto interruptLIR = library::InterruptLIR(lir.slot());
             // Because all registers have been preserved, we can use hard-coded registers and clobber their values.
             // Save the interrupt code to the threadContext.
-            jit->movi(0, interruptLIR.interruptCode().int32());
-            jit->stxi_i(offsetof(ThreadContext, interruptCode), JIT::kContextPointerReg, 0);
+            jit->movi(JIT::Reg(0), interruptLIR.interruptCode());
+            // Note this is only the 32-bit integer.
+            jit->stxi_i(offsetof(ThreadContext, interruptCode), JIT::kContextPointerReg, JIT::Reg(0));
+
+            // Load the return address into a register and save it in the frame pointer.
+            auto returnAddress = jit->mov_addr(JIT::Reg(0));
+            jit->ori(JIT::Reg(0), JIT::Reg(0), Slot::kRawPointerTag);
+            jit->stxi_w(offsetof(schema::FramePrivateSchema, ip), JIT::kFramePointerReg, JIT::Reg(0));
 
             // Jump to the exitMachineCode address stored in the threadContext.
-            jit->ldxi_w(0, JIT::kContextPointerReg, offsetof(ThreadContext, exitMachineCode));
-            jit->jmpr(0);
+            jit->ldxi_w(JIT::Reg(0), JIT::kContextPointerReg, offsetof(ThreadContext, exitMachineCode));
+            jit->jmpr(JIT::Reg(0));
+
+            jit->patchHere(returnAddress);
         } break;
 
         case library::LabelLIR::nameHash(): {

@@ -1,0 +1,9 @@
+//+//: Function Declarations Tests
+
+//+ RUN: Empty function declaration
+(
+{}
+)
+//+ EXPECTING:
+a Function
+//+//:

@@ -3,6 +3,9 @@
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/library/Kernel.hpp"
+#include "hadron/library/Object.hpp"
+#include "hadron/library/Schema.hpp"
+#include "hadron/library/Symbol.hpp"
 #include "hadron/library/Thread.hpp"
 #include "hadron/LighteningJIT.hpp"
 #include "hadron/Slot.hpp"
@@ -36,14 +39,42 @@ bool Runtime::initInterpreter() {
     return true;
 }
 
-bool Runtime::compileClassLibrary() {
-    auto classLibPath = findSCClassLibrary();
-    SPDLOG_INFO("Starting Class Library compilation for files at {}", classLibPath.c_str());
-    m_threadContext->classLibrary->addClassDirectory(classLibPath);
-    m_threadContext->classLibrary->addClassDirectory(findHLangClassLibrary());
-    bool result = m_threadContext->classLibrary->compileLibrary(m_threadContext.get());
-    SPDLOG_INFO("Completed Class Library compilation.");
-    return result;
+void Runtime::addDefaultPaths() {
+    addClassDirectory(findSCClassLibrary());
+    addClassDirectory(findHLangClassLibrary());
+}
+
+void Runtime::addClassDirectory(const std::string& path) {
+    m_libraryPaths.emplace(fs::absolute(path));
+}
+
+bool Runtime::scanClassFiles() {
+    for (const auto& classLibPath : m_libraryPaths) {
+        for (auto& entry : fs::recursive_directory_iterator(classLibPath)) {
+            const auto& path = fs::absolute(entry.path());
+            if (!fs::is_regular_file(path) || path.extension() != ".sc")
+                continue;
+
+            auto sourceFile = std::make_unique<SourceFile>(path.string());
+            if (!sourceFile->read()) { return false; }
+
+            auto filename = library::Symbol::fromView(m_threadContext.get(), path.string());
+            if (!m_threadContext->classLibrary->scanString(m_threadContext.get(), sourceFile->codeView(), filename)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool Runtime::scanClassString(std::string_view input, std::string_view filename) {
+    return m_threadContext->classLibrary->scanString(m_threadContext.get(), input,
+            library::Symbol::fromView(m_threadContext.get(), filename));
+}
+
+bool Runtime::finalizeClassLibrary() {
+    return m_threadContext->classLibrary->finalizeLibrary(m_threadContext.get());
 }
 
 Slot Runtime::interpret(std::string_view code) {
@@ -55,6 +86,7 @@ Slot Runtime::interpret(std::string_view code) {
 
     if (!function) { return Slot::makeNil(); }
 
+    // Convention is caller pushes, callee pops.
     auto callerFrame = library::Frame::alloc(m_threadContext.get());
     callerFrame.initToNil();
     callerFrame.setIp(reinterpret_cast<int8_t*>(m_exitTrampoline));
@@ -69,27 +101,107 @@ Slot Runtime::interpret(std::string_view code) {
     calleeFrame.copyPrototypeAfterThis(function.def().prototypeFrame());
 
     m_threadContext->framePointer = calleeFrame.instance();
-    m_threadContext->stackPointer = nullptr;
 
-    // Hit the trampoline.
+    auto spareFrame = library::Frame::alloc(m_threadContext.get(), 16);
+    spareFrame.initToNil();
+    m_threadContext->stackPointer = spareFrame.instance();
+
     LighteningJIT::markThreadForJITExecution();
-    m_entryTrampoline(m_threadContext.get(), function.def().code().start());
 
-    // Extract return value from frame pointer
-    return m_threadContext->stackPointer->arg0;
+    const int8_t* machineCode = function.def().code().start();
+    while (true) {
+
+        m_entryTrampoline(m_threadContext.get(), machineCode);
+
+        // If this was a normal completion of the Hadron stack the frame pointer will be pointing at the callerFrame.
+        if (m_threadContext->framePointer == callerFrame.instance()) {
+            // Extract return value from callee frame pointer, which is our stack pointer.
+            return m_threadContext->stackPointer->arg0;
+        }
+
+        // This is an interrupt call
+        switch (m_threadContext->interruptCode) {
+        case ThreadContext::InterruptCode::kDispatch: {
+            auto selector = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->method);
+            auto target = m_threadContext->stackPointer->arg0;
+            assert(target.isPointer());
+            auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(target.getPointer()->_className));
+            auto classDef = m_threadContext->classLibrary->findClassNamed(className);
+
+            auto method = library::Method();
+            while (classDef && !method) {
+                for (int32_t i = 0; i < classDef.methods().size(); ++i) {
+                    if (classDef.methods().typedAt(i).name(m_threadContext.get()) == selector) {
+                        method = classDef.methods().typedAt(i);
+                        break;
+                    }
+                }
+                classDef = m_threadContext->classLibrary->findClassNamed(classDef.superclass(m_threadContext.get()));
+            }
+            if (!method) {
+                SPDLOG_ERROR("Failed to find method {} in class {}", selector.view(m_threadContext.get()),
+                        classDef.name(m_threadContext.get()).view(m_threadContext.get()));
+                return Slot::makeNil();
+            }
+
+            // Stack pointer has saved frame pointer, safe to clobber frame pointer with stack.
+            m_threadContext->framePointer = m_threadContext->stackPointer;
+            // TODO: does the new frame need anything else?
+            spareFrame = library::Frame::alloc(m_threadContext.get(), 16);
+            spareFrame.initToNil();
+            m_threadContext->stackPointer = spareFrame.instance();
+
+            assert(method.code());
+            machineCode = method.code().start();
+        } break;
+
+        case ThreadContext::InterruptCode::kFatalError:
+            SPDLOG_CRITICAL("Fatal Error");
+            return Slot::makeNil();
+
+        case ThreadContext::InterruptCode::kNewObject: {
+            auto className = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->arg0);
+            SPDLOG_CRITICAL("Making a {}", className.view(m_threadContext.get()));
+            auto classDef = m_threadContext->classLibrary->findClassNamed(className);
+            assert(classDef);
+            size_t sizeInBytes = sizeof(library::Schema) + (classDef.iprototype().size() * kSlotSize);
+            auto* instance = reinterpret_cast<library::Schema*>(m_heap->allocateNew(sizeInBytes));
+            instance->_className = className.hash();
+            instance->_sizeInBytes = sizeInBytes;
+            auto slot = Slot::makePointer(instance);
+            auto object = library::ObjectBase::wrapUnsafe(slot);
+            object.initToNil();
+            m_threadContext->stackPointer->arg0 = slot;
+            machineCode = m_threadContext->framePointer->ip.getRawPointer();
+        } break;
+
+        case ThreadContext::InterruptCode::kPrimitive:
+            SPDLOG_CRITICAL("Primitive");
+            return Slot::makeNil();
+        }
+    }
+
+    return Slot::makeNil();
 }
 
 std::string Runtime::slotToString(Slot s) {
     switch(s.getType()) {
     case TypeFlags::kIntegerFlag:
         return fmt::format("{}", s.getInt32());
+
     case TypeFlags::kFloatFlag: {
         auto doubleStr = fmt::format("{:.14g}", s.getFloat());
         if (doubleStr.find_first_not_of("-0123456789") == std::string::npos) {
             doubleStr += ".0";
         }
         return doubleStr;
-    } break;
+    }
+
+    case TypeFlags::kObjectFlag: {
+        auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(s.getPointer()->_className));
+        return fmt::format("a {}", className.view(m_threadContext.get()));
+    }
+
     case TypeFlags::kNilFlag:
         return "nil";
     default:
@@ -144,7 +256,7 @@ bool Runtime::buildTrampolines() {
             jit.addressToFunctionPointer(entryAddr));
     jitArray.resize(m_threadContext.get(), trampolineSize);
 
-    m_threadContext->exitMachineCode = reinterpret_cast<int8_t*>(m_entryTrampoline);
+    m_threadContext->exitMachineCode = reinterpret_cast<int8_t*>(m_exitTrampoline);
     return true;
 }
 

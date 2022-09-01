@@ -21,7 +21,7 @@ struct ThreadContext;
 class BlockBuilder {
 public:
     BlockBuilder() = delete;
-    explicit BlockBuilder(library::Class owningClass);
+    explicit BlockBuilder(library::Method method);
     ~BlockBuilder() = default;
 
     library::CFGFrame buildMethod(ThreadContext* context, const library::BlockAST blockAST, bool returnFinalValue);
@@ -42,7 +42,7 @@ private:
     // If |toWrite| is nil that means this is a read operation. Returns nil if name not found.
     library::HIR findName(ThreadContext* context, library::Symbol name, library::HIRId toWrite);
 
-    library::Class m_owningClass;
+    library::Method m_method;
 
     library::CFGFrame m_frame;
     library::CFGBlock m_block;

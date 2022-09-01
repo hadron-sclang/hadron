@@ -18,8 +18,9 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
     // Compile any inner blocks first.
     for (int32_t i = 0; i < frame.innerBlocks().size(); ++i) {
         auto innerBlock = frame.innerBlocks().typedAt(i);
-        auto functionDef = library::FunctionDef::alloc(context);
         auto innerByteCode = Materializer::materialize(context, innerBlock.frame());
+        auto functionDef = library::FunctionDef::alloc(context);
+        functionDef.initToNil();
         functionDef.setCode(innerByteCode);
         functionDef.setSelectors(innerBlock.frame().selectors());
         functionDef.setPrototypeFrame(innerBlock.frame().prototypeFrame());

@@ -77,6 +77,8 @@ public:
     virtual void movi(Reg target, Word value) = 0;
     // %target <- value (unsigned)
     virtual void movi_u(Reg target, UWord value) = 0;
+    // %target <- address
+    virtual Label mov_addr(Reg target) = 0;
 
     // * branches
     // if a >= b goto Label

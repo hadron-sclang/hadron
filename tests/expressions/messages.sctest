@@ -1,0 +1,42 @@
+//+//: Messages Tests
+
+//+ CLASSES:
+A {
+    *a { ^\a }
+	*me { ^\a }
+}
+B : A {
+    *b { ^\b }
+	*me { ^\b }
+}
+C : B {
+    *c { ^\c }
+	*me { ^\c }
+}
+
+//+//: CHECK: Meta_A.methods.size
+//+//: GIVES: 2
+//+ CHECK: A.a
+//+ GIVES: a
+//+ CHECK: A.me
+//+ GIVES: a
+
+//+//: CHECK: Meta_B.methods.size
+//+//: GIVES: 2
+//+ CHECK: B.a
+//+ GIVES: a
+//+ CHECK: B.b
+//+ GIVES: b
+//+ CHECK: B.me
+//+ GIVES: b
+
+//+//: CHECK: Meta_C.methods.size
+//+//: GIVES: 2
+//+ CHECK: C.a
+//+ GIVES: a
+//+ CHECK: C.b
+//+ GIVES: b
+//+ CHECK: C.c
+//+ GIVES: c
+//+ CHECK: C.me
+//+ GIVES: c

@@ -88,6 +88,12 @@ void VirtualJIT::movi_u(Reg target, UWord value) {
     m_iterator.movi_u(target, value);
 }
 
+JIT::Label VirtualJIT::mov_addr(Reg target) {
+    JIT::Label label = m_labels.size();
+    m_labels.emplace_back(m_iterator.mov_addr(target));
+    return label;
+}
+
 JIT::Label VirtualJIT::bgei(Reg a, Word b) {
     JIT::Label label = m_labels.size();
     m_labels.emplace_back(m_iterator.bgei(a, b));

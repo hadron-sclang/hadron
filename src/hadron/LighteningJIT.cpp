@@ -183,6 +183,11 @@ void LighteningJIT::movi_u(Reg target, UWord value) {
     jit_movi(m_state, reg(target), signedValue);
 }
 
+JIT::Label LighteningJIT::mov_addr(Reg target) {
+    m_labels.emplace_back(jit_mov_addr(m_state, reg(target)));
+    return m_labels.size() - 1;
+}
+
 JIT::Label LighteningJIT::bgei(Reg a, Word b) {
     m_labels.emplace_back(jit_bgei(m_state, reg(a), b));
     return m_labels.size() - 1;
@@ -287,7 +292,7 @@ void LighteningJIT::initJITGlobals() {
 
 jit_gpr_t LighteningJIT::reg(Reg r) const {
     assert(r < getRegisterCount());
-    // Account for the two reserved registers.
+    // Account for the reserved registers.
     r = r + kNumberOfReservedRegisters;
     jit_gpr gpr;
     gpr.regno = r;

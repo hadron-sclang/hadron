@@ -17,33 +17,35 @@ enum Opcode : int8_t {
     kXorr       = 0x05,
     kMovr       = 0x06,
     kMovi       = 0x07,
-    kMoviU      = 0x08,
-    kBgei       = 0x09,
-    kBeqi       = 0x0a,
-    kJmp        = 0x0b,
-    kJmpr       = 0x0c,
-    kJmpi       = 0x0d,
-    kLdrL       = 0x0e,
-    kLdiL       = 0x0f,
-    kLdxiW      = 0x10,
-    kLdxiI      = 0x11,
-    kLdxiL      = 0x12,
-    kStrI       = 0x13,
-    kStrL       = 0x14,
-    kStxiW      = 0x15,
-    kStxiI      = 0x16,
-    kStxiL      = 0x17,
-    kRet        = 0x18,
-    kRetr       = 0x19,
-    kReti       = 0x1a,
-    kLabel      = 0x1b,
-    kAddress    = 0x1c,
-    kPatchHere  = 0x1d,
-    kPatchThere = 0x1e,
+    kMovAddr    = 0x08,
+    kMoviU      = 0x09,
+    kBgei       = 0x0a,
+    kBeqi       = 0x0b,
+    kJmp        = 0x0c,
+    kJmpr       = 0x0d,
+    kJmpi       = 0x0e,
+    kLdrL       = 0x0f,
+    kLdiL       = 0x10,
+    kLdxiW      = 0x11,
+    kLdxiI      = 0x12,
+    kLdxiL      = 0x13,
+    kStrI       = 0x14,
+    kStrL       = 0x15,
+    kStxiW      = 0x16,
+    kStxiI      = 0x17,
+    kStxiL      = 0x18,
+    kRet        = 0x19,
+    kRetr       = 0x1a,
+    kReti       = 0x1b,
+    kLabel      = 0x1c,
+    kAddress    = 0x1d,
+    kPatchHere  = 0x1e,
+    kPatchThere = 0x1f,
 
     kInvalid    = -1
 };
 
+// TODO: why not just have the write iterator implement JIT directly, then cut out VirtualJIT?
 class OpcodeWriteIterator {
 public:
     OpcodeWriteIterator() = default;
@@ -62,6 +64,7 @@ public:
     bool movr(JIT::Reg target, JIT::Reg value);
     bool movi(JIT::Reg target, Word value);
     bool movi_u(JIT::Reg target, UWord value);
+    int8_t* mov_addr(JIT::Reg target);
     // Returns the location of the branch address for later use with patchWord() or nullptr if in overflow.
     int8_t* bgei(JIT::Reg a, Word b);
     int8_t* beqi(JIT::Reg a, Word b);
@@ -120,6 +123,7 @@ public:
     bool movr(JIT::Reg& target, JIT::Reg& value);
     bool movi(JIT::Reg& target, Word& value);
     bool movi_u(JIT::Reg& target, UWord& value);
+    bool mov_addr(JIT::Reg& target, const int8_t*& address);
     bool bgei(JIT::Reg& a, Word& b, const int8_t*& address);
     bool beqi(JIT::Reg& a, Word& b, const int8_t*& address);
     bool jmp(const int8_t*& address);

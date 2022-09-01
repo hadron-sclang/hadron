@@ -26,7 +26,7 @@ Function Interpreter::compile(ThreadContext* context, String code) {
     auto ast = astBuilder.buildBlock(context, library::BlockNode(parser.root().slot()));
     if (!ast) { return function; }
 
-    BlockBuilder blockBuilder(context->classLibrary->findClassNamed(context->symbolTable->interpreterSymbol()));
+    BlockBuilder blockBuilder(context->classLibrary->functionCompileContext());
     auto frame = blockBuilder.buildMethod(context, ast, true);
     if (!frame) { return function; }
 
