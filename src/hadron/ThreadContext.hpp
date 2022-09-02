@@ -51,6 +51,8 @@ struct ThreadContext {
     schema::ProcessSchema* thisProcess;
     schema::ThreadSchema* thisThread;
     schema::ArraySchema* classVariablesArray;
+
+    bool debugMode = false;
 };
 
 // ThreadContext is accessed by machine code, so needs a simple layout in memory.

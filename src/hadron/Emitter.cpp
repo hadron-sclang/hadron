@@ -104,7 +104,7 @@ void Emitter::emit(ThreadContext* /* context */, library::LinearFrame linearFram
 
         case library::LoadConstantLIR::nameHash(): {
             auto loadConstantLIR = library::LoadConstantLIR(lir.slot());
-            jit->movi(locate(lir, loadConstantLIR.vReg()), loadConstantLIR.constant().asBits());
+            jit->movi_u(locate(lir, loadConstantLIR.vReg()), loadConstantLIR.constant().asBits());
         } break;
 
         case library::LoadFromPointerLIR::nameHash(): {

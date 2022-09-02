@@ -2,6 +2,7 @@
 
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/Heap.hpp"
+#include "hadron/library/ArrayedCollection.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Object.hpp"
 #include "hadron/library/Schema.hpp"
@@ -12,16 +13,21 @@
 #include "hadron/SourceFile.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
+#include "hadron/VirtualJIT.hpp"
 #include "internal/FileSystem.hpp"
 
 #include "spdlog/spdlog.h"
+#include <memory>
 
 namespace hadron {
 
-Runtime::Runtime():
+Runtime::Runtime(bool debugMode):
     m_heap(std::make_shared<Heap>()),
     m_threadContext(std::make_unique<ThreadContext>()) {
-    LighteningJIT::initJITGlobals();
+    m_threadContext->debugMode = debugMode;
+    if (!debugMode) {
+        LighteningJIT::initJITGlobals();
+    }
     m_threadContext->heap = m_heap;
     m_threadContext->symbolTable = std::make_unique<SymbolTable>();
     m_threadContext->classLibrary = std::make_unique<ClassLibrary>();
@@ -78,7 +84,9 @@ bool Runtime::finalizeClassLibrary() {
 }
 
 Slot Runtime::interpret(std::string_view code) {
-    LighteningJIT::markThreadForJITCompilation();
+    if (!m_threadContext->debugMode) {
+        LighteningJIT::markThreadForJITCompilation();
+    }
 
     // TODO: refactor to avoid this needless copy
     auto codeString = library::String::fromView(m_threadContext.get(), code);
@@ -106,7 +114,9 @@ Slot Runtime::interpret(std::string_view code) {
     spareFrame.initToNil();
     m_threadContext->stackPointer = spareFrame.instance();
 
-    LighteningJIT::markThreadForJITExecution();
+    if (!m_threadContext->debugMode) {
+        LighteningJIT::markThreadForJITExecution();
+    }
 
     const int8_t* machineCode = function.def().code().start();
     while (true) {
@@ -161,7 +171,6 @@ Slot Runtime::interpret(std::string_view code) {
 
         case ThreadContext::InterruptCode::kNewObject: {
             auto className = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->arg0);
-            SPDLOG_CRITICAL("Making a {}", className.view(m_threadContext.get()));
             auto classDef = m_threadContext->classLibrary->findClassNamed(className);
             assert(classDef);
             size_t sizeInBytes = sizeof(library::Schema) + (classDef.iprototype().size() * kSlotSize);
@@ -217,13 +226,19 @@ bool Runtime::buildThreadContext() {
 }
 
 bool Runtime::buildTrampolines() {
-    LighteningJIT::markThreadForJITCompilation();
+    library::Int8Array jitArray;
+    std::unique_ptr<JIT> jit;
     size_t jitBufferSize = 0;
-    library::Int8Array jitArray = library::Int8Array::arrayAllocJIT(m_threadContext.get(), Heap::kSmallObjectSize,
-            jitBufferSize);
-    LighteningJIT jit;
-    jit.begin(jitArray.start(), jitArray.capacity(m_threadContext.get()));
-    auto align = jit.enterABI();
+    if (!m_threadContext->debugMode) {
+        LighteningJIT::markThreadForJITCompilation();
+        jitArray = library::Int8Array::arrayAllocJIT(m_threadContext.get(), Heap::kSmallObjectSize, jitBufferSize);
+        jit = std::make_unique<LighteningJIT>();
+    } else {
+        jitArray = library::Int8Array::arrayAlloc(m_threadContext.get(), Heap::kSmallObjectSize);
+        jitBufferSize = jitArray.capacity(m_threadContext.get());
+    }
+    jit->begin(jitArray.start(), jitBufferSize);
+    auto align = jit->enterABI();
     // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* m_threadContext and a int8_t*
     // machineCode pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded into
     // Reg 0. As Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register, I have

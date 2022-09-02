@@ -18,7 +18,8 @@ struct ThreadContext;
 // Owns all of the objects required to compile and run SC code, including the Heap, ThreadContext, and ClassLibrary.
 class Runtime {
 public:
-    Runtime();
+    Runtime() = delete;
+    explicit Runtime(bool debugMode);
     ~Runtime();
 
     // Finalize members in ThreadContext, bootstraps class library, initializes language globals needed for the

@@ -257,6 +257,8 @@ add_library(hadron STATIC
     ThreadContext.hpp
     VirtualJIT.cpp
     VirtualJIT.hpp
+    VirtualMachine.cpp
+    VirtualMachine.hpp
 )
 
 set(HADRON_COMPILER_UNITTESTS
