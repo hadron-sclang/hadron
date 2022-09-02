@@ -18,6 +18,7 @@
 #include <vector>
 
 DEFINE_bool(dumpClassArray, false, "After finalizing, dump class array to JSON");
+DEFINE_bool(debug, true, "Run code in debug mode");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -28,7 +29,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    hadron::Runtime runtime;
+    hadron::Runtime runtime(FLAGS_debug);
     if (!runtime.initInterpreter()) { return -1; }
 
     fs::path sourcePath(argv[1]);

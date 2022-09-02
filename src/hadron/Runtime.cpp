@@ -37,7 +37,9 @@ Runtime::~Runtime() {}
 
 bool Runtime::initInterpreter() {
     if (!buildThreadContext()) return false;
-    if (!buildTrampolines()) return false;
+    if (!m_threadContext->debugMode) {
+        if (!buildLighteningTrampolines()) return false;
+    }
     m_threadContext->classLibrary->bootstrapLibrary(m_threadContext.get());
     m_interpreter = library::Interpreter::alloc(m_threadContext.get());
     m_interpreter.initToNil();
@@ -225,20 +227,15 @@ bool Runtime::buildThreadContext() {
     return true;
 }
 
-bool Runtime::buildTrampolines() {
-    library::Int8Array jitArray;
-    std::unique_ptr<JIT> jit;
+bool Runtime::buildLighteningTrampolines() {
+    assert(!m_threadContext->debugMode);
+    LighteningJIT::markThreadForJITCompilation();
+
     size_t jitBufferSize = 0;
-    if (!m_threadContext->debugMode) {
-        LighteningJIT::markThreadForJITCompilation();
-        jitArray = library::Int8Array::arrayAllocJIT(m_threadContext.get(), Heap::kSmallObjectSize, jitBufferSize);
-        jit = std::make_unique<LighteningJIT>();
-    } else {
-        jitArray = library::Int8Array::arrayAlloc(m_threadContext.get(), Heap::kSmallObjectSize);
-        jitBufferSize = jitArray.capacity(m_threadContext.get());
-    }
-    jit->begin(jitArray.start(), jitBufferSize);
-    auto align = jit->enterABI();
+    auto jitArray = library::Int8Array::arrayAllocJIT(m_threadContext.get(), Heap::kSmallObjectSize, jitBufferSize);
+    LighteningJIT jit;
+    jit.begin(jitArray.start(), jitBufferSize);
+    auto align = jit.enterABI();
     // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* m_threadContext and a int8_t*
     // machineCode pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded into
     // Reg 0. As Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register, I have

@@ -32,7 +32,7 @@ public:
     size_t enterABI();
     // Load 2 pointer arguments from C calling code stack frame or registers, and move them into the supplied registers.
     void loadCArgs2(Reg arg1, Reg arg2);
-    // Computes JIT_SP-2 and returns.
+    // Computes JIT_SP and returns.
     Reg getCStackPointerRegister() const;
     void leaveABI(size_t stackSize);
     using FunctionPointer = void (*)();

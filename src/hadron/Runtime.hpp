@@ -48,7 +48,7 @@ public:
 
 private:
     bool buildThreadContext();
-    bool buildTrampolines();
+    bool buildLighteningTrampolines();
 
     // We keep the normalized paths in a set to prevent duplicate additions of the same path.
     std::unordered_set<std::string> m_libraryPaths;

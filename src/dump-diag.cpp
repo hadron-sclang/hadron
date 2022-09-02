@@ -24,6 +24,7 @@
 
 DEFINE_bool(pretty, false, "Pretty-print the dumped JSON.");
 DEFINE_bool(dumpClassArray, false, "Dump the compiled class library data structures, then exit.");
+DEFINE_bool(debug, false, "Debug mode");
 DEFINE_int32(stopAfter, 7, "Stop compilation after phase, a number from 1-7. Compilation phases are: \n"
                            "    1: parse\n"
                            "    2: ast\n"
@@ -71,7 +72,7 @@ int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     spdlog::default_logger()->set_level(spdlog::level::warn);
 
-    hadron::Runtime runtime;
+    hadron::Runtime runtime(FLAGS_debug);
     if (!runtime.initInterpreter()) {
         return -1;
     }
