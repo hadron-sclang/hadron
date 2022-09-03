@@ -1,5 +1,7 @@
 #include "hadron/VirtualJIT.hpp"
 
+#include "hadron/Arch.hpp"
+
 #include "fmt/format.h"
 
 #include <cassert>
@@ -11,9 +13,8 @@ namespace hadron {
 
 VirtualJIT::VirtualJIT():
     JIT(),
-    m_maxRegisters(64),
-    m_maxFloatRegisters(64) {}
-
+    m_maxRegisters(kNumberOfPhysicalRegisters),
+    m_maxFloatRegisters(kNumberOfPhysicalFloatRegisters) {}
 
 VirtualJIT::VirtualJIT(int maxRegisters, int maxFloatRegisters):
     JIT(),
@@ -44,6 +45,23 @@ JIT::Address VirtualJIT::end(size_t* sizeOut) {
     }
     // We always save the starting address as address 0.
     return 0;
+}
+
+// We're never going to leave it! :)
+size_t VirtualJIT::enterABI() {
+    return 0;
+}
+
+void VirtualJIT::loadCArgs2(Reg arg1, Reg arg2) {
+    m_iterator.loadCArgs2(arg1, arg2);
+}
+
+JIT::Reg VirtualJIT::getCStackPointerRegister() const {
+    return JIT::Reg(0);
+}
+
+void VirtualJIT::leaveABI(size_t stackSize) {
+    assert(stackSize == 0);
 }
 
 int VirtualJIT::getRegisterCount() const {
@@ -164,29 +182,25 @@ void VirtualJIT::ret() {
     m_iterator.ret();
 }
 
-void VirtualJIT::retr(Reg r) {
-    m_iterator.retr(r);
-}
-
-void VirtualJIT::reti(int value) {
-    m_iterator.reti(value);
-}
-
 JIT::Address VirtualJIT::address() {
     JIT::Address a = m_addresses.size();
-    m_addresses.emplace_back(m_iterator.getCurrent());
+    m_addresses.emplace_back(m_iterator.current());
     return a;
 }
 
 void VirtualJIT::patchHere(Label label) {
     assert(label < static_cast<int>(m_labels.size()));
-    m_iterator.patchWord(m_labels[label], reinterpret_cast<Word>(m_iterator.getCurrent()));
+    m_iterator.patchWord(m_labels[label], reinterpret_cast<Word>(m_iterator.current()));
 }
 
 void VirtualJIT::patchThere(Label target, Address location) {
     assert(target < static_cast<Label>(m_labels.size()));
     assert(location < static_cast<Address>(m_addresses.size()));
     m_iterator.patchWord(m_labels[target], reinterpret_cast<Word>(m_addresses[location]));
+}
+
+const int8_t* VirtualJIT::getAddress(Address a) const {
+    return m_addresses[a];
 }
 
 } // namespace hadron

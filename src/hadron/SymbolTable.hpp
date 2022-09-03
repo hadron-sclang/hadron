@@ -50,6 +50,8 @@ public:
     inline library::Symbol functionSymbol() const { return m_Function; }
     // 'functionCompileContext'
     inline library::Symbol functionCompileContextSymbol() const { return m_functionCompileContext; }
+    // 'Int8Array'
+    inline library::Symbol int8ArraySymbol() const { return m_Int8Array; }
     // 'Interpreter'
     inline library::Symbol interpreterSymbol() const { return m_Interpreter; }
     // 'isNil'
@@ -99,6 +101,7 @@ private:
     library::Symbol m_Event;
     library::Symbol m_Function;
     library::Symbol m_functionCompileContext;
+    library::Symbol m_Int8Array;
     library::Symbol m_Interpreter;
     library::Symbol m_isNil;
     library::Symbol m_Meta_Class;

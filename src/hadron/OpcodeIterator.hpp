@@ -10,39 +10,35 @@
 namespace hadron {
 
 enum Opcode : int8_t {
-    kAddr       = 0x01,
-    kAddi       = 0x02,
-    kAndi       = 0x03,
-    kOri        = 0x04,
-    kXorr       = 0x05,
-    kMovr       = 0x06,
-    kMovi       = 0x07,
-    kMovAddr    = 0x08,
-    kMoviU      = 0x09,
-    kBgei       = 0x0a,
-    kBeqi       = 0x0b,
-    kJmp        = 0x0c,
-    kJmpr       = 0x0d,
-    kJmpi       = 0x0e,
-    kLdrL       = 0x0f,
-    kLdiL       = 0x10,
-    kLdxiW      = 0x11,
-    kLdxiI      = 0x12,
-    kLdxiL      = 0x13,
-    kStrI       = 0x14,
-    kStrL       = 0x15,
-    kStxiW      = 0x16,
-    kStxiI      = 0x17,
-    kStxiL      = 0x18,
-    kRet        = 0x19,
-    kRetr       = 0x1a,
-    kReti       = 0x1b,
-    kLabel      = 0x1c,
-    kAddress    = 0x1d,
-    kPatchHere  = 0x1e,
-    kPatchThere = 0x1f,
+    kLoadCArgs2,
 
-    kInvalid    = -1
+    kAddr,
+    kAddi,
+    kAndi,
+    kOri,
+    kXorr,
+    kMovr,
+    kMovi,
+    kMovAddr,
+    kMoviU,
+    kBgei,
+    kBeqi,
+    kJmp,
+    kJmpr,
+    kJmpi,
+    kLdrL,
+    kLdiL,
+    kLdxiW,
+    kLdxiI,
+    kLdxiL,
+    kStrI,
+    kStrL,
+    kStxiW,
+    kStxiI,
+    kStxiL,
+    kRet,
+
+    kInvalid
 };
 
 // TODO: why not just have the write iterator implement JIT directly, then cut out VirtualJIT?
@@ -56,6 +52,7 @@ public:
     void reset();
 
     // All the serialization methods return a boolean if there was capacity to add the element or no.
+    bool loadCArgs2(JIT::Reg arg1, JIT::Reg arg2);
     bool addr(JIT::Reg target, JIT::Reg a, JIT::Reg b);
     bool addi(JIT::Reg target, JIT::Reg a, Word b);
     bool andi(JIT::Reg target, JIT::Reg a, UWord b);
@@ -82,12 +79,10 @@ public:
     bool stxi_i(int offset, JIT::Reg address, JIT::Reg value);
     bool stxi_l(int offset, JIT::Reg address, JIT::Reg value);
     bool ret();
-    bool retr(JIT::Reg r);
-    bool reti(int value);
     // |location| needs to be within the buffer. Overwrites whatever is there with |value|.
     bool patchWord(int8_t* location, Word value);
 
-    int8_t* getCurrent() const { return m_currentBytecode; }
+    int8_t* current() const { return m_currentBytecode; }
     bool hasOverflow() const { return m_currentBytecode > m_endOfBytecode; }
     // This can return values larger than |size| in the event of an overflow.
     size_t getSize() const { return m_currentBytecode - m_startOfBytecode; }
@@ -115,6 +110,7 @@ public:
 
     // Returns opcode at current() or kInvalid if outside of buffer.
     Opcode peek();
+    bool loadCArgs2(JIT::Reg& arg1, JIT::Reg& arg2);
     bool addr(JIT::Reg& target, JIT::Reg& a, JIT::Reg& b);
     bool addi(JIT::Reg& target, JIT::Reg& a, Word& b);
     bool andi(JIT::Reg& target, JIT::Reg& a, UWord& b);
@@ -140,10 +136,10 @@ public:
     bool stxi_i(int& offset, JIT::Reg& address, JIT::Reg& value);
     bool stxi_l(int& offset, JIT::Reg& address, JIT::Reg& value);
     bool ret();
-    bool retr(JIT::Reg& r);
-    bool reti(int& value);
 
-    const int8_t* getCurrent() const { return m_currentBytecode; }
+    const int8_t* current() const { return m_currentBytecode; }
+    void setCurrent(const int8_t* address) { m_currentBytecode = address; }
+
     bool hasOverflow() const { return m_currentBytecode > m_endOfBytecode; }
     // This can return values larger than |size| in the event of an overflow.
     size_t getSize() const { return m_currentBytecode - m_startOfBytecode; }

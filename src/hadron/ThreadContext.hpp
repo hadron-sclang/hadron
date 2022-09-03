@@ -18,6 +18,7 @@ struct ThreadSchema;
 class ClassLibrary;
 class Heap;
 class SymbolTable;
+class VirtualMachine;
 
 struct ThreadContext {
     ThreadContext() = default;
@@ -32,6 +33,7 @@ struct ThreadContext {
 
     // The stack pointer as preserved on entry into machine code.
     void* cStackPointer = nullptr;
+    VirtualMachine* virtualMachine = nullptr;
 
     enum InterruptCode : int32_t {
         kDispatch,

@@ -3,6 +3,7 @@
 
 #include "hadron/Arch.hpp"
 #include "hadron/JIT.hpp"
+#include "hadron/library/ArrayedCollection.hpp"
 
 #include <array>
 
@@ -18,11 +19,13 @@ public:
     VirtualMachine() = default;
     ~VirtualMachine() = default;
 
-    bool executeMachineCode(ThreadContext* context, const int8_t* code, int32_t size);
+    void executeMachineCode(ThreadContext* context, const int8_t* code);
 
 private:
     bool readGPR(JIT::Reg reg, UWord& value);
     bool writeGPR(JIT::Reg reg, UWord value);
+    bool checkAddress(ThreadContext* context, UWord addr);
+    library::Int8Array resolveCodePointer(ThreadContext* context, const int8_t* addr);
 
     std::array<UWord, kNumberOfPhysicalRegisters> m_gprs;
     std::array<int8_t, kNumberOfPhysicalRegisters> m_setGPRs;

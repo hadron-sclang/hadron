@@ -44,6 +44,11 @@ LighteningJIT::~LighteningJIT() {
 }
 
 // static
+void LighteningJIT::initJITGlobals() {
+    init_jit();
+}
+
+// static
 bool LighteningJIT::markThreadForJITCompilation() {
 #   if defined(__APPLE__)
     pthread_jit_write_protect_np(false);
@@ -56,6 +61,10 @@ void LighteningJIT::markThreadForJITExecution() {
 #   if defined(__APPLE__)
     pthread_jit_write_protect_np(true);
 #   endif
+}
+
+LighteningJIT::FunctionPointer LighteningJIT::addressToFunctionPointer(Address a) {
+    return jit_address_to_function_pointer(m_addresses[a]);
 }
 
 void LighteningJIT::begin(int8_t* buffer, size_t size) {
@@ -128,10 +137,6 @@ JIT::Reg LighteningJIT::getCStackPointerRegister() const {
 
 void LighteningJIT::leaveABI(size_t stackSize) {
     return jit_leave_jit_abi(m_state, kCalleeSaveRegisters, 0, stackSize);
-}
-
-LighteningJIT::FunctionPointer LighteningJIT::addressToFunctionPointer(Address a) {
-    return jit_address_to_function_pointer(m_addresses[a]);
 }
 
 int LighteningJIT::getRegisterCount() const {
@@ -263,14 +268,6 @@ void LighteningJIT::ret() {
     jit_ret(m_state);
 }
 
-void LighteningJIT::retr(Reg r) {
-    jit_retr(m_state, reg(r));
-}
-
-void LighteningJIT::reti(int value) {
-    jit_reti(m_state, value);
-}
-
 JIT::Address LighteningJIT::address() {
     JIT::Address addressIndex = m_addresses.size();
     m_addresses.emplace_back(jit_address(m_state));
@@ -285,9 +282,8 @@ void LighteningJIT::patchThere(Label target, Address location) {
     jit_patch_there(m_state, m_labels[target], m_addresses[location]);
 }
 
-// static
-void LighteningJIT::initJITGlobals() {
-    init_jit();
+const int8_t* LighteningJIT::getAddress(Address a) const {
+    return static_cast<const int8_t*>(m_addresses[a]);
 }
 
 jit_gpr_t LighteningJIT::reg(Reg r) const {

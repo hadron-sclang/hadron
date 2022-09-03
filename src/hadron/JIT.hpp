@@ -50,6 +50,17 @@ public:
     // End recording jit bytecode into the buffer, writes the final size to sizeOut. Returns the jit address to begin().
     virtual Address end(size_t* sizeOut) = 0;
 
+    // ===== ABI considerations
+    // Save current state from the calling C-style stack frame, including all callee-save registers, and update the
+    // C stack pointer (modulo alignment) to point just below this. Returns the number of bytes pushed on to the stack,
+    // which should be passed back to leaveABI() as the stackSize argument to restore the stack to original state.
+    virtual size_t enterABI() = 0;
+    // Load 2 pointer arguments from C calling code stack frame or registers, and move them into the supplied registers.
+    virtual void loadCArgs2(Reg arg1, Reg arg2) = 0;
+    // Computes JIT_SP and returns.
+    virtual Reg getCStackPointerRegister() const = 0;
+    virtual void leaveABI(size_t stackSize) = 0;
+
     // ===== Machine Properties
     virtual int getRegisterCount() const = 0;
     virtual int getFloatRegisterCount() const = 0;
@@ -113,10 +124,6 @@ public:
     // * functions
     // return with no value
     virtual void ret() = 0;
-    // retr %r  (return value of reg r)
-    virtual void retr(Reg r) = 0;
-    // reti value (return immediate value)
-    virtual void reti(int value) = 0;
 
     // * labels - relocateable code addresses
     // Get the current address of the jitted code
@@ -125,6 +132,9 @@ public:
     virtual void patchHere(Label label) = 0;
     // Makes |target| point to |location|, for backward jumps.
     virtual void patchThere(Label target, Address location) = 0;
+
+    // Return the actual physical address of an Address type.
+    virtual const int8_t* getAddress(Address a) const = 0;
 };
 
 } // namespace hadron
