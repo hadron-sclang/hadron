@@ -19,7 +19,7 @@ public:
     VirtualMachine() = default;
     ~VirtualMachine() = default;
 
-    void executeMachineCode(ThreadContext* context, const int8_t* code);
+    void executeMachineCode(ThreadContext* context, const int8_t* entryCode, const int8_t* targetCode);
 
 private:
     bool readGPR(JIT::Reg reg, UWord& value);

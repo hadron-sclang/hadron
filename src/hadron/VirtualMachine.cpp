@@ -27,17 +27,17 @@ inline B signCast(A a) {
 
 namespace hadron {
 
-void VirtualMachine::executeMachineCode(ThreadContext* context, const int8_t* code) {
+void VirtualMachine::executeMachineCode(ThreadContext* context, const int8_t* entryCode, const int8_t* targetCode) {
     // Clear the set arrays.
     std::memset(m_setGPRs.data(), 0, m_setGPRs.size());
     // The c ABI stack pointer has valid data in it, mark it as such
     writeGPR(JIT::Reg(0), 0);
 
-    auto codeArray = resolveCodePointer(context, code);
+    auto codeArray = resolveCodePointer(context, entryCode);
     if (!codeArray) { return; }
-    size_t size = codeArray.size() - (code - codeArray.start());
+    size_t size = codeArray.size() - (entryCode - codeArray.start());
 
-    auto iter = OpcodeReadIterator(code, size);
+    auto iter = OpcodeReadIterator(entryCode, size);
     while (!iter.hasOverflow()) {
         auto opcode = iter.peek();
         switch (opcode) {
@@ -45,7 +45,7 @@ void VirtualMachine::executeMachineCode(ThreadContext* context, const int8_t* co
             JIT::Reg regArg1, regArg2;
             if (!iter.loadCArgs2(regArg1, regArg2)) { return; }
             if (!writeGPR(regArg1, reinterpret_cast<UWord>(context))) { return; }
-            if (!writeGPR(regArg2, reinterpret_cast<UWord>(code))) { return; }
+            if (!writeGPR(regArg2, reinterpret_cast<UWord>(targetCode))) { return; }
         } break;
 
         case kAddr: {
@@ -248,7 +248,7 @@ void VirtualMachine::executeMachineCode(ThreadContext* context, const int8_t* co
 
         case kStrL: {
             JIT::Reg regAddress, regValue;
-            if (!iter.str_i(regAddress, regValue)) { return; }
+            if (!iter.str_l(regAddress, regValue)) { return; }
             UWord address;
             if (!readGPR(regAddress, address)) { return; }
             if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }
@@ -272,7 +272,7 @@ void VirtualMachine::executeMachineCode(ThreadContext* context, const int8_t* co
         case kStxiI: {
             int offset;
             JIT::Reg regAddress, regValue;
-            if (!iter.stxi_w(offset, regAddress, regValue)) { return; }
+            if (!iter.stxi_i(offset, regAddress, regValue)) { return; }
             UWord address;
             if (!readGPR(regAddress, address)) { return; }
             if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }
@@ -284,7 +284,7 @@ void VirtualMachine::executeMachineCode(ThreadContext* context, const int8_t* co
         case kStxiL: {
             int offset;
             JIT::Reg regAddress, regValue;
-            if (!iter.stxi_w(offset, regAddress, regValue)) { return; }
+            if (!iter.stxi_l(offset, regAddress, regValue)) { return; }
             UWord address;
             if (!readGPR(regAddress, address)) { return; }
             if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }

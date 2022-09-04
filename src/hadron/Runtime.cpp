@@ -217,8 +217,14 @@ std::string Runtime::slotToString(Slot s) {
 
     case TypeFlags::kNilFlag:
         return "nil";
+
+    case TypeFlags::kSymbolFlag: {
+        auto symbol = m_threadContext->symbolTable->lookup(s.getSymbolHash());
+        return std::string(symbol);
+    }
+
     default:
-        return "";
+        return "UNKNOWN TYPE IN SLOT_TO_STRING";
     }
 }
 
@@ -241,6 +247,7 @@ bool Runtime::buildTrampolines() {
         jit = std::make_unique<LighteningJIT>();
         m_trampolines = library::Int8Array::arrayAllocJIT(m_threadContext.get(), Heap::kSmallObjectSize, jitBufferSize);
     }
+    m_threadContext->enterMachineCode = m_trampolines.start();
 
     jit->begin(m_trampolines.start(), m_trampolines.capacity(m_threadContext.get()));
     auto align = jit->enterABI();
@@ -276,7 +283,7 @@ bool Runtime::buildTrampolines() {
     auto entryAddr = jit->end(&trampolineSize);
     if (m_threadContext->debugMode) {
         m_entryTrampoline = +[](ThreadContext* context, const int8_t* code) {
-            context->virtualMachine->executeMachineCode(context, code);
+            context->virtualMachine->executeMachineCode(context, context->enterMachineCode, code);
         };
     } else {
         m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const int8_t*)>(

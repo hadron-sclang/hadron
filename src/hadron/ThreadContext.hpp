@@ -28,6 +28,7 @@ struct ThreadContext {
     schema::FramePrivateSchema* framePointer = nullptr;
     schema::FramePrivateSchema* stackPointer = nullptr;
 
+    const int8_t* enterMachineCode = nullptr;
     // The return address to restore the C stack and exit the machine code ABI.
     const int8_t* exitMachineCode = nullptr;
 
