@@ -54,6 +54,10 @@ public:
     // For the given object, returns the allocation size for that object.
     size_t getAllocationSize(void* address);
 
+    // Given a pointer, return the object that this pointer refers to (may be an inner address of that object), or
+    // nullptr if this pointer doesn't point at a valid, active object.
+    library::Schema* getContainingObject(const void* address);
+
     // Returns the size in bytes of the allocation reserved for the given |sizeInBytes|.
     size_t getMaximumSize(size_t sizeInBytes);
 
@@ -72,7 +76,7 @@ private:
     void mark();
     void sweep();
     // Return a pointer to a Page object that contains the provided address.
-    Page* findPageContaining(void* address);
+    Page* findPageContaining(const void* address);
 
     SizedPages m_youngPages;
     SizedPages m_maturePages;

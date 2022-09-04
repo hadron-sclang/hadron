@@ -24,7 +24,6 @@ public:
     // Returns available room in the page *in number of stored objects*
     size_t capacity();
 
-
     // Reserve the 2 most significant bits for coloring objects in the m_collectionCounts field.
     enum Color : uint8_t {
         kWhite = 0,

@@ -160,8 +160,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
         // Simple constant definitions don't need to be saved, rather we add the value to initial values array.
         if (defineAST.value().className() == library::ConstantAST::nameHash()) {
             auto constAST = library::ConstantAST(defineAST.value().slot());
-            m_frame.setPrototypeFrame(m_frame.prototypeFrame().add(context,
-                    constAST.constant()));
+            m_frame.setPrototypeFrame(m_frame.prototypeFrame().add(context, constAST.constant()));
 
             nodeValue = m_block.append(context,
                     library::ConstantHIR::makeConstantHIR(context, constAST.constant()).toBase());

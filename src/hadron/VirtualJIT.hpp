@@ -11,7 +11,7 @@ namespace hadron {
 // Serializes bytecode to a machine-independent three address format that uses virtual registers
 class VirtualJIT : public JIT {
 public:
-    // For unit testing, the empty constructor sets reasonable limits on virtual registers.
+    // For unit testing, the empty constructor sets register counts to the host machine counts.
     VirtualJIT();
     // Constructor for testing allows control over register counts to test register allocation.
     VirtualJIT(int maxRegisters, int maxFloatRegisters);
@@ -23,6 +23,10 @@ public:
     // Because the iterator can continue to record sizes even after overflow, if the buffer has overflowed this will
     // return a |sizeOut| greater than the supplied buffer size.
     Address end(size_t* sizeOut) override;
+    size_t enterABI() override;
+    void loadCArgs2(Reg arg1, Reg arg2) override;
+    Reg getCStackPointerRegister() const override;
+    void leaveABI(size_t stackSize) override;
     int getRegisterCount() const override;
     int getFloatRegisterCount() const override;
 
@@ -51,13 +55,14 @@ public:
     void stxi_i(int offset, Reg address, Reg value) override;
     void stxi_l(int offset, Reg address, Reg value) override;
     void ret() override;
-    void retr(Reg r) override;
-    void reti(int value) override;
     Address address() override;
     void patchHere(Label label) override;
     void patchThere(Label target, Address location) override;
+    const int8_t* getAddress(Address a) const override;
 
 private:
+    JIT::Reg reg(JIT::Reg r) const;
+
     int m_maxRegisters;
     int m_maxFloatRegisters;
     OpcodeWriteIterator m_iterator;

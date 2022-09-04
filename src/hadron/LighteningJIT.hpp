@@ -23,18 +23,12 @@ public:
     LighteningJIT();
     virtual ~LighteningJIT();
 
+    // Lightening requires a call to a global setup function before emitting any JIT bytecode. Repeated calls are
+    // harmless.
+    static void initJITGlobals();
     static bool markThreadForJITCompilation();
     static void markThreadForJITExecution();
 
-    // Save current state from the calling C-style stack frame, including all callee-save registers, and update the
-    // C stack pointer (modulo alignment) to point just below this. Returns the number of bytes pushed on to the stack,
-    // which should be passed back to leaveABI() as the stackSize argument to restore the stack to original state.
-    size_t enterABI();
-    // Load 2 pointer arguments from C calling code stack frame or registers, and move them into the supplied registers.
-    void loadCArgs2(Reg arg1, Reg arg2);
-    // Computes JIT_SP-2 and returns.
-    Reg getCStackPointerRegister() const;
-    void leaveABI(size_t stackSize);
     using FunctionPointer = void (*)();
     FunctionPointer addressToFunctionPointer(Address a);
 
@@ -43,6 +37,10 @@ public:
     bool hasJITBufferOverflow() override;
     void reset() override;
     Address end(size_t* sizeOut) override;
+    size_t enterABI() override;
+    void loadCArgs2(Reg arg1, Reg arg2) override;
+    Reg getCStackPointerRegister() const override;
+    void leaveABI(size_t stackSize) override;
     int getRegisterCount() const override;
     int getFloatRegisterCount() const override;
 
@@ -71,17 +69,10 @@ public:
     void stxi_i(int offset, Reg address, Reg value) override;
     void stxi_l(int offset, Reg address, Reg value) override;
     void ret() override;
-    void retr(Reg r) override;
-    void reti(int value) override;
     Address address() override;
     void patchHere(Label label) override;
     void patchThere(Label target, Address location) override;
-
-    // Lightening requires a call to a global setup function before emitting any JIT bytecode. Repeated calls are
-    // harmless.
-    static void initJITGlobals();
-
-    const int8_t* getAddress(Address a) const { return static_cast<const int8_t*>(m_addresses[a]); }
+    const int8_t* getAddress(Address a) const override;
 
 private:
     // Converts register number to the Lightening register type.

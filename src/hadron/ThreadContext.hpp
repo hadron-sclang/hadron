@@ -18,6 +18,7 @@ struct ThreadSchema;
 class ClassLibrary;
 class Heap;
 class SymbolTable;
+class VirtualMachine;
 
 struct ThreadContext {
     ThreadContext() = default;
@@ -27,11 +28,13 @@ struct ThreadContext {
     schema::FramePrivateSchema* framePointer = nullptr;
     schema::FramePrivateSchema* stackPointer = nullptr;
 
+    const int8_t* enterMachineCode = nullptr;
     // The return address to restore the C stack and exit the machine code ABI.
     const int8_t* exitMachineCode = nullptr;
 
     // The stack pointer as preserved on entry into machine code.
     void* cStackPointer = nullptr;
+    VirtualMachine* virtualMachine = nullptr;
 
     enum InterruptCode : int32_t {
         kDispatch,
@@ -51,6 +54,8 @@ struct ThreadContext {
     schema::ProcessSchema* thisProcess;
     schema::ThreadSchema* thisThread;
     schema::ArraySchema* classVariablesArray;
+
+    bool debugMode = false;
 };
 
 // ThreadContext is accessed by machine code, so needs a simple layout in memory.

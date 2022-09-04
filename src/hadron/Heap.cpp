@@ -1,8 +1,10 @@
 #include "hadron/Heap.hpp"
 
+#include "hadron/Slot.hpp"
 #include "spdlog/spdlog.h"
 
 #include <cassert>
+#include <sys/_types/_uintptr_t.h>
 
 namespace hadron {
 
@@ -69,6 +71,17 @@ size_t Heap::getAllocationSize(void* address) {
     Page* page = findPageContaining(address);
     if (!page) { assert(false); return 0; }
     return page->objectSize();
+}
+
+library::Schema* Heap::getContainingObject(const void* address) {
+    Page* page = findPageContaining(address);
+    if (!page) { return nullptr; }
+    // Align pointer on allocation size
+    uintptr_t aligned = reinterpret_cast<uintptr_t>(address) -
+            (reinterpret_cast<uintptr_t>(address) % page->objectSize());
+
+    // TODO: aliveness verification? How?
+    return reinterpret_cast<library::Schema*>(aligned);
 }
 
 size_t Heap::getMaximumSize(size_t sizeInBytes) {
@@ -144,7 +157,7 @@ void Heap::sweep() {
     // TODO once we have mark() going
 }
 
-Page* Heap::findPageContaining(void* address) {
+Page* Heap::findPageContaining(const void* address) {
     auto addressValue = reinterpret_cast<uintptr_t>(address);
     auto page = m_pageEnds.upper_bound(addressValue);
     if (page == m_pageEnds.end()) {

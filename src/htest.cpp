@@ -18,17 +18,18 @@
 #include <vector>
 
 DEFINE_bool(dumpClassArray, false, "After finalizing, dump class array to JSON");
+DEFINE_bool(debug, true, "Run code in debug mode");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     spdlog::default_logger()->set_level(spdlog::level::warn);
 
     if (argc != 2) {
-        std::cerr << "usage: htest [options] input-file.sctest" << std::endl;
+        std::cerr << "usage: htest [options] input-file.sctest\n";
         return -1;
     }
 
-    hadron::Runtime runtime;
+    hadron::Runtime runtime(FLAGS_debug);
     if (!runtime.initInterpreter()) { return -1; }
 
     fs::path sourcePath(argv[1]);
@@ -176,7 +177,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (errorCount > 0) {
-        std::cerr << "errors in test file " << sourcePath << std::endl;
+        std::cerr << "Test failures in file '" << sourcePath << "'\n";
         return -1;
     }
 

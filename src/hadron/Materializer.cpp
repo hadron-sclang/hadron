@@ -4,12 +4,15 @@
 #include "hadron/BlockSerializer.hpp"
 #include "hadron/Emitter.hpp"
 #include "hadron/LighteningJIT.hpp"
+#include "hadron/VirtualJIT.hpp"
+#include "hadron/library/ArrayedCollection.hpp"
 #include "hadron/library/HadronHIR.hpp"
 #include "hadron/library/HadronLinearFrame.hpp"
 #include "hadron/LifetimeAnalyzer.hpp"
 #include "hadron/RegisterAllocator.hpp"
 #include "hadron/Resolver.hpp"
 #include "hadron/ThreadContext.hpp"
+#include <memory>
 
 namespace hadron {
 
@@ -44,17 +47,24 @@ library::Int8Array Materializer::materialize(ThreadContext* context, library::CF
     resolver.resolve(context, linearFrame);
 
     size_t bytecodeSize = linearFrame.instructions().size() * 16;
-    auto bytecode = library::Int8Array::arrayAllocJIT(context, bytecodeSize, bytecodeSize);
+    library::Int8Array bytecode;
+    std::unique_ptr<JIT> jit;
 
-    hadron::LighteningJIT jit;
-    jit.begin(bytecode.start(), bytecodeSize);
+    if (context->debugMode) {
+        bytecode = library::Int8Array::arrayAlloc(context, bytecodeSize);
+        jit = std::make_unique<VirtualJIT>();
+    } else {
+        bytecode = library::Int8Array::arrayAllocJIT(context, bytecodeSize, bytecodeSize);
+        jit = std::make_unique<LighteningJIT>();
+    }
 
-    hadron::Emitter emitter;
-    emitter.emit(context, linearFrame, &jit);
+    jit->begin(bytecode.start(), bytecodeSize);
+    Emitter emitter;
+    emitter.emit(context, linearFrame, jit.get());
 
-    assert(!jit.hasJITBufferOverflow());
+    assert(!jit->hasJITBufferOverflow());
     size_t finalSize = 0;
-    jit.end(&finalSize);
+    jit->end(&finalSize);
     assert(finalSize < bytecodeSize);
     bytecode.resize(context, finalSize);
 

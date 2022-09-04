@@ -18,6 +18,13 @@ void OpcodeWriteIterator::reset() {
     m_currentBytecode = m_startOfBytecode;
 }
 
+bool OpcodeWriteIterator::loadCArgs2(JIT::Reg arg1, JIT::Reg arg2) {
+    addByte(Opcode::kLoadCArgs2);
+    addByte(reg(arg1));
+    addByte(reg(arg2));
+    return !hasOverflow();
+}
+
 bool OpcodeWriteIterator::addr(JIT::Reg target, JIT::Reg a, JIT::Reg b) {
     addByte(Opcode::kAddr);
     addByte(reg(target));
@@ -82,7 +89,7 @@ bool OpcodeWriteIterator::movi_u(JIT::Reg target, UWord value) {
 int8_t* OpcodeWriteIterator::mov_addr(JIT::Reg target) {
     addByte(Opcode::kMovAddr);
     addByte(reg(target));
-    auto address = getCurrent();
+    auto address = current();
     addWord(0xdeadbeef);
     if (hasOverflow()) { return nullptr; }
     return address;
@@ -92,7 +99,7 @@ int8_t* OpcodeWriteIterator::bgei(JIT::Reg a, Word b) {
     addByte(Opcode::kBgei);
     addByte(reg(a));
     addWord(b);
-    auto address = getCurrent();
+    auto address = current();
     // Write an empty address into the bytecode, saving room for a patched address.
     addWord(0xdeadbeef);
     if (hasOverflow()) { return nullptr; }
@@ -103,7 +110,7 @@ int8_t* OpcodeWriteIterator::beqi(JIT::Reg a, Word b) {
     addByte(Opcode::kBeqi);
     addByte(reg(a));
     addWord(b);
-    auto address = getCurrent();
+    auto address = current();
     addWord(0xdeadbeef);
     if (hasOverflow()) { return nullptr; }
     return address;
@@ -111,7 +118,7 @@ int8_t* OpcodeWriteIterator::beqi(JIT::Reg a, Word b) {
 
 int8_t* OpcodeWriteIterator::jmp() {
     addByte(Opcode::kJmp);
-    auto address = getCurrent();
+    auto address = current();
     addWord(0xdeadbeef);
     return address;
 }
@@ -209,18 +216,6 @@ bool OpcodeWriteIterator::ret() {
     return !hasOverflow();
 }
 
-bool OpcodeWriteIterator::retr(JIT::Reg r) {
-    addByte(Opcode::kRetr);
-    addByte(reg(r));
-    return !hasOverflow();
-}
-
-bool OpcodeWriteIterator::reti(int value) {
-    addByte(Opcode::kReti);
-    addInt(value);
-    return !hasOverflow();
-}
-
 bool OpcodeWriteIterator::patchWord(int8_t* location, Word value) {
     if (location < m_startOfBytecode || location > m_endOfBytecode - sizeof(Word)) { return false; }
     for (size_t i = 0; i < sizeof(Word); ++i) {
@@ -286,6 +281,14 @@ void OpcodeReadIterator::reset() {
 Opcode OpcodeReadIterator::peek() {
     if (hasOverflow()) { return Opcode::kInvalid; }
     return static_cast<Opcode>(*m_currentBytecode);
+}
+
+bool OpcodeReadIterator::loadCArgs2(JIT::Reg& arg1, JIT::Reg& arg2) {
+    assert(peek() == Opcode::kLoadCArgs2);
+    ++m_currentBytecode; // kLoadCArgs2
+    arg1 = reg(readByte());
+    arg2 = reg(readByte());
+    return !hasOverflow();
 }
 
 bool OpcodeReadIterator::addr(JIT::Reg& target, JIT::Reg& a, JIT::Reg& b) {
@@ -496,22 +499,7 @@ bool OpcodeReadIterator::ret() {
     return !hasOverflow();
 }
 
-bool OpcodeReadIterator::retr(JIT::Reg& r) {
-    assert(peek() == Opcode::kRetr);
-    ++m_currentBytecode; // kRetr
-    r = reg(readByte());
-    return !hasOverflow();
-
-}
-
-bool OpcodeReadIterator::reti(int& value) {
-    assert(peek() == Opcode::kReti);
-    ++m_currentBytecode; // kReti
-    value = readInt();
-    return !hasOverflow();
-}
-
-    JIT::Reg OpcodeReadIterator::reg(int8_t r) {
+JIT::Reg OpcodeReadIterator::reg(int8_t r) {
     return static_cast<JIT::Reg>(r) - kNumberOfReservedRegisters;
 }
 

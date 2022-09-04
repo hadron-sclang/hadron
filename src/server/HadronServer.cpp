@@ -25,7 +25,7 @@ namespace server {
 HadronServer::HadronServer(std::unique_ptr<JSONTransport> jsonTransport):
         m_jsonTransport(std::move(jsonTransport)),
         m_state(kUninitialized),
-        m_runtime(std::make_unique<hadron::Runtime>()) {
+        m_runtime(std::make_unique<hadron::Runtime>(false)) {
     m_jsonTransport->setServer(this);
 }
 

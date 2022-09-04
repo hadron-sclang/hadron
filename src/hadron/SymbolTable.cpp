@@ -14,6 +14,7 @@ void SymbolTable::preloadSymbols(ThreadContext* context) {
     m_Event = library::Symbol::fromView(context, "Event");
     m_Function = library::Symbol::fromView(context, "Function");
     m_functionCompileContext = library::Symbol::fromView(context, "functionCompileContext");
+    m_Int8Array = library::Symbol::fromView(context, "Int8Array");
     m_Interpreter = library::Symbol::fromView(context, "Interpreter");
     m_isNil = library::Symbol::fromView(context, "isNil");
     m_Meta_Class = library::Symbol::fromView(context, "Meta_Class");
