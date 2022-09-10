@@ -25,3 +25,6 @@
 [submodule "third_party/bootstrap"]
 	path = third_party/bootstrap
 	url = https://github.com/hadron-sclang/bootstrap.git
+[submodule "third_party/sparkler"]
+	path = third_party/sparkler
+	url = https://github.com/hadron-sclang/sparkler.git

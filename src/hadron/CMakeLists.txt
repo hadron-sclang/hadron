@@ -43,19 +43,10 @@ ExternalProject_add(ragel
     EXCLUDE_FROM_ALL ON
 )
 
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
-    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Lexer.rl"
-    MAIN_DEPENDENCY Lexer.rl
-    DEPENDS ragel-install
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    VERBATIM
-)
-
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
 configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
 
 set(HADRON_FRONTEND_FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp"
 
     internal/FileSystem.cpp
@@ -63,7 +54,6 @@ set(HADRON_FRONTEND_FILES
 
     Hash.cpp
     Hash.hpp
-    Lexer.hpp
     Slot.hpp
     SourceFile.cpp
     SourceFile.hpp
@@ -76,10 +66,14 @@ add_executable(schemac
     schemac.cpp
 )
 
+target_include_directories(schemac PRIVATE
+    ${ANTLR4_INCLUDE_DIRS})
+
 target_link_libraries(schemac
     gflags
     fmt
     spdlog
+    sprklr
     xxHash::xxhash
 )
 
@@ -176,9 +170,18 @@ add_custom_command(OUTPUT ${SCHEMA_FILES} ${CMAKE_CURRENT_BINARY_DIR}/ClassLibra
 
 add_custom_target(schemafiles ALL DEPENDS ${SCHEMA_FILES})
 
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
+    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Lexer.rl"
+    MAIN_DEPENDENCY Lexer.rl
+    DEPENDS ragel-install
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    VERBATIM
+)
+
 add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
     ${SCHEMA_FILES}
+    "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
 
     library/AbstractFunction.hpp
@@ -229,6 +232,7 @@ add_library(hadron STATIC
     Heap.cpp
     Heap.hpp
     JIT.hpp
+    Lexer.hpp
     LifetimeAnalyzer.cpp
     LifetimeAnalyzer.hpp
     LighteningJIT.cpp
