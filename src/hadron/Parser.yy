@@ -548,6 +548,7 @@ qual: IDENTIFIER LEFTARROW exprseq {
             generator.setExprSeq($exprseq);
             $qual = generator.toBase();
         }
+    // TODO: IDENTIFIER IDENTIFIER LEFTARROW exprseq?
     | exprseq {
             auto guard = hadron::library::GuardQualNode::make(threadContext, $exprseq.token());
             guard.setExprSeq($exprseq);
