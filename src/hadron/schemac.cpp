@@ -1,7 +1,6 @@
-// schema, parses a SuperCollider input class file and generates a Schema C++ output file
+// schemac, parses a SuperCollider input class file and generates a Schema C++ output file
 #include "hadron/Hash.hpp"
 #include "hadron/SourceFile.hpp"
-#include "hadron/library/Schema.hpp"
 #include "internal/FileSystem.hpp"
 
 #include "antlr4-runtime.h"
@@ -18,7 +17,6 @@
 #include <memory>
 #include <stack>
 #include <string>
-#include <tree/ParseTreeWalker.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -88,7 +86,9 @@ bool processPaths(const std::string& inputFiles, const std::string& basePath, co
 class SchemaListener : public sprklr::SCParserBaseListener {
 public:
     SchemaListener() = delete;
-    SchemaListener(std::unordered_map<std::string, ClassInfo>& classes): m_classes(classes), m_inClassVarDecl(false) {}
+    explicit SchemaListener(std::unordered_map<std::string, ClassInfo>& classes):
+        m_classes(classes),
+        m_inClassVarDecl(false) {}
     virtual ~SchemaListener() {}
 
     void enterClassDef(sprklr::SCParser::ClassDefContext* ctx) override {

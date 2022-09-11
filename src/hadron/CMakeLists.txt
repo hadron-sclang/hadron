@@ -66,9 +66,6 @@ add_executable(schemac
     schemac.cpp
 )
 
-target_include_directories(schemac PRIVATE
-    ${ANTLR4_INCLUDE_DIRS})
-
 target_link_libraries(schemac
     gflags
     fmt
@@ -76,6 +73,22 @@ target_link_libraries(schemac
     sprklr
     xxHash::xxhash
 )
+
+#############
+# prim
+add_executable(prim
+    ${HADRON_FRONTEND_FILES}
+    prim.cpp
+)
+
+target_link_libraries(prim
+    gflags
+    fmt
+    spdlog
+    sprklr
+    xxHash::xxhash
+)
+
 
 if (APPLE)
     # Default installed Bison is 2.x, we need a newer version from homebrew.
@@ -168,7 +181,7 @@ add_custom_command(OUTPUT ${SCHEMA_FILES} ${CMAKE_CURRENT_BINARY_DIR}/ClassLibra
     VERBATIM
 )
 
-add_custom_target(schemafiles ALL DEPENDS ${SCHEMA_FILES})
+add_custom_target(schemafiles DEPENDS ${SCHEMA_FILES})
 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Lexer.rl"
