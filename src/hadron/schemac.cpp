@@ -1,11 +1,15 @@
-// schema, parses a SuperCollider input class file and generates a Schema C++ output file
+// schemac, parses a SuperCollider input class file and generates a Schema C++ output file
 #include "hadron/Hash.hpp"
-#include "hadron/Lexer.hpp"
 #include "hadron/SourceFile.hpp"
 #include "internal/FileSystem.hpp"
 
+#include "antlr4-runtime.h"
 #include "fmt/format.h"
 #include "gflags/gflags.h"
+#include "SCLexer.h"
+#include "SCParser.h"
+#include "SCParserBaseListener.h"
+#include "SCParserListener.h"
 
 #include <array>
 #include <fstream>
@@ -61,7 +65,7 @@ bool processPaths(const std::string& inputFiles, const std::string& basePath, co
         // The class file must be in a subdirectory of the library path.
         if (classFile.string().substr(0, basePath.length()) != basePath) {
             std::cerr << "Class file path: " << classFile.string() << " not in a subdirectory of library path: "
-                    << basePath << std::endl;
+                    << basePath << "\n";
             return false;
         }
 
@@ -79,6 +83,56 @@ bool processPaths(const std::string& inputFiles, const std::string& basePath, co
     return true;
 }
 
+class SchemaListener : public sprklr::SCParserBaseListener {
+public:
+    SchemaListener() = delete;
+    explicit SchemaListener(std::unordered_map<std::string, ClassInfo>& classes):
+        m_classes(classes),
+        m_inClassVarDecl(false) {}
+    virtual ~SchemaListener() {}
+
+    void enterClassDef(sprklr::SCParser::ClassDefContext* ctx) override {
+        auto className = ctx->CLASSNAME()->toString();
+        m_classInfo.className = className;
+        m_classNames.emplace_back(className);
+
+        // Reset other ClassInfo fields, starting a new class.
+        m_classInfo.superClassName = "";
+        m_classInfo.isFundamentalType = FundamentalTypeNames.count(className) != 0;
+        m_classInfo.variables.clear();
+    }
+
+    void enterSuperclass(sprklr::SCParser::SuperclassContext* ctx) override {
+        m_classInfo.superClassName = ctx->CLASSNAME()->toString();
+    }
+
+    void enterClassVarDecl(sprklr::SCParser::ClassVarDeclContext* ctx) override {
+        m_inClassVarDecl = ctx->VAR() != nullptr;
+    }
+
+    void enterName(sprklr::SCParser::NameContext* ctx) override {
+        if (m_inClassVarDecl) {
+            m_classInfo.variables.emplace_back(ctx->NAME()->toString());
+        }
+    }
+
+    void exitClassVarDecl(sprklr::SCParser::ClassVarDeclContext* ctx) override {
+        m_inClassVarDecl = false;
+    }
+
+    void exitClassDef(sprklr::SCParser::ClassDefContext* ctx) override {
+        m_classes.emplace(std::make_pair(m_classInfo.className, std::move(m_classInfo)));
+    }
+
+    const std::vector<std::string>& classNames() const { return m_classNames; }
+
+private:
+    ClassInfo m_classInfo;
+    std::unordered_map<std::string, ClassInfo>& m_classes;
+    std::vector<std::string> m_classNames;
+    bool m_inClassVarDecl;
+};
+
 } // namespace
 
 DEFINE_string(classFiles, "", "Semicolon-delineated list of input class files to process.");
@@ -93,14 +147,14 @@ int main(int argc, char* argv[]) {
 
     fs::path libraryPath(FLAGS_libraryPath);
     if (!fs::exists(libraryPath)) {
-        std::cerr << "Class library path does not exist: " << libraryPath << std::endl;
+        std::cerr << "Class library path does not exist: " << libraryPath << "\n";
         return -1;
     }
     libraryPath = fs::absolute(libraryPath);
 
     fs::path hlangPath(FLAGS_hlangPath);
     if (!fs::exists(hlangPath)) {
-        std::cerr << "HLang library path does not exist: " << hlangPath << std::endl;
+        std::cerr << "HLang library path does not exist: " << hlangPath << "\n";
         return -1;
     }
     hlangPath = fs::absolute(hlangPath);
@@ -129,224 +183,35 @@ int main(int argc, char* argv[]) {
 
         hadron::SourceFile sourceFile(classFile);
         if (!sourceFile.read()) {
-            std::cerr << "Failed to read input class file: " << classFile << std::endl;
+            std::cerr << "Failed to read input class file: " << classFile << "\n";
             return -1;
         }
         auto code = sourceFile.codeView();
 
-        hadron::Lexer lexer(code);
-        if (!lexer.lex()) {
-            std::cerr << "Failed to lex input class file: " << classFile << std::endl;
+        // Drop the null character at the end of the string as ANTLR lexer chokes on it.
+        antlr4::ANTLRInputStream input(code.data(), code.size() - 1);
+        sprklr::SCLexer lexer(&input);
+        antlr4::CommonTokenStream tokens(&lexer);
+        sprklr::SCParser parser(&tokens);
+        auto parseTree = parser.root();
+
+        auto listener = SchemaListener(classes);
+        antlr4::tree::ParseTreeWalker::DEFAULT.walk(&listener, parseTree);
+
+        if (parser.getNumberOfSyntaxErrors()) {
+            for (auto token : tokens.getTokens()) {
+                std::cout << token->toString() << "\n";
+            }
+            std::cerr << classFile << " had " << parser.getNumberOfSyntaxErrors() << " syntax errors.\n";
             return -1;
         }
 
-        // Place an empty vector for appending class names.
-        std::vector<std::string> classNames;
-
-        enum State {
-            kOutsideClass = 0,
-            kInClassExtension = 1,
-            kInClass = 2,
-            kInMethod = 3
-        };
-        State scannerState = State::kOutsideClass;
-        ClassInfo classInfo;
-        int curlyBraceDepth = 0;
-        const auto& tokens = lexer.tokens();
-
-        for (size_t i = 0; i < tokens.size(); ++i) {
-            bool lastToken = (i == tokens.size() - 1);
-
-            switch (scannerState) {
-
-            case kOutsideClass: {
-                assert(curlyBraceDepth == 0);
-                if (lastToken) {
-                    std::cerr << "Dangling token outside of class" << std::endl;
-                    return -1;
-                }
-
-                // If outside a class the only valid tokens should be class names or a '+' indicating a class extension.
-                if (tokens[i].name == hadron::Token::Name::kClassName) {
-                    classInfo.className = std::string(tokens[i].range);
-                    classInfo.isFundamentalType = FundamentalTypeNames.count(classInfo.className) != 0;
-                    classNames.emplace_back(classInfo.className);
-
-                    ++i;  // Advance past class name.
-
-                    // Skip over the array declaration if present.
-                    if (tokens[i].name == hadron::Token::Name::kOpenSquare) {
-                        ++i; // past open square.
-                        if (tokens[i].name == hadron::Token::Name::kIdentifier) {
-                            ++i; // skip past optional name if present
-                        }
-                        if (tokens[i].name != hadron::Token::Name::kCloseSquare) {
-                            std::cerr << "Encountered open square bracket after class name but no closing bracket."
-                                      << std::endl;
-                            return -1;
-                        }
-                        ++i; // pass closing square bracket
-                    }
-
-                    // Look for optional superclass name indicator, a colon.
-                    if (tokens[i].name == hadron::Token::Name::kColon) {
-                        ++i; // skip past colon
-                        if (tokens[i].name != hadron::Token::Name::kClassName) {
-                            std::cerr << "Expecting class name after colon." << std::endl;
-                            return -1;
-                        }
-                        classInfo.superClassName = std::string(tokens[i].range);
-                        ++i; // pass superclass name
-                    } else if (classInfo.className.compare("Object") != 0) {
-                        classInfo.superClassName = std::string("Object");
-                    }
-
-                    if (tokens[i].name != hadron::Token::Name::kOpenCurly) {
-                        std::cerr << "Expecting opening curly brace after class definition." << std::endl;
-                        return -1;
-                    }
-
-                    curlyBraceDepth = 1;
-                    scannerState = kInClass;
-                } else if (tokens[i].name == hadron::Token::Name::kPlus) {
-                    ++i; // skip over plus
-                    if (tokens[i].name != hadron::Token::Name::kClassName) {
-                        std::cerr << "Encountered '+' symbol outside of class, but not followed by class name."
-                                  << std::endl;
-                        return -1;
-                    }
-                    ++i; // skip over the class name, not needed
-                    classInfo.className = "";
-
-                    if (tokens[i].name != hadron::Token::Name::kOpenCurly) {
-                        std::cerr << "Expecting open curly brace in class extension." << std::endl;
-                        return -1;
-                    }
-
-                    curlyBraceDepth = 1;
-                    scannerState = kInClassExtension;
-                } else {
-                    std::cerr << "Unexpected token " << tokens[i].name << " outside of class definition." << std::endl;
-                    return -1;
-                }
-            } break;
-
-            case kInClassExtension: {
-                // Ignore all the tokens until the closing brace of the class extension.
-                if (tokens[i].name == hadron::Token::Name::kOpenCurly ||
-                    tokens[i].name == hadron::Token::Name::kBeginClosedFunction) {
-                    ++curlyBraceDepth;
-                } else if (tokens[i].name == hadron::Token::Name::kCloseCurly) {
-                    --curlyBraceDepth;
-                }
-
-                assert(curlyBraceDepth >= 0);
-                if (curlyBraceDepth == 0) {
-                    scannerState = kOutsideClass;
-                }
-            } break;
-
-            case kInClass: {
-                assert(curlyBraceDepth == 1);
-
-                // Could be a 'var', 'const', 'classvar', '*' (for class methods), 'name', binop
-                if (tokens[i].name == hadron::Token::Name::kVar) {
-                    // pattern is an optional r/w/rw tag, identifier name, optional equal sign followed by anything
-                    // up until a comma or semicolon. If a comma we start over, if a semicolon we're done.
-                    do {
-                        ++i; // var or ','
-
-                        // skip optional rw spec
-                        if (tokens[i].name == hadron::Token::Name::kLessThan ||
-                            tokens[i].name == hadron::Token::Name::kGreaterThan ||
-                            tokens[i].name == hadron::Token::Name::kReadWriteVar) { ++i; }
-
-                        if (tokens[i].name != hadron::Token::Name::kIdentifier) {
-                            std::cerr << "Expecting variable name." << std::endl;
-                            return -1;
-                        }
-                        std::string varName(tokens[i].range);
-                        auto subs = keywordSubs.find(varName);
-                        if (subs != keywordSubs.end()) { varName = subs->second; }
-                        classInfo.variables.emplace_back(varName);
-                        ++i; // identifier
-
-                        // optional equal sign
-                        if (tokens[i].name == hadron::Token::Name::kAssign) {
-                            ++i; // pass equal sign
-                            while (tokens[i].name != hadron::Token::Name::kComma &&
-                                   tokens[i].name != hadron::Token::Name::kSemicolon) { ++i; }
-                        }
-                    } while (tokens[i].name == hadron::Token::Name::kComma);
-
-                    // Semicolon to end the var statement.
-                    if (tokens[i].name != hadron::Token::Name::kSemicolon) {
-                        std::cerr << "Expecting semicolon at end of var list." << std::endl;
-                        return -1;
-                    }
-                } else if (tokens[i].name == hadron::Token::Name::kConst) {
-                    while (tokens[i].name != hadron::Token::kSemicolon) { ++i; }
-                } else if (tokens[i].name == hadron::Token::Name::kClassVar) {
-                    while (tokens[i].name != hadron::Token::kSemicolon) { ++i; }
-                } else if (tokens[i].name == hadron::Token::Name::kAsterisk) {
-                    ++i; // pass class method indicator.
-
-                    // Asterisk can also be the name of the method, so skip the method name if present.
-                    if (tokens[i].name == hadron::Token::Name::kIdentifier || tokens[i].couldBeBinop) {
-                        ++i; // pass method name.
-                    }
-
-                    if (tokens[i].name != hadron::Token::Name::kOpenCurly) {
-                        std::cerr << "Expecting opening curly brace after class method identifier." << std::endl;
-                        return -1;
-                    }
-
-                    scannerState = kInMethod;
-                    curlyBraceDepth = 2;
-                } else if (tokens[i].name == hadron::Token::Name::kIdentifier || tokens[i].couldBeBinop) {
-                    ++i; // pass identifier
-
-                    if (tokens[i].name != hadron::Token::Name::kOpenCurly) {
-                        std::cerr << "Expecting opening curly brace after method identifer." << std::endl;
-                        return -1;
-                    }
-                    scannerState = kInMethod;
-                    curlyBraceDepth = 2;
-                } else if (tokens[i].name == hadron::Token::Name::kCloseCurly) {
-                    // finished with class.
-                    curlyBraceDepth = 0;
-                    classes.emplace(std::make_pair(classInfo.className, std::move(classInfo)));
-                    scannerState = kOutsideClass;
-                } else {
-                    std::cerr << "Unexpected token " << tokens[i].name << " inside class " << classInfo.className
-                              << "." << std::endl;
-                    return -1;
-                }
-            } break;
-
-            case kInMethod: {
-                // Ignore all the tokens until the closing brace of the class extension.
-                if (tokens[i].name == hadron::Token::Name::kOpenCurly ||
-                    tokens[i].name == hadron::Token::Name::kBeginClosedFunction) {
-                    ++curlyBraceDepth;
-                } else if (tokens[i].name == hadron::Token::Name::kCloseCurly) {
-                    --curlyBraceDepth;
-                }
-
-                assert(curlyBraceDepth >= 1);
-                if (curlyBraceDepth == 1) {
-                    scannerState = kInClass;
-                }
-            } break;
-            }
-        }
-
-        classFiles.emplace(std::make_pair(schemaPath, std::move(classNames)));
+        classFiles.emplace(std::make_pair(schemaPath, listener.classNames()));
     }
 
     std::ofstream bootstrapFile(FLAGS_bootstrapPath);
     if (!bootstrapFile) {
-        std::cerr << "Schema failed to create the bootstrap output file: " << FLAGS_bootstrapPath << std::endl;
+        std::cerr << "Schema failed to create the bootstrap output file: " << FLAGS_bootstrapPath << "\n";
         return -1;
     }
     bootstrapFile << "    library::Symbol className;\n"
@@ -358,35 +223,35 @@ int main(int argc, char* argv[]) {
     for (const auto& pair : classFiles) {
         std::ofstream outFile(pair.first);
         if (!outFile) {
-            std::cerr << "Schema file create error on ouput file: " << pair.first << std::endl;
+            std::cerr << "Schema file create error on ouput file: " << pair.first << "\n";
             return -1;
         }
 
         auto includeGuard = fmt::format("SRC_HADRON_SCHEMA_{:08X}", hadron::hash(pair.first));
-        outFile << "#ifndef " << includeGuard << std::endl;
-        outFile << "#define " << includeGuard << std::endl << std::endl;
+        outFile << "#ifndef " << includeGuard << "\n";
+        outFile << "#define " << includeGuard << "\n\n";
 
-        outFile << "// NOTE: schemac automatically generated this file from sclang input file." << std::endl;
-        outFile << "// Edits will likely be clobbered." << std::endl << std::endl;
+        outFile << "// NOTE: schemac automatically generated this file from sclang input file.\n";
+        outFile << "// Edits will likely be clobbered.\n\n";
 
-        outFile << "namespace hadron {" << std::endl;
-        outFile << "namespace schema {" << std::endl << std::endl;
+        outFile << "namespace hadron {\n";
+        outFile << "namespace schema {\n\n";
 
         for (const auto& className : pair.second) {
             auto classIter = classes.find(className);
             if (classIter == classes.end()) {
-                std::cerr << "Mismatch between class name in file and class name in map: " << className << std::endl;
+                std::cerr << "Mismatch between class name in file and class name in map: " << className << "\n";
                 return -1;
             }
 
-            outFile << "// ========== " << className << std::endl;
+            outFile << "// ========== " << className << "\n";
             outFile << fmt::format("struct {}Schema {{\n", className);
             outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:08x};\n", hadron::hash(className));
             outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:08x};\n",
                     hadron::hash(fmt::format("Meta_{}", className)));
 
             if (classIter->second.isFundamentalType) {
-                outFile << "};" << std::endl << std::endl;
+                outFile << "};\n\n";
                 continue;
             }
 
@@ -403,13 +268,13 @@ int main(int argc, char* argv[]) {
             while (lineageIter->second.superClassName != "") {
                 lineageIter = classes.find(lineageIter->second.superClassName);
                 if (lineageIter == classes.end()) {
-                    std::cerr << "Missing class definition in lineage for " << className << std::endl;
+                    std::cerr << "Missing class definition in lineage for " << className << "\n";
                     return -1;
                 }
                 lineage.emplace(lineageIter);
             }
 
-            outFile << std::endl << "    library::Schema schema;" << std::endl << std::endl;
+            outFile << "\n    library::Schema schema;\n\n";
 
             // Lineage in order from top to bottom.
             while (lineage.size()) {
@@ -419,24 +284,23 @@ int main(int argc, char* argv[]) {
                 outFile << classHeader;
                 bootstrapFile << classHeader;
                 for (const auto& varName : lineageIter->second.variables) {
-                    outFile << "    Slot " << varName << ";" << std::endl;
+                    outFile << "    Slot " << varName << ";\n";
                     bootstrapFile <<
                             fmt::format("    instVarNames = instVarNames.add(context, library::Symbol::fromView("
                                     "context, \"{}\"));\n", varName);
                 }
             }
 
-            outFile << "};" << std::endl << std::endl;
-            outFile << "static_assert(std::is_standard_layout<" << className << "Schema>::value);"
-                    << std::endl << std::endl;
+            outFile << "};\n\n";
+            outFile << "static_assert(std::is_standard_layout<" << className << "Schema>::value);\n\n";
 
             bootstrapFile << "    classDef.setInstVarNames(instVarNames);\n";
         }
 
-        outFile << "} // namespace schema" << std::endl;
-        outFile << "} // namespace hadron" << std::endl << std::endl;
+        outFile << "} // namespace schema\n";
+        outFile << "} // namespace hadron\n\n";
 
-        outFile << "#endif // " << includeGuard << std::endl;
+        outFile << "#endif // " << includeGuard << "\n";
     }
 
     return 0;

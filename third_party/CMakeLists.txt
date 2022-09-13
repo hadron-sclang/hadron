@@ -55,5 +55,8 @@ set(RAPIDJSON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rapidjson/include CACHE ST
 set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "require spdlog to use our external fmt")
 add_subdirectory(spdlog)
 
+#### sprklr
+add_subdirectory(sparkler)
+
 #### xxHash
 add_subdirectory(xxHash/cmake_unofficial)

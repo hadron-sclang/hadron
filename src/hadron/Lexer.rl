@@ -211,7 +211,7 @@
                     true));
         };
         # We don't include the colon at the end of the keyword to simplify parsing.
-        lower (alnum | '_')* ':' {
+        alpha (alnum | '_')* ':' {
             m_tokens.emplace_back(Token::make(Token::Name::kKeyword, std::string_view(ts, te - ts - 1), getLocation(ts),
                     true));
         };

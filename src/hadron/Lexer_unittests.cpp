@@ -1455,7 +1455,7 @@ TEST_CASE("Lexer Class Names") {
         CHECK(lexer.tokens()[5].range.size() == 1);
     }
     SUBCASE("inheritance") {
-        const char* code = "Tu:V{}AMixedCaseClassName : SuperClass9000 { } ";
+        const char* code = "Tu :V{}AMixedCaseClassName : SuperClass9000 { } ";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 10);
@@ -1464,34 +1464,34 @@ TEST_CASE("Lexer Class Names") {
         CHECK(lexer.tokens()[0].range.size() == 2);
         CHECK_EQ(lexer.tokens()[0].range.compare("Tu"), 0);
         CHECK(lexer.tokens()[1].name == Token::Name::kColon);
-        CHECK(lexer.tokens()[1].range.data() == code + 2);
+        CHECK(lexer.tokens()[1].range.data() == code + 3);
         CHECK(lexer.tokens()[1].range.size() == 1);
         CHECK(lexer.tokens()[2].name == Token::Name::kClassName);
-        CHECK(lexer.tokens()[2].range.data() == code + 3);
+        CHECK(lexer.tokens()[2].range.data() == code + 4);
         CHECK(lexer.tokens()[2].range.size() == 1);
         CHECK_EQ(lexer.tokens()[2].range.compare("V"), 0);
         CHECK(lexer.tokens()[3].name == Token::Name::kOpenCurly);
-        CHECK(lexer.tokens()[3].range.data() == code + 4);
+        CHECK(lexer.tokens()[3].range.data() == code + 5);
         CHECK(lexer.tokens()[3].range.size() == 1);
         CHECK(lexer.tokens()[4].name == Token::Name::kCloseCurly);
-        CHECK(lexer.tokens()[4].range.data() == code + 5);
+        CHECK(lexer.tokens()[4].range.data() == code + 6);
         CHECK(lexer.tokens()[4].range.size() == 1);
         CHECK(lexer.tokens()[5].name == Token::Name::kClassName);
-        CHECK(lexer.tokens()[5].range.data() == code + 6);
+        CHECK(lexer.tokens()[5].range.data() == code + 7);
         CHECK(lexer.tokens()[5].range.size() == 19);
         CHECK_EQ(lexer.tokens()[5].range.compare("AMixedCaseClassName"), 0);
         CHECK(lexer.tokens()[6].name == Token::Name::kColon);
-        CHECK(lexer.tokens()[6].range.data() == code + 26);
+        CHECK(lexer.tokens()[6].range.data() == code + 27);
         CHECK(lexer.tokens()[6].range.size() == 1);
         CHECK(lexer.tokens()[7].name == Token::Name::kClassName);
-        CHECK(lexer.tokens()[7].range.data() == code + 28);
+        CHECK(lexer.tokens()[7].range.data() == code + 29);
         CHECK(lexer.tokens()[7].range.size() == 14);
         CHECK_EQ(lexer.tokens()[7].range.compare("SuperClass9000"), 0);
         CHECK(lexer.tokens()[8].name == Token::Name::kOpenCurly);
-        CHECK(lexer.tokens()[8].range.data() == code + 43);
+        CHECK(lexer.tokens()[8].range.data() == code + 44);
         CHECK(lexer.tokens()[8].range.size() == 1);
         CHECK(lexer.tokens()[9].name == Token::Name::kCloseCurly);
-        CHECK(lexer.tokens()[9].range.data() == code + 45);
+        CHECK(lexer.tokens()[9].range.data() == code + 46);
         CHECK(lexer.tokens()[9].range.size() == 1);
     }
     SUBCASE("extension") {
