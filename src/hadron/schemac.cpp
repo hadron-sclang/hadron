@@ -65,7 +65,7 @@ bool processPaths(const std::string& inputFiles, const std::string& basePath, co
         // The class file must be in a subdirectory of the library path.
         if (classFile.string().substr(0, basePath.length()) != basePath) {
             std::cerr << "Class file path: " << classFile.string() << " not in a subdirectory of library path: "
-                    << basePath << std::endl;
+                    << basePath << "\n";
             return false;
         }
 
@@ -147,14 +147,14 @@ int main(int argc, char* argv[]) {
 
     fs::path libraryPath(FLAGS_libraryPath);
     if (!fs::exists(libraryPath)) {
-        std::cerr << "Class library path does not exist: " << libraryPath << std::endl;
+        std::cerr << "Class library path does not exist: " << libraryPath << "\n";
         return -1;
     }
     libraryPath = fs::absolute(libraryPath);
 
     fs::path hlangPath(FLAGS_hlangPath);
     if (!fs::exists(hlangPath)) {
-        std::cerr << "HLang library path does not exist: " << hlangPath << std::endl;
+        std::cerr << "HLang library path does not exist: " << hlangPath << "\n";
         return -1;
     }
     hlangPath = fs::absolute(hlangPath);
@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
 
         hadron::SourceFile sourceFile(classFile);
         if (!sourceFile.read()) {
-            std::cerr << "Failed to read input class file: " << classFile << std::endl;
+            std::cerr << "Failed to read input class file: " << classFile << "\n";
             return -1;
         }
         auto code = sourceFile.codeView();
@@ -200,7 +200,7 @@ int main(int argc, char* argv[]) {
 
         if (parser.getNumberOfSyntaxErrors()) {
             for (auto token : tokens.getTokens()) {
-                std::cout << token->toString() << std::endl;
+                std::cout << token->toString() << "\n";
             }
             std::cerr << classFile << " had " << parser.getNumberOfSyntaxErrors() << " syntax errors.\n";
             return -1;
@@ -211,7 +211,7 @@ int main(int argc, char* argv[]) {
 
     std::ofstream bootstrapFile(FLAGS_bootstrapPath);
     if (!bootstrapFile) {
-        std::cerr << "Schema failed to create the bootstrap output file: " << FLAGS_bootstrapPath << std::endl;
+        std::cerr << "Schema failed to create the bootstrap output file: " << FLAGS_bootstrapPath << "\n";
         return -1;
     }
     bootstrapFile << "    library::Symbol className;\n"
@@ -223,35 +223,35 @@ int main(int argc, char* argv[]) {
     for (const auto& pair : classFiles) {
         std::ofstream outFile(pair.first);
         if (!outFile) {
-            std::cerr << "Schema file create error on ouput file: " << pair.first << std::endl;
+            std::cerr << "Schema file create error on ouput file: " << pair.first << "\n";
             return -1;
         }
 
         auto includeGuard = fmt::format("SRC_HADRON_SCHEMA_{:08X}", hadron::hash(pair.first));
-        outFile << "#ifndef " << includeGuard << std::endl;
-        outFile << "#define " << includeGuard << std::endl << std::endl;
+        outFile << "#ifndef " << includeGuard << "\n";
+        outFile << "#define " << includeGuard << "\n\n";
 
-        outFile << "// NOTE: schemac automatically generated this file from sclang input file." << std::endl;
-        outFile << "// Edits will likely be clobbered." << std::endl << std::endl;
+        outFile << "// NOTE: schemac automatically generated this file from sclang input file.\n";
+        outFile << "// Edits will likely be clobbered.\n\n";
 
-        outFile << "namespace hadron {" << std::endl;
-        outFile << "namespace schema {" << std::endl << std::endl;
+        outFile << "namespace hadron {\n";
+        outFile << "namespace schema {\n\n";
 
         for (const auto& className : pair.second) {
             auto classIter = classes.find(className);
             if (classIter == classes.end()) {
-                std::cerr << "Mismatch between class name in file and class name in map: " << className << std::endl;
+                std::cerr << "Mismatch between class name in file and class name in map: " << className << "\n";
                 return -1;
             }
 
-            outFile << "// ========== " << className << std::endl;
+            outFile << "// ========== " << className << "\n";
             outFile << fmt::format("struct {}Schema {{\n", className);
             outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:08x};\n", hadron::hash(className));
             outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:08x};\n",
                     hadron::hash(fmt::format("Meta_{}", className)));
 
             if (classIter->second.isFundamentalType) {
-                outFile << "};" << std::endl << std::endl;
+                outFile << "};\n\n";
                 continue;
             }
 
@@ -268,13 +268,13 @@ int main(int argc, char* argv[]) {
             while (lineageIter->second.superClassName != "") {
                 lineageIter = classes.find(lineageIter->second.superClassName);
                 if (lineageIter == classes.end()) {
-                    std::cerr << "Missing class definition in lineage for " << className << std::endl;
+                    std::cerr << "Missing class definition in lineage for " << className << "\n";
                     return -1;
                 }
                 lineage.emplace(lineageIter);
             }
 
-            outFile << std::endl << "    library::Schema schema;" << std::endl << std::endl;
+            outFile << "\n    library::Schema schema;\n\n";
 
             // Lineage in order from top to bottom.
             while (lineage.size()) {
@@ -284,24 +284,23 @@ int main(int argc, char* argv[]) {
                 outFile << classHeader;
                 bootstrapFile << classHeader;
                 for (const auto& varName : lineageIter->second.variables) {
-                    outFile << "    Slot " << varName << ";" << std::endl;
+                    outFile << "    Slot " << varName << ";\n";
                     bootstrapFile <<
                             fmt::format("    instVarNames = instVarNames.add(context, library::Symbol::fromView("
                                     "context, \"{}\"));\n", varName);
                 }
             }
 
-            outFile << "};" << std::endl << std::endl;
-            outFile << "static_assert(std::is_standard_layout<" << className << "Schema>::value);"
-                    << std::endl << std::endl;
+            outFile << "};\n\n";
+            outFile << "static_assert(std::is_standard_layout<" << className << "Schema>::value);\n\n";
 
             bootstrapFile << "    classDef.setInstVarNames(instVarNames);\n";
         }
 
-        outFile << "} // namespace schema" << std::endl;
-        outFile << "} // namespace hadron" << std::endl << std::endl;
+        outFile << "} // namespace schema\n";
+        outFile << "} // namespace hadron\n\n";
 
-        outFile << "#endif // " << includeGuard << std::endl;
+        outFile << "#endif // " << includeGuard << "\n";
     }
 
     return 0;
