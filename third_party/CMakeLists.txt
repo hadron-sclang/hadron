@@ -4,8 +4,9 @@ set(INSTALL_EXT "${PROJECT_BINARY_DIR}/install-ext" CACHE PATH "Hadron External 
 file(MAKE_DIRECTORY "${INSTALL_EXT}")
 
 #### asmjit
-set(ASMJIT_STATIC ON CACHE BOOL "statically link asmjit")
 set(ASMJIT_NO_DEPRECATED ON CACHE BOOL "don't include deprecated parts of asmjit, to prevent their use")
+set(ASMJIT_NO_FOREIGN ON CACHE BOOL "disable support for cross compilation in asmjit")
+set(ASMJIT_STATIC ON CACHE BOOL "statically link asmjit")
 add_subdirectory(asmjit)
 
 #### doctest

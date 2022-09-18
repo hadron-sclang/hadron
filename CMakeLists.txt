@@ -37,13 +37,14 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-# Determine host operating system and processor type. Host builds only supported for now, cross compiling is TBD.
+# Determine host operating system and processor type. Hadron only JITs to host architecture. AOT cross compilation
+# with LLVM may come some day.
 if(APPLE)
     if (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
         set(HADRON_HOST_CPU "x86_64")
     else()
         # CMake documentation suggests that uname -m is returning inconsistent values on Apple silicon, so we assume
-        # anying that isn't x86_64 must be 64-bit ARM.
+        # anying on Apple that isn't x86_64 must be 64-bit ARM.
         set(HADRON_HOST_CPU "aarch64")
     endif()
 elseif(UNIX)
@@ -52,7 +53,7 @@ else()
     message(FATAL_ERROR "TODO: add CPU detection to host OS")
 endif()
 
-message(STATUS "hadron detected host CPU ${HADRON_HOST_CPU}")
+message(STATUS "Hadron detected host CPU ${HADRON_HOST_CPU}")
 
 if(NOT DEFINED SCLANG_PATH)
      set(SCLANG_PATH "${CMAKE_SOURCE_DIR}/third_party/bootstrap/SCClassLibrary" CACHE STRING "Path to SCClassLibrary")
