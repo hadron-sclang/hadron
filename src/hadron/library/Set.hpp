@@ -6,26 +6,28 @@
 #include "hadron/library/Integer.hpp"
 #include "hadron/schema/Common/Collections/SetSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
-template<typename T, typename S>
-class Set : public Collection<T, S> {
+template <typename T, typename S> class Set : public Collection<T, S> {
 public:
-    Set(): Collection<T, S>() {}
-    explicit Set(S* instance): Collection<T, S>(instance) {}
-    explicit Set(Slot instance): Collection<T, S>(instance) {}
-    ~Set() {}
+    Set(): Collection<T, S>() { }
+    explicit Set(S* instance): Collection<T, S>(instance) { }
+    explicit Set(Slot instance): Collection<T, S>(instance) { }
+    ~Set() { }
 
     Array array() const {
         const T& t = static_cast<const T&>(*this);
-        if (t.m_instance == nullptr) { return Array(); }
+        if (t.m_instance == nullptr) {
+            return Array();
+        }
         return Array(t.m_instance->array);
     }
 
     int32_t size() const {
         const T& t = static_cast<const T&>(*this);
-        if (t.m_instance == nullptr) { return 0; }
+        if (t.m_instance == nullptr) {
+            return 0;
+        }
         return t.m_instance->size.getInt32();
     }
 
@@ -41,13 +43,12 @@ protected:
     }
 };
 
-template<typename T, typename S>
-class IdentitySetBase : public Set<T, S> {
+template <typename T, typename S> class IdentitySetBase : public Set<T, S> {
 public:
-    IdentitySetBase(): Set<T, S>() {}
-    explicit IdentitySetBase(S* instance): Set<T, S>(instance) {}
-    explicit IdentitySetBase(Slot instance): Set<T, S>(instance) {}
-    ~IdentitySetBase() {}
+    IdentitySetBase(): Set<T, S>() { }
+    explicit IdentitySetBase(S* instance): Set<T, S>(instance) { }
+    explicit IdentitySetBase(Slot instance): Set<T, S>(instance) { }
+    ~IdentitySetBase() { }
 
     // add() is not implemented as a primitive in the SuperCollider library code. This C++ implementation mimics the
     // implementation in Set. If making substantive changes to behavior in either implementation the other must change
@@ -78,7 +79,8 @@ public:
         }
 
         assert(existingElement.identityHash() == item.identityHash());
-        return false;;
+        return false;
+        ;
     }
 
     bool remove(ThreadContext* /* context */, Slot item) {
@@ -131,15 +133,13 @@ protected:
 
 class IdentitySet : public IdentitySetBase<IdentitySet, schema::IdentitySetSchema> {
 public:
-    IdentitySet(): IdentitySetBase<IdentitySet, schema::IdentitySetSchema>() {}
+    IdentitySet(): IdentitySetBase<IdentitySet, schema::IdentitySetSchema>() { }
     explicit IdentitySet(schema::IdentitySetSchema* instance):
-            IdentitySetBase<IdentitySet, schema::IdentitySetSchema>(instance) {}
-    explicit IdentitySet(Slot instance): IdentitySetBase<IdentitySet, schema::IdentitySetSchema>(instance) {}
-    ~IdentitySet() {}
+        IdentitySetBase<IdentitySet, schema::IdentitySetSchema>(instance) { }
+    explicit IdentitySet(Slot instance): IdentitySetBase<IdentitySet, schema::IdentitySetSchema>(instance) { }
+    ~IdentitySet() { }
 
-    static IdentitySet makeIdentitySet(ThreadContext* context, int32_t capacity = 4) {
-        return make(context, capacity);
-    }
+    static IdentitySet makeIdentitySet(ThreadContext* context, int32_t capacity = 4) { return make(context, capacity); }
 
     // addAll is normally a method on Collection for IdentitySet, but we specialize this only for IdentitySet.
     void addAll(ThreadContext* context, const IdentitySet ids) {
@@ -168,12 +168,12 @@ public:
 // Support for Integers only right now, no ordering relationships exist beyond that.
 class OrderedIdentitySet : public IdentitySetBase<OrderedIdentitySet, schema::OrderedIdentitySetSchema> {
 public:
-    OrderedIdentitySet(): IdentitySetBase<OrderedIdentitySet, schema::OrderedIdentitySetSchema>() {}
+    OrderedIdentitySet(): IdentitySetBase<OrderedIdentitySet, schema::OrderedIdentitySetSchema>() { }
     explicit OrderedIdentitySet(schema::OrderedIdentitySetSchema* instance):
-            IdentitySetBase<OrderedIdentitySet, schema::OrderedIdentitySetSchema>(instance) {}
+        IdentitySetBase<OrderedIdentitySet, schema::OrderedIdentitySetSchema>(instance) { }
     explicit OrderedIdentitySet(Slot instance):
-            IdentitySetBase<OrderedIdentitySet, schema::OrderedIdentitySetSchema>(instance) {}
-    ~OrderedIdentitySet() {}
+        IdentitySetBase<OrderedIdentitySet, schema::OrderedIdentitySetSchema>(instance) { }
+    ~OrderedIdentitySet() { }
 
     static OrderedIdentitySet makeIdentitySet(ThreadContext* context, int32_t capacity = 4) {
         auto set = make(context, capacity);
@@ -193,7 +193,9 @@ public:
         // to the correct comparison function, perhaps after the refactor to always use type-generic comparisons.
         int32_t index = 0;
         for (; index < items().size(); ++index) {
-            if (items().typedAt(index).int32() > item.getInt32()) { break; }
+            if (items().typedAt(index).int32() > item.getInt32()) {
+                break;
+            }
         }
         setItems(items().typedInsert(context, index, item));
         return true;
@@ -215,7 +217,9 @@ public:
     Integer lowerBound(Integer item) const {
         int32_t index = 0;
         for (; index < items().size(); ++index) {
-            if (items().typedAt(index).int32() >= item.int32()) { return items().typedAt(index); }
+            if (items().typedAt(index).int32() >= item.int32()) {
+                return items().typedAt(index);
+            }
         }
         return Integer();
     }
@@ -225,13 +229,12 @@ public:
     void setItems(TypedArray<Integer> a) { m_instance->items = a.slot(); }
 };
 
-template<typename V>
-class TypedIdentSet : public IdentitySet {
+template <typename V> class TypedIdentSet : public IdentitySet {
 public:
-    TypedIdentSet(): IdentitySet() {}
-    explicit TypedIdentSet(schema::IdentitySetSchema* instance): IdentitySet(instance) {}
-    explicit TypedIdentSet(Slot instance): IdentitySet(instance) {}
-    ~TypedIdentSet() {}
+    TypedIdentSet(): IdentitySet() { }
+    explicit TypedIdentSet(schema::IdentitySetSchema* instance): IdentitySet(instance) { }
+    explicit TypedIdentSet(Slot instance): IdentitySet(instance) { }
+    ~TypedIdentSet() { }
 
     // TODO: all IdentSets need to be typed, then this goes away
     static inline TypedIdentSet<V> wrapUnsafe(Slot instance) { return TypedIdentSet<V>(instance); }
@@ -242,25 +245,15 @@ public:
 
     TypedArray<V> typedArray() const { return TypedArray<V>(array().slot()); }
 
-    void typedAdd(ThreadContext* context, V item) {
-        add(context, item.slot());
-    }
+    void typedAdd(ThreadContext* context, V item) { add(context, item.slot()); }
 
-    void typedAddAll(ThreadContext* context, const TypedIdentSet<V> ids) {
-        addAll(context, ids);
-    }
+    void typedAddAll(ThreadContext* context, const TypedIdentSet<V> ids) { addAll(context, ids); }
 
-    void typedRemove(ThreadContext* context, V item) {
-        remove(context, item.slot());
-    }
+    void typedRemove(ThreadContext* context, V item) { remove(context, item.slot()); }
 
-    bool typedContains(V item) const {
-        return contains(item.slot());
-    }
+    bool typedContains(V item) const { return contains(item.slot()); }
 
-    V typedNext(V i) const {
-        return V::wrapUnsafe(next(i.slot()));
-    }
+    V typedNext(V i) const { return V::wrapUnsafe(next(i.slot())); }
 };
 
 } // namespace library

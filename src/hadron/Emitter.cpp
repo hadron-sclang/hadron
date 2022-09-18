@@ -110,7 +110,7 @@ void Emitter::emit(ThreadContext* /* context */, library::LinearFrame linearFram
         case library::LoadFromPointerLIR::nameHash(): {
             auto loadFromPointerLIR = library::LoadFromPointerLIR(lir.slot());
             jit->ldxi_w(locate(lir, loadFromPointerLIR.vReg()), locate(lir, loadFromPointerLIR.pointer()),
-                    loadFromPointerLIR.offset().int32());
+                        loadFromPointerLIR.offset().int32());
         } break;
 
         case library::PhiLIR::nameHash(): {
@@ -131,7 +131,7 @@ void Emitter::emit(ThreadContext* /* context */, library::LinearFrame linearFram
         case library::StoreToPointerLIR::nameHash(): {
             auto storeToPointerLIR = library::StoreToPointerLIR(lir.slot());
             jit->stxi_w(storeToPointerLIR.offset().int32(), locate(lir, storeToPointerLIR.pointer()),
-                    locate(lir, storeToPointerLIR.toStore()));
+                        locate(lir, storeToPointerLIR.toStore()));
         } break;
 
         default:

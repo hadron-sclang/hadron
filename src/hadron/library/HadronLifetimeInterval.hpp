@@ -9,16 +9,15 @@
 #include "hadron/library/Object.hpp"
 #include "hadron/schema/HLang/HadronLifetimeIntervalSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 class LiveRange : public Object<LiveRange, schema::HadronLiveRangeSchema> {
 public:
-    LiveRange(): Object<LiveRange, schema::HadronLiveRangeSchema>() {}
+    LiveRange(): Object<LiveRange, schema::HadronLiveRangeSchema>() { }
     explicit LiveRange(schema::HadronLiveRangeSchema* instance):
-            Object<LiveRange, schema::HadronLiveRangeSchema>(instance) {}
-    explicit LiveRange(Slot instance): Object<LiveRange, schema::HadronLiveRangeSchema>(instance) {}
-    ~LiveRange() {}
+        Object<LiveRange, schema::HadronLiveRangeSchema>(instance) { }
+    explicit LiveRange(Slot instance): Object<LiveRange, schema::HadronLiveRangeSchema>(instance) { }
+    ~LiveRange() { }
 
     static LiveRange makeLiveRange(ThreadContext* context, int32_t from, int32_t to) {
         auto liveRange = LiveRange::alloc(context);
@@ -36,12 +35,12 @@ public:
 
 class LifetimeInterval : public Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema> {
 public:
-    LifetimeInterval(): Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema>() {}
+    LifetimeInterval(): Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema>() { }
     explicit LifetimeInterval(schema::HadronLifetimeIntervalSchema* instance):
-            Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema>(instance) {}
+        Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema>(instance) { }
     explicit LifetimeInterval(Slot instance):
-            Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema>(instance) {}
-    ~LifetimeInterval() {}
+        Object<LifetimeInterval, schema::HadronLifetimeIntervalSchema>(instance) { }
+    ~LifetimeInterval() { }
 
     static LifetimeInterval makeLifetimeInterval(ThreadContext* context, VReg value = VReg()) {
         auto lifetimeInterval = LifetimeInterval::alloc(context);
@@ -69,11 +68,15 @@ public:
 
     bool isEmpty() const { return ranges().size() == 0; }
     Integer start() const {
-        if (isEmpty()) { return Integer(); }
+        if (isEmpty()) {
+            return Integer();
+        }
         return ranges().typedFirst().from();
     }
     Integer end() const {
-        if (isEmpty()) { return Integer(); }
+        if (isEmpty()) {
+            return Integer();
+        }
         return ranges().typedLast().to();
     }
 

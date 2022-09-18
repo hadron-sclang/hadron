@@ -48,7 +48,7 @@ private:
 };
 
 JSONTransport::JSONTransportImpl::JSONTransportImpl(FILE* inputStream, FILE* outputStream):
-        m_inputStream(inputStream), m_outputStream(outputStream), m_server(nullptr) {}
+    m_inputStream(inputStream), m_outputStream(outputStream), m_server(nullptr) { }
 
 int JSONTransport::JSONTransportImpl::runLoop() {
     std::vector<char> json;
@@ -102,8 +102,8 @@ int JSONTransport::JSONTransportImpl::runLoop() {
         }
         rapidjson::Value& jsonrpc = document["jsonrpc"];
         if (std::strcmp(jsonrpc.GetString(), "2.0") != 0) {
-            sendErrorResponse(std::nullopt, ErrorCode::kInvalidRequest, fmt::format(
-                    "Unsupported 'jsonrpc' value of '{}'.", jsonrpc.GetString()));
+            sendErrorResponse(std::nullopt, ErrorCode::kInvalidRequest,
+                              fmt::format("Unsupported 'jsonrpc' value of '{}'.", jsonrpc.GetString()));
             continue;
         }
         SPDLOG_TRACE("Got valid JSONRPC.");
@@ -116,7 +116,7 @@ int JSONTransport::JSONTransportImpl::runLoop() {
                 id = document["id"].GetInt64();
             } else {
                 sendErrorResponse(std::nullopt, ErrorCode::kInvalidRequest,
-                        "Type for 'id' key must be string or number.");
+                                  "Type for 'id' key must be string or number.");
                 continue;
             }
         }
@@ -152,7 +152,7 @@ int JSONTransport::JSONTransportImpl::runLoop() {
 }
 
 void JSONTransport::JSONTransportImpl::sendErrorResponse(std::optional<lsp::ID> id, ErrorCode errorCode,
-        std::string errorMessage) {
+                                                         std::string errorMessage) {
     SPDLOG_ERROR("Sending error code: {}, message: {}", errorCode, errorMessage);
     rapidjson::Document document;
     document.SetObject();
@@ -239,7 +239,7 @@ void JSONTransport::JSONTransportImpl::sendInitializeResult(std::optional<lsp::I
     serverInfo.SetObject();
     serverInfo.AddMember("name", rapidjson::Value("hlangd"), document.GetAllocator());
     serverInfo.AddMember("version", rapidjson::Value(hadron::kHadronVersion, document.GetAllocator()),
-            document.GetAllocator());
+                         document.GetAllocator());
     result.AddMember("serverInfo", serverInfo, document.GetAllocator());
     document.AddMember("result", result, document.GetAllocator());
     sendMessage(document);
@@ -333,13 +333,15 @@ void JSONTransport::JSONTransportImpl::sendMessage(rapidjson::Document& document
 }
 
 bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodName, std::optional<lsp::ID> id,
-        rapidjson::Document& document) {
+                                                    rapidjson::Document& document) {
     auto method = server::lsp::getMethodNamed(methodName.data(), methodName.size());
 
     // Spec calls to reject all messages sent to server before kInitialize
     if (m_server->state() == HadronServer::ServerState::kUninitialized && method != lsp::Method::kInitialize) {
-        sendErrorResponse(id, ErrorCode::kServerNotInitialized, fmt::format("Rejecting method {}, server not "
-            "initialized.", methodName));
+        sendErrorResponse(id, ErrorCode::kServerNotInitialized,
+                          fmt::format("Rejecting method {}, server not "
+                                      "initialized.",
+                                      methodName));
         return false;
     }
 
@@ -349,10 +351,10 @@ bool JSONTransport::JSONTransportImpl::handleMethod(const std::string& methodNam
         params = nullptr;
     }
 
-    switch(method) {
+    switch (method) {
     case server::lsp::Method::kNotFound:
-        sendErrorResponse(id, ErrorCode::kMethodNotFound, fmt::format("Failed to match method '{}' to supported name.",
-            methodName));
+        sendErrorResponse(id, ErrorCode::kMethodNotFound,
+                          fmt::format("Failed to match method '{}' to supported name.", methodName));
         return false;
     case server::lsp::Method::kInitialize: {
         SPDLOG_TRACE("handleInitialize");
@@ -402,37 +404,29 @@ void JSONTransport::JSONTransportImpl::encodeId(std::optional<lsp::ID> id, rapid
     }
 }
 
-void JSONTransport::JSONTransportImpl::handleInitialize(std::optional<lsp::ID> id,
-        const rapidjson::GenericObject<false, rapidjson::Value>& /* params */) {
+void JSONTransport::JSONTransportImpl::handleInitialize(
+    std::optional<lsp::ID> id, const rapidjson::GenericObject<false, rapidjson::Value>& /* params */) {
     m_server->initialize(id);
 }
 
 //////////////////
 // JSONTransport
 JSONTransport::JSONTransport(FILE* inputStream, FILE* outputStream):
-    m_impl(std::make_unique<JSONTransportImpl>(inputStream, outputStream)) {}
+    m_impl(std::make_unique<JSONTransportImpl>(inputStream, outputStream)) { }
 
 // Default destructor in header complains about incomplete Impl type so declare it here and explicity delete the Impl.
 JSONTransport::~JSONTransport() { m_impl.reset(); }
 
-void JSONTransport::setServer(HadronServer* server) {
-    m_impl->setServer(server);
-}
+void JSONTransport::setServer(HadronServer* server) { m_impl->setServer(server); }
 
-int JSONTransport::runLoop() {
-    return m_impl->runLoop();
-}
+int JSONTransport::runLoop() { return m_impl->runLoop(); }
 
 void JSONTransport::sendErrorResponse(std::optional<lsp::ID> id, ErrorCode errorCode, std::string errorMessage) {
     m_impl->sendErrorResponse(id, errorCode, errorMessage);
 }
 
-void JSONTransport::sendInitializeResult(std::optional<lsp::ID> id) {
-    m_impl->sendInitializeResult(id);
-}
+void JSONTransport::sendInitializeResult(std::optional<lsp::ID> id) { m_impl->sendInitializeResult(id); }
 
-void JSONTransport::sendSemanticTokens(const std::vector<hadron::Token>& tokens) {
-    m_impl->sendSemanticTokens(tokens);
-}
+void JSONTransport::sendSemanticTokens(const std::vector<hadron::Token>& tokens) { m_impl->sendSemanticTokens(tokens); }
 
 } // namespace server

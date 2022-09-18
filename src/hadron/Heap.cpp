@@ -8,13 +8,12 @@
 
 namespace hadron {
 
-Heap::Heap(): m_stackPageOffset(0) {}
+Heap::Heap(): m_stackPageOffset(0) { }
 
-Heap::~Heap() { /* WRITEME */ }
-
-void* Heap::allocateNew(size_t sizeInBytes) {
-    return allocateSized(sizeInBytes, m_youngPages, false);
+Heap::~Heap() { /* WRITEME */
 }
+
+void* Heap::allocateNew(size_t sizeInBytes) { return allocateSized(sizeInBytes, m_youngPages, false); }
 
 void* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
     auto address = allocateSized(sizeInBytes, m_executablePages, true);
@@ -59,34 +58,33 @@ void Heap::freeTopStackSegment() {
     }
 }
 
-void Heap::addToRootSet(Slot object) {
-    m_rootSet.emplace(object.getPointer());
-}
+void Heap::addToRootSet(Slot object) { m_rootSet.emplace(object.getPointer()); }
 
-void Heap::removeFromRootSet(Slot object) {
-    m_rootSet.erase(object.getPointer());
-}
+void Heap::removeFromRootSet(Slot object) { m_rootSet.erase(object.getPointer()); }
 
 size_t Heap::getAllocationSize(void* address) {
     Page* page = findPageContaining(address);
-    if (!page) { assert(false); return 0; }
+    if (!page) {
+        assert(false);
+        return 0;
+    }
     return page->objectSize();
 }
 
 library::Schema* Heap::getContainingObject(const void* address) {
     Page* page = findPageContaining(address);
-    if (!page) { return nullptr; }
+    if (!page) {
+        return nullptr;
+    }
     // Align pointer on allocation size
-    uintptr_t aligned = reinterpret_cast<uintptr_t>(address) -
-            (reinterpret_cast<uintptr_t>(address) % page->objectSize());
+    uintptr_t aligned =
+        reinterpret_cast<uintptr_t>(address) - (reinterpret_cast<uintptr_t>(address) % page->objectSize());
 
     // TODO: aliveness verification? How?
     return reinterpret_cast<library::Schema*>(aligned);
 }
 
-size_t Heap::getMaximumSize(size_t sizeInBytes) {
-    return getSize(getSizeClass(sizeInBytes));
-}
+size_t Heap::getMaximumSize(size_t sizeInBytes) { return getSize(getSizeClass(sizeInBytes)); }
 
 Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
     if (sizeInBytes <= kSmallObjectSize) {
@@ -100,7 +98,7 @@ Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
 }
 
 size_t Heap::getSize(SizeClass sizeClass) {
-    switch(sizeClass) {
+    switch (sizeClass) {
     case kSmall:
         return kSmallObjectSize;
     case kMedium:

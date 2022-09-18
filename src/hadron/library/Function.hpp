@@ -5,15 +5,14 @@
 #include "hadron/library/Object.hpp"
 #include "hadron/schema/Common/Core/FunctionSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 class Function : public Object<Function, schema::FunctionSchema> {
 public:
-    Function(): Object<Function, schema::FunctionSchema>() {}
-    explicit Function(schema::FunctionSchema* instance): Object<Function, schema::FunctionSchema>(instance) {}
-    explicit Function(Slot instance): Object<Function, schema::FunctionSchema>(instance) {}
-    ~Function() {}
+    Function(): Object<Function, schema::FunctionSchema>() { }
+    explicit Function(schema::FunctionSchema* instance): Object<Function, schema::FunctionSchema>(instance) { }
+    explicit Function(Slot instance): Object<Function, schema::FunctionSchema>(instance) { }
+    ~Function() { }
 
     FunctionDef def() const { return FunctionDef(m_instance->def); }
     void setDef(FunctionDef functionDef) { m_instance->def = functionDef.slot(); }

@@ -6,8 +6,7 @@
 #include "hadron/library/ArrayedCollection.hpp"
 #include "hadron/schema/Common/Collections/ArraySchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 // TODO(https://github.com/hadron-sclang/hadron/issues/111): Templatize all the data structures!
 
@@ -16,10 +15,10 @@ namespace library {
 // arrays of homogeneous types that automatically wrap and unwrap Slots into the assigned type.
 class Array : public ArrayedCollection<Array, schema::ArraySchema, Slot> {
 public:
-    Array(): ArrayedCollection<Array, schema::ArraySchema, Slot>() {}
-    explicit Array(schema::ArraySchema* instance): ArrayedCollection<Array, schema::ArraySchema, Slot>(instance) {}
-    explicit Array(Slot instance): ArrayedCollection<Array, schema::ArraySchema, Slot>(instance) {}
-    ~Array() {}
+    Array(): ArrayedCollection<Array, schema::ArraySchema, Slot>() { }
+    explicit Array(schema::ArraySchema* instance): ArrayedCollection<Array, schema::ArraySchema, Slot>(instance) { }
+    explicit Array(Slot instance): ArrayedCollection<Array, schema::ArraySchema, Slot>(instance) { }
+    ~Array() { }
 
     // Makes a new array of size |indexedSize| with each element set to nil.
     static Array newClear(ThreadContext* context, int32_t indexedSize) {
@@ -70,13 +69,12 @@ public:
     }
 };
 
-template<typename T>
-class TypedArray : public Array {
+template <typename T> class TypedArray : public Array {
 public:
-    TypedArray(): Array() {}
-    explicit TypedArray(schema::ArraySchema* instance): Array(instance) {}
-    explicit TypedArray(Slot instance): Array(instance) {}
-    ~TypedArray() {}
+    TypedArray(): Array() { }
+    explicit TypedArray(schema::ArraySchema* instance): Array(instance) { }
+    explicit TypedArray(Slot instance): Array(instance) { }
+    ~TypedArray() { }
 
     // Does NOT do what it says on the tin.
     static inline TypedArray<T> wrapUnsafe(Slot instance) { return TypedArray<T>(instance); }
@@ -106,9 +104,7 @@ public:
         return *this;
     }
 
-    Slot typedIndexOf(T item) const {
-        return indexOf(item.slot());
-    }
+    Slot typedIndexOf(T item) const { return indexOf(item.slot()); }
 
     TypedArray<T> typedReverse(ThreadContext* context) {
         auto r = reverse(context);

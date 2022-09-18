@@ -62,12 +62,7 @@ public:
     size_t getMaximumSize(size_t sizeInBytes);
 
 private:
-    enum SizeClass {
-        kSmall = 0,
-        kMedium = 1,
-        kLarge = 2,
-        kOversize = 3
-    };
+    enum SizeClass { kSmall = 0, kMedium = 1, kLarge = 2, kOversize = 3 };
     using SizedPages = std::array<std::vector<std::unique_ptr<Page>>, kOversize>;
 
     SizeClass getSizeClass(size_t sizeInBytes);

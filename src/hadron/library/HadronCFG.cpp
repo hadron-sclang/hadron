@@ -2,8 +2,7 @@
 
 #include "hadron/library/HadronHIR.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
     // Re-use constants with the same values.
@@ -15,9 +14,13 @@ HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
         // We can't use nil as a key in the constantValues() dictionary, so we save any nil constant value separately.
         if (constantHIR.constant()) {
             auto constantId = constantValues().typedGet(constantHIR.constant());
-            if (constantId) { return constantId; }
+            if (constantId) {
+                return constantId;
+            }
         } else {
-            if (nilConstantValue()) { return nilConstantValue(); }
+            if (nilConstantValue()) {
+                return nilConstantValue();
+            }
         }
     }
 

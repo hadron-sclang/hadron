@@ -45,8 +45,8 @@ BUILDINTERVALS
 
 void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFrame linearFrame) {
     // Compute blockRanges.
-    auto blockRanges = library::TypedArray<library::LiveRange>::typedNewClear(context,
-            linearFrame.blockLabels().size());
+    auto blockRanges =
+        library::TypedArray<library::LiveRange>::typedNewClear(context, linearFrame.blockLabels().size());
     int32_t blockStart = 0;
     library::LabelLIR lastLabel = library::LabelLIR();
     for (int32_t i = 0; i < linearFrame.instructions().size(); ++i) {
@@ -54,30 +54,31 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
         if (lir.className() == library::LabelLIR::nameHash()) {
             if (lastLabel) {
                 blockRanges.typedPut(lastLabel.labelId().int32(),
-                        library::LiveRange::makeLiveRange(context, blockStart, i));
+                                     library::LiveRange::makeLiveRange(context, blockStart, i));
             }
             lastLabel = hadron::library::LabelLIR(lir.slot());
             blockStart = i;
         }
     }
     // Save final block range.
-    blockRanges.typedPut(lastLabel.labelId().int32(), library::LiveRange::makeLiveRange(context, blockStart,
-            linearFrame.instructions().size()));
+    blockRanges.typedPut(lastLabel.labelId().int32(),
+                         library::LiveRange::makeLiveRange(context, blockStart, linearFrame.instructions().size()));
     linearFrame.setBlockRanges(blockRanges);
 
     // Initialize valueLifetimes with arrays each containing one empty LifetimeInterval structure, each with the
     // corresponding labeled valueNumber.
     auto valueLifetimes = library::LinearFrame::Intervals::typedArrayAlloc(context, linearFrame.vRegs().size());
     for (int32_t i = 0; i < linearFrame.vRegs().size(); ++i) {
-        valueLifetimes = valueLifetimes.typedAdd(context,
-                library::TypedArray<library::LifetimeInterval>::typedArrayAlloc(context));
-        valueLifetimes.typedPut(i,
-                valueLifetimes.typedAt(i).typedAdd(context,
-                library::LifetimeInterval::makeLifetimeInterval(context, library::VReg(i))));
+        valueLifetimes =
+            valueLifetimes.typedAdd(context, library::TypedArray<library::LifetimeInterval>::typedArrayAlloc(context));
+        valueLifetimes.typedPut(
+            i,
+            valueLifetimes.typedAt(i).typedAdd(
+                context, library::LifetimeInterval::makeLifetimeInterval(context, library::VReg(i))));
     }
 
-    auto liveIns = library::TypedArray<library::TypedIdentSet<library::VReg>>::typedNewClear(context,
-            linearFrame.blockOrder().size());
+    auto liveIns = library::TypedArray<library::TypedIdentSet<library::VReg>>::typedNewClear(
+        context, linearFrame.blockOrder().size());
 
     // for each block b in reverse order do
     for (int32_t i = linearFrame.blockOrder().size() - 1; i >= 0; --i) {
@@ -113,8 +114,8 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
         // The next part of the algorithm adds live ranges to the variables used within the block. One operation calls
         // for a modification of a lifetime range (setFrom). Our Lifetime structure doesn't currently support modifying
         // ranges once added, so we save temporary ranges here until final and add them all in then.
-        std::vector<std::pair<int32_t, int32_t>> blockVariableRanges(valueLifetimes.size(),
-                std::make_pair(std::numeric_limits<int32_t>::max(), 0));
+        std::vector<std::pair<int32_t, int32_t>> blockVariableRanges(
+            valueLifetimes.size(), std::make_pair(std::numeric_limits<int32_t>::max(), 0));
 
         // for each opd in live do
         auto opd = live.typedNext(library::VReg());
@@ -145,8 +146,8 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
             while (opd) {
                 if (opd.int32() >= 0) {
                     // intervals[opd].addRange(b.from, op.id)
-                    blockVariableRanges[opd.int32()].first = std::min(blockVariableRanges[opd.int32()].first,
-                            blockRange.from().int32());
+                    blockVariableRanges[opd.int32()].first =
+                        std::min(blockVariableRanges[opd.int32()].first, blockRange.from().int32());
                     blockVariableRanges[opd.int32()].second = std::max(j + 1, blockVariableRanges[opd.int32()].second);
                     valueLifetimes.typedAt(opd.int32()).typedAt(0).usages().add(context, library::Integer(j).slot());
                     // live.add(opd)
@@ -167,16 +168,16 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
         // if b is loop header then
         if (blockLabel.loopReturnPredIndex()) {
             // loopEnd = last block of the loop starting at b
-            auto loopEnd = blockRanges.typedAt(blockLabel.predecessors().typedAt(
-                    blockLabel.loopReturnPredIndex().int32()).int32());
+            auto loopEnd = blockRanges.typedAt(
+                blockLabel.predecessors().typedAt(blockLabel.loopReturnPredIndex().int32()).int32());
             // for each opd in live do
             opd = live.typedNext(library::VReg());
             while (opd) {
                 // intervals[opd].addRange(b.from, loopEnd.to)
-                blockVariableRanges[opd.int32()].first = std::min(blockVariableRanges[opd.int32()].first,
-                        blockRange.from().int32());
-                blockVariableRanges[opd.int32()].second = std::max(blockVariableRanges[opd.int32()].second,
-                        loopEnd.to().int32());
+                blockVariableRanges[opd.int32()].first =
+                    std::min(blockVariableRanges[opd.int32()].first, blockRange.from().int32());
+                blockVariableRanges[opd.int32()].second =
+                    std::max(blockVariableRanges[opd.int32()].second, loopEnd.to().int32());
                 opd = live.typedNext(opd);
             }
         }
@@ -195,7 +196,7 @@ void LifetimeAnalyzer::buildLifetimes(ThreadContext* context, library::LinearFra
                 }
                 assert(blockVariableRanges[j].second > blockVariableRanges[j].first);
                 valueLifetimes.typedAt(j).typedAt(0).addLiveRange(context, blockVariableRanges[j].first,
-                        blockVariableRanges[j].second);
+                                                                  blockVariableRanges[j].second);
             }
         }
     }

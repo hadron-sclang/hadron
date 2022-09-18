@@ -99,8 +99,8 @@ void Resolver::resolve(ThreadContext* context, library::LinearFrame linearFrame)
             if (moves.size()) {
                 // If the block has only one successor, or this is the last successor, we can simply prepend the move
                 // instructions to the outbound branch.
-                if (blockLabel.successors().size() == 1 ||
-                    successorNumber == blockLabel.successors().typedLast().int32()) {
+                if (blockLabel.successors().size() == 1
+                    || successorNumber == blockLabel.successors().typedLast().int32()) {
                     // Last instruction should always be an unconditional branch.
                     auto lastInstruction = blockRange.to().int32() - 1;
                     auto branch = library::BranchLIR(linearFrame.instructions().typedAt(lastInstruction).slot());

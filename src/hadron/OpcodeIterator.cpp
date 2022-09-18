@@ -4,9 +4,7 @@
 
 namespace hadron {
 
-OpcodeWriteIterator::OpcodeWriteIterator(int8_t* address, size_t size) {
-    setBuffer(address, size);
-}
+OpcodeWriteIterator::OpcodeWriteIterator(int8_t* address, size_t size) { setBuffer(address, size); }
 
 void OpcodeWriteIterator::setBuffer(int8_t* address, size_t size) {
     m_startOfBytecode = address;
@@ -14,9 +12,7 @@ void OpcodeWriteIterator::setBuffer(int8_t* address, size_t size) {
     m_endOfBytecode = address + size;
 }
 
-void OpcodeWriteIterator::reset() {
-    m_currentBytecode = m_startOfBytecode;
-}
+void OpcodeWriteIterator::reset() { m_currentBytecode = m_startOfBytecode; }
 
 bool OpcodeWriteIterator::loadCArgs2(JIT::Reg arg1, JIT::Reg arg2) {
     addByte(Opcode::kLoadCArgs2);
@@ -91,7 +87,9 @@ int8_t* OpcodeWriteIterator::mov_addr(JIT::Reg target) {
     addByte(reg(target));
     auto address = current();
     addWord(0xdeadbeef);
-    if (hasOverflow()) { return nullptr; }
+    if (hasOverflow()) {
+        return nullptr;
+    }
     return address;
 }
 
@@ -102,7 +100,9 @@ int8_t* OpcodeWriteIterator::bgei(JIT::Reg a, Word b) {
     auto address = current();
     // Write an empty address into the bytecode, saving room for a patched address.
     addWord(0xdeadbeef);
-    if (hasOverflow()) { return nullptr; }
+    if (hasOverflow()) {
+        return nullptr;
+    }
     return address;
 }
 
@@ -112,7 +112,9 @@ int8_t* OpcodeWriteIterator::beqi(JIT::Reg a, Word b) {
     addWord(b);
     auto address = current();
     addWord(0xdeadbeef);
-    if (hasOverflow()) { return nullptr; }
+    if (hasOverflow()) {
+        return nullptr;
+    }
     return address;
 }
 
@@ -217,7 +219,9 @@ bool OpcodeWriteIterator::ret() {
 }
 
 bool OpcodeWriteIterator::patchWord(int8_t* location, Word value) {
-    if (location < m_startOfBytecode || location > m_endOfBytecode - sizeof(Word)) { return false; }
+    if (location < m_startOfBytecode || location > m_endOfBytecode - sizeof(Word)) {
+        return false;
+    }
     for (size_t i = 0; i < sizeof(Word); ++i) {
         *location = (value >> (i * 8)) & 0xff;
         ++location;
@@ -264,9 +268,7 @@ bool OpcodeWriteIterator::addInt(int integer) {
     return nonOverflow;
 }
 
-OpcodeReadIterator::OpcodeReadIterator(const int8_t* buffer, size_t size) {
-    setBuffer(buffer, size);
-}
+OpcodeReadIterator::OpcodeReadIterator(const int8_t* buffer, size_t size) { setBuffer(buffer, size); }
 
 void OpcodeReadIterator::setBuffer(const int8_t* address, size_t size) {
     m_startOfBytecode = address;
@@ -274,12 +276,12 @@ void OpcodeReadIterator::setBuffer(const int8_t* address, size_t size) {
     m_endOfBytecode = address + size;
 }
 
-void OpcodeReadIterator::reset() {
-    m_currentBytecode = m_startOfBytecode;
-}
+void OpcodeReadIterator::reset() { m_currentBytecode = m_startOfBytecode; }
 
 Opcode OpcodeReadIterator::peek() {
-    if (hasOverflow()) { return Opcode::kInvalid; }
+    if (hasOverflow()) {
+        return Opcode::kInvalid;
+    }
     return static_cast<Opcode>(*m_currentBytecode);
 }
 
@@ -499,9 +501,7 @@ bool OpcodeReadIterator::ret() {
     return !hasOverflow();
 }
 
-JIT::Reg OpcodeReadIterator::reg(int8_t r) {
-    return static_cast<JIT::Reg>(r) - kNumberOfReservedRegisters;
-}
+JIT::Reg OpcodeReadIterator::reg(int8_t r) { return static_cast<JIT::Reg>(r) - kNumberOfReservedRegisters; }
 
 int8_t OpcodeReadIterator::readByte() {
     int8_t val = (m_currentBytecode >= m_endOfBytecode) ? 0 : *m_currentBytecode;

@@ -61,11 +61,11 @@ Meta_Class is an instance of Class
 
 namespace hadron {
 
-ClassLibrary::ClassLibrary(): m_numberOfClassVariables(0) {}
+ClassLibrary::ClassLibrary(): m_numberOfClassVariables(0) { }
 
 void ClassLibrary::bootstrapLibrary(ThreadContext* context) {
     {
-        #include "hadron/ClassLibraryBootstrap.cpp"
+#include "hadron/ClassLibraryBootstrap.cpp"
     }
 
     // Construct an empty Method object for the Interpreter to serve as a compilation context for interpreted code.
@@ -93,25 +93,29 @@ void ClassLibrary::bootstrapLibrary(ThreadContext* context) {
 
 bool ClassLibrary::scanString(ThreadContext* context, std::string_view input, library::Symbol filename) {
     auto lexer = Lexer(input);
-    if (!lexer.lex()) { return false; }
+    if (!lexer.lex()) {
+        return false;
+    }
 
     auto parser = Parser(&lexer);
-    if (!parser.parseClass(context)) { return false; }
+    if (!parser.parseClass(context)) {
+        return false;
+    }
 
     library::Node node = parser.root();
     while (node) {
-        if (node.className() != library::ClassNode::nameHash() &&
-            node.className() != library::ClassExtNode::nameHash()) {
+        if (node.className() != library::ClassNode::nameHash()
+            && node.className() != library::ClassExtNode::nameHash()) {
             SPDLOG_ERROR("Expecting either Class or Class Extensions only at top level in class file {}",
-                    filename.view(context));
+                         filename.view(context));
             return false;
         }
 
         library::Symbol className = node.token().snippet(context);
         library::Class classDef = findOrInitClass(context, className);
 
-        library::Symbol metaClassName = library::Symbol::fromView(context, fmt::format("Meta_{}",
-                className.view(context)));
+        library::Symbol metaClassName =
+            library::Symbol::fromView(context, fmt::format("Meta_{}", className.view(context)));
         library::Class metaClassDef = findOrInitClass(context, metaClassName);
 
         auto methodNode = library::MethodNode();
@@ -139,8 +143,8 @@ bool ClassLibrary::scanString(ThreadContext* context, std::string_view input, li
         while (methodNode) {
             library::Symbol methodName = methodNode.token().snippet(context);
 
-            if (className == context->symbolTable->interpreterSymbol() &&
-                methodName == context->symbolTable->functionCompileContextSymbol()) {
+            if (className == context->symbolTable->interpreterSymbol()
+                && methodName == context->symbolTable->functionCompileContextSymbol()) {
                 // Avoid re-defining the interpreter compile context special method.
                 methodNode = library::MethodNode(methodNode.next().slot());
                 continue;
@@ -166,7 +170,9 @@ bool ClassLibrary::scanString(ThreadContext* context, std::string_view input, li
             // Build the AST from the MethodNode block.
             ASTBuilder astBuilder;
             auto ast = astBuilder.buildBlock(context, methodNode.body());
-            if (ast.isNil()) { return false; }
+            if (ast.isNil()) {
+                return false;
+            }
 
             // Attach argument names from AST to the method definition.
             method.setArgNames(ast.argumentNames());
@@ -189,15 +195,23 @@ bool ClassLibrary::scanString(ThreadContext* context, std::string_view input, li
 }
 
 bool ClassLibrary::finalizeLibrary(ThreadContext* context) {
-    if (!finalizeHeirarchy(context)) { return false; }
-    if (!materializeFrames(context)) { return false; }
+    if (!finalizeHeirarchy(context)) {
+        return false;
+    }
+    if (!materializeFrames(context)) {
+        return false;
+    }
     return cleanUp();
 }
 
 library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
-    if (!name) { return library::Class(); }
+    if (!name) {
+        return library::Class();
+    }
     auto classIter = m_classMap.find(name);
-    if (classIter == m_classMap.end()) { return library::Class(); }
+    if (classIter == m_classMap.end()) {
+        return library::Class();
+    }
     return library::Class::wrapUnsafe(classIter->second);
 }
 
@@ -212,7 +226,7 @@ bool ClassLibrary::resetLibrary(ThreadContext* context) {
 }
 
 bool ClassLibrary::scanClass(ThreadContext* context, library::Class classDef, library::Class metaClassDef,
-        const library::ClassNode classNode) {
+                             const library::ClassNode classNode) {
     library::Symbol superclassName;
     library::Symbol metaSuperclassName;
 
@@ -327,7 +341,10 @@ library::Class ClassLibrary::findOrInitClass(ThreadContext* context, library::Sy
 
 bool ClassLibrary::finalizeHeirarchy(ThreadContext* context) {
     auto objectIter = m_classMap.find(library::Symbol::fromView(context, "Object"));
-    if (objectIter == m_classMap.end()) { assert(false); return false; }
+    if (objectIter == m_classMap.end()) {
+        assert(false);
+        return false;
+    }
 
     // Allocate class variable array at full capacity, to avoid any expensive resize copies while appending.
     m_classVariables = library::Array::arrayAlloc(context, m_numberOfClassVariables);
@@ -357,7 +374,9 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         auto method = classDef.methods().typedAt(i);
 
         // We don't compile methods that include primitives.
-        if (method.primitiveName(context)) { continue; }
+        if (method.primitiveName(context)) {
+            continue;
+        }
 
         auto methodName = method.name(context);
 
@@ -366,7 +385,9 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
 
         BlockBuilder blockBuilder(method);
         auto frame = blockBuilder.buildMethod(context, astIter->second, false);
-        if (!frame) { return false; }
+        if (!frame) {
+            return false;
+        }
 
         // TODO: Here's where we could extract some message signatures and compute dependencies, to decide on final
         // ordering of compilation of methods to support inlining.
@@ -378,18 +399,18 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         auto subclass = classDef.subclasses().typedAt(i);
 
         if (!m_bootstrapClasses.count(subclass.name(context))) {
-            subclass.setInstVarNames(
-                    classDef.instVarNames()
-                        .copy(context, classDef.instVarNames().size() + subclass.instVarNames().size())
-                        .addAll(context, subclass.instVarNames()));
+            subclass.setInstVarNames(classDef.instVarNames()
+                                         .copy(context, classDef.instVarNames().size() + subclass.instVarNames().size())
+                                         .addAll(context, subclass.instVarNames()));
         }
 
-        subclass.setIprototype(
-                classDef.iprototype()
-                    .copy(context, classDef.iprototype().size() + subclass.iprototype().size())
-                    .addAll(context, subclass.iprototype()));
+        subclass.setIprototype(classDef.iprototype()
+                                   .copy(context, classDef.iprototype().size() + subclass.iprototype().size())
+                                   .addAll(context, subclass.iprototype()));
 
-        if (!composeSubclassesFrom(context, subclass)) { return false; }
+        if (!composeSubclassesFrom(context, subclass)) {
+            return false;
+        }
     }
 
     return true;
@@ -408,7 +429,9 @@ bool ClassLibrary::materializeFrames(ThreadContext* context) {
 
             // Methods that call a primitive have no Frame and should not be compiled.
             auto frameIter = methodMap.second->find(methodName);
-            if (frameIter == methodMap.second->end()) { continue; }
+            if (frameIter == methodMap.second->end()) {
+                continue;
+            }
 
             auto bytecode = Materializer::materialize(context, frameIter->second);
             assert(bytecode);
@@ -419,8 +442,6 @@ bool ClassLibrary::materializeFrames(ThreadContext* context) {
     return true;
 }
 
-bool ClassLibrary::cleanUp() {
-    return true;
-}
+bool ClassLibrary::cleanUp() { return true; }
 
 } // namespace hadron

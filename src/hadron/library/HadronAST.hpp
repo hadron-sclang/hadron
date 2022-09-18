@@ -6,16 +6,14 @@
 #include "hadron/library/Symbol.hpp"
 #include "hadron/schema/HLang/HadronASTSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
-template<typename T, typename S, typename B>
-class ASTBase : public Object<T, S> {
+template <typename T, typename S, typename B> class ASTBase : public Object<T, S> {
 public:
-    ASTBase(): Object<T, S>() {}
-    explicit ASTBase(S* instance): Object<T, S>(instance) {}
-    explicit ASTBase(Slot instance): Object<T, S>(instance) {}
-    ~ASTBase() {}
+    ASTBase(): Object<T, S>() { }
+    explicit ASTBase(S* instance): Object<T, S>(instance) { }
+    explicit ASTBase(Slot instance): Object<T, S>(instance) { }
+    ~ASTBase() { }
 
     B toBase() const {
         const T& t = static_cast<const T&>(*this);
@@ -25,19 +23,19 @@ public:
 
 class AST : public ASTBase<AST, schema::HadronASTSchema, AST> {
 public:
-    AST(): ASTBase<AST, schema::HadronASTSchema, AST>() {}
-    explicit AST(schema::HadronASTSchema* instance): ASTBase<AST, schema::HadronASTSchema, AST>(instance) {}
-    explicit AST(Slot instance): ASTBase<AST, schema::HadronASTSchema, AST>(instance) {}
-    ~AST() {}
+    AST(): ASTBase<AST, schema::HadronASTSchema, AST>() { }
+    explicit AST(schema::HadronASTSchema* instance): ASTBase<AST, schema::HadronASTSchema, AST>(instance) { }
+    explicit AST(Slot instance): ASTBase<AST, schema::HadronASTSchema, AST>(instance) { }
+    ~AST() { }
 };
 
 class AssignAST : public ASTBase<AssignAST, schema::HadronAssignASTSchema, AST> {
 public:
-    AssignAST(): ASTBase<AssignAST, schema::HadronAssignASTSchema, AST>() {}
+    AssignAST(): ASTBase<AssignAST, schema::HadronAssignASTSchema, AST>() { }
     explicit AssignAST(schema::HadronAssignASTSchema* instance):
-            ASTBase<AssignAST, schema::HadronAssignASTSchema, AST>(instance) {}
-    explicit AssignAST(Slot instance): ASTBase<AssignAST, schema::HadronAssignASTSchema, AST>(instance) {}
-    ~AssignAST() {}
+        ASTBase<AssignAST, schema::HadronAssignASTSchema, AST>(instance) { }
+    explicit AssignAST(Slot instance): ASTBase<AssignAST, schema::HadronAssignASTSchema, AST>(instance) { }
+    ~AssignAST() { }
 
     static inline AssignAST makeAssign(ThreadContext* context) {
         auto assignAST = AssignAST::alloc(context);
@@ -55,12 +53,11 @@ public:
 
 class SequenceAST : public ASTBase<SequenceAST, schema::HadronSequenceASTSchema, AST> {
 public:
-    SequenceAST(): ASTBase<SequenceAST, schema::HadronSequenceASTSchema, AST>() {}
+    SequenceAST(): ASTBase<SequenceAST, schema::HadronSequenceASTSchema, AST>() { }
     explicit SequenceAST(schema::HadronSequenceASTSchema* instance):
-            ASTBase<SequenceAST, schema::HadronSequenceASTSchema, AST>(instance) {}
-    explicit SequenceAST(Slot instance):
-            ASTBase<SequenceAST, schema::HadronSequenceASTSchema, AST>(instance) {}
-    ~SequenceAST() {}
+        ASTBase<SequenceAST, schema::HadronSequenceASTSchema, AST>(instance) { }
+    explicit SequenceAST(Slot instance): ASTBase<SequenceAST, schema::HadronSequenceASTSchema, AST>(instance) { }
+    ~SequenceAST() { }
 
     static inline SequenceAST makeSequence(ThreadContext* context) {
         auto sequenceAST = SequenceAST::alloc(context);
@@ -76,11 +73,11 @@ public:
 
 class BlockAST : public ASTBase<BlockAST, schema::HadronBlockASTSchema, AST> {
 public:
-    BlockAST(): ASTBase<BlockAST, schema::HadronBlockASTSchema, AST>() {}
+    BlockAST(): ASTBase<BlockAST, schema::HadronBlockASTSchema, AST>() { }
     explicit BlockAST(schema::HadronBlockASTSchema* instance):
-            ASTBase<BlockAST, schema::HadronBlockASTSchema, AST>(instance) {}
-    explicit BlockAST(Slot instance): ASTBase<BlockAST, schema::HadronBlockASTSchema, AST>(instance) {}
-    ~BlockAST() {}
+        ASTBase<BlockAST, schema::HadronBlockASTSchema, AST>(instance) { }
+    explicit BlockAST(Slot instance): ASTBase<BlockAST, schema::HadronBlockASTSchema, AST>(instance) { }
+    ~BlockAST() { }
 
     static inline BlockAST makeBlock(ThreadContext* context) {
         auto blockAST = BlockAST::alloc(context);
@@ -106,12 +103,11 @@ public:
 
 class ConstantAST : public ASTBase<ConstantAST, schema::HadronConstantASTSchema, AST> {
 public:
-    ConstantAST(): ASTBase<ConstantAST, schema::HadronConstantASTSchema, AST>() {}
+    ConstantAST(): ASTBase<ConstantAST, schema::HadronConstantASTSchema, AST>() { }
     explicit ConstantAST(schema::HadronConstantASTSchema* instance):
-            ASTBase<ConstantAST, schema::HadronConstantASTSchema, AST>(instance) {}
-    explicit ConstantAST(Slot instance):
-            ASTBase<ConstantAST, schema::HadronConstantASTSchema, AST>(instance) {}
-    ~ConstantAST() {}
+        ASTBase<ConstantAST, schema::HadronConstantASTSchema, AST>(instance) { }
+    explicit ConstantAST(Slot instance): ASTBase<ConstantAST, schema::HadronConstantASTSchema, AST>(instance) { }
+    ~ConstantAST() { }
 
     static ConstantAST makeConstant(ThreadContext* context, Slot c) {
         auto constantAST = ConstantAST::alloc(context);
@@ -125,11 +121,11 @@ public:
 
 class DefineAST : public ASTBase<DefineAST, schema::HadronDefineASTSchema, AST> {
 public:
-    DefineAST(): ASTBase<DefineAST, schema::HadronDefineASTSchema, AST>() {}
+    DefineAST(): ASTBase<DefineAST, schema::HadronDefineASTSchema, AST>() { }
     explicit DefineAST(schema::HadronDefineASTSchema* instance):
-            ASTBase<DefineAST, schema::HadronDefineASTSchema, AST>(instance) {}
-    explicit DefineAST(Slot instance): ASTBase<DefineAST, schema::HadronDefineASTSchema, AST>(instance) {}
-    ~DefineAST() {}
+        ASTBase<DefineAST, schema::HadronDefineASTSchema, AST>(instance) { }
+    explicit DefineAST(Slot instance): ASTBase<DefineAST, schema::HadronDefineASTSchema, AST>(instance) { }
+    ~DefineAST() { }
 
     static DefineAST makeDefine(ThreadContext* context) {
         auto defineAST = DefineAST::alloc(context);
@@ -147,19 +143,19 @@ public:
 
 class EmptyAST : public ASTBase<EmptyAST, schema::HadronEmptyASTSchema, AST> {
 public:
-    EmptyAST(): ASTBase<EmptyAST, schema::HadronEmptyASTSchema, AST>() {}
+    EmptyAST(): ASTBase<EmptyAST, schema::HadronEmptyASTSchema, AST>() { }
     explicit EmptyAST(schema::HadronEmptyASTSchema* instance):
-            ASTBase<EmptyAST, schema::HadronEmptyASTSchema, AST>(instance) {}
-    explicit EmptyAST(Slot instance): ASTBase<EmptyAST, schema::HadronEmptyASTSchema, AST>(instance) {}
-    ~EmptyAST() {}
+        ASTBase<EmptyAST, schema::HadronEmptyASTSchema, AST>(instance) { }
+    explicit EmptyAST(Slot instance): ASTBase<EmptyAST, schema::HadronEmptyASTSchema, AST>(instance) { }
+    ~EmptyAST() { }
 };
 
 class IfAST : public ASTBase<IfAST, schema::HadronIfASTSchema, AST> {
 public:
-    IfAST(): ASTBase<IfAST, schema::HadronIfASTSchema, AST>() {}
-    explicit IfAST(schema::HadronIfASTSchema* instance): ASTBase<IfAST, schema::HadronIfASTSchema, AST>(instance) {}
-    explicit IfAST(Slot instance): ASTBase<IfAST, schema::HadronIfASTSchema, AST>(instance) {}
-    ~IfAST() {}
+    IfAST(): ASTBase<IfAST, schema::HadronIfASTSchema, AST>() { }
+    explicit IfAST(schema::HadronIfASTSchema* instance): ASTBase<IfAST, schema::HadronIfASTSchema, AST>(instance) { }
+    explicit IfAST(Slot instance): ASTBase<IfAST, schema::HadronIfASTSchema, AST>(instance) { }
+    ~IfAST() { }
 
     static inline IfAST makeIf(ThreadContext* context) {
         auto ifAST = IfAST::alloc(context);
@@ -181,11 +177,11 @@ public:
 
 class MessageAST : public ASTBase<MessageAST, schema::HadronMessageASTSchema, AST> {
 public:
-    MessageAST(): ASTBase<MessageAST, schema::HadronMessageASTSchema, AST>() {}
+    MessageAST(): ASTBase<MessageAST, schema::HadronMessageASTSchema, AST>() { }
     explicit MessageAST(schema::HadronMessageASTSchema* instance):
-            ASTBase<MessageAST, schema::HadronMessageASTSchema, AST>(instance) {}
-    explicit MessageAST(Slot instance): ASTBase<MessageAST, schema::HadronMessageASTSchema, AST>(instance) {}
-    ~MessageAST() {}
+        ASTBase<MessageAST, schema::HadronMessageASTSchema, AST>(instance) { }
+    explicit MessageAST(Slot instance): ASTBase<MessageAST, schema::HadronMessageASTSchema, AST>(instance) { }
+    ~MessageAST() { }
 
     static inline MessageAST makeMessage(ThreadContext* context) {
         auto messageAST = MessageAST::alloc(context);
@@ -207,12 +203,12 @@ public:
 
 class MethodReturnAST : public ASTBase<MethodReturnAST, schema::HadronMethodReturnASTSchema, AST> {
 public:
-    MethodReturnAST(): ASTBase<MethodReturnAST, schema::HadronMethodReturnASTSchema, AST>() {}
+    MethodReturnAST(): ASTBase<MethodReturnAST, schema::HadronMethodReturnASTSchema, AST>() { }
     explicit MethodReturnAST(schema::HadronMethodReturnASTSchema* instance):
-            ASTBase<MethodReturnAST, schema::HadronMethodReturnASTSchema, AST>(instance) {}
+        ASTBase<MethodReturnAST, schema::HadronMethodReturnASTSchema, AST>(instance) { }
     explicit MethodReturnAST(Slot instance):
-            ASTBase<MethodReturnAST, schema::HadronMethodReturnASTSchema, AST>(instance) {}
-    ~MethodReturnAST() {}
+        ASTBase<MethodReturnAST, schema::HadronMethodReturnASTSchema, AST>(instance) { }
+    ~MethodReturnAST() { }
 
     static inline MethodReturnAST makeMethodReturn(ThreadContext* context) {
         auto methodReturnAST = MethodReturnAST::alloc(context);
@@ -226,12 +222,12 @@ public:
 
 class MultiAssignAST : public ASTBase<MultiAssignAST, schema::HadronMultiAssignASTSchema, AST> {
 public:
-    MultiAssignAST(): ASTBase<MultiAssignAST, schema::HadronMultiAssignASTSchema, AST>() {}
+    MultiAssignAST(): ASTBase<MultiAssignAST, schema::HadronMultiAssignASTSchema, AST>() { }
     explicit MultiAssignAST(schema::HadronMultiAssignASTSchema* instance):
-            ASTBase<MultiAssignAST, schema::HadronMultiAssignASTSchema, AST>(instance) {}
-    explicit MultiAssignAST(Slot instance): 
-            ASTBase<MultiAssignAST, schema::HadronMultiAssignASTSchema, AST>(instance) {}
-    ~MultiAssignAST() {}
+        ASTBase<MultiAssignAST, schema::HadronMultiAssignASTSchema, AST>(instance) { }
+    explicit MultiAssignAST(Slot instance):
+        ASTBase<MultiAssignAST, schema::HadronMultiAssignASTSchema, AST>(instance) { }
+    ~MultiAssignAST() { }
 
     static inline MultiAssignAST makeMultiAssign(ThreadContext* context) {
         auto multiAssignAST = MultiAssignAST::alloc(context);
@@ -253,11 +249,11 @@ public:
 
 class NameAST : public ASTBase<NameAST, schema::HadronNameASTSchema, AST> {
 public:
-    NameAST(): ASTBase<NameAST, schema::HadronNameASTSchema, AST>() {}
+    NameAST(): ASTBase<NameAST, schema::HadronNameASTSchema, AST>() { }
     explicit NameAST(schema::HadronNameASTSchema* instance):
-            ASTBase<NameAST, schema::HadronNameASTSchema, AST>(instance) {}
-    explicit NameAST(Slot instance): ASTBase<NameAST, schema::HadronNameASTSchema, AST>(instance) {}
-    ~NameAST() {}
+        ASTBase<NameAST, schema::HadronNameASTSchema, AST>(instance) { }
+    explicit NameAST(Slot instance): ASTBase<NameAST, schema::HadronNameASTSchema, AST>(instance) { }
+    ~NameAST() { }
 
     static inline NameAST makeName(ThreadContext* context, Symbol n) {
         auto nameAST = NameAST::alloc(context);
@@ -271,11 +267,11 @@ public:
 
 class WhileAST : public ASTBase<WhileAST, schema::HadronWhileASTSchema, AST> {
 public:
-    WhileAST(): ASTBase<WhileAST, schema::HadronWhileASTSchema, AST>() {}
+    WhileAST(): ASTBase<WhileAST, schema::HadronWhileASTSchema, AST>() { }
     explicit WhileAST(schema::HadronWhileASTSchema* instance):
-            ASTBase<WhileAST, schema::HadronWhileASTSchema, AST>(instance) {}
-    explicit WhileAST(Slot instance): ASTBase<WhileAST, schema::HadronWhileASTSchema, AST>(instance) {}
-    ~WhileAST() {}
+        ASTBase<WhileAST, schema::HadronWhileASTSchema, AST>(instance) { }
+    explicit WhileAST(Slot instance): ASTBase<WhileAST, schema::HadronWhileASTSchema, AST>(instance) { }
+    ~WhileAST() { }
 
     static inline WhileAST makeWhile(ThreadContext* context) {
         auto whileAST = WhileAST::alloc(context);

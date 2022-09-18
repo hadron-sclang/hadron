@@ -68,7 +68,8 @@ private:
             }
 
             value = dub;
-        } return;
+        }
+            return;
 
         case TypeFlags::kIntegerFlag:
             value = slot.getInt32();
@@ -92,7 +93,8 @@ private:
         case TypeFlags::kSymbolFlag: {
             auto symbol = library::Symbol(context, slot);
             value.SetString(symbol.view(context).data(), alloc);
-        } return;
+        }
+            return;
 
         // encode as an object of type "Char"
         case TypeFlags::kCharFlag: {
@@ -101,7 +103,8 @@ private:
             rapidjson::Value charValue;
             charValue.SetString(fmt::format("{}", slot.getChar()).data(), alloc);
             value.AddMember("value", charValue, alloc);
-        } return;
+        }
+            return;
 
         // TODO
         case TypeFlags::kRawPointerFlag:
@@ -145,7 +148,7 @@ private:
         auto classDef = context->classLibrary->findClassNamed(className);
         if (!classDef) {
             SPDLOG_ERROR("failed to look up class '{}', name hash 0x{:08x} in class library", className.view(context),
-                    className.hash());
+                         className.hash());
             assert(false);
             return;
         }
@@ -251,9 +254,9 @@ private:
     }
 };
 
-SlotDumpJSON::SlotDumpJSON(): m_impl(std::make_unique<SlotDumpJSON::Impl>()) {}
+SlotDumpJSON::SlotDumpJSON(): m_impl(std::make_unique<SlotDumpJSON::Impl>()) { }
 
-SlotDumpJSON::~SlotDumpJSON() {}
+SlotDumpJSON::~SlotDumpJSON() { }
 
 void SlotDumpJSON::dump(ThreadContext* context, Slot slot, bool prettyPrint) {
     m_impl->dump(context, slot, prettyPrint);

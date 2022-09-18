@@ -11,16 +11,14 @@
 #include "hadron/library/Symbol.hpp"
 #include "hadron/schema/HLang/HadronHIRSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
-template<typename T, typename S, typename B>
-class HIRBase : public Object<T, S> {
+template <typename T, typename S, typename B> class HIRBase : public Object<T, S> {
 public:
-    HIRBase(): Object<T, S>() {}
-    explicit HIRBase(S* instance): Object<T, S>(instance) {}
-    explicit HIRBase(Slot instance): Object<T, S>(instance) {}
-    ~HIRBase() {}
+    HIRBase(): Object<T, S>() { }
+    explicit HIRBase(S* instance): Object<T, S>(instance) { }
+    explicit HIRBase(Slot instance): Object<T, S>(instance) { }
+    ~HIRBase() { }
 
     B toBase() const {
         const T& t = static_cast<const T&>(*this);
@@ -80,15 +78,14 @@ protected:
         t.setReads(TypedIdentSet<HIRId>::makeTypedIdentSet(context));
         t.setConsumers(TypedIdentSet<B>::makeTypedIdentSet(context));
     }
-
 };
 
 class HIR : public HIRBase<HIR, schema::HadronHIRSchema, HIR> {
 public:
-    HIR(): HIRBase<HIR, schema::HadronHIRSchema, HIR>() {}
-    explicit HIR(schema::HadronHIRSchema* instance): HIRBase<HIR, schema::HadronHIRSchema, HIR>(instance) {}
-    explicit HIR(Slot instance): HIRBase<HIR, schema::HadronHIRSchema, HIR>(instance) {}
-    ~HIR() {}
+    HIR(): HIRBase<HIR, schema::HadronHIRSchema, HIR>() { }
+    explicit HIR(schema::HadronHIRSchema* instance): HIRBase<HIR, schema::HadronHIRSchema, HIR>(instance) { }
+    explicit HIR(Slot instance): HIRBase<HIR, schema::HadronHIRSchema, HIR>(instance) { }
+    ~HIR() { }
 
     // Recommended way to set the id in |id| member. Allows the HIR object to modify the proposed value type. For
     // convenience returns |value| as recorded within this object. Can return nil, which indicates that this operation /
@@ -98,12 +95,12 @@ public:
 
 class BlockLiteralHIR : public HIRBase<BlockLiteralHIR, schema::HadronBlockLiteralHIRSchema, HIR> {
 public:
-    BlockLiteralHIR(): HIRBase<BlockLiteralHIR, schema::HadronBlockLiteralHIRSchema, HIR>() {}
+    BlockLiteralHIR(): HIRBase<BlockLiteralHIR, schema::HadronBlockLiteralHIRSchema, HIR>() { }
     explicit BlockLiteralHIR(schema::HadronBlockLiteralHIRSchema* instance):
-            HIRBase<BlockLiteralHIR, schema::HadronBlockLiteralHIRSchema, HIR>(instance) {}
+        HIRBase<BlockLiteralHIR, schema::HadronBlockLiteralHIRSchema, HIR>(instance) { }
     explicit BlockLiteralHIR(Slot instance):
-            HIRBase<BlockLiteralHIR, schema::HadronBlockLiteralHIRSchema, HIR>(instance) {}
-    ~BlockLiteralHIR() {}
+        HIRBase<BlockLiteralHIR, schema::HadronBlockLiteralHIRSchema, HIR>(instance) { }
+    ~BlockLiteralHIR() { }
 
     static BlockLiteralHIR makeBlockLiteralHIR(ThreadContext* context) {
         auto blockLiteralHIR = BlockLiteralHIR::alloc(context);
@@ -120,11 +117,11 @@ public:
 
 class BranchHIR : public HIRBase<BranchHIR, schema::HadronBranchHIRSchema, HIR> {
 public:
-    BranchHIR(): HIRBase<BranchHIR, schema::HadronBranchHIRSchema, HIR>() {}
+    BranchHIR(): HIRBase<BranchHIR, schema::HadronBranchHIRSchema, HIR>() { }
     explicit BranchHIR(schema::HadronBranchHIRSchema* instance):
-            HIRBase<BranchHIR, schema::HadronBranchHIRSchema, HIR>(instance) {}
-    explicit BranchHIR(Slot instance): HIRBase<BranchHIR, schema::HadronBranchHIRSchema, HIR>(instance) {}
-    ~BranchHIR() {}
+        HIRBase<BranchHIR, schema::HadronBranchHIRSchema, HIR>(instance) { }
+    explicit BranchHIR(Slot instance): HIRBase<BranchHIR, schema::HadronBranchHIRSchema, HIR>(instance) { }
+    ~BranchHIR() { }
 
     static BranchHIR makeBranchHIR(ThreadContext* context) {
         auto branchHIR = BranchHIR::alloc(context);
@@ -138,12 +135,12 @@ public:
 
 class BranchIfTrueHIR : public HIRBase<BranchIfTrueHIR, schema::HadronBranchIfTrueHIRSchema, HIR> {
 public:
-    BranchIfTrueHIR(): HIRBase<BranchIfTrueHIR, schema::HadronBranchIfTrueHIRSchema, HIR>() {}
+    BranchIfTrueHIR(): HIRBase<BranchIfTrueHIR, schema::HadronBranchIfTrueHIRSchema, HIR>() { }
     explicit BranchIfTrueHIR(schema::HadronBranchIfTrueHIRSchema* instance):
-            HIRBase<BranchIfTrueHIR, schema::HadronBranchIfTrueHIRSchema, HIR>(instance) {}
+        HIRBase<BranchIfTrueHIR, schema::HadronBranchIfTrueHIRSchema, HIR>(instance) { }
     explicit BranchIfTrueHIR(Slot instance):
-            HIRBase<BranchIfTrueHIR, schema::HadronBranchIfTrueHIRSchema, HIR>(instance) {}
-    ~BranchIfTrueHIR() {}
+        HIRBase<BranchIfTrueHIR, schema::HadronBranchIfTrueHIRSchema, HIR>(instance) { }
+    ~BranchIfTrueHIR() { }
 
     static BranchIfTrueHIR makeBranchIfTrueHIR(ThreadContext* context, HIRId conditionId) {
         auto branchIfTrueHIR = BranchIfTrueHIR::alloc(context);
@@ -162,11 +159,11 @@ public:
 
 class ConstantHIR : public HIRBase<ConstantHIR, schema::HadronConstantHIRSchema, HIR> {
 public:
-    ConstantHIR(): HIRBase<ConstantHIR, schema::HadronConstantHIRSchema, HIR>() {}
+    ConstantHIR(): HIRBase<ConstantHIR, schema::HadronConstantHIRSchema, HIR>() { }
     explicit ConstantHIR(schema::HadronConstantHIRSchema* instance):
-            HIRBase<ConstantHIR, schema::HadronConstantHIRSchema, HIR>(instance) {}
-    explicit ConstantHIR(Slot instance): HIRBase<ConstantHIR, schema::HadronConstantHIRSchema, HIR>(instance) {}
-    ~ConstantHIR() {}
+        HIRBase<ConstantHIR, schema::HadronConstantHIRSchema, HIR>(instance) { }
+    explicit ConstantHIR(Slot instance): HIRBase<ConstantHIR, schema::HadronConstantHIRSchema, HIR>(instance) { }
+    ~ConstantHIR() { }
 
     static ConstantHIR makeConstantHIR(ThreadContext* context, Slot constantValue) {
         auto constantHIR = ConstantHIR::alloc(context);
@@ -181,12 +178,12 @@ public:
 
 class LoadOuterFrameHIR : public HIRBase<LoadOuterFrameHIR, schema::HadronLoadOuterFrameHIRSchema, HIR> {
 public:
-    LoadOuterFrameHIR(): HIRBase<LoadOuterFrameHIR, schema::HadronLoadOuterFrameHIRSchema, HIR>() {}
+    LoadOuterFrameHIR(): HIRBase<LoadOuterFrameHIR, schema::HadronLoadOuterFrameHIRSchema, HIR>() { }
     explicit LoadOuterFrameHIR(schema::HadronLoadOuterFrameHIRSchema* instance):
-            HIRBase<LoadOuterFrameHIR, schema::HadronLoadOuterFrameHIRSchema, HIR>(instance) {}
+        HIRBase<LoadOuterFrameHIR, schema::HadronLoadOuterFrameHIRSchema, HIR>(instance) { }
     explicit LoadOuterFrameHIR(Slot instance):
-            HIRBase<LoadOuterFrameHIR, schema::HadronLoadOuterFrameHIRSchema, HIR>(instance) {}
-    ~LoadOuterFrameHIR() {}
+        HIRBase<LoadOuterFrameHIR, schema::HadronLoadOuterFrameHIRSchema, HIR>(instance) { }
+    ~LoadOuterFrameHIR() { }
 
     static LoadOuterFrameHIR makeOuterFrameHIR(ThreadContext* context, HIRId inner) {
         auto loadOuterFrameHIR = LoadOuterFrameHIR::alloc(context);
@@ -204,18 +201,18 @@ public:
 
 class MessageHIR : public HIRBase<MessageHIR, schema::HadronMessageHIRSchema, HIR> {
 public:
-    MessageHIR(): HIRBase<MessageHIR, schema::HadronMessageHIRSchema, HIR>() {}
+    MessageHIR(): HIRBase<MessageHIR, schema::HadronMessageHIRSchema, HIR>() { }
     explicit MessageHIR(schema::HadronMessageHIRSchema* instance):
-            HIRBase<MessageHIR, schema::HadronMessageHIRSchema, HIR>(instance) {}
-    explicit MessageHIR(Slot instance): HIRBase<MessageHIR, schema::HadronMessageHIRSchema, HIR>(instance) {}
-    ~MessageHIR() {}
+        HIRBase<MessageHIR, schema::HadronMessageHIRSchema, HIR>(instance) { }
+    explicit MessageHIR(Slot instance): HIRBase<MessageHIR, schema::HadronMessageHIRSchema, HIR>(instance) { }
+    ~MessageHIR() { }
 
     static MessageHIR makeMessageHIR(ThreadContext* context) {
         auto messageHIR = MessageHIR::alloc(context);
         messageHIR.initBase(context, TypeFlags::kAllFlags);
         return messageHIR;
     }
- 
+
     void addArgument(ThreadContext* context, HIRId arg) {
         reads().typedAdd(context, arg);
         setArguments(arguments().typedAdd(context, arg));
@@ -239,12 +236,12 @@ public:
 
 class MethodReturnHIR : public HIRBase<MethodReturnHIR, schema::HadronMethodReturnHIRSchema, HIR> {
 public:
-    MethodReturnHIR(): HIRBase<MethodReturnHIR, schema::HadronMethodReturnHIRSchema, HIR>() {}
+    MethodReturnHIR(): HIRBase<MethodReturnHIR, schema::HadronMethodReturnHIRSchema, HIR>() { }
     explicit MethodReturnHIR(schema::HadronMethodReturnHIRSchema* instance):
-            HIRBase<MethodReturnHIR, schema::HadronMethodReturnHIRSchema, HIR>(instance) {}
+        HIRBase<MethodReturnHIR, schema::HadronMethodReturnHIRSchema, HIR>(instance) { }
     explicit MethodReturnHIR(Slot instance):
-            HIRBase<MethodReturnHIR, schema::HadronMethodReturnHIRSchema, HIR>(instance) {}
-    ~MethodReturnHIR() {}
+        HIRBase<MethodReturnHIR, schema::HadronMethodReturnHIRSchema, HIR>(instance) { }
+    ~MethodReturnHIR() { }
 
     static MethodReturnHIR makeMethodReturnHIR(ThreadContext* context) {
         auto methodReturnHIR = MethodReturnHIR::alloc(context);
@@ -255,10 +252,11 @@ public:
 
 class PhiHIR : public HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR> {
 public:
-    PhiHIR(): HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR>() {}
-    explicit PhiHIR(schema::HadronPhiHIRSchema* instance): HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR>(instance) {}
-    explicit PhiHIR(Slot instance): HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR>(instance) {}
-    ~PhiHIR() {}
+    PhiHIR(): HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR>() { }
+    explicit PhiHIR(schema::HadronPhiHIRSchema* instance):
+        HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR>(instance) { }
+    explicit PhiHIR(Slot instance): HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR>(instance) { }
+    ~PhiHIR() { }
 
     static PhiHIR makePhiHIR(ThreadContext* context) {
         auto phiHIR = PhiHIR::alloc(context);
@@ -284,12 +282,12 @@ public:
 
 class ReadFromClassHIR : public HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR> {
 public:
-    ReadFromClassHIR(): HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR>() {}
+    ReadFromClassHIR(): HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR>() { }
     explicit ReadFromClassHIR(schema::HadronReadFromClassHIRSchema* instance):
-            HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR>(instance) {}
+        HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR>(instance) { }
     explicit ReadFromClassHIR(Slot instance):
-            HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR>(instance) {}
-    ~ReadFromClassHIR() {}
+        HIRBase<ReadFromClassHIR, schema::HadronReadFromClassHIRSchema, HIR>(instance) { }
+    ~ReadFromClassHIR() { }
 
     static ReadFromClassHIR makeReadFromClassHIR(ThreadContext* context, HIRId classArray, int32_t index, Symbol name) {
         auto readFromClassHIR = ReadFromClassHIR::alloc(context);
@@ -313,12 +311,12 @@ public:
 
 class ReadFromContextHIR : public HIRBase<ReadFromContextHIR, schema::HadronReadFromContextHIRSchema, HIR> {
 public:
-    ReadFromContextHIR(): HIRBase<ReadFromContextHIR, schema::HadronReadFromContextHIRSchema, HIR>() {}
+    ReadFromContextHIR(): HIRBase<ReadFromContextHIR, schema::HadronReadFromContextHIRSchema, HIR>() { }
     explicit ReadFromContextHIR(schema::HadronReadFromContextHIRSchema* instance):
-            HIRBase<ReadFromContextHIR, schema::HadronReadFromContextHIRSchema, HIR>(instance) {}
+        HIRBase<ReadFromContextHIR, schema::HadronReadFromContextHIRSchema, HIR>(instance) { }
     explicit ReadFromContextHIR(Slot instance):
-            HIRBase<ReadFromContextHIR, schema::HadronReadFromContextHIRSchema, HIR>(instance) {}
-    ~ReadFromContextHIR() {}
+        HIRBase<ReadFromContextHIR, schema::HadronReadFromContextHIRSchema, HIR>(instance) { }
+    ~ReadFromContextHIR() { }
 
     static ReadFromContextHIR makeReadFromContextHIR(ThreadContext* context, int32_t off, Symbol name) {
         auto readFromContextHIR = ReadFromContextHIR::alloc(context);
@@ -337,16 +335,16 @@ public:
 
 class ReadFromFrameHIR : public HIRBase<ReadFromFrameHIR, schema::HadronReadFromFrameHIRSchema, HIR> {
 public:
-    ReadFromFrameHIR(): HIRBase<ReadFromFrameHIR, schema::HadronReadFromFrameHIRSchema, HIR>() {}
+    ReadFromFrameHIR(): HIRBase<ReadFromFrameHIR, schema::HadronReadFromFrameHIRSchema, HIR>() { }
     explicit ReadFromFrameHIR(schema::HadronReadFromFrameHIRSchema* instance):
-            HIRBase<ReadFromFrameHIR, schema::HadronReadFromFrameHIRSchema, HIR>(instance) {}
+        HIRBase<ReadFromFrameHIR, schema::HadronReadFromFrameHIRSchema, HIR>(instance) { }
     explicit ReadFromFrameHIR(Slot instance):
-            HIRBase<ReadFromFrameHIR, schema::HadronReadFromFrameHIRSchema, HIR>(instance) {}
-    ~ReadFromFrameHIR() {}
+        HIRBase<ReadFromFrameHIR, schema::HadronReadFromFrameHIRSchema, HIR>(instance) { }
+    ~ReadFromFrameHIR() { }
 
     // If |framePointer| is nil this will use the current active frame pointer.
     static ReadFromFrameHIR makeReadFromFrameHIR(ThreadContext* context, int32_t index, HIRId framePointer,
-            Symbol name) {
+                                                 Symbol name) {
         auto readFromFrameHIR = ReadFromFrameHIR::alloc(context);
         readFromFrameHIR.initBase(context, TypeFlags::kAllFlags);
         readFromFrameHIR.setFrameIndex(index);
@@ -370,12 +368,12 @@ public:
 
 class ReadFromThisHIR : public HIRBase<ReadFromThisHIR, schema::HadronReadFromThisHIRSchema, HIR> {
 public:
-    ReadFromThisHIR(): HIRBase<ReadFromThisHIR, schema::HadronReadFromThisHIRSchema, HIR>() {}
+    ReadFromThisHIR(): HIRBase<ReadFromThisHIR, schema::HadronReadFromThisHIRSchema, HIR>() { }
     explicit ReadFromThisHIR(schema::HadronReadFromThisHIRSchema* instance):
-            HIRBase<ReadFromThisHIR, schema::HadronReadFromThisHIRSchema, HIR>(instance) {}
+        HIRBase<ReadFromThisHIR, schema::HadronReadFromThisHIRSchema, HIR>(instance) { }
     explicit ReadFromThisHIR(Slot instance):
-            HIRBase<ReadFromThisHIR, schema::HadronReadFromThisHIRSchema, HIR>(instance) {}
-    ~ReadFromThisHIR() {}
+        HIRBase<ReadFromThisHIR, schema::HadronReadFromThisHIRSchema, HIR>(instance) { }
+    ~ReadFromThisHIR() { }
 
     // TODO: lots of redundant naming here, maybe move the make* methods outside of the classes? They aren't accessing
     // anything private..
@@ -401,12 +399,12 @@ public:
 
 class RouteToSuperclassHIR : public HIRBase<RouteToSuperclassHIR, schema::HadronRouteToSuperclassHIRSchema, HIR> {
 public:
-    RouteToSuperclassHIR(): HIRBase<RouteToSuperclassHIR, schema::HadronRouteToSuperclassHIRSchema, HIR>() {}
+    RouteToSuperclassHIR(): HIRBase<RouteToSuperclassHIR, schema::HadronRouteToSuperclassHIRSchema, HIR>() { }
     explicit RouteToSuperclassHIR(schema::HadronRouteToSuperclassHIRSchema* instance):
-            HIRBase<RouteToSuperclassHIR, schema::HadronRouteToSuperclassHIRSchema, HIR>(instance) {}
+        HIRBase<RouteToSuperclassHIR, schema::HadronRouteToSuperclassHIRSchema, HIR>(instance) { }
     explicit RouteToSuperclassHIR(Slot instance):
-            HIRBase<RouteToSuperclassHIR, schema::HadronRouteToSuperclassHIRSchema, HIR>(instance) {}
-    ~RouteToSuperclassHIR() {}
+        HIRBase<RouteToSuperclassHIR, schema::HadronRouteToSuperclassHIRSchema, HIR>(instance) { }
+    ~RouteToSuperclassHIR() { }
 
     static RouteToSuperclassHIR makeRouteToSuperclassHIR(ThreadContext* context, HIRId tId) {
         auto routeToSuperclassHIR = RouteToSuperclassHIR::alloc(context);
@@ -422,12 +420,12 @@ public:
 
 class StoreReturnHIR : public HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR> {
 public:
-    StoreReturnHIR(): HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR>() {}
+    StoreReturnHIR(): HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR>() { }
     explicit StoreReturnHIR(schema::HadronStoreReturnHIRSchema* instance):
-            HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR>(instance) {}
+        HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR>(instance) { }
     explicit StoreReturnHIR(Slot instance):
-            HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR>(instance) {}
-    ~StoreReturnHIR() {}
+        HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR>(instance) { }
+    ~StoreReturnHIR() { }
 
     static StoreReturnHIR makeStoreReturnHIR(ThreadContext* context, HIRId retVal) {
         auto storeReturnHIR = StoreReturnHIR::alloc(context);
@@ -443,15 +441,15 @@ public:
 
 class WriteToClassHIR : public HIRBase<WriteToClassHIR, schema::HadronWriteToClassHIRSchema, HIR> {
 public:
-    WriteToClassHIR(): HIRBase<WriteToClassHIR, schema::HadronWriteToClassHIRSchema, HIR>() {}
+    WriteToClassHIR(): HIRBase<WriteToClassHIR, schema::HadronWriteToClassHIRSchema, HIR>() { }
     explicit WriteToClassHIR(schema::HadronWriteToClassHIRSchema* instance):
-            HIRBase<WriteToClassHIR, schema::HadronWriteToClassHIRSchema, HIR>(instance) {}
+        HIRBase<WriteToClassHIR, schema::HadronWriteToClassHIRSchema, HIR>(instance) { }
     explicit WriteToClassHIR(Slot instance):
-            HIRBase<WriteToClassHIR, schema::HadronWriteToClassHIRSchema, HIR>(instance) {}
-    ~WriteToClassHIR() {}
+        HIRBase<WriteToClassHIR, schema::HadronWriteToClassHIRSchema, HIR>(instance) { }
+    ~WriteToClassHIR() { }
 
     static WriteToClassHIR makeWriteToClassHIR(ThreadContext* context, HIRId classArray, int32_t index, Symbol name,
-            HIRId v) {
+                                               HIRId v) {
         auto writeToClassHIR = WriteToClassHIR::alloc(context);
         writeToClassHIR.initBase(context, TypeFlags::kNoFlags);
         writeToClassHIR.setClassVariableArray(classArray);
@@ -478,15 +476,15 @@ public:
 
 class WriteToFrameHIR : public HIRBase<WriteToFrameHIR, schema::HadronWriteToFrameHIRSchema, HIR> {
 public:
-    WriteToFrameHIR(): HIRBase<WriteToFrameHIR, schema::HadronWriteToFrameHIRSchema, HIR>() {}
+    WriteToFrameHIR(): HIRBase<WriteToFrameHIR, schema::HadronWriteToFrameHIRSchema, HIR>() { }
     explicit WriteToFrameHIR(schema::HadronWriteToFrameHIRSchema* instance):
-            HIRBase<WriteToFrameHIR, schema::HadronWriteToFrameHIRSchema, HIR>(instance) {}
+        HIRBase<WriteToFrameHIR, schema::HadronWriteToFrameHIRSchema, HIR>(instance) { }
     explicit WriteToFrameHIR(Slot instance):
-            HIRBase<WriteToFrameHIR, schema::HadronWriteToFrameHIRSchema, HIR>(instance) {}
-    ~WriteToFrameHIR() {}
+        HIRBase<WriteToFrameHIR, schema::HadronWriteToFrameHIRSchema, HIR>(instance) { }
+    ~WriteToFrameHIR() { }
 
     static WriteToFrameHIR makeWriteToFrameHIR(ThreadContext* context, int32_t index, HIRId framePointer, Symbol name,
-            HIRId v) {
+                                               HIRId v) {
         auto writeToFrameHIR = WriteToFrameHIR::alloc(context);
         writeToFrameHIR.initBase(context, TypeFlags::kNoFlags);
         writeToFrameHIR.setFrameIndex(index);
@@ -515,12 +513,12 @@ public:
 
 class WriteToThisHIR : public HIRBase<WriteToThisHIR, schema::HadronWriteToThisHIRSchema, HIR> {
 public:
-    WriteToThisHIR(): HIRBase<WriteToThisHIR, schema::HadronWriteToThisHIRSchema, HIR>() {}
+    WriteToThisHIR(): HIRBase<WriteToThisHIR, schema::HadronWriteToThisHIRSchema, HIR>() { }
     explicit WriteToThisHIR(schema::HadronWriteToThisHIRSchema* instance):
-            HIRBase<WriteToThisHIR, schema::HadronWriteToThisHIRSchema, HIR>(instance) {}
+        HIRBase<WriteToThisHIR, schema::HadronWriteToThisHIRSchema, HIR>(instance) { }
     explicit WriteToThisHIR(Slot instance):
-            HIRBase<WriteToThisHIR, schema::HadronWriteToThisHIRSchema, HIR>(instance) {}
-    ~WriteToThisHIR() {}
+        HIRBase<WriteToThisHIR, schema::HadronWriteToThisHIRSchema, HIR>(instance) { }
+    ~WriteToThisHIR() { }
 
     static WriteToThisHIR makeWriteToThisHIR(ThreadContext* context, HIRId tID, int32_t idx, Symbol name, HIRId v) {
         auto writeToThisHIR = WriteToThisHIR::alloc(context);

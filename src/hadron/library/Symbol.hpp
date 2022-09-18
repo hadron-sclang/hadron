@@ -20,12 +20,15 @@ class String;
 class Symbol {
 public:
     // Make an empty symbol.
-    Symbol(): m_slot(Slot::makeNil()) {}
-    Symbol(const Symbol& s): m_slot(s.m_slot) {}
-    Symbol& operator=(const Symbol& s) { m_slot = s.m_slot; return *this; }
+    Symbol(): m_slot(Slot::makeNil()) { }
+    Symbol(const Symbol& s): m_slot(s.m_slot) { }
+    Symbol& operator=(const Symbol& s) {
+        m_slot = s.m_slot;
+        return *this;
+    }
     // Asserts that s is either nil or a valid hash in the symbol table.
     Symbol(ThreadContext* context, Slot s);
-    ~Symbol() {}
+    ~Symbol() { }
 
     // Creates a new symbol from the string_view |v|, if not already defined.
     static Symbol fromView(ThreadContext* context, std::string_view v);
@@ -45,7 +48,7 @@ public:
     explicit inline operator bool() const { return !isNil(); }
 
 private:
-    Symbol(Hash h): m_slot(Slot::makeSymbol(h)) {}
+    Symbol(Hash h): m_slot(Slot::makeSymbol(h)) { }
     Slot m_slot;
 };
 
@@ -54,11 +57,8 @@ private:
 
 namespace std {
 
-template<>
-struct hash<hadron::library::Symbol> {
-    size_t operator()(const hadron::library::Symbol& s) const {
-        return static_cast<size_t>(s.hash());
-    }
+template <> struct hash<hadron::library::Symbol> {
+    size_t operator()(const hadron::library::Symbol& s) const { return static_cast<size_t>(s.hash()); }
 };
 
 } // namespace std

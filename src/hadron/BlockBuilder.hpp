@@ -28,11 +28,11 @@ public:
 
 private:
     library::CFGFrame buildFrame(ThreadContext* context, const library::BlockAST blockAST,
-            library::BlockLiteralHIR outerBlockHIR, bool returnFinalValue);
+                                 library::BlockLiteralHIR outerBlockHIR, bool returnFinalValue);
 
     // Re-uses the containing stack frame but produces a new scope.
     library::CFGScope buildInlineBlock(ThreadContext* context, library::CFGScope parentScope,
-            library::CFGBlock predecessor, const library::BlockAST blockAST);
+                                       library::CFGBlock predecessor, const library::BlockAST blockAST);
 
     library::HIRId buildValue(ThreadContext* context, const library::AST ast);
     library::HIRId buildFinalValue(ThreadContext* context, const library::SequenceAST sequence);

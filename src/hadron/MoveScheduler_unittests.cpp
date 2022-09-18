@@ -94,9 +94,9 @@ TEST_CASE_FIXTURE(LibraryTestFixture, "MoveScheduler") {
     SUBCASE("multiple independent moves") {
         VirtualJIT jit;
         auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
-        moves.typedPut(context(), library::Integer(-3), library::Integer( 2));
-        moves.typedPut(context(), library::Integer( 9), library::Integer( 7));
-        moves.typedPut(context(), library::Integer( 3), library::Integer(-1));
+        moves.typedPut(context(), library::Integer(-3), library::Integer(2));
+        moves.typedPut(context(), library::Integer(9), library::Integer(7));
+        moves.typedPut(context(), library::Integer(3), library::Integer(-1));
         MoveScheduler ms;
         std::array<int8_t, 32> jitBuffer;
         jit.begin(jitBuffer.data(), jitBuffer.size());
@@ -166,8 +166,8 @@ TEST_CASE_FIXTURE(LibraryTestFixture, "MoveScheduler") {
     SUBCASE("Three Chain Through Spill") {
         VirtualJIT jit;
         auto moves = library::TypedIdentDict<library::Integer, library::Integer>::makeTypedIdentDict(context());
-        moves.typedPut(context(), library::Integer( 0), library::Integer(3));
-        moves.typedPut(context(), library::Integer( 3), library::Integer(1));
+        moves.typedPut(context(), library::Integer(0), library::Integer(3));
+        moves.typedPut(context(), library::Integer(3), library::Integer(1));
         moves.typedPut(context(), library::Integer(-1), library::Integer(0));
         MoveScheduler ms;
         std::array<int8_t, 32> jitBuffer;
@@ -233,7 +233,7 @@ TEST_CASE_FIXTURE(LibraryTestFixture, "MoveScheduler") {
         size_t finalSize = 0;
         jit.end(&finalSize);
 
-        std::array<bool, 4> regSet{false, false, false, false};
+        std::array<bool, 4> regSet { false, false, false, false };
 
         // Instructions should be all xor operations and every target register should be set at least once.
         OpcodeReadIterator it(jitBuffer.data(), jitBuffer.size());

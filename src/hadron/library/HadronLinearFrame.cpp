@@ -1,7 +1,6 @@
 #include "hadron/library/HadronLinearFrame.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 VReg LinearFrame::append(ThreadContext* context, HIRId hirId, LIR lir, TypedArray<LIR>& lirArray) {
     VReg value;

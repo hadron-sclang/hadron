@@ -1,7 +1,6 @@
 #include "hadron/library/HadronLifetimeInterval.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 void LifetimeInterval::addLiveRange(ThreadContext* context, int32_t from, int32_t to) {
     // Valid ranges only please.
@@ -136,11 +135,15 @@ bool LifetimeInterval::findFirstIntersection(const LifetimeInterval lt, int32_t&
         if (a.to().int32() <= b.from().int32()) {
             // If a ends before b begins, advance to next a.
             ++aIndex;
-            if (aIndex < ranges().size()) { a = ranges().typedAt(aIndex); }
+            if (aIndex < ranges().size()) {
+                a = ranges().typedAt(aIndex);
+            }
         } else if (b.to().int32() <= a.from().int32()) {
             // If b ends before a begins, advance to next b.
             ++bIndex;
-            if (bIndex < lt.ranges().size()) { b = lt.ranges().typedAt(bIndex); }
+            if (bIndex < lt.ranges().size()) {
+                b = lt.ranges().typedAt(bIndex);
+            }
         } else {
             // Intersection is after both a and b have started.
             first = std::max(a.from().int32(), b.from().int32());

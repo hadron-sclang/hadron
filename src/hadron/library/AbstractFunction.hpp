@@ -4,16 +4,14 @@
 #include "hadron/library/Object.hpp"
 #include "hadron/schema/Common/Core/AbstractFunctionSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
-template<typename T, typename S>
-class AbstractFunction : public Object<T, S> {
+template <typename T, typename S> class AbstractFunction : public Object<T, S> {
 public:
-    AbstractFunction(): Object<T, S>() {}
-    explicit AbstractFunction(S* instance): Object<T, S>(instance) {}
-    explicit AbstractFunction(Slot instance): Object<T, S>(instance) {}
-    ~AbstractFunction() {}
+    AbstractFunction(): Object<T, S>() { }
+    explicit AbstractFunction(S* instance): Object<T, S>(instance) { }
+    explicit AbstractFunction(Slot instance): Object<T, S>(instance) { }
+    ~AbstractFunction() { }
 };
 
 } // namespace library

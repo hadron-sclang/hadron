@@ -10,16 +10,15 @@
 #include "hadron/library/Symbol.hpp"
 #include "hadron/schema/HLang/HadronBuildArtifactsSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 class BuildArtifacts : public Object<BuildArtifacts, schema::HadronBuildArtifactsSchema> {
 public:
-    BuildArtifacts(): Object<BuildArtifacts, schema::HadronBuildArtifactsSchema>() {}
+    BuildArtifacts(): Object<BuildArtifacts, schema::HadronBuildArtifactsSchema>() { }
     explicit BuildArtifacts(schema::HadronBuildArtifactsSchema* instance):
-            Object<BuildArtifacts, schema::HadronBuildArtifactsSchema>(instance) {}
-    explicit BuildArtifacts(Slot instance): Object<BuildArtifacts, schema::HadronBuildArtifactsSchema>(instance) {}
-    ~BuildArtifacts() {}
+        Object<BuildArtifacts, schema::HadronBuildArtifactsSchema>(instance) { }
+    explicit BuildArtifacts(Slot instance): Object<BuildArtifacts, schema::HadronBuildArtifactsSchema>(instance) { }
+    ~BuildArtifacts() { }
 
     static BuildArtifacts make(ThreadContext* context) {
         auto buildArtifacts = BuildArtifacts::alloc(context);

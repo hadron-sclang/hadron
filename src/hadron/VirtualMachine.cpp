@@ -16,8 +16,7 @@ namespace {
 // CPUs don't assume the signedness of the values in their registers until performing a signed or unsigned
 // operation on the contents. To simulate this we need a portable way of recontextualizing the bits in a register
 // as signed or unsigned.
-template<typename A, typename B>
-inline B signCast(A a) {
+template <typename A, typename B> inline B signCast(A a) {
     B b;
     static_assert(sizeof(A) == sizeof(B));
     std::memcpy(&b, &a, sizeof(A));
@@ -34,7 +33,9 @@ void VirtualMachine::executeMachineCode(ThreadContext* context, const int8_t* en
     writeGPR(JIT::Reg(0), 0);
 
     auto codeArray = resolveCodePointer(context, entryCode);
-    if (!codeArray) { return; }
+    if (!codeArray) {
+        return;
+    }
     size_t size = codeArray.size() - (entryCode - codeArray.start());
 
     auto iter = OpcodeReadIterator(entryCode, size);
@@ -43,95 +44,159 @@ void VirtualMachine::executeMachineCode(ThreadContext* context, const int8_t* en
         switch (opcode) {
         case kLoadCArgs2: {
             JIT::Reg regArg1, regArg2;
-            if (!iter.loadCArgs2(regArg1, regArg2)) { return; }
-            if (!writeGPR(regArg1, reinterpret_cast<UWord>(context))) { return; }
-            if (!writeGPR(regArg2, reinterpret_cast<UWord>(targetCode))) { return; }
+            if (!iter.loadCArgs2(regArg1, regArg2)) {
+                return;
+            }
+            if (!writeGPR(regArg1, reinterpret_cast<UWord>(context))) {
+                return;
+            }
+            if (!writeGPR(regArg2, reinterpret_cast<UWord>(targetCode))) {
+                return;
+            }
         } break;
 
         case kAddr: {
             JIT::Reg regTarget, regA, regB;
-            if (!iter.addr(regTarget, regA, regB)) { return; }
+            if (!iter.addr(regTarget, regA, regB)) {
+                return;
+            }
             UWord a, b;
-            if (!readGPR(regA, a)) { return; }
-            if (!readGPR(regB, b)) { return; }
-            if (!writeGPR(regTarget, a + b)) { return; }
+            if (!readGPR(regA, a)) {
+                return;
+            }
+            if (!readGPR(regB, b)) {
+                return;
+            }
+            if (!writeGPR(regTarget, a + b)) {
+                return;
+            }
         } break;
 
         case kAddi: {
             JIT::Reg regTarget, regA;
             Word b;
-            if (!iter.addi(regTarget, regA, b)) { return; }
+            if (!iter.addi(regTarget, regA, b)) {
+                return;
+            }
             UWord a;
-            if (!readGPR(regA, a)) { return; }
-            if (!writeGPR(regTarget, signCast<Word, UWord>(signCast<Word, UWord>(a) + b))) { return; }
+            if (!readGPR(regA, a)) {
+                return;
+            }
+            if (!writeGPR(regTarget, signCast<Word, UWord>(signCast<Word, UWord>(a) + b))) {
+                return;
+            }
         } break;
 
         case kAndi: {
             JIT::Reg regTarget, regA;
             UWord b;
-            if (!iter.andi(regTarget, regA, b)) { return; }
+            if (!iter.andi(regTarget, regA, b)) {
+                return;
+            }
             UWord a;
-            if (!readGPR(regA, a)) { return; }
-            if (!writeGPR(regTarget, a & b)) { return; }
+            if (!readGPR(regA, a)) {
+                return;
+            }
+            if (!writeGPR(regTarget, a & b)) {
+                return;
+            }
         } break;
 
         case kOri: {
             JIT::Reg regTarget, regA;
             UWord b;
-            if (!iter.ori(regTarget, regA, b)) { return; }
+            if (!iter.ori(regTarget, regA, b)) {
+                return;
+            }
             UWord a;
-            if (!readGPR(regA, a)) { return; }
-            if (!writeGPR(regTarget, a | b)) { return; }
+            if (!readGPR(regA, a)) {
+                return;
+            }
+            if (!writeGPR(regTarget, a | b)) {
+                return;
+            }
         } break;
 
         case kXorr: {
             JIT::Reg regTarget, regA, regB;
-            if (!iter.xorr(regTarget, regA, regB)) { return; }
+            if (!iter.xorr(regTarget, regA, regB)) {
+                return;
+            }
             UWord a, b;
-            if (!readGPR(regA, a)) { return; }
-            if (!readGPR(regB, b)) { return; }
-            if (!writeGPR(regTarget, a ^ b)) { return; }
+            if (!readGPR(regA, a)) {
+                return;
+            }
+            if (!readGPR(regB, b)) {
+                return;
+            }
+            if (!writeGPR(regTarget, a ^ b)) {
+                return;
+            }
         } break;
 
         case kMovr: {
             JIT::Reg regTarget, regValue;
-            if (!iter.movr(regTarget, regValue)) { return; }
+            if (!iter.movr(regTarget, regValue)) {
+                return;
+            }
             UWord value;
-            if (!readGPR(regValue, value)) { return; }
-            if (!writeGPR(regTarget, value)) { return; }
+            if (!readGPR(regValue, value)) {
+                return;
+            }
+            if (!writeGPR(regTarget, value)) {
+                return;
+            }
         } break;
 
         case kMovi: {
             JIT::Reg regTarget;
             Word value;
-            if (!iter.movi(regTarget, value)) { return; }
-            if (!writeGPR(regTarget, signCast<Word, UWord>(value))) { return; }
+            if (!iter.movi(regTarget, value)) {
+                return;
+            }
+            if (!writeGPR(regTarget, signCast<Word, UWord>(value))) {
+                return;
+            }
         } break;
 
         case kMovAddr: {
             JIT::Reg regTarget;
             const int8_t* address;
-            if (!iter.mov_addr(regTarget, address)) { return; }
-            if (!writeGPR(regTarget, reinterpret_cast<UWord>(address))) { return; }
+            if (!iter.mov_addr(regTarget, address)) {
+                return;
+            }
+            if (!writeGPR(regTarget, reinterpret_cast<UWord>(address))) {
+                return;
+            }
         } break;
 
         case kMoviU: {
             JIT::Reg regTarget;
             UWord value;
-            if (!iter.movi_u(regTarget, value)) { return; }
-            if (!writeGPR(regTarget, value)) { return; }
+            if (!iter.movi_u(regTarget, value)) {
+                return;
+            }
+            if (!writeGPR(regTarget, value)) {
+                return;
+            }
         } break;
 
         case kBgei: {
             JIT::Reg regA;
             Word b;
             const int8_t* address;
-            if (!iter.bgei(regA, b, address)) { return; }
+            if (!iter.bgei(regA, b, address)) {
+                return;
+            }
             UWord a;
-            if (!readGPR(regA, a)) { return; }
+            if (!readGPR(regA, a)) {
+                return;
+            }
             if (signCast<UWord, Word>(a) >= b) {
                 codeArray = resolveCodePointer(context, address);
-                if (!codeArray) { return; }
+                if (!codeArray) {
+                    return;
+                }
                 iter.setBuffer(codeArray.start(), codeArray.size());
                 iter.setCurrent(address);
             }
@@ -141,12 +206,18 @@ void VirtualMachine::executeMachineCode(ThreadContext* context, const int8_t* en
             JIT::Reg regA;
             Word b;
             const int8_t* address;
-            if (!iter.beqi(regA, b, address)) { return; }
+            if (!iter.beqi(regA, b, address)) {
+                return;
+            }
             UWord a;
-            if (!readGPR(regA, a)) { return; }
+            if (!readGPR(regA, a)) {
+                return;
+            }
             if (signCast<UWord, Word>(a) == b) {
                 codeArray = resolveCodePointer(context, address);
-                if (!codeArray) { return; }
+                if (!codeArray) {
+                    return;
+                }
                 iter.setBuffer(codeArray.start(), codeArray.size());
                 iter.setCurrent(address);
             }
@@ -154,30 +225,46 @@ void VirtualMachine::executeMachineCode(ThreadContext* context, const int8_t* en
 
         case kJmp: {
             const int8_t* address;
-            if (!iter.jmp(address)) { return; }
+            if (!iter.jmp(address)) {
+                return;
+            }
             codeArray = resolveCodePointer(context, address);
-            if (!codeArray) { return; }
+            if (!codeArray) {
+                return;
+            }
             iter.setBuffer(codeArray.start(), codeArray.size());
             iter.setCurrent(address);
         } break;
 
         case kJmpr: {
             JIT::Reg r;
-            if (!iter.jmpr(r)) { return; }
+            if (!iter.jmpr(r)) {
+                return;
+            }
             UWord value;
-            if (!readGPR(r, value)) { return; }
-            if (!checkAddress(context, value)) { return; }
+            if (!readGPR(r, value)) {
+                return;
+            }
+            if (!checkAddress(context, value)) {
+                return;
+            }
             int8_t* address = reinterpret_cast<int8_t*>(value);
             codeArray = resolveCodePointer(context, address);
-            if (!codeArray) { return; }
+            if (!codeArray) {
+                return;
+            }
             iter.setBuffer(codeArray.start(), codeArray.size());
             iter.setCurrent(address);
         } break;
 
         case kJmpi: {
             UWord location;
-            if (!iter.jmpi(location)) { return; }
-            if (!checkAddress(context, location)) { return; }
+            if (!iter.jmpi(location)) {
+                return;
+            }
+            if (!checkAddress(context, location)) {
+                return;
+            }
             int8_t* address = reinterpret_cast<int8_t*>(location);
             codeArray = resolveCodePointer(context, address);
             iter.setBuffer(codeArray.start(), codeArray.size());
@@ -186,110 +273,186 @@ void VirtualMachine::executeMachineCode(ThreadContext* context, const int8_t* en
 
         case kLdrL: {
             JIT::Reg regTarget, regAddress;
-            if (!iter.ldr_l(regTarget, regAddress)) { return; }
+            if (!iter.ldr_l(regTarget, regAddress)) {
+                return;
+            }
             UWord address;
-            if (!readGPR(regAddress, address)) { return; }
-            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }
+            if (!readGPR(regAddress, address)) {
+                return;
+            }
+            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) {
+                return;
+            }
             uint64_t value = *(reinterpret_cast<uint64_t*>(address));
-            if (!writeGPR(regTarget, static_cast<UWord>(value))) { return; }
+            if (!writeGPR(regTarget, static_cast<UWord>(value))) {
+                return;
+            }
         } break;
 
         case kLdiL: {
             JIT::Reg regTarget;
             void* address;
-            if (!iter.ldi_l(regTarget, address)) { return; }
+            if (!iter.ldi_l(regTarget, address)) {
+                return;
+            }
             uint64_t value = *(reinterpret_cast<uint64_t*>(address));
-            if (!writeGPR(regTarget, static_cast<UWord>(value))) { return; }
+            if (!writeGPR(regTarget, static_cast<UWord>(value))) {
+                return;
+            }
         } break;
 
         case kLdxiW: {
             JIT::Reg regTarget, regAddress;
             int offset;
-            if (!iter.ldxi_w(regTarget, regAddress, offset)) { return; }
+            if (!iter.ldxi_w(regTarget, regAddress, offset)) {
+                return;
+            }
             UWord address;
-            if (!readGPR(regAddress, address)) { return; }
-            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }
+            if (!readGPR(regAddress, address)) {
+                return;
+            }
+            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) {
+                return;
+            }
             UWord value = *(reinterpret_cast<UWord*>(reinterpret_cast<int8_t*>(address) + offset));
-            if (!writeGPR(regTarget, value)) { return; }
+            if (!writeGPR(regTarget, value)) {
+                return;
+            }
         } break;
 
         case kLdxiI: {
             JIT::Reg regTarget, regAddress;
             int offset;
-            if (!iter.ldxi_i(regTarget, regAddress, offset)) { return; }
+            if (!iter.ldxi_i(regTarget, regAddress, offset)) {
+                return;
+            }
             UWord address;
-            if (!readGPR(regAddress, address)) { return; }
-            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }
+            if (!readGPR(regAddress, address)) {
+                return;
+            }
+            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) {
+                return;
+            }
             uint32_t value = *(reinterpret_cast<uint32_t*>(reinterpret_cast<int8_t*>(address) + offset));
-            if (!writeGPR(regTarget, static_cast<UWord>(value))) { return; }
+            if (!writeGPR(regTarget, static_cast<UWord>(value))) {
+                return;
+            }
         } break;
 
         case kLdxiL: {
             JIT::Reg regTarget, regAddress;
             int offset;
-            if (!iter.ldxi_l(regTarget, regAddress, offset)) { return; }
+            if (!iter.ldxi_l(regTarget, regAddress, offset)) {
+                return;
+            }
             UWord address;
-            if (!readGPR(regAddress, address)) { return; }
-            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }
+            if (!readGPR(regAddress, address)) {
+                return;
+            }
+            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) {
+                return;
+            }
             uint64_t value = *(reinterpret_cast<uint64_t*>(reinterpret_cast<int8_t*>(address) + offset));
-            if (!writeGPR(regTarget, static_cast<UWord>(value))) { return; }
+            if (!writeGPR(regTarget, static_cast<UWord>(value))) {
+                return;
+            }
         } break;
 
         case kStrI: {
             JIT::Reg regAddress, regValue;
-            if (!iter.str_i(regAddress, regValue)) { return; }
+            if (!iter.str_i(regAddress, regValue)) {
+                return;
+            }
             UWord address;
-            if (!readGPR(regAddress, address)) { return; }
-            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }
+            if (!readGPR(regAddress, address)) {
+                return;
+            }
+            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) {
+                return;
+            }
             UWord value;
-            if (!readGPR(regValue, value)) { return; }
+            if (!readGPR(regValue, value)) {
+                return;
+            }
             *(reinterpret_cast<uint32_t*>(address)) = static_cast<uint32_t>(value);
         } break;
 
         case kStrL: {
             JIT::Reg regAddress, regValue;
-            if (!iter.str_l(regAddress, regValue)) { return; }
+            if (!iter.str_l(regAddress, regValue)) {
+                return;
+            }
             UWord address;
-            if (!readGPR(regAddress, address)) { return; }
-            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }
+            if (!readGPR(regAddress, address)) {
+                return;
+            }
+            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) {
+                return;
+            }
             UWord value;
-            if (!readGPR(regValue, value)) { return; }
+            if (!readGPR(regValue, value)) {
+                return;
+            }
             *(reinterpret_cast<uint64_t*>(address)) = static_cast<uint64_t>(value);
         } break;
 
         case kStxiW: {
             int offset;
             JIT::Reg regAddress, regValue;
-            if (!iter.stxi_w(offset, regAddress, regValue)) { return; }
+            if (!iter.stxi_w(offset, regAddress, regValue)) {
+                return;
+            }
             UWord address;
-            if (!readGPR(regAddress, address)) { return; }
-            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }
+            if (!readGPR(regAddress, address)) {
+                return;
+            }
+            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) {
+                return;
+            }
             UWord value;
-            if (!readGPR(regValue, value)) { return; }
+            if (!readGPR(regValue, value)) {
+                return;
+            }
             *(reinterpret_cast<UWord*>(reinterpret_cast<int8_t*>(address) + offset)) = value;
         } break;
 
         case kStxiI: {
             int offset;
             JIT::Reg regAddress, regValue;
-            if (!iter.stxi_i(offset, regAddress, regValue)) { return; }
+            if (!iter.stxi_i(offset, regAddress, regValue)) {
+                return;
+            }
             UWord address;
-            if (!readGPR(regAddress, address)) { return; }
-            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }
+            if (!readGPR(regAddress, address)) {
+                return;
+            }
+            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) {
+                return;
+            }
             UWord value;
-            if (!readGPR(regValue, value)) { return; }
+            if (!readGPR(regValue, value)) {
+                return;
+            }
             *(reinterpret_cast<uint32_t*>(reinterpret_cast<int8_t*>(address) + offset)) = static_cast<uint32_t>(value);
         } break;
 
         case kStxiL: {
             int offset;
             JIT::Reg regAddress, regValue;
-            if (!iter.stxi_l(offset, regAddress, regValue)) { return; }
+            if (!iter.stxi_l(offset, regAddress, regValue)) {
+                return;
+            }
             UWord address;
-            if (!readGPR(regAddress, address)) { return; }
-            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) { return; }
+            if (!readGPR(regAddress, address)) {
+                return;
+            }
+            if (regAddress != JIT::kContextPointerReg && !checkAddress(context, address)) {
+                return;
+            }
             UWord value;
-            if (!readGPR(regValue, value)) { return; }
+            if (!readGPR(regValue, value)) {
+                return;
+            }
             *(reinterpret_cast<uint64_t*>(reinterpret_cast<int8_t*>(address) + offset)) = static_cast<uint64_t>(value);
         } break;
 

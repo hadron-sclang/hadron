@@ -3,8 +3,8 @@
 #include "spdlog/spdlog.h"
 
 #if (__APPLE__)
-#include <mach-o/dyld.h>
-#include <array>
+#    include <mach-o/dyld.h>
+#    include <array>
 #endif // __APPLE__
 
 #include <cassert>
@@ -28,7 +28,7 @@ fs::path findBinaryPath() {
     return fs::canonical(path);
 }
 #else
-#error Need to define findBinaryPath() for this operating system.
+#    error Need to define findBinaryPath() for this operating system.
 #endif
 
 fs::path findSCClassLibrary() {

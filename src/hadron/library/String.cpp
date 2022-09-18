@@ -6,8 +6,7 @@
 
 #include <cstring>
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 // static
 String String::fromView(ThreadContext* context, std::string_view v, int32_t additionalSize) {

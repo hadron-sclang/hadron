@@ -4,16 +4,14 @@
 #include "hadron/library/Collection.hpp"
 #include "hadron/schema/Common/Collections/SequenceableCollectionSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
-template<typename T, typename S>
-class SequenceableCollection : public Collection<T, S> {
+template <typename T, typename S> class SequenceableCollection : public Collection<T, S> {
 public:
-    SequenceableCollection(): Collection<T, S>() {}
-    explicit SequenceableCollection(S* instance): Collection<T, S>(instance) {}
-    explicit SequenceableCollection(Slot instance): Collection<T, S>(instance) {}
-    ~SequenceableCollection() {}
+    SequenceableCollection(): Collection<T, S>() { }
+    explicit SequenceableCollection(S* instance): Collection<T, S>(instance) { }
+    explicit SequenceableCollection(Slot instance): Collection<T, S>(instance) { }
+    ~SequenceableCollection() { }
 };
 
 } // namespace library

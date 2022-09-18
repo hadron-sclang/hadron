@@ -5,9 +5,9 @@
 namespace hadron {
 
 Slot dispatchPrimitive(ThreadContext* /* context */, Hash primitiveName) {
-//    Slot* sp = context->stackPointer;
+    //    Slot* sp = context->stackPointer;
     switch (primitiveName) {
-//        #include "case/Common/Core/ObjectPrimitiveCases.inl"
+        //        #include "case/Common/Core/ObjectPrimitiveCases.inl"
     }
     return Slot::makeNil();
 }

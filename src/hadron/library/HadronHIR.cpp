@@ -1,8 +1,7 @@
 #include "hadron/library/HadronHIR.hpp"
 #include "hadron/library/HadronLIR.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 HIRId HIR::proposeId(HIRId proposedId) {
     assert(proposedId && proposedId.int32() >= 0);
@@ -45,8 +44,8 @@ void PhiHIR::addInput(ThreadContext* context, HIR input) {
 
     if (input.id() != id()) {
         reads().typedAdd(context, input.id());
-        setTypeFlags(static_cast<TypeFlags>(static_cast<int32_t>(typeFlags()) |
-                                            static_cast<int32_t>(input.typeFlags())));
+        setTypeFlags(
+            static_cast<TypeFlags>(static_cast<int32_t>(typeFlags()) | static_cast<int32_t>(input.typeFlags())));
 
         // This PhiHIR needs its own ID set by CFGBlock before any inputs are added. However, the CFGBlock append also
         // updates the consumers for each HIR. So we have to update consumers manually here on the Phi. It might be a

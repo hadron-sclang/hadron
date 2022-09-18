@@ -155,7 +155,9 @@ void RegisterAllocator::allocateRegisters(ThreadContext* context, library::Linea
         // check for intervals in active that are handled or inactive
         // for each interval it in active do
         for (size_t reg = 0; reg < m_active.size(); ++reg) {
-            if (!m_active[reg]) { continue; }
+            if (!m_active[reg]) {
+                continue;
+            }
             // if it ends before position then
             if (m_active[reg].end().int32() <= position) {
                 // move it from active to handled
@@ -187,7 +189,9 @@ void RegisterAllocator::allocateRegisters(ThreadContext* context, library::Linea
                         assert(m_active[reg]);
                         m_active[reg] = *iter;
                         iter = m_inactive[reg].erase(iter);
-                    } else { ++iter; }
+                    } else {
+                        ++iter;
+                    }
                 }
             }
         }
@@ -225,8 +229,8 @@ void RegisterAllocator::allocateRegisters(ThreadContext* context, library::Linea
     for (size_t spill = 1; spill < m_activeSpills.size(); ++spill) {
         if (m_activeSpills[spill]) {
             auto spillValue = m_activeSpills[spill].valueNumber().int32();
-            linearFrame.valueLifetimes().typedPut(spillValue,
-                    linearFrame.valueLifetimes().typedAt(spillValue).typedAdd(context, m_activeSpills[spill]));
+            linearFrame.valueLifetimes().typedPut(
+                spillValue, linearFrame.valueLifetimes().typedAt(spillValue).typedAdd(context, m_activeSpills[spill]));
             m_activeSpills[spill] = library::LifetimeInterval();
         }
     }
@@ -398,7 +402,7 @@ void RegisterAllocator::allocateBlockedReg(ThreadContext* context, library::Line
 }
 
 void RegisterAllocator::spill(ThreadContext* context, library::LifetimeInterval interval,
-        library::LinearFrame linearFrame) {
+                              library::LinearFrame linearFrame) {
     // No spilling of register blocks.
     assert(interval.valueNumber());
 
@@ -408,8 +412,9 @@ void RegisterAllocator::spill(ThreadContext* context, library::LifetimeInterval 
         if (m_activeSpills[i]) {
             if (m_activeSpills[i].end().int32() <= interval.start().int32()) {
                 auto valueNumber = m_activeSpills[i].valueNumber().int32();
-                linearFrame.valueLifetimes().typedPut(valueNumber,
-                        linearFrame.valueLifetimes().typedAt(valueNumber).typedAdd(context, m_activeSpills[i]));
+                linearFrame.valueLifetimes().typedPut(
+                    valueNumber,
+                    linearFrame.valueLifetimes().typedAt(valueNumber).typedAdd(context, m_activeSpills[i]));
                 m_activeSpills[i] = library::LifetimeInterval();
                 spillSlot = i;
             }
@@ -435,7 +440,7 @@ void RegisterAllocator::spill(ThreadContext* context, library::LifetimeInterval 
 }
 
 void RegisterAllocator::handled(ThreadContext* context, library::LifetimeInterval interval,
-        library::LinearFrame linearFrame) {
+                                library::LinearFrame linearFrame) {
     assert(!interval.isSpill());
     assert(!interval.isEmpty());
 
@@ -446,7 +451,7 @@ void RegisterAllocator::handled(ThreadContext* context, library::LifetimeInterva
         if (lastInterval.isSpill()) {
             auto lir = linearFrame.instructions().typedAt(interval.start().int32());
             lir.moves().typedPut(context, library::Integer(-lastInterval.spillSlot().int32()),
-                    interval.registerNumber());
+                                 interval.registerNumber());
         }
     }
 
@@ -463,8 +468,8 @@ void RegisterAllocator::handled(ThreadContext* context, library::LifetimeInterva
     }
 
     // Preserve the interval in the valueLifetimes array.
-    linearFrame.valueLifetimes().typedPut(intervalValue, linearFrame.valueLifetimes().typedAt(intervalValue).
-            typedAdd(context, interval));
+    linearFrame.valueLifetimes().typedPut(
+        intervalValue, linearFrame.valueLifetimes().typedAt(intervalValue).typedAdd(context, interval));
 }
 
 } // namespace hadron

@@ -50,7 +50,7 @@ private:
     bool resetLibrary(ThreadContext* context);
 
     bool scanClass(ThreadContext* context, library::Class classDef, library::Class metaClassDef,
-            const library::ClassNode classNode);
+                   const library::ClassNode classNode);
     // Either create a new Class object with the provided name, or return the existing one.
     library::Class findOrInitClass(ThreadContext* context, library::Symbol className);
 
@@ -65,7 +65,7 @@ private:
     // Clean up any temporary data structures
     bool cleanUp();
 
-    // A map maintained for quick(er) access to Class objects via Hash. Because the Class objects themselves 
+    // A map maintained for quick(er) access to Class objects via Hash. Because the Class objects themselves
     std::unordered_map<library::Symbol, Slot> m_classMap;
 
     // The official array of Class objects, maintained as part of the root set.

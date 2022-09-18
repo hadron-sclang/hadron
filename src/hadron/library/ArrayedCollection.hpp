@@ -11,16 +11,14 @@
 
 #include <cstring>
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
-template<typename T, typename S, typename E>
-class ArrayedCollection : public SequenceableCollection<T, S> {
+template <typename T, typename S, typename E> class ArrayedCollection : public SequenceableCollection<T, S> {
 public:
-    ArrayedCollection(): SequenceableCollection<T, S>() {}
-    explicit ArrayedCollection(S* instance): SequenceableCollection<T, S>(instance) {}
-    explicit ArrayedCollection(Slot instance): SequenceableCollection<T, S>(instance) {}
-    ~ArrayedCollection() {}
+    ArrayedCollection(): SequenceableCollection<T, S>() { }
+    explicit ArrayedCollection(S* instance): SequenceableCollection<T, S>(instance) { }
+    explicit ArrayedCollection(Slot instance): SequenceableCollection<T, S>(instance) { }
+    ~ArrayedCollection() { }
 
     static T arrayAlloc(ThreadContext* context, int32_t maxSize = 0) {
         S* instance = arrayAllocRaw(context, maxSize);
@@ -37,7 +35,7 @@ public:
             if (t.m_instance) {
                 S* instance = arrayAllocRaw(context, maxSize);
                 std::memcpy(reinterpret_cast<void*>(instance), reinterpret_cast<const void*>(t.m_instance),
-                        t.m_instance->schema._sizeInBytes);
+                            t.m_instance->schema._sizeInBytes);
                 return T(instance);
             } else {
                 // Copying an empty array but requesting a nonzero maxSize so we just create a new array with that size.
@@ -53,19 +51,23 @@ public:
     T copyRange(ThreadContext* context, int32_t start, int32_t end) const {
         const T& t = static_cast<const T&>(*this);
         end = std::min(end, t.size() - 1);
-        if (end < start) { return T::arrayAlloc(context); }
+        if (end < start) {
+            return T::arrayAlloc(context);
+        }
         auto newArray = T();
         auto newSize = end - start + 1;
         newArray.resize(context, newSize);
         std::memcpy(reinterpret_cast<void*>(newArray.start()),
-                reinterpret_cast<int8_t*>(t.start()) + (start * sizeof(E)), newSize * sizeof(E));
+                    reinterpret_cast<int8_t*>(t.start()) + (start * sizeof(E)), newSize * sizeof(E));
         return newArray;
     }
 
     // Always returns size in number of elements.
     int32_t size() const {
         const T& t = static_cast<const T&>(*this);
-        if (t.m_instance == nullptr) { return 0; }
+        if (t.m_instance == nullptr) {
+            return 0;
+        }
         int32_t elementsSize = (t.m_instance->schema._sizeInBytes - sizeof(S)) / sizeof(E);
         assert(elementsSize >= 0);
         return elementsSize;
@@ -78,13 +80,9 @@ public:
         return *(start() + index);
     }
 
-    E first() const {
-        return at(0);
-    }
+    E first() const { return at(0); }
 
-    E last() const {
-        return at(size() - 1);
-    }
+    E last() const { return at(size() - 1); }
 
     void put(int32_t index, E value) {
         assert(index < size());
@@ -103,15 +101,17 @@ public:
         if (coll.size()) {
             int32_t oldSize = size();
             t.resize(context, oldSize + coll.size());
-            std::memcpy(reinterpret_cast<int8_t*>(t.m_instance) + sizeof(S) + (oldSize * sizeof(E)),
-                coll.start(), coll.size() * sizeof(E));
+            std::memcpy(reinterpret_cast<int8_t*>(t.m_instance) + sizeof(S) + (oldSize * sizeof(E)), coll.start(),
+                        coll.size() * sizeof(E));
         }
         return t;
     }
 
     T& insert(ThreadContext* context, int32_t index, E item) {
         T& t = static_cast<T&>(*this);
-        if (index == t.size()) { return add(context, item); }
+        if (index == t.size()) {
+            return add(context, item);
+        }
 
         assert(0 <= index && index < t.size());
 
@@ -125,7 +125,7 @@ public:
             std::memcpy(reinterpret_cast<int8_t*>(newArray) + sizeof(S), t.start(), index * sizeof(E));
             // Copy remaining elements into place shifted one right.
             std::memcpy(reinterpret_cast<int8_t*>(newArray) + sizeof(S) + ((index + 1) * sizeof(E)),
-                    reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)), sizeof(E) * (t.size() - index));
+                        reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)), sizeof(E) * (t.size() - index));
             t.m_instance = newArray;
             t.put(index, item);
             return t;
@@ -134,7 +134,7 @@ public:
         t.resize(context, t.size() + 1);
         // Shift elements starting at index to the right by one.
         std::memmove(reinterpret_cast<int8_t*>(t.start()) + ((index + 1) * sizeof(E)),
-                reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)), sizeof(E) * (t.size() - index));
+                     reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)), sizeof(E) * (t.size() - index));
         t.put(index, item);
 
         return t;
@@ -147,8 +147,8 @@ public:
         // Shift elements starting at index + 1 to the left by one.
         if (index < t.size() - 1) {
             std::memmove(reinterpret_cast<int8_t*>(t.start()) + (index * sizeof(E)),
-                    reinterpret_cast<int8_t*>(t.start()) + ((index + 1) * sizeof(E)),
-                    (t.size() - index - 1) * sizeof(E));
+                         reinterpret_cast<int8_t*>(t.start()) + ((index + 1) * sizeof(E)),
+                         (t.size() - index - 1) * sizeof(E));
         }
 
         t.resize(context, t.size() - 1);
@@ -157,13 +157,17 @@ public:
     // Returns a pointer to the start of the elements, which is just past the schema.
     inline E* start() const {
         const T& t = static_cast<const T&>(*this);
-        if (t.m_instance == nullptr) { return nullptr; }
+        if (t.m_instance == nullptr) {
+            return nullptr;
+        }
         return reinterpret_cast<E*>((reinterpret_cast<uint8_t*>(t.m_instance) + sizeof(S)));
     }
 
     int32_t capacity(ThreadContext* context) const {
         const T& t = static_cast<const T&>(*this);
-        if (t.m_instance == nullptr) { return 0; }
+        if (t.m_instance == nullptr) {
+            return 0;
+        }
         auto allocSize = context->heap->getAllocationSize(t.m_instance);
         assert(allocSize > 0);
         return (allocSize - sizeof(S)) / sizeof(E);
@@ -205,27 +209,26 @@ protected:
     }
 };
 
-template<typename T, typename S, typename E>
-class RawArray : public ArrayedCollection<T, S, E> {
+template <typename T, typename S, typename E> class RawArray : public ArrayedCollection<T, S, E> {
 public:
-    RawArray(): ArrayedCollection<T, S, E>() {}
-    explicit RawArray(S* instance): ArrayedCollection<T, S, E>(instance) {}
-    explicit RawArray(Slot instance): ArrayedCollection<T, S, E>(instance) {}
-    ~RawArray() {}
+    RawArray(): ArrayedCollection<T, S, E>() { }
+    explicit RawArray(S* instance): ArrayedCollection<T, S, E>(instance) { }
+    explicit RawArray(Slot instance): ArrayedCollection<T, S, E>(instance) { }
+    ~RawArray() { }
 };
 
 class Int8Array : public RawArray<Int8Array, schema::Int8ArraySchema, int8_t> {
 public:
-    Int8Array(): RawArray<Int8Array, schema::Int8ArraySchema, int8_t>() {}
+    Int8Array(): RawArray<Int8Array, schema::Int8ArraySchema, int8_t>() { }
     explicit Int8Array(schema::Int8ArraySchema* instance):
-            RawArray<Int8Array, schema::Int8ArraySchema, int8_t>(instance) {}
-    explicit Int8Array(Slot instance): RawArray<Int8Array, schema::Int8ArraySchema, int8_t>(instance) {}
-    ~Int8Array() {}
+        RawArray<Int8Array, schema::Int8ArraySchema, int8_t>(instance) { }
+    explicit Int8Array(Slot instance): RawArray<Int8Array, schema::Int8ArraySchema, int8_t>(instance) { }
+    ~Int8Array() { }
 
     static Int8Array arrayAllocJIT(ThreadContext* context, size_t byteSize, size_t& maxSize) {
         size_t size = sizeof(schema::Int8ArraySchema) + byteSize;
-        schema::Int8ArraySchema* instance = reinterpret_cast<schema::Int8ArraySchema*>(
-            context->heap->allocateJIT(size, maxSize));
+        schema::Int8ArraySchema* instance =
+            reinterpret_cast<schema::Int8ArraySchema*>(context->heap->allocateJIT(size, maxSize));
         instance->schema._className = schema::Int8ArraySchema::kNameHash;
         instance->schema._sizeInBytes = size;
         return Int8Array(instance);
@@ -234,21 +237,20 @@ public:
 
 class Int32Array : public RawArray<Int32Array, schema::Int32ArraySchema, int32_t> {
 public:
-    Int32Array(): RawArray<Int32Array, schema::Int32ArraySchema, int32_t>() {}
+    Int32Array(): RawArray<Int32Array, schema::Int32ArraySchema, int32_t>() { }
     explicit Int32Array(schema::Int32ArraySchema* instance):
-            RawArray<Int32Array, schema::Int32ArraySchema, int32_t>(instance) {}
-    explicit Int32Array(Slot instance): RawArray<Int32Array, schema::Int32ArraySchema, int32_t>(instance) {}
-    ~Int32Array() {}
+        RawArray<Int32Array, schema::Int32ArraySchema, int32_t>(instance) { }
+    explicit Int32Array(Slot instance): RawArray<Int32Array, schema::Int32ArraySchema, int32_t>(instance) { }
+    ~Int32Array() { }
 };
 
 class SymbolArray : public RawArray<SymbolArray, schema::SymbolArraySchema, Symbol> {
 public:
-    SymbolArray(): RawArray<SymbolArray, schema::SymbolArraySchema, Symbol>() {}
+    SymbolArray(): RawArray<SymbolArray, schema::SymbolArraySchema, Symbol>() { }
     explicit SymbolArray(schema::SymbolArraySchema* instance):
-        RawArray<SymbolArray, schema::SymbolArraySchema, Symbol>(instance) {}
-    explicit SymbolArray(Slot instance):
-        RawArray<SymbolArray, schema::SymbolArraySchema, Symbol>(instance) {}
-    ~SymbolArray() {}
+        RawArray<SymbolArray, schema::SymbolArraySchema, Symbol>(instance) { }
+    explicit SymbolArray(Slot instance): RawArray<SymbolArray, schema::SymbolArraySchema, Symbol>(instance) { }
+    ~SymbolArray() { }
 };
 
 } // namespace library

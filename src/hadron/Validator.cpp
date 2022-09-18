@@ -14,11 +14,13 @@ namespace hadron {
 bool Validator::validateFrame(const Frame* frame) {
     std::unordered_set<Block::ID> blockIds;
     std::unordered_set<hir::ID> valueIds;
-    if (!validateSubScope(frame->rootScope.get(), nullptr, blockIds, valueIds)) { return false; }
+    if (!validateSubScope(frame->rootScope.get(), nullptr, blockIds, valueIds)) {
+        return false;
+    }
 
     if (frame->numberOfBlocks != static_cast<int>(blockIds.size())) {
         SPDLOG_ERROR("Base frame number of blocks {} mismatches counted amount of {}", frame->numberOfBlocks,
-                blockIds.size());
+                     blockIds.size());
         return false;
     }
     // There should be at least one Block.
@@ -31,7 +33,7 @@ bool Validator::validateFrame(const Frame* frame) {
 
 // static
 bool Validator::validateSubScope(const Scope* scope, const Scope* parent, std::unordered_set<Block::ID>& blockIds,
-        std::unordered_set<hir::ID>& valueIds) {
+                                 std::unordered_set<hir::ID>& valueIds) {
     if (scope->parent != parent) {
         SPDLOG_ERROR("Scope parent mismatch");
         return false;
@@ -77,7 +79,9 @@ bool Validator::validateSubScope(const Scope* scope, const Scope* parent, std::u
         blockIds.emplace(block->id());
     }
     for (const auto& subScope : scope->subScopes) {
-        if (!validateSubScope(subScope.get(), scope, blockIds, valueIds)) { return false; }
+        if (!validateSubScope(subScope.get(), scope, blockIds, valueIds)) {
+            return false;
+        }
     }
 
     return true;
@@ -87,7 +91,7 @@ bool Validator::validateSubScope(const Scope* scope, const Scope* parent, std::u
 bool Validator::validateLinearFrame(const LinearFrame* linearFrame, size_t numberOfBlocks) {
     if (linearFrame->blockOrder.size() != numberOfBlocks || linearFrame->blockLabels.size() != numberOfBlocks) {
         SPDLOG_ERROR("Mismatch block count on serialization, expecting: {} blockOrder: {} blockLabels: {}",
-                numberOfBlocks, linearFrame->blockOrder.size(), linearFrame->blockLabels.size());
+                     numberOfBlocks, linearFrame->blockOrder.size(), linearFrame->blockLabels.size());
         return false;
     }
 
@@ -97,10 +101,14 @@ bool Validator::validateLinearFrame(const LinearFrame* linearFrame, size_t numbe
         if (lir->opcode == lir::Opcode::kLabel) {
             auto label = reinterpret_cast<const lir::LabelLIR*>(lir.get());
             for (const auto& phi : label->phis) {
-                if (!validateSsaLir(phi.get(), values)) { return false; }
+                if (!validateSsaLir(phi.get(), values)) {
+                    return false;
+                }
             }
         }
-        if (!validateSsaLir(lir.get(), values)) { return false; }
+        if (!validateSsaLir(lir.get(), values)) {
+            return false;
+        }
     }
 
     return true;
@@ -212,7 +220,6 @@ bool Validator::validateLifetimes(const LinearFrame* linearFrame) {
             SPDLOG_ERROR("Usage count mismatch on value {}", i);
             return false;
         }
-
     }
 
     return true;
@@ -235,10 +242,14 @@ bool Validator::validateAllocation(const hadron::LinearFrame* linearFrame) {
     for (size_t i = 0; i < linearFrame->instructions.size(); ++i) {
         const auto* lir = linearFrame->lineNumbers[i];
         if (lir->value != lir::kInvalidVReg) {
-            if (!validateRegisterCoverage(linearFrame, i, lir->value)) { return false; }
+            if (!validateRegisterCoverage(linearFrame, i, lir->value)) {
+                return false;
+            }
         }
         for (const auto& value : lir->reads) {
-            if (!validateRegisterCoverage(linearFrame, i, value)) { return false; }
+            if (!validateRegisterCoverage(linearFrame, i, value)) {
+                return false;
+            }
         }
     }
 
@@ -253,16 +264,16 @@ bool Validator::validateResolution(const LinearFrame*) {
 }
 
 // static
-bool Validator::validateEmission(const LinearFrame*, library::Int8Array) {
-    return true;
-}
+bool Validator::validateEmission(const LinearFrame*, library::Int8Array) { return true; }
 
 // static
 bool Validator::validateRegisterCoverage(const LinearFrame* linearFrame, size_t i, uint32_t vReg) {
     int valueCovered = 0;
     size_t reg = 0;
     for (const auto& lt : linearFrame->valueLifetimes[vReg]) {
-        if (lt->isSpill) { continue; }
+        if (lt->isSpill) {
+            continue;
+        }
         if (lt->covers(i)) {
             if (lt->usages.count(i) != 1) {
                 SPDLOG_ERROR("Value live but no usage at {}", i);
@@ -286,13 +297,17 @@ bool Validator::validateRegisterCoverage(const LinearFrame* linearFrame, size_t 
 
     // Ensure no other values at this instruction are allocated to this same register.
     for (size_t j = 0; j < linearFrame->valueLifetimes.size(); ++j) {
-        if (j == vReg) { continue; }
+        if (j == vReg) {
+            continue;
+        }
         for (const auto& lt : linearFrame->valueLifetimes[j]) {
-            if (lt->isSpill) { continue; }
+            if (lt->isSpill) {
+                continue;
+            }
             if (lt->covers(i)) {
                 if (lt->registerNumber == reg) {
                     SPDLOG_ERROR("Duplicate register allocation for register {}, values {} and {}, at instruction {}",
-                            reg, vReg, j, i);
+                                 reg, vReg, j, i);
                     return false;
                 }
             }

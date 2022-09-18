@@ -20,6 +20,7 @@ public:
     const char* code() const { return m_code.get(); }
     size_t size() const { return m_codeSize; }
     std::string_view codeView() const { return std::string_view(m_code.get(), m_codeSize); }
+
 private:
     std::string m_path;
     size_t m_codeSize;
@@ -28,4 +29,4 @@ private:
 
 } // namespace hadron
 
-#endif  // SRC_COMPILER_INCLUDE_HADRON_SOURCE_FILE_HPP_
+#endif // SRC_COMPILER_INCLUDE_HADRON_SOURCE_FILE_HPP_

@@ -86,7 +86,7 @@ library::BlockAST ASTBuilder::buildBlock(ThreadContext* context, const library::
 
         // Default value of an empty else block is nil.
         ifAST.falseBlock().statements().addAST(context,
-                library::ConstantAST::makeConstant(context, Slot::makeNil()).toBase());
+                                               library::ConstantAST::makeConstant(context, Slot::makeNil()).toBase());
     }
 
     // Append the expressions inside the parsed blockNode.
@@ -97,7 +97,7 @@ library::BlockAST ASTBuilder::buildBlock(ThreadContext* context, const library::
 }
 
 bool ASTBuilder::buildLiteral(ThreadContext* context, const library::Node node, Slot& literal) {
-    switch(node.className()) {
+    switch (node.className()) {
     case library::SlotNode::nameHash(): {
         const auto slotNode = library::SlotNode(node.slot());
         literal = slotNode.value();
@@ -123,8 +123,8 @@ bool ASTBuilder::buildLiteral(ThreadContext* context, const library::Node node, 
         nextNode = library::StringNode(stringNode.next().slot());
         while (nextNode) {
             const auto& nextToken = nextNode.token();
-            string = string.appendView(context, nextToken.snippet(context).view(context),
-                    nextToken.hasEscapeCharacters());
+            string =
+                string.appendView(context, nextToken.snippet(context).view(context), nextToken.hasEscapeCharacters());
             nextNode = library::StringNode(nextNode.next().slot());
         }
 
@@ -147,7 +147,7 @@ bool ASTBuilder::buildLiteral(ThreadContext* context, const library::Node node, 
 }
 
 int32_t ASTBuilder::appendToSequence(ThreadContext* context, library::SequenceAST sequence, const library::Node node,
-        int32_t startCurryCount) {
+                                     int32_t startCurryCount) {
     int32_t curryCount = startCurryCount;
     auto seq = sequence.sequence();
     library::Node seqNode = node;
@@ -170,7 +170,7 @@ int32_t ASTBuilder::appendToSequence(ThreadContext* context, library::SequenceAS
 }
 
 library::AST ASTBuilder::transform(ThreadContext* context, const library::Node node, int32_t& curryCount) {
-    switch(node.className()) {
+    switch (node.className()) {
     case library::ArgListNode::nameHash():
         assert(false); // internal error, not a valid node within a block
         return library::EmptyAST::alloc(context).toBase();
@@ -212,7 +212,9 @@ library::AST ASTBuilder::transform(ThreadContext* context, const library::Node n
         auto subCurryCount = appendToSequence(context, message.arguments(), binop.leftHand());
         subCurryCount = appendToSequence(context, message.arguments(), binop.rightHand(), subCurryCount);
 
-        if (subCurryCount == 0) { return message.toBase(); }
+        if (subCurryCount == 0) {
+            return message.toBase();
+        }
 
         auto block = buildPartialBlock(context, subCurryCount);
         block.statements().addAST(context, library::AST::wrapUnsafe(message.slot()));
@@ -416,8 +418,8 @@ library::AST ASTBuilder::transform(ThreadContext* context, const library::Node n
         }
 
         if (multiAssignNode.targets().rest()) {
-            auto restName = library::NameAST::makeName(context,
-                    multiAssignNode.targets().rest().token().snippet(context));
+            auto restName =
+                library::NameAST::makeName(context, multiAssignNode.targets().rest().token().snippet(context));
             multiAssignAST.targetNames().addAST(context, library::AST::wrapUnsafe(restName.slot()));
             multiAssignAST.setLastIsRemain(true);
         }
@@ -469,8 +471,8 @@ library::AST ASTBuilder::transform(ThreadContext* context, const library::Node n
         const auto setter = library::SetterNode(node.slot());
         auto message = library::MessageAST::makeMessage(context);
         auto subCurryCount = appendToSequence(context, message.arguments(), setter.target());
-        auto selector = library::Symbol::fromView(context, fmt::format("{}_",
-                setter.token().snippet(context).view(context)));
+        auto selector =
+            library::Symbol::fromView(context, fmt::format("{}_", setter.token().snippet(context).view(context)));
         message.setSelector(selector);
         subCurryCount = appendToSequence(context, message.arguments(), setter.value(), subCurryCount);
 
@@ -543,9 +545,11 @@ library::AST ASTBuilder::transform(ThreadContext* context, const library::Node n
 }
 
 library::SequenceAST ASTBuilder::transformSequence(ThreadContext* context, const library::ExprSeqNode exprSeqNode,
-        int32_t& curryCount) {
+                                                   int32_t& curryCount) {
     auto sequenceAST = library::SequenceAST::makeSequence(context);
-    if (!exprSeqNode || !exprSeqNode.expr()) { return sequenceAST; }
+    if (!exprSeqNode || !exprSeqNode.expr()) {
+        return sequenceAST;
+    }
     curryCount = appendToSequence(context, sequenceAST, exprSeqNode.expr(), curryCount);
     return sequenceAST;
 }
@@ -570,7 +574,7 @@ library::BlockAST ASTBuilder::buildPartialBlock(ThreadContext* context, int32_t 
 }
 
 library::AST ASTBuilder::transformCallNode(ThreadContext* context, const library::CallNode callNode,
-        library::Symbol selector, int32_t& curryCount) {
+                                           library::Symbol selector, int32_t& curryCount) {
     auto message = library::MessageAST::makeMessage(context);
     curryCount = appendToSequence(context, message.arguments(), callNode.target(), curryCount);
     message.setSelector(selector);

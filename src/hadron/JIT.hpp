@@ -34,7 +34,7 @@ public:
     using Label = int32_t;
     using Reg = int32_t;
     using Address = int32_t;
- 
+
     // We reserve GPR(0) and GPR(1) for the context and stack pointers, respectively.
     static constexpr JIT::Reg kContextPointerReg = -3;
     static constexpr JIT::Reg kFramePointerReg = -2;

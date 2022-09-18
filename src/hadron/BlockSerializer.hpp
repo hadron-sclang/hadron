@@ -30,11 +30,10 @@ public:
 private:
     // Performs a recursive postorder traversal of the blocks and saves the output in |blockOrder|.
     void orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
-            library::TypedArray<library::LabelId> blockOrder);
+                     library::TypedArray<library::LabelId> blockOrder);
 
-    void lower(ThreadContext* context, library::HIR hir, library::LinearFrame linearFrame, 
-            library::TypedArray<library::LIR> instructions);
-
+    void lower(ThreadContext* context, library::HIR hir, library::LinearFrame linearFrame,
+               library::TypedArray<library::LIR> instructions);
 };
 
 } // namespace hadron
