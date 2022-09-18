@@ -11,6 +11,7 @@ jobs:
         id: linter
         with:
           style: file
+          files-changed-only: false
       - name: Linter Failed
         if: steps.linter.outputs.checks-failed > 0
         run: exit 1
