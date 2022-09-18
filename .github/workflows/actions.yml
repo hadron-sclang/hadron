@@ -10,6 +10,6 @@ jobs:
       - name: lint cpp files
         run: |
           sudo apt-get install -y clang-format
-          git clang-format -style=file main || exit 1
+          git clang-format --style=file main || exit 1
           echo "clang-format lint successful"
 
