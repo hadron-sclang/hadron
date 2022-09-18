@@ -27,8 +27,8 @@ Runtime::Runtime(bool debugMode): m_heap(std::make_shared<Heap>()), m_threadCont
     if (!debugMode) {
         LighteningJIT::initJITGlobals();
     } else {
-        m_virtualMachine = std::make_unique<VirtualMachine>();
-        m_threadContext->virtualMachine = m_virtualMachine.get();
+//        m_virtualMachine = std::make_unique<VirtualMachine>();
+//        m_threadContext->virtualMachine = m_virtualMachine.get();
     }
     m_threadContext->heap = m_heap;
     m_threadContext->symbolTable = std::make_unique<SymbolTable>();
@@ -39,8 +39,6 @@ Runtime::~Runtime() { }
 
 bool Runtime::initInterpreter() {
     if (!buildThreadContext())
-        return false;
-    if (!buildTrampolines())
         return false;
     m_threadContext->classLibrary->bootstrapLibrary(m_threadContext.get());
     m_interpreter = library::Interpreter::alloc(m_threadContext.get());
@@ -122,10 +120,10 @@ Slot Runtime::interpret(std::string_view code) {
         LighteningJIT::markThreadForJITExecution();
     }
 
-    const int8_t* machineCode = function.def().code().start();
+//    const int8_t* machineCode = function.def().code().start();
     while (true) {
         // Enter JIT machine code.
-        m_entryTrampoline(m_threadContext.get(), machineCode);
+//        m_entryTrampoline(m_threadContext.get(), machineCode);
 
         // If this was a normal completion of the Hadron stack the frame pointer will be pointing at the callerFrame.
         if (m_threadContext->framePointer == callerFrame.instance()) {
@@ -166,7 +164,7 @@ Slot Runtime::interpret(std::string_view code) {
             m_threadContext->stackPointer = spareFrame.instance();
 
             assert(method.code());
-            machineCode = method.code().start();
+//            machineCode = method.code().start();
         } break;
 
         case ThreadContext::InterruptCode::kFatalError:
@@ -185,7 +183,7 @@ Slot Runtime::interpret(std::string_view code) {
             auto object = library::ObjectBase::wrapUnsafe(slot);
             object.initToNil();
             m_threadContext->stackPointer->arg0 = slot;
-            machineCode = m_threadContext->framePointer->ip.getRawPointer();
+//            machineCode = m_threadContext->framePointer->ip.getRawPointer();
         } break;
 
         case ThreadContext::InterruptCode::kPrimitive:
@@ -232,65 +230,6 @@ bool Runtime::buildThreadContext() {
     m_threadContext->symbolTable->preloadSymbols(m_threadContext.get());
     m_threadContext->thisProcess = library::Process::alloc(m_threadContext.get()).instance();
     m_threadContext->thisThread = library::Thread::alloc(m_threadContext.get()).instance();
-    return true;
-}
-
-bool Runtime::buildTrampolines() {
-    std::unique_ptr<JIT> jit;
-    size_t jitBufferSize = 0;
-    if (m_threadContext->debugMode) {
-        jit = std::make_unique<VirtualJIT>();
-        m_trampolines = library::Int8Array::arrayAlloc(m_threadContext.get(), Heap::kSmallObjectSize);
-        jitBufferSize = Heap::kSmallObjectSize;
-    } else {
-        LighteningJIT::markThreadForJITCompilation();
-        jit = std::make_unique<LighteningJIT>();
-        m_trampolines = library::Int8Array::arrayAllocJIT(m_threadContext.get(), Heap::kSmallObjectSize, jitBufferSize);
-    }
-    m_threadContext->enterMachineCode = m_trampolines.start();
-
-    jit->begin(m_trampolines.start(), m_trampolines.capacity(m_threadContext.get()));
-    auto align = jit->enterABI();
-    // Loads the (assumed) two arguments to the entry trampoline, ThreadContext* m_threadContext and a int8_t*
-    // machineCode pointer. The threadContext is loaded into the kContextPointerReg, and the code pointer is loaded into
-    // Reg 0. As Lightening re-uses the C-calling convention stack register JIT_SP as a general-purpose register, I have
-    // taken some care to ensure that GPR(2)/Reg 0 is not the stack pointer on any of the supported architectures.
-    jit->loadCArgs2(JIT::kContextPointerReg, JIT::Reg(0));
-
-    // Save the C stack pointer, this pointer is *not* tagged as it does not point into Hadron-allocated heap.
-    jit->stxi_w(offsetof(ThreadContext, cStackPointer), JIT::kContextPointerReg, jit->getCStackPointerRegister());
-    // Restore the Hadron frame pointer.
-    jit->ldxi_w(JIT::kFramePointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, framePointer));
-    // Restore the Hadron stack pointer.
-    jit->ldxi_w(JIT::kStackPointerReg, JIT::kContextPointerReg, offsetof(ThreadContext, stackPointer));
-    // Jump into the calling code.
-    jit->jmpr(JIT::Reg(0));
-
-    // Exit trampoline starts here.
-    m_threadContext->exitMachineCode = jit->getAddress(jit->address());
-
-    // Save frame and stack pointers back to thread context
-    jit->stxi_w(offsetof(ThreadContext, framePointer), JIT::kContextPointerReg, JIT::kFramePointerReg);
-    jit->stxi_w(offsetof(ThreadContext, stackPointer), JIT::kContextPointerReg, JIT::kStackPointerReg);
-
-    // Restore the C stack pointer.
-    jit->ldxi_w(jit->getCStackPointerRegister(), JIT::kContextPointerReg, offsetof(ThreadContext, cStackPointer));
-    jit->leaveABI(align);
-    jit->ret();
-
-    assert(!jit->hasJITBufferOverflow());
-    size_t trampolineSize = 0;
-    auto entryAddr = jit->end(&trampolineSize);
-    if (m_threadContext->debugMode) {
-        m_entryTrampoline = +[](ThreadContext* context, const int8_t* code) {
-            context->virtualMachine->executeMachineCode(context, context->enterMachineCode, code);
-        };
-    } else {
-        m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const int8_t*)>(
-            reinterpret_cast<LighteningJIT*>(jit.get())->addressToFunctionPointer(entryAddr));
-    }
-    m_trampolines.resize(m_threadContext.get(), trampolineSize);
-
     return true;
 }
 

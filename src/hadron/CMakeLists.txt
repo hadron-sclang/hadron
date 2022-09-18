@@ -40,21 +40,6 @@ target_link_libraries(schemac
     xxHash::xxhash
 )
 
-#############
-# prim
-add_executable(prim
-    ${HADRON_FRONTEND_FILES}
-    prim.cpp
-)
-
-target_link_libraries(prim
-    gflags
-    fmt
-    spdlog
-    sprklr
-    xxHash::xxhash
-)
-
 if (APPLE)
     # Default installed Bison is 2.x, we need a newer version from homebrew.
     execute_process(
@@ -119,12 +104,12 @@ endforeach()
 
 list(APPEND HLANG_CLASS_FILES
     "${HLANG_PATH}/HLang/HadronAST.sc"
-    "${HLANG_PATH}/HLang/HadronBuildArtifacts.sc"
+#    "${HLANG_PATH}/HLang/HadronBuildArtifacts.sc"
     "${HLANG_PATH}/HLang/HadronCFG.sc"
     "${HLANG_PATH}/HLang/HadronHIR.sc"
-    "${HLANG_PATH}/HLang/HadronLifetimeInterval.sc"
-    "${HLANG_PATH}/HLang/HadronLinearFrame.sc"
-    "${HLANG_PATH}/HLang/HadronLIR.sc"
+#    "${HLANG_PATH}/HLang/HadronLifetimeInterval.sc"
+#    "${HLANG_PATH}/HLang/HadronLinearFrame.sc"
+#    "${HLANG_PATH}/HLang/HadronLIR.sc"
     "${HLANG_PATH}/HLang/HadronParseNode.sc"
 )
 
@@ -157,8 +142,22 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     VERBATIM
 )
 
+
+if (HADRON_HOST_CPU STREQUAL "x86_64")
+    set(HADRON_GENERATOR_FILES
+        "x86_64/Generator.cpp"
+        "x86_64/Generator.hpp"
+    )
+elseif(HADRON_HOST_CPU STREQUAL "aarch64")
+    set(HADRON_GENERATOR_FILES
+        "aarch64/Generator.cpp"
+        "aarch64/Generator.hpp"
+    )
+endif()
+
 add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
+    ${HADRON_GENERATOR_FILES}
     ${SCHEMA_FILES}
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
@@ -171,7 +170,7 @@ add_library(hadron STATIC
     library/Dictionary.hpp
     library/Function.hpp
     library/HadronAST.hpp
-    library/HadronBuildArtifacts.hpp
+#    library/HadronBuildArtifacts.hpp
     library/HadronCFG.cpp
     library/HadronCFG.hpp
     library/HadronHIR.cpp
@@ -208,12 +207,13 @@ add_library(hadron STATIC
     ClassLibrary.hpp
 #    Emitter.cpp
 #    Emitter.hpp
+    Generator.hpp
     Heap.cpp
     Heap.hpp
 #    JIT.hpp
     Lexer.hpp
-    LifetimeAnalyzer.cpp
-    LifetimeAnalyzer.hpp
+#    LifetimeAnalyzer.cpp
+#    LifetimeAnalyzer.hpp
 #    LighteningJIT.cpp
 #    LighteningJIT.hpp
 #    Materializer.cpp
@@ -250,7 +250,7 @@ set(HADRON_COMPILER_UNITTESTS
 
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Array_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/ArrayedCollection_unittests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/library/HadronLifetimeInterval_unittests.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/library/HadronLifetimeInterval_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Dictionary_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/LibraryTestFixture.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Set_unittests.cpp

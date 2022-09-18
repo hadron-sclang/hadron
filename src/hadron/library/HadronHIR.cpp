@@ -1,5 +1,4 @@
 #include "hadron/library/HadronHIR.hpp"
-#include "hadron/library/HadronLIR.hpp"
 
 namespace hadron { namespace library {
 

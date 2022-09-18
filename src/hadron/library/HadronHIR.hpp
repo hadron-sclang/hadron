@@ -3,7 +3,6 @@
 
 #include "hadron/library/Array.hpp"
 #include "hadron/library/HadronCFG.hpp"
-#include "hadron/library/HadronLinearFrame.hpp"
 #include "hadron/library/Integer.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Object.hpp"
