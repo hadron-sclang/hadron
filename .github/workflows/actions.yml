@@ -12,6 +12,8 @@ jobs:
         with:
           style: file
           files-changed-only: false
+          # TODO: enable clang-tidy checks
+          tidy-checks: -*
       - name: Linter Failed
         if: steps.linter.outputs.checks-failed > 0
         run: exit 1
