@@ -13,6 +13,5 @@ jobs:
           style: file
       - name: Linter Failed
         if: steps.linter.outputs.checks-failed > 0
-        run: echo "Linting Failed"
-             exit 1
+        run: exit 1
 
