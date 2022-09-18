@@ -9,40 +9,6 @@ include_directories(
 
 #########################
 # frontend source files
-
-# colm dependency to build Ragel
-ExternalProject_add(colm
-    PREFIX ext
-    STEP_TARGETS install
-    EXCLUDE_FROM_ALL ON
-    GIT_REPOSITORY https://github.com/adrian-thurston/colm
-    GIT_TAG master
-    GIT_PROGRESS ON
-    UPDATE_COMMAND ""
-    CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${INSTALL_EXT} --disable-manual
-    BUILD_IN_SOURCE ON
-    BUILD_COMMAND make -j
-    INSTALL_COMMAND make install
-    EXCLUDE_FROM_ALL ON
-)
-
-# Ragel state machine generator used to generate the Lexer
-ExternalProject_add(ragel
-    PREFIX ext
-    STEP_TARGETS install
-    EXCLUDE_FROM_ALL ON
-    DEPENDS colm-install
-    GIT_REPOSITORY https://github.com/adrian-thurston/ragel
-    GIT_TAG master
-    GIT_PROGRESS ON
-    UPDATE_COMMAND ""
-    CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${INSTALL_EXT} --with-colm=${INSTALL_EXT} --disable-manual
-    BUILD_IN_SOURCE ON
-    BUILD_COMMAND make -j
-    INSTALL_COMMAND make install
-    EXCLUDE_FROM_ALL ON
-)
-
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
 configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
 
@@ -88,7 +54,6 @@ target_link_libraries(prim
     sprklr
     xxHash::xxhash
 )
-
 
 if (APPLE)
     # Default installed Bison is 2.x, we need a newer version from homebrew.
@@ -183,10 +148,11 @@ add_custom_command(OUTPUT ${SCHEMA_FILES} ${CMAKE_CURRENT_BINARY_DIR}/ClassLibra
 
 add_custom_target(schemafiles DEPENDS ${SCHEMA_FILES})
 
+find_program(RAGEL_EXECUTABLE ragel REQUIRED)
+
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
-    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Lexer.rl"
+    COMMAND ${RAGEL_EXECUTABLE} -o "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Lexer.rl"
     MAIN_DEPENDENCY Lexer.rl
-    DEPENDS ragel-install
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     VERBATIM
 )
@@ -259,8 +225,6 @@ add_library(hadron STATIC
     Page.cpp
     Page.hpp
     Parser.hpp
-    PrimitiveDispatcher.cpp
-    PrimitiveDispatcher.hpp
     RegisterAllocator.cpp
     RegisterAllocator.hpp
     Resolver.cpp
@@ -311,10 +275,10 @@ target_compile_definitions(hadron PUBLIC
 )
 
 target_link_libraries(hadron PUBLIC
+    asmjit
     fmt
     spdlog
     xxHash::xxhash
-    lightening
 )
 
 target_include_directories(hadron PUBLIC

@@ -3,6 +3,11 @@ include(ExternalProject)
 set(INSTALL_EXT "${PROJECT_BINARY_DIR}/install-ext" CACHE PATH "Hadron External Dependencies")
 file(MAKE_DIRECTORY "${INSTALL_EXT}")
 
+#### asmjit
+set(ASMJIT_STATIC ON CACHE BOOL "statically link asmjit")
+set(ASMJIT_NO_DEPRECATED ON CACHE BOOL "don't include deprecated parts of asmjit, to prevent their use")
+add_subdirectory(asmjit)
+
 #### doctest
 add_subdirectory(doctest)
 
@@ -32,14 +37,6 @@ if(APPLE)
                    -DCMAKE_BUILD_TYPE=Release
     )
 endif()
-
-#### lightening
-add_library(lightening STATIC
-    lightening/lightening/lightening.c
-    lightening/lightening/endian.h
-    lightening/lightening.h
-)
-target_include_directories(lightening PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/lightening)
 
 #### rapidjson
 set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "skip building rapidjson docs")

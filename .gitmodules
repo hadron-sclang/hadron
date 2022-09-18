@@ -28,3 +28,6 @@
 [submodule "third_party/sparkler"]
 	path = third_party/sparkler
 	url = https://github.com/hadron-sclang/sparkler.git
+[submodule "third_party/asmjit"]
+	path = third_party/asmjit
+	url = https://github.com/asmjit/asmjit.git
