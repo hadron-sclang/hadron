@@ -520,7 +520,9 @@ Word OpcodeReadIterator::readWord() {
 
 UWord OpcodeReadIterator::readUWord() {
     UWord uword = 0;
-    for (size_t i = 0; i < sizeof(UWord); ++i) {
+    for (size_t i = 0;
+      i < sizeof(UWord); 
+                             ++i) {
         uword = uword >> 8;
         uword = uword | (static_cast<UWord>(readByte()) << (8 * (sizeof(UWord) - 1)));
     }
