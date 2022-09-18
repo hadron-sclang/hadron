@@ -4,8 +4,8 @@
 #include "spdlog/spdlog.h"
 
 #if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
 extern "C" {
@@ -13,44 +13,37 @@ extern "C" {
 }
 
 #if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic pop
+#    pragma GCC diagnostic pop
 #endif
 
 namespace {
-    // We need to save all of the callee-save registers, which is a per-architecture value not exposed by lightening.h
-    // so supplied here.
-#   if defined(__i386__)
-        static constexpr size_t kCalleeSaveRegisters = 3;
-#   elif defined(__x86_64__)
-        static constexpr size_t kCalleeSaveRegisters = 5;
-#   elif defined(__arm__)
-        static constexpr size_t kCalleeSaveRegisters = 7;
-#   elif defined(__aarch64__)
-        static constexpr size_t kCalleeSaveRegisters = 10;
-#   else
-#   error "Undefined chipset"
-#   endif
+// We need to save all of the callee-save registers, which is a per-architecture value not exposed by lightening.h
+// so supplied here.
+#if defined(__i386__)
+static constexpr size_t kCalleeSaveRegisters = 3;
+#elif defined(__x86_64__)
+static constexpr size_t kCalleeSaveRegisters = 5;
+#elif defined(__arm__)
+static constexpr size_t kCalleeSaveRegisters = 7;
+#elif defined(__aarch64__)
+static constexpr size_t kCalleeSaveRegisters = 10;
+#else
+#    error "Undefined chipset"
+#endif
 }
 
 namespace hadron {
 
-LighteningJIT::LighteningJIT():
-    JIT() {
-    m_state = jit_new_state(malloc, free);
-}
+LighteningJIT::LighteningJIT(): JIT() { m_state = jit_new_state(malloc, free); }
 
-LighteningJIT::~LighteningJIT() {
-    jit_destroy_state(m_state);
-}
+LighteningJIT::~LighteningJIT() { jit_destroy_state(m_state); }
 
 // static
-void LighteningJIT::initJITGlobals() {
-    init_jit();
-}
+void LighteningJIT::initJITGlobals() { init_jit(); }
 
 // static
 bool LighteningJIT::markThreadForJITCompilation() {
-#   if defined(__APPLE__)
+#if defined(__APPLE__)
     pthread_jit_write_protect_np(false);
 #endif
     return true;
@@ -58,26 +51,20 @@ bool LighteningJIT::markThreadForJITCompilation() {
 
 // static
 void LighteningJIT::markThreadForJITExecution() {
-#   if defined(__APPLE__)
+#if defined(__APPLE__)
     pthread_jit_write_protect_np(true);
-#   endif
+#endif
 }
 
 LighteningJIT::FunctionPointer LighteningJIT::addressToFunctionPointer(Address a) {
     return jit_address_to_function_pointer(m_addresses[a]);
 }
 
-void LighteningJIT::begin(int8_t* buffer, size_t size) {
-    jit_begin(m_state, reinterpret_cast<uint8_t*>(buffer), size);
-}
+void LighteningJIT::begin(int8_t* buffer, size_t size) { jit_begin(m_state, reinterpret_cast<uint8_t*>(buffer), size); }
 
-bool LighteningJIT::hasJITBufferOverflow() {
-    return jit_has_overflow(m_state);
-}
+bool LighteningJIT::hasJITBufferOverflow() { return jit_has_overflow(m_state); }
 
-void LighteningJIT::reset() {
-    jit_reset(m_state);
-}
+void LighteningJIT::reset() { jit_reset(m_state); }
 
 JIT::Address LighteningJIT::end(size_t* sizeOut) {
     JIT::Address addressIndex = m_addresses.size();
@@ -107,30 +94,30 @@ void LighteningJIT::loadCArgs2(Reg arg1, Reg arg2) {
 }
 
 JIT::Reg LighteningJIT::getCStackPointerRegister() const {
-#   if defined(__i386__)
-    Reg r = 4;   // JIT_SP = JIT_GPR(4)
-#   elif defined(__x86_64__)
-    Reg r = 4;   // JIT_SP = JIT_GPR(4)
-#   elif defined(__arm__)
-    Reg r = 13;  // JIT_SP = JIT_GPR(13)
-#   elif defined(__aarch64__)
-    Reg r = 31;  // JIT_SP = JIT_GPR(31)
-#   else
-#   error "Undefined chipset"
-#   endif
+#if defined(__i386__)
+    Reg r = 4; // JIT_SP = JIT_GPR(4)
+#elif defined(__x86_64__)
+    Reg r = 4; // JIT_SP = JIT_GPR(4)
+#elif defined(__arm__)
+    Reg r = 13; // JIT_SP = JIT_GPR(13)
+#elif defined(__aarch64__)
+    Reg r = 31; // JIT_SP = JIT_GPR(31)
+#else
+#    error "Undefined chipset"
+#endif
 
-    r = r - kNumberOfReservedRegisters;  // Adjust register number for the reserved registers.
+    r = r - kNumberOfReservedRegisters; // Adjust register number for the reserved registers.
 
-#   if defined(__clang__) || defined(__GNUC__)
-#   pragma GCC diagnostic push
-#   pragma GCC diagnostic ignored "-Wpedantic"
-#   endif
+#if defined(__clang__) || defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 
     assert(jit_same_gprs(reg(r), JIT_SP));
 
-#   if defined(__clang__) || defined(__GNUC__)
-#   pragma GCC diagnostic pop
-#   endif
+#if defined(__clang__) || defined(__GNUC__)
+#    pragma GCC diagnostic pop
+#endif
 
     return r;
 }
@@ -139,33 +126,19 @@ void LighteningJIT::leaveABI(size_t stackSize) {
     return jit_leave_jit_abi(m_state, kCalleeSaveRegisters, 0, stackSize);
 }
 
-int LighteningJIT::getRegisterCount() const {
-    return kNumberOfPhysicalRegisters;
-}
+int LighteningJIT::getRegisterCount() const { return kNumberOfPhysicalRegisters; }
 
-int LighteningJIT::getFloatRegisterCount() const {
-    return kNumberOfPhysicalFloatRegisters;
-}
+int LighteningJIT::getFloatRegisterCount() const { return kNumberOfPhysicalFloatRegisters; }
 
-void LighteningJIT::addr(Reg target, Reg a, Reg b) {
-    jit_addr(m_state, reg(target), reg(a), reg(b));
-}
+void LighteningJIT::addr(Reg target, Reg a, Reg b) { jit_addr(m_state, reg(target), reg(a), reg(b)); }
 
-void LighteningJIT::addi(Reg target, Reg a, Word b) {
-    jit_addi(m_state, reg(target), reg(a), b);
-}
+void LighteningJIT::addi(Reg target, Reg a, Word b) { jit_addi(m_state, reg(target), reg(a), b); }
 
-void LighteningJIT::andi(Reg target, Reg a, UWord b) {
-    jit_andi(m_state, reg(target), reg(a), b);
-}
+void LighteningJIT::andi(Reg target, Reg a, UWord b) { jit_andi(m_state, reg(target), reg(a), b); }
 
-void LighteningJIT::ori(Reg target, Reg a, UWord b) {
-    jit_ori(m_state, reg(target), reg(a), b);
-}
+void LighteningJIT::ori(Reg target, Reg a, UWord b) { jit_ori(m_state, reg(target), reg(a), b); }
 
-void LighteningJIT::xorr(Reg target, Reg a, Reg b) {
-    jit_xorr(m_state, reg(target), reg(a), reg(b));
-}
+void LighteningJIT::xorr(Reg target, Reg a, Reg b) { jit_xorr(m_state, reg(target), reg(a), reg(b)); }
 
 void LighteningJIT::movr(Reg target, Reg value) {
     if (target != value) {
@@ -173,17 +146,15 @@ void LighteningJIT::movr(Reg target, Reg value) {
     }
 }
 
-void LighteningJIT::movi(Reg target, Word value) {
-    jit_movi(m_state, reg(target), value);
-}
+void LighteningJIT::movi(Reg target, Word value) { jit_movi(m_state, reg(target), value); }
 
 void LighteningJIT::movi_u(Reg target, UWord value) {
     Word signedValue;
     if (value < std::numeric_limits<Word>::max()) {
         signedValue = static_cast<int64_t>(value);
     } else {
-        signedValue = static_cast<int64_t>(value - std::numeric_limits<Word>::max() - 1) +
-                std::numeric_limits<Word>::min();
+        signedValue =
+            static_cast<int64_t>(value - std::numeric_limits<Word>::max() - 1) + std::numeric_limits<Word>::min();
     }
     jit_movi(m_state, reg(target), signedValue);
 }
@@ -208,21 +179,13 @@ JIT::Label LighteningJIT::jmp() {
     return m_labels.size() - 1;
 }
 
-void LighteningJIT::jmpr(Reg r) {
-    jit_jmpr(m_state, reg(r));
-}
+void LighteningJIT::jmpr(Reg r) { jit_jmpr(m_state, reg(r)); }
 
-void LighteningJIT::jmpi(Address location) {
-    jit_jmpi(m_state, m_addresses[location]);
-}
+void LighteningJIT::jmpi(Address location) { jit_jmpi(m_state, m_addresses[location]); }
 
-void LighteningJIT::ldr_l(Reg target, Reg address) {
-    jit_ldr_l(m_state, reg(target), reg(address));
-}
+void LighteningJIT::ldr_l(Reg target, Reg address) { jit_ldr_l(m_state, reg(target), reg(address)); }
 
-void LighteningJIT::ldi_l(Reg target, void* address) {
-    jit_ldi_l(m_state, reg(target), address);
-}
+void LighteningJIT::ldi_l(Reg target, void* address) { jit_ldi_l(m_state, reg(target), address); }
 
 void LighteningJIT::ldxi_w(Reg target, Reg address, int offset) {
     if (sizeof(void*) == 8) {
@@ -240,13 +203,9 @@ void LighteningJIT::ldxi_l(Reg target, Reg address, int offset) {
     jit_ldxi_l(m_state, reg(target), reg(address), offset);
 }
 
-void LighteningJIT::str_i(Reg address, Reg value) {
-    jit_str_i(m_state, reg(address), reg(value));
-}
+void LighteningJIT::str_i(Reg address, Reg value) { jit_str_i(m_state, reg(address), reg(value)); }
 
-void LighteningJIT::str_l(Reg address, Reg value) {
-    jit_str_l(m_state, reg(address), reg(value));
-}
+void LighteningJIT::str_l(Reg address, Reg value) { jit_str_l(m_state, reg(address), reg(value)); }
 
 void LighteningJIT::stxi_w(int offset, Reg address, Reg value) {
     if (sizeof(void*) == 8) {
@@ -264,9 +223,7 @@ void LighteningJIT::stxi_l(int offset, Reg address, Reg value) {
     jit_stxi_l(m_state, offset, reg(address), reg(value));
 }
 
-void LighteningJIT::ret() {
-    jit_ret(m_state);
-}
+void LighteningJIT::ret() { jit_ret(m_state); }
 
 JIT::Address LighteningJIT::address() {
     JIT::Address addressIndex = m_addresses.size();
@@ -274,17 +231,13 @@ JIT::Address LighteningJIT::address() {
     return addressIndex;
 }
 
-void LighteningJIT::patchHere(Label label) {
-    jit_patch_here(m_state, m_labels[label]);
-}
+void LighteningJIT::patchHere(Label label) { jit_patch_here(m_state, m_labels[label]); }
 
 void LighteningJIT::patchThere(Label target, Address location) {
     jit_patch_there(m_state, m_labels[target], m_addresses[location]);
 }
 
-const int8_t* LighteningJIT::getAddress(Address a) const {
-    return static_cast<const int8_t*>(m_addresses[a]);
-}
+const int8_t* LighteningJIT::getAddress(Address a) const { return static_cast<const int8_t*>(m_addresses[a]); }
 
 jit_gpr_t LighteningJIT::reg(Reg r) const {
     assert(r < getRegisterCount());

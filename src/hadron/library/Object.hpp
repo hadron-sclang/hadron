@@ -12,17 +12,15 @@
 #include <cassert>
 #include <type_traits>
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 // Our Object class can wrap any heap-allocated precompiled Schema struct. It uses the Curious Recurring Template
 // Pattern, or CRTP, to provide static function dispatch without adding any storage overhead for a vtable. It is a
 // veneer over Slot pointers that provides type checking when using sclang objects in C++ code.
-template<typename T, typename S>
-class Object {
+template <typename T, typename S> class Object {
 public:
-    Object(): m_instance(nullptr) {}
-    Object(const Object& o): m_instance(o.m_instance) {}
+    Object(): m_instance(nullptr) { }
+    Object(const Object& o): m_instance(o.m_instance) { }
 
     // Wraps an existing schema instance. Will assert if the type of the schema doesn't exactly match S. For wrapping
     // without type checking, use wrapUnsafe().
@@ -32,19 +30,23 @@ public:
         }
     }
     explicit Object(Slot instance) {
-        if (instance.isNil()) { m_instance = nullptr; }
-        else {
+        if (instance.isNil()) {
+            m_instance = nullptr;
+        } else {
             m_instance = reinterpret_cast<S*>(instance.getPointer());
             assert(m_instance->schema._className == S::kNameHash);
         }
     }
 
     // Destructor must deliberately do nothing as it wraps an automatically garbage-collected pointer.
-    ~Object() {}
+    ~Object() { }
 
     // Optional initialization, sets all members to nil.
     void initToNil() {
-        if (!m_instance) { assert(false); return; }
+        if (!m_instance) {
+            assert(false);
+            return;
+        }
         Slot* s = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(m_instance) + sizeof(Schema));
         for (size_t i = 0; i < (m_instance->schema._sizeInBytes - sizeof(Schema)) / kSlotSize; ++i) {
             s[i] = Slot::makeNil();
@@ -78,7 +80,9 @@ public:
     inline Slot slot() const { return Slot::makePointer(reinterpret_cast<library::Schema*>(m_instance)); }
     inline bool isNil() const { return m_instance == nullptr; }
     inline Hash className() const {
-        if (isNil()) { return schema::NilSchema::kNameHash; }
+        if (isNil()) {
+            return schema::NilSchema::kNameHash;
+        }
         return m_instance->schema._className;
     }
     explicit inline operator bool() const { return m_instance != nullptr; }
@@ -91,10 +95,10 @@ protected:
 
 class ObjectBase : public Object<ObjectBase, schema::ObjectSchema> {
 public:
-    ObjectBase(): Object<ObjectBase, schema::ObjectSchema>() {}
-    explicit ObjectBase(schema::ObjectSchema* instance): Object<ObjectBase, schema::ObjectSchema>(instance) {}
-    explicit ObjectBase(Slot instance): Object<ObjectBase, schema::ObjectSchema>(instance) {}
-    ~ObjectBase() {}
+    ObjectBase(): Object<ObjectBase, schema::ObjectSchema>() { }
+    explicit ObjectBase(schema::ObjectSchema* instance): Object<ObjectBase, schema::ObjectSchema>(instance) { }
+    explicit ObjectBase(Slot instance): Object<ObjectBase, schema::ObjectSchema>(instance) { }
+    ~ObjectBase() { }
 };
 
 } // namespace library

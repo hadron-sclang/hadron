@@ -5,17 +5,15 @@
 #include "hadron/library/Object.hpp"
 #include "hadron/schema/Common/Core/KernelSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 class Interpreter : public Object<Interpreter, schema::InterpreterSchema> {
 public:
-    Interpreter(): Object<Interpreter, schema::InterpreterSchema>() {}
+    Interpreter(): Object<Interpreter, schema::InterpreterSchema>() { }
     explicit Interpreter(schema::InterpreterSchema* instance):
-        Object<Interpreter, schema::InterpreterSchema>(instance) {}
-    explicit Interpreter(Slot instance):
-        Object<Interpreter, schema::InterpreterSchema>(instance) {}
-    ~Interpreter() {}
+        Object<Interpreter, schema::InterpreterSchema>(instance) { }
+    explicit Interpreter(Slot instance): Object<Interpreter, schema::InterpreterSchema>(instance) { }
+    ~Interpreter() { }
 
     Function compile(ThreadContext* context, String string);
 };

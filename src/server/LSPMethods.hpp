@@ -3,11 +3,10 @@
 
 #include <cstddef>
 
-namespace server {
-namespace lsp {
+namespace server { namespace lsp {
 
 enum Method {
-    kNotFound,      // no match
+    kNotFound, // no match
     kInitialize,
     kInitialized,
     kShutdown,

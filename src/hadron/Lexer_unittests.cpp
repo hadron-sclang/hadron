@@ -1316,7 +1316,6 @@ TEST_CASE("Lexer Identifiers and Keywords") {
         CHECK(lexer.tokens()[12].name == Token::Name::kWhile);
         CHECK(lexer.tokens()[12].range.data() == code + 45);
         CHECK(lexer.tokens()[12].range.size() == 5);
-
     }
     SUBCASE("variable declarations") {
         const char* code = "var a, b17=23, cA = true,nil_ = \\asis;";
@@ -1784,15 +1783,15 @@ TEST_CASE("Lexer Comments") {
     }
     SUBCASE("block comment with commented out code") {
         const char* code = "/*\n"
-                            "var index, atKey;\n"
-                            "index = this.scanFor(key);\n"
-                            "array.put(index+1, value);\n"
-                            "if ( array.at(index).isNil, {\n"
-                            "\tarray.put(index, key);\n"
-                            "\tsize = size + 1;\n"
-                            "\tif (array.size < (size * 4), { this.grow });\n"
-                            "});\n"
-                            "*/\n";
+                           "var index, atKey;\n"
+                           "index = this.scanFor(key);\n"
+                           "array.put(index+1, value);\n"
+                           "if ( array.at(index).isNil, {\n"
+                           "\tarray.put(index, key);\n"
+                           "\tsize = size + 1;\n"
+                           "\tif (array.size < (size * 4), { this.grow });\n"
+                           "});\n"
+                           "*/\n";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         CHECK(lexer.tokens().size() == 0);

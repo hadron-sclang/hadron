@@ -23,20 +23,18 @@
 namespace server {
 
 HadronServer::HadronServer(std::unique_ptr<JSONTransport> jsonTransport):
-        m_jsonTransport(std::move(jsonTransport)),
-        m_state(kUninitialized),
-        m_runtime(std::make_unique<hadron::Runtime>(false)) {
+    m_jsonTransport(std::move(jsonTransport)),
+    m_state(kUninitialized),
+    m_runtime(std::make_unique<hadron::Runtime>(false)) {
     m_jsonTransport->setServer(this);
 }
 
-int HadronServer::runLoop() {
-    return m_jsonTransport->runLoop();
-}
+int HadronServer::runLoop() { return m_jsonTransport->runLoop(); }
 
 void HadronServer::initialize(std::optional<lsp::ID> id) {
     if (!m_runtime->initInterpreter()) {
         m_jsonTransport->sendErrorResponse(id, JSONTransport::ErrorCode::kInternalError,
-                "Failed to initialize Hadron runtime.");
+                                           "Failed to initialize Hadron runtime.");
         return;
     }
 
@@ -48,7 +46,7 @@ void HadronServer::semanticTokensFull(const std::string& filePath) {
     hadron::SourceFile sourceFile(filePath);
     if (!sourceFile.read()) {
         m_jsonTransport->sendErrorResponse(std::nullopt, JSONTransport::ErrorCode::kFileReadError,
-                fmt::format("Failed to read file {} for lexing.", filePath));
+                                           fmt::format("Failed to read file {} for lexing.", filePath));
         return;
     }
 

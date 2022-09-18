@@ -5,26 +5,24 @@
 #include "hadron/library/Set.hpp"
 #include "hadron/schema/Common/Collections/DictionarySchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
-template<typename T, typename S>
-class Dictionary : public Set<T, S> {
+template <typename T, typename S> class Dictionary : public Set<T, S> {
 public:
-    Dictionary(): Set<T, S>() {}
-    explicit Dictionary(S* instance): Set<T, S>(instance) {}
-    explicit Dictionary(Slot instance): Set<T, S>(instance) {}
-    ~Dictionary() {}
+    Dictionary(): Set<T, S>() { }
+    explicit Dictionary(S* instance): Set<T, S>(instance) { }
+    explicit Dictionary(Slot instance): Set<T, S>(instance) { }
+    ~Dictionary() { }
 };
 
 class IdentityDictionary : public Dictionary<IdentityDictionary, schema::IdentityDictionarySchema> {
 public:
-    IdentityDictionary(): Dictionary<IdentityDictionary, schema::IdentityDictionarySchema>() {}
+    IdentityDictionary(): Dictionary<IdentityDictionary, schema::IdentityDictionarySchema>() { }
     explicit IdentityDictionary(schema::IdentityDictionarySchema* instance):
-            Dictionary<IdentityDictionary, schema::IdentityDictionarySchema>(instance) {}
+        Dictionary<IdentityDictionary, schema::IdentityDictionarySchema>(instance) { }
     explicit IdentityDictionary(Slot instance):
-            Dictionary<IdentityDictionary, schema::IdentityDictionarySchema>(instance) {}
-    ~IdentityDictionary() {}
+        Dictionary<IdentityDictionary, schema::IdentityDictionarySchema>(instance) { }
+    ~IdentityDictionary() { }
 
     static IdentityDictionary makeIdentityDictionary(ThreadContext* context, int32_t capacity = 4) {
         auto dict = IdentityDictionary::alloc(context);
@@ -32,7 +30,9 @@ public:
         // we triple the size of the array to support |capacity| elements.
         auto arraySize = capacity * 3;
         // Always enforce even-sized arrays.
-        if (arraySize % 2) { ++arraySize; }
+        if (arraySize % 2) {
+            ++arraySize;
+        }
 
         dict.setArray(Array::newClear(context, arraySize));
         dict.setSize(0);
@@ -98,29 +98,22 @@ public:
     }
 };
 
-template<typename K, typename V>
-class TypedIdentDict : public IdentityDictionary {
+template <typename K, typename V> class TypedIdentDict : public IdentityDictionary {
 public:
-    TypedIdentDict(): IdentityDictionary() {}
-    explicit TypedIdentDict(schema::IdentityDictionarySchema* instance): IdentityDictionary(instance) {}
-    explicit TypedIdentDict(Slot instance): IdentityDictionary(instance) {}
-    ~TypedIdentDict() {}
+    TypedIdentDict(): IdentityDictionary() { }
+    explicit TypedIdentDict(schema::IdentityDictionarySchema* instance): IdentityDictionary(instance) { }
+    explicit TypedIdentDict(Slot instance): IdentityDictionary(instance) { }
+    ~TypedIdentDict() { }
 
     static TypedIdentDict<K, V> makeTypedIdentDict(ThreadContext* context, int32_t capacity = 4) {
         return TypedIdentDict<K, V>(IdentityDictionary::makeIdentityDictionary(context, capacity).slot());
     }
 
-    void typedPut(ThreadContext* context, K key, V value) {
-        put(context, key.slot(), value.slot());
-    }
+    void typedPut(ThreadContext* context, K key, V value) { put(context, key.slot(), value.slot()); }
 
-    void typedPutAll(ThreadContext* context, TypedIdentDict<K, V> dict) {
-        putAll(context, dict);
-    }
+    void typedPutAll(ThreadContext* context, TypedIdentDict<K, V> dict) { putAll(context, dict); }
 
-    V typedGet(K key) {
-        return V::wrapUnsafe(get(key.slot()));
-    }
+    V typedGet(K key) { return V::wrapUnsafe(get(key.slot())); }
 };
 
 

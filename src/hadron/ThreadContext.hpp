@@ -36,12 +36,7 @@ struct ThreadContext {
     void* cStackPointer = nullptr;
     VirtualMachine* virtualMachine = nullptr;
 
-    enum InterruptCode : int32_t {
-        kDispatch,
-        kFatalError,
-        kNewObject,
-        kPrimitive
-    };
+    enum InterruptCode : int32_t { kDispatch, kFatalError, kNewObject, kPrimitive };
     InterruptCode interruptCode = InterruptCode::kFatalError;
 
     std::shared_ptr<Heap> heap;

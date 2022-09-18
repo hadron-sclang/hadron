@@ -30,11 +30,15 @@ int main(int argc, char* argv[]) {
     }
 
     hadron::Runtime runtime(FLAGS_debug);
-    if (!runtime.initInterpreter()) { return -1; }
+    if (!runtime.initInterpreter()) {
+        return -1;
+    }
 
     fs::path sourcePath(argv[1]);
     auto sourceFile = hadron::SourceFile(sourcePath.string());
-    if (!sourceFile.read()) { return -1; }
+    if (!sourceFile.read()) {
+        return -1;
+    }
 
     auto tokenRegex = std::regex("(^|\\n)//[+][ ]*([/A-Z]+):[ ]*([^ \\n]+[^\\n]*)?");
     auto iter = std::cregex_iterator(sourceFile.code(), sourceFile.code() + sourceFile.size(), tokenRegex);
@@ -42,14 +46,7 @@ int main(int argc, char* argv[]) {
 
     std::string_view name;
     const char* payloadStart = nullptr;
-    enum Verb {
-        kCheck,
-        kClasses,
-        kExpecting,
-        kGives,
-        kNothing,
-        kRun
-    };
+    enum Verb { kCheck, kClasses, kExpecting, kGives, kNothing, kRun };
     Verb verb = kNothing;
 
     struct TestCommand {
@@ -71,10 +68,10 @@ int main(int argc, char* argv[]) {
         if (verb != kNothing) {
             auto payload = std::string_view(payloadStart, match[0].first - payloadStart);
 
-//            std::string verbName = verb == kExpecting ? "expect" : "run";
-//            std::cout << fmt::format("verb: '{}', name: '{}', payload: '{}'\n", verbName, name, payload);
+            //            std::string verbName = verb == kExpecting ? "expect" : "run";
+            //            std::cout << fmt::format("verb: '{}', name: '{}', payload: '{}'\n", verbName, name, payload);
 
-            commands.emplace_back(TestCommand{verb, name, payload});
+            commands.emplace_back(TestCommand { verb, name, payload });
         }
 
         name = std::string_view(match[3].first, match[3].second - match[3].first);
@@ -101,7 +98,7 @@ int main(int argc, char* argv[]) {
 
     if (payloadStart) {
         auto payload = std::string_view(payloadStart, sourceFile.code() + sourceFile.size() - payloadStart - 1);
-        commands.emplace_back(TestCommand{verb, name, payload});
+        commands.emplace_back(TestCommand { verb, name, payload });
     }
 
     std::string runResults;
@@ -111,7 +108,7 @@ int main(int argc, char* argv[]) {
 
     // Execute the commands in the file, in order.
     for (const auto& command : commands) {
-        switch(command.verb) {
+        switch (command.verb) {
         case kCheck: {
             if (!finalizedLibrary) {
                 if (!runtime.finalizeClassLibrary()) {
@@ -140,7 +137,7 @@ int main(int argc, char* argv[]) {
         case kExpecting: {
             if (runResults != command.payload) {
                 std::cerr << fmt::format("ERROR: running '{}', expected '{}' got '{}'\n", runName, command.payload,
-                        runResults);
+                                         runResults);
                 ++errorCount;
             }
         } break;
@@ -148,7 +145,7 @@ int main(int argc, char* argv[]) {
         case kGives: {
             if (runResults != command.name) {
                 std::cerr << fmt::format("ERROR: running '{}', expected '{}' got '{}'\n", runName, command.name,
-                        runResults);
+                                         runResults);
                 ++errorCount;
             }
         } break;

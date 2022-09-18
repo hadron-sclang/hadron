@@ -3,8 +3,7 @@
 #include "hadron/JIT.hpp"
 #include "hadron/ThreadContext.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 bool LIR::producesValue() const {
     switch (className()) {
@@ -30,9 +29,7 @@ bool LIR::producesValue() const {
     return false;
 }
 
-bool LIR::shouldPreserveRegisters() const {
-    return (className() == InterruptLIR::nameHash());
-}
+bool LIR::shouldPreserveRegisters() const { return (className() == InterruptLIR::nameHash()); }
 
 } // namespace library
 } // namespace hadron

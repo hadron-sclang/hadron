@@ -7,8 +7,7 @@
 #include "hadron/library/Object.hpp"
 #include "hadron/schema/HLang/HadronCFGSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 /*
  * Dependency graph of the various CFG objects and HIR:
@@ -34,13 +33,13 @@ namespace library {
  * resolve. The answer must be more templates!
  */
 
-template<typename T, typename FrameT, typename BlockT>
+template <typename T, typename FrameT, typename BlockT>
 class CFGScopeT : public Object<T, schema::HadronCFGScopeSchema> {
 public:
-    CFGScopeT(): Object<T, schema::HadronCFGScopeSchema>() {}
-    explicit CFGScopeT(schema::HadronCFGScopeSchema* instance): Object<T, schema::HadronCFGScopeSchema>(instance) {}
-    explicit CFGScopeT(Slot instance): Object<T, schema::HadronCFGScopeSchema>(instance) {}
-    ~CFGScopeT() {}
+    CFGScopeT(): Object<T, schema::HadronCFGScopeSchema>() { }
+    explicit CFGScopeT(schema::HadronCFGScopeSchema* instance): Object<T, schema::HadronCFGScopeSchema>(instance) { }
+    explicit CFGScopeT(Slot instance): Object<T, schema::HadronCFGScopeSchema>(instance) { }
+    ~CFGScopeT() { }
 
     static T makeRootCFGScope(ThreadContext* context, FrameT owningFrame) {
         auto scope = T::alloc(context);
@@ -116,13 +115,13 @@ public:
     }
 };
 
-template<typename T, typename ScopeT, typename HIRT, typename BlockLiteralHIRT>
+template <typename T, typename ScopeT, typename HIRT, typename BlockLiteralHIRT>
 class CFGFrameT : public Object<T, schema::HadronCFGFrameSchema> {
 public:
-    CFGFrameT(): Object<T, schema::HadronCFGFrameSchema>() {}
-    explicit CFGFrameT(schema::HadronCFGFrameSchema* instance): Object<T, schema::HadronCFGFrameSchema>(instance) {}
-    explicit CFGFrameT(Slot instance): Object<T, schema::HadronCFGFrameSchema>(instance) {}
-    ~CFGFrameT() {}
+    CFGFrameT(): Object<T, schema::HadronCFGFrameSchema>() { }
+    explicit CFGFrameT(schema::HadronCFGFrameSchema* instance): Object<T, schema::HadronCFGFrameSchema>(instance) { }
+    explicit CFGFrameT(Slot instance): Object<T, schema::HadronCFGFrameSchema>(instance) { }
+    ~CFGFrameT() { }
 
     static T makeCFGFrame(ThreadContext* context, BlockLiteralHIRT outerBlock) {
         auto frame = T::alloc(context);
@@ -225,13 +224,13 @@ public:
     }
 };
 
-template<typename T, typename FrameT, typename ScopeT, typename PhiHIRT, typename HIRT>
+template <typename T, typename FrameT, typename ScopeT, typename PhiHIRT, typename HIRT>
 class CFGBlockT : public Object<T, schema::HadronCFGBlockSchema> {
 public:
-    CFGBlockT(): Object<T, schema::HadronCFGBlockSchema>() {}
-    explicit CFGBlockT(schema::HadronCFGBlockSchema* instance): Object<T, schema::HadronCFGBlockSchema>(instance) {}
-    explicit CFGBlockT(Slot instance): Object<T, schema::HadronCFGBlockSchema>(instance) {}
-    ~CFGBlockT() {}
+    CFGBlockT(): Object<T, schema::HadronCFGBlockSchema>() { }
+    explicit CFGBlockT(schema::HadronCFGBlockSchema* instance): Object<T, schema::HadronCFGBlockSchema>(instance) { }
+    explicit CFGBlockT(Slot instance): Object<T, schema::HadronCFGBlockSchema>(instance) { }
+    ~CFGBlockT() { }
 
     static T makeCFGBlock(ThreadContext* context, ScopeT scope, int32_t blockId) {
         auto block = T::alloc(context);
@@ -376,31 +375,31 @@ class CFGFrame;
 class CFGBlock;
 class CFGScope : public CFGScopeT<CFGScope, CFGFrame, CFGBlock> {
 public:
-    CFGScope(): CFGScopeT<CFGScope, CFGFrame, CFGBlock>() {}
-    explicit CFGScope(schema::HadronCFGScopeSchema* instance): CFGScopeT<CFGScope, CFGFrame, CFGBlock>(instance) {}
-    explicit CFGScope(Slot instance): CFGScopeT<CFGScope, CFGFrame, CFGBlock>(instance) {}
-    ~CFGScope() {}
+    CFGScope(): CFGScopeT<CFGScope, CFGFrame, CFGBlock>() { }
+    explicit CFGScope(schema::HadronCFGScopeSchema* instance): CFGScopeT<CFGScope, CFGFrame, CFGBlock>(instance) { }
+    explicit CFGScope(Slot instance): CFGScopeT<CFGScope, CFGFrame, CFGBlock>(instance) { }
+    ~CFGScope() { }
 };
 
 class HIR;
 class BlockLiteralHIR;
 class CFGFrame : public CFGFrameT<CFGFrame, CFGScope, HIR, BlockLiteralHIR> {
 public:
-    CFGFrame(): CFGFrameT<CFGFrame, CFGScope, HIR, BlockLiteralHIR>() {}
+    CFGFrame(): CFGFrameT<CFGFrame, CFGScope, HIR, BlockLiteralHIR>() { }
     explicit CFGFrame(schema::HadronCFGFrameSchema* instance):
-            CFGFrameT<CFGFrame, CFGScope, HIR, BlockLiteralHIR>(instance) {}
-    explicit CFGFrame(Slot instance): CFGFrameT<CFGFrame, CFGScope, HIR, BlockLiteralHIR>(instance) {}
-    ~CFGFrame() {}
+        CFGFrameT<CFGFrame, CFGScope, HIR, BlockLiteralHIR>(instance) { }
+    explicit CFGFrame(Slot instance): CFGFrameT<CFGFrame, CFGScope, HIR, BlockLiteralHIR>(instance) { }
+    ~CFGFrame() { }
 };
 
 class PhiHIR;
 class CFGBlock : public CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR> {
 public:
-    CFGBlock(): CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>() {}
+    CFGBlock(): CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>() { }
     explicit CFGBlock(schema::HadronCFGBlockSchema* instance):
-            CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>(instance) {}
-    explicit CFGBlock(Slot instance): CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>(instance) {}
-    ~CFGBlock() {}
+        CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>(instance) { }
+    explicit CFGBlock(Slot instance): CFGBlockT<CFGBlock, CFGFrame, CFGScope, PhiHIR, HIR>(instance) { }
+    ~CFGBlock() { }
 
     // Adds hir to |statements| or |exitStatements|, returns assigned id.
     HIRId append(ThreadContext* context, HIR hir);

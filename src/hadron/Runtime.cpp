@@ -22,9 +22,7 @@
 
 namespace hadron {
 
-Runtime::Runtime(bool debugMode):
-    m_heap(std::make_shared<Heap>()),
-    m_threadContext(std::make_unique<ThreadContext>()) {
+Runtime::Runtime(bool debugMode): m_heap(std::make_shared<Heap>()), m_threadContext(std::make_unique<ThreadContext>()) {
     m_threadContext->debugMode = debugMode;
     if (!debugMode) {
         LighteningJIT::initJITGlobals();
@@ -37,11 +35,13 @@ Runtime::Runtime(bool debugMode):
     m_threadContext->classLibrary = std::make_unique<ClassLibrary>();
 }
 
-Runtime::~Runtime() {}
+Runtime::~Runtime() { }
 
 bool Runtime::initInterpreter() {
-    if (!buildThreadContext()) return false;
-    if (!buildTrampolines()) return false;
+    if (!buildThreadContext())
+        return false;
+    if (!buildTrampolines())
+        return false;
     m_threadContext->classLibrary->bootstrapLibrary(m_threadContext.get());
     m_interpreter = library::Interpreter::alloc(m_threadContext.get());
     m_interpreter.initToNil();
@@ -54,9 +54,7 @@ void Runtime::addDefaultPaths() {
     addClassDirectory(findHLangClassLibrary());
 }
 
-void Runtime::addClassDirectory(const std::string& path) {
-    m_libraryPaths.emplace(fs::absolute(path));
-}
+void Runtime::addClassDirectory(const std::string& path) { m_libraryPaths.emplace(fs::absolute(path)); }
 
 bool Runtime::scanClassFiles() {
     for (const auto& classLibPath : m_libraryPaths) {
@@ -66,7 +64,9 @@ bool Runtime::scanClassFiles() {
                 continue;
 
             auto sourceFile = std::make_unique<SourceFile>(path.string());
-            if (!sourceFile->read()) { return false; }
+            if (!sourceFile->read()) {
+                return false;
+            }
 
             auto filename = library::Symbol::fromView(m_threadContext.get(), path.string());
             if (!m_threadContext->classLibrary->scanString(m_threadContext.get(), sourceFile->codeView(), filename)) {
@@ -80,12 +80,10 @@ bool Runtime::scanClassFiles() {
 
 bool Runtime::scanClassString(std::string_view input, std::string_view filename) {
     return m_threadContext->classLibrary->scanString(m_threadContext.get(), input,
-            library::Symbol::fromView(m_threadContext.get(), filename));
+                                                     library::Symbol::fromView(m_threadContext.get(), filename));
 }
 
-bool Runtime::finalizeClassLibrary() {
-    return m_threadContext->classLibrary->finalizeLibrary(m_threadContext.get());
-}
+bool Runtime::finalizeClassLibrary() { return m_threadContext->classLibrary->finalizeLibrary(m_threadContext.get()); }
 
 Slot Runtime::interpret(std::string_view code) {
     if (!m_threadContext->debugMode) {
@@ -96,15 +94,17 @@ Slot Runtime::interpret(std::string_view code) {
     auto codeString = library::String::fromView(m_threadContext.get(), code);
     auto function = m_interpreter.compile(m_threadContext.get(), codeString);
 
-    if (!function) { return Slot::makeNil(); }
+    if (!function) {
+        return Slot::makeNil();
+    }
 
     // Convention is caller pushes, callee pops.
     auto callerFrame = library::Frame::alloc(m_threadContext.get());
     callerFrame.initToNil();
     callerFrame.setIp(m_threadContext->exitMachineCode);
 
-    auto calleeFrame = library::Frame::alloc(m_threadContext.get(),
-            std::max(function.def().prototypeFrame().size() - 1, 0));
+    auto calleeFrame =
+        library::Frame::alloc(m_threadContext.get(), std::max(function.def().prototypeFrame().size() - 1, 0));
     calleeFrame.initToNil();
     calleeFrame.setCaller(callerFrame);
     calleeFrame.setContext(calleeFrame);
@@ -154,7 +154,7 @@ Slot Runtime::interpret(std::string_view code) {
             }
             if (!method) {
                 SPDLOG_ERROR("Failed to find method {} in class {}", selector.view(m_threadContext.get()),
-                        classDef.name(m_threadContext.get()).view(m_threadContext.get()));
+                             classDef.name(m_threadContext.get()).view(m_threadContext.get()));
                 return Slot::makeNil();
             }
 
@@ -198,7 +198,7 @@ Slot Runtime::interpret(std::string_view code) {
 }
 
 std::string Runtime::slotToString(Slot s) {
-    switch(s.getType()) {
+    switch (s.getType()) {
     case TypeFlags::kIntegerFlag:
         return fmt::format("{}", s.getInt32());
 
@@ -287,7 +287,7 @@ bool Runtime::buildTrampolines() {
         };
     } else {
         m_entryTrampoline = reinterpret_cast<void (*)(ThreadContext*, const int8_t*)>(
-                reinterpret_cast<LighteningJIT*>(jit.get())->addressToFunctionPointer(entryAddr));
+            reinterpret_cast<LighteningJIT*>(jit.get())->addressToFunctionPointer(entryAddr));
     }
     m_trampolines.resize(m_threadContext.get(), trampolineSize);
 

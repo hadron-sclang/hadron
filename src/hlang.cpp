@@ -16,10 +16,16 @@ int main(int argc, char* argv[]) {
     spdlog::default_logger()->set_level(spdlog::level::trace);
 
     hadron::Runtime runtime(FLAGS_debug);
-    if (!runtime.initInterpreter()) { return -1; }
+    if (!runtime.initInterpreter()) {
+        return -1;
+    }
     runtime.addDefaultPaths();
-    if (!runtime.scanClassFiles()) { return -1; }
-    if (!runtime.finalizeClassLibrary()) { return -1; }
+    if (!runtime.scanClassFiles()) {
+        return -1;
+    }
+    if (!runtime.finalizeClassLibrary()) {
+        return -1;
+    }
 
     return 0;
 }

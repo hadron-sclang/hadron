@@ -24,21 +24,12 @@
 namespace {
 // While we generate a Schema struct for these objects they are not represented by Hadron with pointers, rather their
 // values are packed into the Slot directly. So they are excluded from the Schema class heirarchy.
-std::unordered_set<std::string> FundamentalTypeNames {
-    "Boolean",
-    "Char",
-    "Float",
-    "Integer",
-    "Nil",
-    "RawPointer",
-    "Symbol"
-};
+std::unordered_set<std::string> FundamentalTypeNames { "Boolean", "Char",       "Float", "Integer",
+                                                       "Nil",     "RawPointer", "Symbol" };
 
 // Some argument names in sclang are C++ keywords, causing the generated file to have invalid code. We keep a list
 // here of suitable replacements and use them if a match is encountered.
-std::unordered_map<std::string, std::string> keywordSubs {
-    {"bool", "scBool"}
-};
+std::unordered_map<std::string, std::string> keywordSubs { { "bool", "scBool" } };
 
 struct ClassInfo {
     std::string className;
@@ -48,13 +39,13 @@ struct ClassInfo {
 };
 
 bool processPaths(const std::string& inputFiles, const std::string& basePath, const std::string& schemaBasePath,
-        std::unordered_map<std::string, std::string>& ioFiles) {
+                  std::unordered_map<std::string, std::string>& ioFiles) {
     // Parse semicolon-delinated list of input class files.
     size_t pathBegin = 0;
     size_t pathEnd = inputFiles.find_first_of(';');
     do {
-        fs::path classFile = pathEnd == std::string::npos ? inputFiles.substr(pathBegin) :
-                inputFiles.substr(pathBegin, pathEnd - pathBegin);
+        fs::path classFile = pathEnd == std::string::npos ? inputFiles.substr(pathBegin)
+                                                          : inputFiles.substr(pathBegin, pathEnd - pathBegin);
         classFile = fs::absolute(classFile);
 
         if (!fs::exists(classFile)) {
@@ -64,18 +55,20 @@ bool processPaths(const std::string& inputFiles, const std::string& basePath, co
 
         // The class file must be in a subdirectory of the library path.
         if (classFile.string().substr(0, basePath.length()) != basePath) {
-            std::cerr << "Class file path: " << classFile.string() << " not in a subdirectory of library path: "
-                    << basePath << "\n";
+            std::cerr << "Class file path: " << classFile.string()
+                      << " not in a subdirectory of library path: " << basePath << "\n";
             return false;
         }
 
-        fs::path schemaPath = schemaBasePath /
-            fs::path(classFile.string().substr(basePath.length())).parent_path().relative_path() /
-            fs::path(classFile.stem().string() + "Schema.hpp");
+        fs::path schemaPath = schemaBasePath
+            / fs::path(classFile.string().substr(basePath.length())).parent_path().relative_path()
+            / fs::path(classFile.stem().string() + "Schema.hpp");
 
         ioFiles.emplace(std::make_pair(classFile.string(), schemaPath.string()));
 
-        if (pathEnd == std::string::npos) { break; }
+        if (pathEnd == std::string::npos) {
+            break;
+        }
         pathBegin = pathEnd + 1;
         pathEnd = inputFiles.find_first_of(';', pathBegin);
     } while (true);
@@ -87,9 +80,8 @@ class SchemaListener : public sprklr::SCParserBaseListener {
 public:
     SchemaListener() = delete;
     explicit SchemaListener(std::unordered_map<std::string, ClassInfo>& classes):
-        m_classes(classes),
-        m_inClassVarDecl(false) {}
-    virtual ~SchemaListener() {}
+        m_classes(classes), m_inClassVarDecl(false) { }
+    virtual ~SchemaListener() { }
 
     void enterClassDef(sprklr::SCParser::ClassDefContext* ctx) override {
         auto className = ctx->CLASSNAME()->toString();
@@ -116,9 +108,7 @@ public:
         }
     }
 
-    void exitClassVarDecl(sprklr::SCParser::ClassVarDeclContext* ctx) override {
-        m_inClassVarDecl = false;
-    }
+    void exitClassVarDecl(sprklr::SCParser::ClassVarDeclContext* ctx) override { m_inClassVarDecl = false; }
 
     void exitClassDef(sprklr::SCParser::ClassDefContext* ctx) override {
         m_classes.emplace(std::make_pair(m_classInfo.className, std::move(m_classInfo)));
@@ -248,7 +238,7 @@ int main(int argc, char* argv[]) {
             outFile << fmt::format("struct {}Schema {{\n", className);
             outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:08x};\n", hadron::hash(className));
             outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:08x};\n",
-                    hadron::hash(fmt::format("Meta_{}", className)));
+                                   hadron::hash(fmt::format("Meta_{}", className)));
 
             if (classIter->second.isFundamentalType) {
                 outFile << "};\n\n";
@@ -256,10 +246,10 @@ int main(int argc, char* argv[]) {
             }
 
             bootstrapFile << "\n    // ========== " << className
-                    << fmt::format("\n    className = library::Symbol::fromView(context, \"{}\");\n", className)
-                    << "    m_bootstrapClasses.emplace(className);\n"
-                    << "    classDef = findOrInitClass(context, className);\n"
-                    << "    instVarNames = library::SymbolArray::arrayAlloc(context);\n";
+                          << fmt::format("\n    className = library::Symbol::fromView(context, \"{}\");\n", className)
+                          << "    m_bootstrapClasses.emplace(className);\n"
+                          << "    classDef = findOrInitClass(context, className);\n"
+                          << "    instVarNames = library::SymbolArray::arrayAlloc(context);\n";
 
             std::stack<std::unordered_map<std::string, ClassInfo>::iterator> lineage;
             auto lineageIter = classIter;
@@ -285,9 +275,10 @@ int main(int argc, char* argv[]) {
                 bootstrapFile << classHeader;
                 for (const auto& varName : lineageIter->second.variables) {
                     outFile << "    Slot " << varName << ";\n";
-                    bootstrapFile <<
-                            fmt::format("    instVarNames = instVarNames.add(context, library::Symbol::fromView("
-                                    "context, \"{}\"));\n", varName);
+                    bootstrapFile << fmt::format(
+                        "    instVarNames = instVarNames.add(context, library::Symbol::fromView("
+                        "context, \"{}\"));\n",
+                        varName);
                 }
             }
 

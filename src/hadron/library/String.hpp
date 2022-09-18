@@ -8,15 +8,14 @@
 
 #include <string_view>
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 class String : public RawArray<String, schema::StringSchema, char> {
 public:
-    String(): RawArray<String, schema::StringSchema, char>() {}
-    explicit String(schema::StringSchema* instance): RawArray<String, schema::StringSchema, char>(instance) {}
-    explicit String(Slot instance): RawArray<String, schema::StringSchema, char>(instance) {}
-    ~String() {}
+    String(): RawArray<String, schema::StringSchema, char>() { }
+    explicit String(schema::StringSchema* instance): RawArray<String, schema::StringSchema, char>(instance) { }
+    explicit String(Slot instance): RawArray<String, schema::StringSchema, char>(instance) { }
+    ~String() { }
 
     // Copies data into a heap-allocated string object.
     static String fromView(ThreadContext* context, std::string_view v, int32_t additionalSize = 0);
@@ -27,16 +26,17 @@ public:
 
     // Returns true if both strings are identical.
     inline bool compare(String s) const {
-        if (size() != s.size()) return false;
+        if (size() != s.size())
+            return false;
         return std::memcmp(start(), s.start(), size()) == 0;
     }
     inline bool compare(std::string_view v) const {
-        if (static_cast<size_t>(size()) != v.size()) return false;
+        if (static_cast<size_t>(size()) != v.size())
+            return false;
         return std::memcmp(start(), v.data(), v.size()) == 0;
     }
 
     std::string_view view() const { return std::string_view(start(), size()); }
-
 };
 
 } // namespace library

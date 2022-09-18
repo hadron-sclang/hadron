@@ -10,28 +10,37 @@
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 Function Interpreter::compile(ThreadContext* context, String code) {
     auto function = library::Function();
 
     Lexer lexer(code.view());
-    if (!lexer.lex()) { return function; }
+    if (!lexer.lex()) {
+        return function;
+    }
 
     Parser parser(&lexer);
-    if (!parser.parse(context)) { return function; }
+    if (!parser.parse(context)) {
+        return function;
+    }
 
     ASTBuilder astBuilder;
     auto ast = astBuilder.buildBlock(context, library::BlockNode(parser.root().slot()));
-    if (!ast) { return function; }
+    if (!ast) {
+        return function;
+    }
 
     BlockBuilder blockBuilder(context->classLibrary->functionCompileContext());
     auto frame = blockBuilder.buildMethod(context, ast, true);
-    if (!frame) { return function; }
+    if (!frame) {
+        return function;
+    }
 
     auto bytecode = Materializer::materialize(context, frame);
-    if (!bytecode) { return function; }
+    if (!bytecode) {
+        return function;
+    }
 
     auto def = library::FunctionDef::alloc(context);
     def.initToNil();

@@ -18,12 +18,12 @@ namespace hadron {
 BlockBuilder::BlockBuilder(library::Method method): m_method(method) { }
 
 library::CFGFrame BlockBuilder::buildMethod(ThreadContext* context, const library::BlockAST blockAST,
-        bool returnFinalValue) {
+                                            bool returnFinalValue) {
     return buildFrame(context, blockAST, library::BlockLiteralHIR(), returnFinalValue);
 }
 
 library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library::BlockAST blockAST,
-        library::BlockLiteralHIR outerBlockHIR, bool returnFinalValue) {
+                                           library::BlockLiteralHIR outerBlockHIR, bool returnFinalValue) {
     // Build outer frame, root scope, and entry block.
     m_frame = library::CFGFrame::makeCFGFrame(context, outerBlockHIR);
     auto scope = m_frame.rootScope();
@@ -38,8 +38,8 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
         m_frame.setPrototypeFrame(m_frame.prototypeFrame().add(context, blockAST.argumentDefaults().at(i)));
     }
 
-    scope.setBlocks(scope.blocks().typedAdd(context,
-            library::CFGBlock::makeCFGBlock(context, scope, m_frame.numberOfBlocks())));
+    scope.setBlocks(
+        scope.blocks().typedAdd(context, library::CFGBlock::makeCFGBlock(context, scope, m_frame.numberOfBlocks())));
     m_frame.setNumberOfBlocks(m_frame.numberOfBlocks() + 1);
     m_block = scope.blocks().typedFirst();
 
@@ -57,7 +57,7 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
 }
 
 library::CFGScope BlockBuilder::buildInlineBlock(ThreadContext* context, library::CFGScope parentScope,
-        library::CFGBlock predecessor, const library::BlockAST blockAST) {
+                                                 library::CFGBlock predecessor, const library::BlockAST blockAST) {
     auto scope = library::CFGScope::makeSubCFGScope(context, parentScope);
     m_block = library::CFGBlock::makeCFGBlock(context, scope, m_frame.numberOfBlocks());
     m_block.setPredecessors(m_block.predecessors().typedAdd(context, predecessor));
@@ -75,7 +75,7 @@ library::CFGScope BlockBuilder::buildInlineBlock(ThreadContext* context, library
 library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::AST ast) {
     auto nodeValue = library::HIRId();
 
-    switch(ast.className()) {
+    switch (ast.className()) {
     case library::EmptyAST::nameHash():
         nodeValue = m_block.append(context, library::ConstantHIR::makeConstantHIR(context, Slot::makeNil()).toBase());
         assert(nodeValue);
@@ -153,8 +153,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
         auto defineAST = library::DefineAST(ast.slot());
 
         // Add the name to variable index tracking.
-        m_frame.setVariableNames(m_frame.variableNames().add(context,
-                defineAST.name(context)));
+        m_frame.setVariableNames(m_frame.variableNames().add(context, defineAST.name(context)));
         m_block.scope().valueIndices().typedPut(context, defineAST.name(context), m_frame.prototypeFrame().size());
 
         // Simple constant definitions don't need to be saved, rather we add the value to initial values array.
@@ -162,8 +161,8 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
             auto constAST = library::ConstantAST(defineAST.value().slot());
             m_frame.setPrototypeFrame(m_frame.prototypeFrame().add(context, constAST.constant()));
 
-            nodeValue = m_block.append(context,
-                    library::ConstantHIR::makeConstantHIR(context, constAST.constant()).toBase());
+            nodeValue =
+                m_block.append(context, library::ConstantHIR::makeConstantHIR(context, constAST.constant()).toBase());
         } else {
             // Complex value, assign nil as the prototype value, then create a write statement here to that offset.
             m_frame.setPrototypeFrame(m_frame.prototypeFrame().add(context, Slot::makeNil()));
@@ -177,8 +176,8 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
 
     case library::ConstantAST::nameHash(): {
         auto constAST = library::ConstantAST(ast.slot());
-        nodeValue = m_block.append(context, library::ConstantHIR::makeConstantHIR(context,
-                constAST.constant()).toBase());
+        nodeValue =
+            m_block.append(context, library::ConstantHIR::makeConstantHIR(context, constAST.constant()).toBase());
         assert(nodeValue);
     } break;
 
@@ -211,8 +210,8 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
 
             message.addArgument(context, nodeValue);
 
-            auto indexValue = m_block.append(context,
-                    library::ConstantHIR::makeConstantHIR(context, Slot::makeInt32(i)).toBase());
+            auto indexValue =
+                m_block.append(context, library::ConstantHIR::makeConstantHIR(context, Slot::makeInt32(i)).toBase());
             message.addArgument(context, indexValue);
 
             auto messageValue = m_block.append(context, message.toBase());
@@ -236,11 +235,12 @@ library::HIRId BlockBuilder::buildFinalValue(ThreadContext* context, const libra
             m_block.setFinalValue(finalValue);
 
             // If the last statement built was a MethodReturn we can skip compiling the rest of the sequence.
-            if (m_block.hasMethodReturn()) { break; }
+            if (m_block.hasMethodReturn()) {
+                break;
+            }
         }
     } else {
-        finalValue = m_block.append(context,
-                library::ConstantHIR::makeConstantHIR(context, Slot::makeNil()).toBase());
+        finalValue = m_block.append(context, library::ConstantHIR::makeConstantHIR(context, Slot::makeNil()).toBase());
         m_block.setFinalValue(finalValue);
     }
 
@@ -320,17 +320,15 @@ library::HIRId BlockBuilder::buildIf(ThreadContext* context, const library::IfAS
     if ((!falseScope.blocks().typedLast().hasMethodReturn()) && (!trueScope.blocks().typedLast().hasMethodReturn())) {
         auto valuePhi = library::PhiHIR::makePhiHIR(context);
         nodeValue = m_block.append(context, valuePhi.toBase());
-        valuePhi.addInput(context, m_frame.values().typedAt(
-                trueScope.blocks().typedLast().finalValue().int32()));
-        valuePhi.addInput(context, m_frame.values().typedAt(
-                falseScope.blocks().typedLast().finalValue().int32()));
+        valuePhi.addInput(context, m_frame.values().typedAt(trueScope.blocks().typedLast().finalValue().int32()));
+        valuePhi.addInput(context, m_frame.values().typedAt(falseScope.blocks().typedLast().finalValue().int32()));
         assert(nodeValue);
     }
 
     return nodeValue;
 }
 
-library::HIRId BlockBuilder::buildWhile(ThreadContext* context,const library::WhileAST whileAST) {
+library::HIRId BlockBuilder::buildWhile(ThreadContext* context, const library::WhileAST whileAST) {
     auto parentScope = m_block.scope();
 
     // Build condition block. Note this block is unsealed.
@@ -359,8 +357,8 @@ library::HIRId BlockBuilder::buildWhile(ThreadContext* context,const library::Wh
     repeatExitBlock.append(context, repeatBranch.toBase());
 
     // Condition block conditionally jumps to loop block if true.
-    conditionExitBlock.setSuccessors(conditionExitBlock.successors().typedAdd(context,
-            repeatScope.blocks().typedFirst()));
+    conditionExitBlock.setSuccessors(
+        conditionExitBlock.successors().typedAdd(context, repeatScope.blocks().typedFirst()));
     auto trueBranch = library::BranchIfTrueHIR::makeBranchIfTrueHIR(context, conditionExitBlock.finalValue());
     trueBranch.setBlockId(repeatScope.blocks().typedFirst().id());
     conditionExitBlock.append(context, trueBranch.toBase());
@@ -410,19 +408,19 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
                 // Match found, load any and all needed nested frames.
                 auto frameId = library::HIRId();
                 for (size_t i = 0; i < nestedFramesCount; ++i) {
-                    frameId = m_block.append(context, library::LoadOuterFrameHIR::makeOuterFrameHIR(context,
-                            frameId).toBase());
+                    frameId = m_block.append(context,
+                                             library::LoadOuterFrameHIR::makeOuterFrameHIR(context, frameId).toBase());
                 }
 
                 if (!toWrite) {
-                    auto readFromFrame = library::ReadFromFrameHIR::makeReadFromFrameHIR(context, index.int32(),
-                            frameId, name);
+                    auto readFromFrame =
+                        library::ReadFromFrameHIR::makeReadFromFrameHIR(context, index.int32(), frameId, name);
                     auto hir = readFromFrame.toBase();
                     m_block.append(context, hir);
                     return hir;
                 }
-                auto writeToFrame = library::WriteToFrameHIR::makeWriteToFrameHIR(context, index.int32(), frameId,
-                        name, toWrite);
+                auto writeToFrame =
+                    library::WriteToFrameHIR::makeWriteToFrameHIR(context, index.int32(), frameId, name, toWrite);
                 auto hir = writeToFrame.toBase();
                 m_block.append(context, hir);
                 return hir;
@@ -447,14 +445,14 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
         assert(thisHIR);
         assert(thisHIR.id());
         if (!toWrite) {
-            auto readFromThis = library::ReadFromThisHIR::makeReadFromThisHIR(context, thisHIR.id(),
-                    instVarIndex.int32(), name);
+            auto readFromThis =
+                library::ReadFromThisHIR::makeReadFromThisHIR(context, thisHIR.id(), instVarIndex.int32(), name);
             auto hir = readFromThis.toBase();
             m_block.append(context, hir);
             return hir;
         }
-        auto writeToThis = library::WriteToThisHIR::makeWriteToThisHIR(context, thisHIR.id(), instVarIndex.int32(),
-                name, toWrite);
+        auto writeToThis =
+            library::WriteToThisHIR::makeWriteToThisHIR(context, thisHIR.id(), instVarIndex.int32(), name, toWrite);
         auto hir = writeToThis.toBase();
         m_block.append(context, hir);
         return hir;
@@ -476,18 +474,19 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
     while (!classVarDef.isNil()) {
         auto classVarOffset = classVarDef.classVarNames().indexOf(name);
         if (classVarOffset) {
-            auto classArrayHIR = library::ReadFromContextHIR::makeReadFromContextHIR(context, offsetof(ThreadContext,
-                    classVariablesArray), library::Symbol::fromView(context, "_classVariablesArray"));
+            auto classArrayHIR = library::ReadFromContextHIR::makeReadFromContextHIR(
+                context, offsetof(ThreadContext, classVariablesArray),
+                library::Symbol::fromView(context, "_classVariablesArray"));
             auto classArrayId = m_block.append(context, classArrayHIR.toBase());
             if (!toWrite) {
                 auto readFromClass = library::ReadFromClassHIR::makeReadFromClassHIR(context, classArrayId,
-                        classVarOffset.int32(), name);
+                                                                                     classVarOffset.int32(), name);
                 auto hir = readFromClass.toBase();
                 m_block.append(context, hir);
                 return hir;
             }
             auto writeToClass = library::WriteToClassHIR::makeWriteToClassHIR(context, classArrayId,
-                    classVarOffset.int32(), name, toWrite);
+                                                                              classVarOffset.int32(), name, toWrite);
             auto hir = writeToClass.toBase();
             m_block.append(context, hir);
             return hir;
@@ -503,8 +502,8 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
         if (constIndex) {
             // Constants are read-only.
             assert(!toWrite);
-            auto constant = library::ConstantHIR::makeConstantHIR(context,
-                    classConstDef.constValues().at(constIndex.int32()));
+            auto constant =
+                library::ConstantHIR::makeConstantHIR(context, classConstDef.constValues().at(constIndex.int32()));
             auto id = m_block.append(context, constant.toBase());
             assert(id);
             return m_frame.values().typedAt(id.int32());
@@ -528,9 +527,9 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
 
     if (name == context->symbolTable->thisMethodSymbol()) {
         assert(!toWrite); // thisMethod is read-only.
-        auto readFromFrame = library::ReadFromFrameHIR::makeReadFromFrameHIR(context,
-                static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method)) / kSlotSize, library::HIRId(),
-                context->symbolTable->thisMethodSymbol());
+        auto readFromFrame = library::ReadFromFrameHIR::makeReadFromFrameHIR(
+            context, static_cast<int32_t>(offsetof(schema::FramePrivateSchema, method)) / kSlotSize, library::HIRId(),
+            context->symbolTable->thisMethodSymbol());
         auto hir = readFromFrame.toBase();
         m_block.append(context, hir);
         return hir;
@@ -538,8 +537,8 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
 
     if (name == context->symbolTable->thisProcessSymbol()) {
         assert(!toWrite); // thisProcess is read-only.
-        auto readFromContext = library::ReadFromContextHIR::makeReadFromContextHIR(context, offsetof(ThreadContext,
-                thisProcess), context->symbolTable->thisProcessSymbol());
+        auto readFromContext = library::ReadFromContextHIR::makeReadFromContextHIR(
+            context, offsetof(ThreadContext, thisProcess), context->symbolTable->thisProcessSymbol());
         auto hir = readFromContext.toBase();
         m_block.append(context, hir);
         return hir;
@@ -547,8 +546,8 @@ library::HIR BlockBuilder::findName(ThreadContext* context, library::Symbol name
 
     if (name == context->symbolTable->thisThreadSymbol()) {
         assert(!toWrite); // thisThread is read-only
-        auto readFromContext = library::ReadFromContextHIR::makeReadFromContextHIR(context, offsetof(ThreadContext,
-                thisThread), context->symbolTable->thisThreadSymbol());
+        auto readFromContext = library::ReadFromContextHIR::makeReadFromContextHIR(
+            context, offsetof(ThreadContext, thisThread), context->symbolTable->thisThreadSymbol());
         auto hir = readFromContext.toBase();
         m_block.append(context, hir);
         return hir;

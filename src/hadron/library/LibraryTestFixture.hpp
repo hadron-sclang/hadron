@@ -9,8 +9,7 @@ namespace hadron {
 
 class LibraryTestFixture {
 public:
-    LibraryTestFixture():
-        m_runtime(std::make_unique<Runtime>(true)) { m_runtime->initInterpreter(); }
+    LibraryTestFixture(): m_runtime(std::make_unique<Runtime>(true)) { m_runtime->initInterpreter(); }
     virtual ~LibraryTestFixture() = default;
 
 protected:

@@ -9,16 +9,15 @@
 #include "hadron/library/Set.hpp"
 #include "hadron/schema/HLang/HadronLinearFrameSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 class LinearFrame : public Object<LinearFrame, schema::HadronLinearFrameSchema> {
 public:
-    LinearFrame(): Object<LinearFrame, schema::HadronLinearFrameSchema>() {}
+    LinearFrame(): Object<LinearFrame, schema::HadronLinearFrameSchema>() { }
     explicit LinearFrame(schema::HadronLinearFrameSchema* instance):
-            Object<LinearFrame, schema::HadronLinearFrameSchema>(instance) {}
-    explicit LinearFrame(Slot instance): Object<LinearFrame, schema::HadronLinearFrameSchema>(instance) {}
-    ~LinearFrame() {}
+        Object<LinearFrame, schema::HadronLinearFrameSchema>(instance) { }
+    explicit LinearFrame(Slot instance): Object<LinearFrame, schema::HadronLinearFrameSchema>(instance) { }
+    ~LinearFrame() { }
 
     static LinearFrame make(ThreadContext* context, int32_t numberOfBlocks) {
         auto linearFrame = LinearFrame::alloc(context);

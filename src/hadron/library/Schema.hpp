@@ -6,8 +6,7 @@
 
 #include <type_traits>
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 // Object instances in Hadron are contiguous blocks of Slots. The root SC Object has no instance variables accessible
 // from the language, but descendent objects that have instance variables are appended on in declaration order. Objects
@@ -25,7 +24,7 @@ struct Schema {
 
     // Underscores as prefixes for these members so they don't collide with instance variables derived from scanning the
     // SuperCollider class files.
-    
+
     // A symbol hash of the class name.
     Hash _className;
     // Absolute size, including this header.

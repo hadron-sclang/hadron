@@ -32,13 +32,13 @@ public:
 
 private:
     int32_t appendToSequence(ThreadContext* context, library::SequenceAST sequence, const library::Node node,
-            int32_t startCurryCount = 0);
+                             int32_t startCurryCount = 0);
     library::AST transform(ThreadContext* context, const library::Node node, int32_t& curryCount);
     library::SequenceAST transformSequence(ThreadContext* context, const library::ExprSeqNode exprSeqNode,
-            int32_t& curryCount);
+                                           int32_t& curryCount);
     library::BlockAST buildPartialBlock(ThreadContext* context, int32_t numberOfArguments);
-    library::AST transformCallNode(ThreadContext* context, const library::CallNode callNode,
-            library::Symbol selector, int32_t& curryCount);
+    library::AST transformCallNode(ThreadContext* context, const library::CallNode callNode, library::Symbol selector,
+                                   int32_t& curryCount);
 };
 
 } // namespace hadron

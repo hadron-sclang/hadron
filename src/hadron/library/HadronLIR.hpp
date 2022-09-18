@@ -9,8 +9,7 @@
 #include "hadron/library/Symbol.hpp"
 #include "hadron/schema/HLang/HadronLIRSchema.hpp"
 
-namespace hadron {
-namespace library {
+namespace hadron { namespace library {
 
 using LabelId = Integer;
 using Reg = Integer;
@@ -19,13 +18,12 @@ static constexpr VReg kContextPointerVReg = VReg(-3);
 static constexpr VReg kFramePointerVReg = VReg(-2);
 static constexpr VReg kStackPointerVReg = VReg(-1);
 
-template<typename T, typename S, typename B>
-class LIRBase : public Object<T, S> {
+template <typename T, typename S, typename B> class LIRBase : public Object<T, S> {
 public:
-    LIRBase(): Object<T, S>() {}
-    explicit LIRBase(S* instance): Object<T, S>(instance) {}
-    explicit LIRBase(Slot instance): Object<T, S>(instance) {}
-    ~LIRBase() {}
+    LIRBase(): Object<T, S>() { }
+    explicit LIRBase(S* instance): Object<T, S>(instance) { }
+    explicit LIRBase(Slot instance): Object<T, S>(instance) { }
+    ~LIRBase() { }
 
     B toBase() const {
         const T& t = static_cast<const T&>(*this);
@@ -89,10 +87,10 @@ public:
 
 class LIR : public LIRBase<LIR, schema::HadronLIRSchema, LIR> {
 public:
-    LIR(): LIRBase<LIR, schema::HadronLIRSchema, LIR>() {}
-    explicit LIR(schema::HadronLIRSchema* instance): LIRBase<LIR, schema::HadronLIRSchema, LIR>(instance) {}
-    explicit LIR(Slot instance): LIRBase<LIR, schema::HadronLIRSchema, LIR>(instance) {}
-    ~LIR() {}
+    LIR(): LIRBase<LIR, schema::HadronLIRSchema, LIR>() { }
+    explicit LIR(schema::HadronLIRSchema* instance): LIRBase<LIR, schema::HadronLIRSchema, LIR>(instance) { }
+    explicit LIR(Slot instance): LIRBase<LIR, schema::HadronLIRSchema, LIR>(instance) { }
+    ~LIR() { }
 
     bool producesValue() const;
     bool shouldPreserveRegisters() const;
@@ -100,12 +98,11 @@ public:
 
 class AssignLIR : public LIRBase<AssignLIR, schema::HadronAssignLIRSchema, LIR> {
 public:
-    AssignLIR(): LIRBase<AssignLIR, schema::HadronAssignLIRSchema, LIR>() {}
+    AssignLIR(): LIRBase<AssignLIR, schema::HadronAssignLIRSchema, LIR>() { }
     explicit AssignLIR(schema::HadronAssignLIRSchema* instance):
-            LIRBase<AssignLIR, schema::HadronAssignLIRSchema, LIR>(instance) {}
-    explicit AssignLIR(Slot instance):
-            LIRBase<AssignLIR, schema::HadronAssignLIRSchema, LIR>(instance) {}
-    ~AssignLIR() {}
+        LIRBase<AssignLIR, schema::HadronAssignLIRSchema, LIR>(instance) { }
+    explicit AssignLIR(Slot instance): LIRBase<AssignLIR, schema::HadronAssignLIRSchema, LIR>(instance) { }
+    ~AssignLIR() { }
 
     VReg origin() const { return VReg(m_instance->origin); }
     void setOrigin(VReg o) { m_instance->origin = o.slot(); }
@@ -113,11 +110,11 @@ public:
 
 class BranchLIR : public LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR> {
 public:
-    BranchLIR(): LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR>() {}
+    BranchLIR(): LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR>() { }
     explicit BranchLIR(schema::HadronBranchLIRSchema* instance):
-            LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR>(instance) {}
-    explicit BranchLIR(Slot instance): LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR>(instance) {}
-    ~BranchLIR() {}
+        LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR>(instance) { }
+    explicit BranchLIR(Slot instance): LIRBase<BranchLIR, schema::HadronBranchLIRSchema, LIR>(instance) { }
+    ~BranchLIR() { }
 
     static BranchLIR makeBranch(ThreadContext* context, Integer lblId) {
         auto branchLIR = library::BranchLIR::make(context);
@@ -131,12 +128,12 @@ public:
 
 class BranchIfTrueLIR : public LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR> {
 public:
-    BranchIfTrueLIR(): LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR>() {}
+    BranchIfTrueLIR(): LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR>() { }
     explicit BranchIfTrueLIR(schema::HadronBranchIfTrueLIRSchema* instance):
-            LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR>(instance) {}
+        LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR>(instance) { }
     explicit BranchIfTrueLIR(Slot instance):
-            LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR>(instance) {}
-    ~BranchIfTrueLIR() {}
+        LIRBase<BranchIfTrueLIR, schema::HadronBranchIfTrueLIRSchema, LIR>(instance) { }
+    ~BranchIfTrueLIR() { }
 
     static BranchIfTrueLIR makeBranchIfTrue(ThreadContext* context, VReg cond, LabelId lblId) {
         auto branchLIR = library::BranchIfTrueLIR::make(context);
@@ -155,12 +152,12 @@ public:
 
 class BranchToRegisterLIR : public LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR> {
 public:
-    BranchToRegisterLIR(): LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR>() {}
+    BranchToRegisterLIR(): LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR>() { }
     explicit BranchToRegisterLIR(schema::HadronBranchToRegisterLIRSchema* instance):
-            LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR>(instance) {}
+        LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR>(instance) { }
     explicit BranchToRegisterLIR(Slot instance):
-            LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR>(instance) {}
-    ~BranchToRegisterLIR() {}
+        LIRBase<BranchToRegisterLIR, schema::HadronBranchToRegisterLIRSchema, LIR>(instance) { }
+    ~BranchToRegisterLIR() { }
 
     static BranchToRegisterLIR makeBranchToRegisterLIR(ThreadContext* context, VReg addr) {
         auto branchLIR = BranchToRegisterLIR::make(context);
@@ -175,11 +172,11 @@ public:
 
 class InterruptLIR : public LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR> {
 public:
-    InterruptLIR(): LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR>() {}
+    InterruptLIR(): LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR>() { }
     explicit InterruptLIR(schema::HadronInterruptLIRSchema* instance):
-            LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR>(instance) {}
-    explicit InterruptLIR(Slot instance): LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR>(instance) {}
-    ~InterruptLIR() {}
+        LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR>(instance) { }
+    explicit InterruptLIR(Slot instance): LIRBase<InterruptLIR, schema::HadronInterruptLIRSchema, LIR>(instance) { }
+    ~InterruptLIR() { }
 
     static InterruptLIR makeInterrupt(ThreadContext* context, int32_t code) {
         auto interruptLIR = InterruptLIR::make(context);
@@ -193,22 +190,20 @@ public:
 
 class PopFrameLIR : public LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR> {
 public:
-    PopFrameLIR(): LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR>() {}
+    PopFrameLIR(): LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR>() { }
     explicit PopFrameLIR(schema::HadronPopFrameLIRSchema* instance):
-            LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR>(instance) {}
-    explicit PopFrameLIR(Slot instance):
-            LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR>(instance) {}
-    ~PopFrameLIR() {}
+        LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR>(instance) { }
+    explicit PopFrameLIR(Slot instance): LIRBase<PopFrameLIR, schema::HadronPopFrameLIRSchema, LIR>(instance) { }
+    ~PopFrameLIR() { }
 };
 
 class PhiLIR : public LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR> {
 public:
-    PhiLIR(): LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR>() {}
+    PhiLIR(): LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR>() { }
     explicit PhiLIR(schema::HadronPhiLIRSchema* instance):
-            LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR>(instance) {}
-    explicit PhiLIR(Slot instance):
-            LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR>(instance) {}
-    ~PhiLIR() {}
+        LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR>(instance) { }
+    explicit PhiLIR(Slot instance): LIRBase<PhiLIR, schema::HadronPhiLIRSchema, LIR>(instance) { }
+    ~PhiLIR() { }
 
     TypedArray<VReg> inputs() const { return TypedArray<VReg>(m_instance->inputs); }
     void setInputs(TypedArray<VReg> i) { m_instance->inputs = i.slot(); }
@@ -223,11 +218,11 @@ public:
 
 class LabelLIR : public LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR> {
 public:
-    LabelLIR(): LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR>() {}
+    LabelLIR(): LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR>() { }
     explicit LabelLIR(schema::HadronLabelLIRSchema* instance):
-            LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR>(instance) {}
-    explicit LabelLIR(Slot instance): LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR>(instance) {}
-    ~LabelLIR() {}
+        LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR>(instance) { }
+    explicit LabelLIR(Slot instance): LIRBase<LabelLIR, schema::HadronLabelLIRSchema, LIR>(instance) { }
+    ~LabelLIR() { }
 
     LabelId labelId() const { return LabelId(m_instance->labelId); }
     void setLabelId(LabelId lbl) { m_instance->labelId = lbl.slot(); }
@@ -247,12 +242,12 @@ public:
 
 class LoadConstantLIR : public LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR> {
 public:
-    LoadConstantLIR(): LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR>() {}
+    LoadConstantLIR(): LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR>() { }
     explicit LoadConstantLIR(schema::HadronLoadConstantLIRSchema* instance):
-            LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR>(instance) {}
+        LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR>(instance) { }
     explicit LoadConstantLIR(Slot instance):
-            LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR>(instance) {}
-    ~LoadConstantLIR() {}
+        LIRBase<LoadConstantLIR, schema::HadronLoadConstantLIRSchema, LIR>(instance) { }
+    ~LoadConstantLIR() { }
 
     static LoadConstantLIR makeLoadConstant(ThreadContext* context, Slot cnst) {
         auto load = LoadConstantLIR::make(context);
@@ -266,12 +261,12 @@ public:
 
 class LoadFromPointerLIR : public LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR> {
 public:
-    LoadFromPointerLIR(): LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR>() {}
+    LoadFromPointerLIR(): LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR>() { }
     explicit LoadFromPointerLIR(schema::HadronLoadFromPointerLIRSchema* instance):
-            LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR>(instance) {}
+        LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR>(instance) { }
     explicit LoadFromPointerLIR(Slot instance):
-            LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR>(instance) {}
-    ~LoadFromPointerLIR() {}
+        LIRBase<LoadFromPointerLIR, schema::HadronLoadFromPointerLIRSchema, LIR>(instance) { }
+    ~LoadFromPointerLIR() { }
 
     static LoadFromPointerLIR makeLoadFromPointer(ThreadContext* context, VReg ptr, int32_t off) {
         auto loadFromPointerLIR = LoadFromPointerLIR::make(context);
@@ -290,11 +285,11 @@ public:
 
 class RemoveTagLIR : public LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR> {
 public:
-    RemoveTagLIR(): LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>() {}
+    RemoveTagLIR(): LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>() { }
     explicit RemoveTagLIR(schema::HadronRemoveTagLIRSchema* instance):
-            LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>(instance) {}
-    explicit RemoveTagLIR(Slot instance): LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>(instance) {}
-    ~RemoveTagLIR() {}
+        LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>(instance) { }
+    explicit RemoveTagLIR(Slot instance): LIRBase<RemoveTagLIR, schema::HadronRemoveTagLIRSchema, LIR>(instance) { }
+    ~RemoveTagLIR() { }
 
     static RemoveTagLIR makeRemoveTagLIR(ThreadContext* context, VReg tag) {
         auto removeTagLIR = RemoveTagLIR::make(context);
@@ -309,12 +304,12 @@ public:
 
 class StoreToPointerLIR : public LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR> {
 public:
-    StoreToPointerLIR(): LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR>() {}
+    StoreToPointerLIR(): LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR>() { }
     explicit StoreToPointerLIR(schema::HadronStoreToPointerLIRSchema* instance):
-            LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR>(instance) {}
+        LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR>(instance) { }
     explicit StoreToPointerLIR(Slot instance):
-            LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR>(instance) {}
-    ~StoreToPointerLIR() {}
+        LIRBase<StoreToPointerLIR, schema::HadronStoreToPointerLIRSchema, LIR>(instance) { }
+    ~StoreToPointerLIR() { }
 
     static StoreToPointerLIR makeStoreToPointer(ThreadContext* context, VReg ptr, int32_t off, VReg store) {
         auto storeLIR = StoreToPointerLIR::make(context);

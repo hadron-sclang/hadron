@@ -25,11 +25,7 @@ public:
     size_t capacity();
 
     // Reserve the 2 most significant bits for coloring objects in the m_collectionCounts field.
-    enum Color : uint8_t {
-        kWhite = 0,
-        kGray = 0x40,
-        kBlack = 0x80
-    };
+    enum Color : uint8_t { kWhite = 0, kGray = 0x40, kBlack = 0x80 };
     // Mark the object contained by address.
     void mark(void* address, Color color);
 

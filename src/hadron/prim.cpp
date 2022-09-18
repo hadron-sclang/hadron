@@ -28,14 +28,10 @@ class PrimitiveListener : public sprklr::SCParserBaseListener {
 public:
     PrimitiveListener() = delete;
     PrimitiveListener(std::ofstream& caseFile, std::ofstream& declFile):
-        m_caseFile(caseFile),
-        m_declFile(declFile),
-        m_inPrimitive(false) {}
-    virtual ~PrimitiveListener() {}
+        m_caseFile(caseFile), m_declFile(declFile), m_inPrimitive(false) { }
+    virtual ~PrimitiveListener() { }
 
-    void enterClassDef(sprklr::SCParser::ClassDefContext* ctx) override {
-        m_className = ctx->CLASSNAME()->toString();
-    }
+    void enterClassDef(sprklr::SCParser::ClassDefContext* ctx) override { m_className = ctx->CLASSNAME()->toString(); }
 
     void enterMethodDef(sprklr::SCParser::MethodDefContext* ctx) override {
         if (!ctx->primitive())
@@ -132,7 +128,6 @@ int main(int argc, char* argv[]) {
 
     auto listener = PrimitiveListener(caseFile, declFile);
     antlr4::tree::ParseTreeWalker::DEFAULT.walk(&listener, parseTree);
-
 
 
     return 0;

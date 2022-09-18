@@ -42,10 +42,10 @@ using MethodArray = TypedArray<Method>;
 
 class Class : public Object<Class, schema::ClassSchema> {
 public:
-    Class(): Object<Class, schema::ClassSchema>() {}
-    explicit Class(schema::ClassSchema* instance): Object<Class, schema::ClassSchema>(instance) {}
-    explicit Class(Slot instance): Object<Class, schema::ClassSchema>(instance) {}
-    ~Class() {}
+    Class(): Object<Class, schema::ClassSchema>() { }
+    explicit Class(schema::ClassSchema* instance): Object<Class, schema::ClassSchema>(instance) { }
+    explicit Class(Slot instance): Object<Class, schema::ClassSchema>(instance) { }
+    ~Class() { }
 
     Symbol name(ThreadContext* context) const { return Symbol(context, m_instance->name); }
     void setName(Symbol name) { m_instance->name = name.slot(); }
@@ -92,18 +92,17 @@ public:
 
 class Process : public Object<Process, schema::ProcessSchema> {
 public:
-    Process(): Object<Process, schema::ProcessSchema>() {}
-    explicit Process(schema::ProcessSchema* instance): Object<Process, schema::ProcessSchema>(instance) {}
-    ~Process() {}
+    Process(): Object<Process, schema::ProcessSchema>() { }
+    explicit Process(schema::ProcessSchema* instance): Object<Process, schema::ProcessSchema>(instance) { }
+    ~Process() { }
 };
 
-template<typename T, typename S>
-class FunctionDefBase : public Object<T, S> {
+template <typename T, typename S> class FunctionDefBase : public Object<T, S> {
 public:
-    FunctionDefBase(): Object<T, S>() {}
-    explicit FunctionDefBase(S* instance): Object<T, S>(instance) {}
-    explicit FunctionDefBase(Slot instance): Object<T, S>(instance) {}
-    ~FunctionDefBase() {}
+    FunctionDefBase(): Object<T, S>() { }
+    explicit FunctionDefBase(S* instance): Object<T, S>(instance) { }
+    explicit FunctionDefBase(Slot instance): Object<T, S>(instance) { }
+    ~FunctionDefBase() { }
 
     Int8Array code() const {
         const T& t = static_cast<const T&>(*this);
@@ -147,29 +146,26 @@ public:
         return SymbolArray(t.m_instance->varNames);
     }
     void setVarNames(SymbolArray a) {
-        T&t = static_cast<T&>(*this);
+        T& t = static_cast<T&>(*this);
         t.m_instance->varNames = a.slot();
     }
 };
 
 class FunctionDef : public FunctionDefBase<FunctionDef, schema::FunctionDefSchema> {
 public:
-    FunctionDef(): FunctionDefBase<FunctionDef, schema::FunctionDefSchema>() {}
+    FunctionDef(): FunctionDefBase<FunctionDef, schema::FunctionDefSchema>() { }
     explicit FunctionDef(schema::FunctionDefSchema* instance):
-        FunctionDefBase<FunctionDef, schema::FunctionDefSchema>(instance) {}
-    explicit FunctionDef(Slot instance):
-        FunctionDefBase<FunctionDef, schema::FunctionDefSchema>(instance) {}
-    ~FunctionDef() {}
+        FunctionDefBase<FunctionDef, schema::FunctionDefSchema>(instance) { }
+    explicit FunctionDef(Slot instance): FunctionDefBase<FunctionDef, schema::FunctionDefSchema>(instance) { }
+    ~FunctionDef() { }
 };
 
 class Method : public FunctionDefBase<Method, schema::MethodSchema> {
 public:
-    Method(): FunctionDefBase<Method, schema::MethodSchema>() {}
-    explicit Method(schema::MethodSchema* instance):
-        FunctionDefBase<Method, schema::MethodSchema>(instance) {}
-    explicit Method(Slot instance):
-        FunctionDefBase<Method, schema::MethodSchema>(instance) {}
-    ~Method() {}
+    Method(): FunctionDefBase<Method, schema::MethodSchema>() { }
+    explicit Method(schema::MethodSchema* instance): FunctionDefBase<Method, schema::MethodSchema>(instance) { }
+    explicit Method(Slot instance): FunctionDefBase<Method, schema::MethodSchema>(instance) { }
+    ~Method() { }
 
     Class ownerClass() const { return Class(m_instance->ownerClass); }
     void setOwnerClass(Class ownerClass) { m_instance->ownerClass = ownerClass.slot(); }
@@ -189,20 +185,17 @@ public:
 
 class Frame : public Object<Frame, schema::FramePrivateSchema> {
 public:
-    Frame(): Object<Frame, schema::FramePrivateSchema>() {}
-    explicit Frame(schema::FramePrivateSchema* instance):
-        Object<Frame, schema::FramePrivateSchema>(instance) {}
-    explicit Frame(Slot instance):
-        Object<Frame, schema::FramePrivateSchema>(instance) {}
-    ~Frame() {}
+    Frame(): Object<Frame, schema::FramePrivateSchema>() { }
+    explicit Frame(schema::FramePrivateSchema* instance): Object<Frame, schema::FramePrivateSchema>(instance) { }
+    explicit Frame(Slot instance): Object<Frame, schema::FramePrivateSchema>(instance) { }
+    ~Frame() { }
 
     // Copies all elements (if any) after the first element in |prototypeFrame| into the space after arg0.
     void copyPrototypeAfterThis(Array prototypeFrame) {
-        assert(m_instance->schema._sizeInBytes >=
-               (sizeof(schema::FramePrivateSchema) + (prototypeFrame.size() * kSlotSize) - kSlotSize));
+        assert(m_instance->schema._sizeInBytes
+               >= (sizeof(schema::FramePrivateSchema) + (prototypeFrame.size() * kSlotSize) - kSlotSize));
         std::memcpy(reinterpret_cast<int8_t*>(m_instance) + sizeof(schema::FramePrivateSchema),
-                prototypeFrame.start() + kSlotSize,
-                (prototypeFrame.size() - 1) * kSlotSize);
+                    prototypeFrame.start() + kSlotSize, (prototypeFrame.size() - 1) * kSlotSize);
     }
 
     Method method() const { return Method(m_instance->method); }

@@ -4,8 +4,7 @@
 #include <string>
 #include <variant>
 
-namespace server {
-namespace lsp {
+namespace server { namespace lsp {
 
 using ID = std::variant<int64_t, std::string>;
 

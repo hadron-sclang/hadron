@@ -29,7 +29,8 @@ int main(int argc, char* argv[]) {
     }
     spdlog::set_default_logger(logger);
     SPDLOG_INFO("Hadron version {}, git branch {}@{}, compiled by {} version {}.", hadron::kHadronVersion,
-        hadron::kHadronBranch, hadron::kHadronCommitHash, hadron::kHadronCompilerName, hadron::kHadronCompilerVersion);
+                hadron::kHadronBranch, hadron::kHadronCommitHash, hadron::kHadronCompilerName,
+                hadron::kHadronCompilerVersion);
 
     auto transport = std::make_unique<server::JSONTransport>(stdin, stdout);
     server::HadronServer server(std::move(transport));

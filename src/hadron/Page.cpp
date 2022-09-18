@@ -18,9 +18,7 @@ Page::Page(size_t objectSize, size_t totalSize, bool isExecutable):
     m_collectionCounts.resize(totalSize / objectSize, 0);
 }
 
-Page::~Page() {
-    unmap();
-}
+Page::~Page() { unmap(); }
 
 bool Page::map() {
     if (m_startAddress) {
@@ -34,7 +32,7 @@ bool Page::map() {
     } else {
 #if defined(__APPLE__)
         address = mmap(nullptr, m_totalSize, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_JIT | MAP_PRIVATE | MAP_ANONYMOUS,
-                -1, 0);
+                       -1, 0);
 #else
         address = mmap(nullptr, m_totalSize, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #endif
@@ -43,7 +41,7 @@ bool Page::map() {
     if (address == MAP_FAILED) {
         int mmapError = errno;
         SPDLOG_CRITICAL("Page mmap failed for {} bytes, errno: {}, string: {}", m_totalSize, mmapError,
-                strerror(mmapError));
+                        strerror(mmapError));
         return false;
     }
 

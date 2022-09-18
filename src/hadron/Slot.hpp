@@ -21,22 +21,25 @@ struct Schema;
 // type & (kInteger | kFloat) to determine if a type is numeric or
 // type & (kString | kSymbol) for character types, etc.
 enum TypeFlags : std::int32_t {
-    kNoFlags        = 0x00,
-    kNilFlag        = 0x01,
-    kIntegerFlag    = 0x02,
-    kFloatFlag      = 0x04,
-    kBooleanFlag    = 0x08,
-    kCharFlag       = 0x10,
-    kSymbolFlag     = 0x20,
-    kObjectFlag     = 0x40,
+    kNoFlags = 0x00,
+    kNilFlag = 0x01,
+    kIntegerFlag = 0x02,
+    kFloatFlag = 0x04,
+    kBooleanFlag = 0x08,
+    kCharFlag = 0x10,
+    kSymbolFlag = 0x20,
+    kObjectFlag = 0x40,
     kRawPointerFlag = 0x80,
-    kAllFlags       = 0xff
+    kAllFlags = 0xff
 };
 
 class Slot {
 public:
     Slot(const Slot& s) { m_bits = s.m_bits; }
-    Slot operator=(const Slot& s) { m_bits = s.m_bits; return *this; }
+    Slot operator=(const Slot& s) {
+        m_bits = s.m_bits;
+        return *this;
+    }
     ~Slot() = default;
 
     static Slot makeFloat(double d) { return Slot(d); }
@@ -96,14 +99,26 @@ public:
         double d = *(reinterpret_cast<const double*>(&m_bits));
         return d;
     }
-    inline int32_t getInt32() const { assert(isInt32()); return static_cast<int32_t>(m_bits & (~kTagMask)); }
-    inline bool getBool() const { assert(isBool()); return m_bits & (~kTagMask); }
+    inline int32_t getInt32() const {
+        assert(isInt32());
+        return static_cast<int32_t>(m_bits & (~kTagMask));
+    }
+    inline bool getBool() const {
+        assert(isBool());
+        return m_bits & (~kTagMask);
+    }
     inline library::Schema* getPointer() const {
         assert(isPointer());
         return reinterpret_cast<library::Schema*>(m_bits & (~kTagMask));
     }
-    inline Hash getSymbolHash() const { assert(isSymbolHash()); return static_cast<Hash>(m_bits & (~kTagMask)); }
-    inline char getChar() const { assert(isChar()); return m_bits & (~kTagMask); }
+    inline Hash getSymbolHash() const {
+        assert(isSymbolHash());
+        return static_cast<Hash>(m_bits & (~kTagMask));
+    }
+    inline char getChar() const {
+        assert(isChar());
+        return m_bits & (~kTagMask);
+    }
     inline int8_t* getRawPointer() const {
         assert(isRawPointer());
         return reinterpret_cast<int8_t*>(m_bits & (~kTagMask));
@@ -113,15 +128,15 @@ public:
     // Maximum double (quiet NaN with sign bit set without payload):
     //                     seeeeeee|eeeemmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm|mmmmmmmm
     // 0xfff8000000000000: 11111111|11111000|00000000|00000000|00000000|00000000|00000000|00000000
-    static constexpr uint64_t kMaxDouble            = 0xfff8000000000000;
-    static constexpr uint64_t kInt32Tag             = kMaxDouble;
-    static constexpr uint64_t kBooleanTag           = 0xfff9000000000000;
-    static constexpr uint64_t kObjectPointerTag     = 0xfffa000000000000;  // pointer to library::Schema based object
-    static constexpr uint64_t kSymbolTag            = 0xfffb000000000000;
-    static constexpr uint64_t kCharTag              = 0xfffc000000000000;
-    static constexpr uint64_t kRawPointerTag        = 0xfffd000000000000;  // not pointing at an object header
-    static constexpr uint64_t kForwardingPointerTag = 0xfffe000000000000;  // permanently moved, update to new value
-    static constexpr uint64_t kTagMask              = 0xffff000000000000;
+    static constexpr uint64_t kMaxDouble = 0xfff8000000000000;
+    static constexpr uint64_t kInt32Tag = kMaxDouble;
+    static constexpr uint64_t kBooleanTag = 0xfff9000000000000;
+    static constexpr uint64_t kObjectPointerTag = 0xfffa000000000000; // pointer to library::Schema based object
+    static constexpr uint64_t kSymbolTag = 0xfffb000000000000;
+    static constexpr uint64_t kCharTag = 0xfffc000000000000;
+    static constexpr uint64_t kRawPointerTag = 0xfffd000000000000; // not pointing at an object header
+    static constexpr uint64_t kForwardingPointerTag = 0xfffe000000000000; // permanently moved, update to new value
+    static constexpr uint64_t kTagMask = 0xffff000000000000;
 
     // For debugging, normal access should use the get*() methods.
     inline uint64_t asBits() const { return m_bits; }
@@ -129,13 +144,15 @@ public:
     // Identity hash of objects is only true when the pointers are identical, so for all types contained in a slot a
     // hash of the pointer value.
     inline Hash identityHash(Hash seed = 0) const {
-        if (isSymbolHash() && seed == 0) { return getSymbolHash(); }
+        if (isSymbolHash() && seed == 0) {
+            return getSymbolHash();
+        }
         return hash(reinterpret_cast<const char*>(this), sizeof(Slot), seed);
     }
 
 private:
-    explicit Slot(double floatValue): m_bits(*(uint64_t*)&floatValue) {}
-    explicit constexpr Slot(uint64_t bitsValue): m_bits(bitsValue) {}
+    explicit Slot(double floatValue): m_bits(*(uint64_t*)&floatValue) { }
+    explicit constexpr Slot(uint64_t bitsValue): m_bits(bitsValue) { }
 
     uint64_t m_bits;
 };
@@ -148,8 +165,7 @@ static constexpr int32_t kSlotSize = static_cast<int32_t>(sizeof(Slot));
 } // namespace hadron
 
 namespace std {
-template<>
-struct hash<hadron::Slot> {
+template <> struct hash<hadron::Slot> {
     size_t operator()(const hadron::Slot& s) const {
         auto hash = s.identityHash();
         return (static_cast<size_t>(hash) << 32) | s.identityHash(hash);
