@@ -27,8 +27,8 @@ Runtime::Runtime(bool debugMode): m_heap(std::make_shared<Heap>()), m_threadCont
     if (!debugMode) {
         LighteningJIT::initJITGlobals();
     } else {
-//        m_virtualMachine = std::make_unique<VirtualMachine>();
-//        m_threadContext->virtualMachine = m_virtualMachine.get();
+        //        m_virtualMachine = std::make_unique<VirtualMachine>();
+        //        m_threadContext->virtualMachine = m_virtualMachine.get();
     }
     m_threadContext->heap = m_heap;
     m_threadContext->symbolTable = std::make_unique<SymbolTable>();
@@ -120,10 +120,10 @@ Slot Runtime::interpret(std::string_view code) {
         LighteningJIT::markThreadForJITExecution();
     }
 
-//    const int8_t* machineCode = function.def().code().start();
+    //    const int8_t* machineCode = function.def().code().start();
     while (true) {
         // Enter JIT machine code.
-//        m_entryTrampoline(m_threadContext.get(), machineCode);
+        //        m_entryTrampoline(m_threadContext.get(), machineCode);
 
         // If this was a normal completion of the Hadron stack the frame pointer will be pointing at the callerFrame.
         if (m_threadContext->framePointer == callerFrame.instance()) {
@@ -164,7 +164,7 @@ Slot Runtime::interpret(std::string_view code) {
             m_threadContext->stackPointer = spareFrame.instance();
 
             assert(method.code());
-//            machineCode = method.code().start();
+            //            machineCode = method.code().start();
         } break;
 
         case ThreadContext::InterruptCode::kFatalError:
@@ -183,7 +183,7 @@ Slot Runtime::interpret(std::string_view code) {
             auto object = library::ObjectBase::wrapUnsafe(slot);
             object.initToNil();
             m_threadContext->stackPointer->arg0 = slot;
-//            machineCode = m_threadContext->framePointer->ip.getRawPointer();
+            //            machineCode = m_threadContext->framePointer->ip.getRawPointer();
         } break;
 
         case ThreadContext::InterruptCode::kPrimitive:

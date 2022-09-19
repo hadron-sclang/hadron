@@ -23,7 +23,6 @@ void Generator::buildFunction(asmjit::FuncSignature signature, std::vector<libra
 
         // Phis can be resolved with creation of new virtual reg associated with phi followed by a jump to the
         // next HIR instruction
-
     }
 }
 

@@ -4,9 +4,7 @@
 
 namespace hadron {
 
-Generator::Generator() {
-    m_codeHolder.init(m_jitRuntime.environment());
-}
+Generator::Generator() { m_codeHolder.init(m_jitRuntime.environment()); }
 void Generator::serialize(ThreadContext* context, const library::CFGFrame frame) {
     // Map of block number (index) to Block struct, useful when traversing control flow graph.
     std::vector<library::CFGBlock> blocks;
@@ -32,9 +30,8 @@ void Generator::serialize(ThreadContext* context, const library::CFGFrame frame)
     }
 }
 
-void Generator::orderBlocks(ThreadContext* context, library::CFGBlock block,
-                                  std::vector<library::CFGBlock>& blocks,
-                                  library::TypedArray<library::BlockId> blockOrder) {
+void Generator::orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
+                            library::TypedArray<library::BlockId> blockOrder) {
     // Mark block as visited by updating number to pointer map.
     blocks[block.id()] = block;
     for (int32_t i = 0; i < block.successors().size(); ++i) {

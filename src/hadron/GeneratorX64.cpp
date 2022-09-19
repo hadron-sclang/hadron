@@ -112,7 +112,6 @@ void Generator::buildFunction(asmjit::FuncSignature signature, std::vector<libra
             }
         }
     }
-
 }
 
 } // namespace hadron

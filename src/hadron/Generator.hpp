@@ -12,10 +12,10 @@
 
 #if defined(__i386__)
 #elif defined(__x86_64__)
-#include "asmjit/x86.h"
+#    include "asmjit/x86.h"
 #elif defined(__arm__)
 #elif defined(__aarch64__)
-#include "asmjit/a64.h"
+#    include "asmjit/a64.h"
 #endif
 
 #if defined(__clang__) || defined(__GNUC__)
