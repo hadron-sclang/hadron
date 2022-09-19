@@ -145,13 +145,11 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
 
 if (HADRON_HOST_CPU STREQUAL "x86_64")
     set(HADRON_GENERATOR_FILES
-        "x86_64/Generator.cpp"
-        "x86_64/Generator.hpp"
+        "GeneratorX64.cpp"
     )
 elseif(HADRON_HOST_CPU STREQUAL "aarch64")
     set(HADRON_GENERATOR_FILES
-        "aarch64/Generator.cpp"
-        "aarch64/Generator.hpp"
+        "GeneratorA64.cpp"
     )
 endif()
 
@@ -207,6 +205,7 @@ add_library(hadron STATIC
     ClassLibrary.hpp
 #    Emitter.cpp
 #    Emitter.hpp
+    Generator.cpp
     Generator.hpp
     Heap.cpp
     Heap.hpp
