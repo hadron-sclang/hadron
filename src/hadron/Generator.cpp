@@ -28,6 +28,8 @@ void Generator::serialize(ThreadContext* context, const library::CFGFrame frame)
     for (int32_t i = 0; i < frame.argumentNames().size(); ++i) {
         signature.addArg(asmjit::TypeId::kUInt64);
     }
+
+    buildFunction(frame, signature, blocks, blockOrder);
 }
 
 void Generator::orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,

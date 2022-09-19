@@ -26,8 +26,6 @@
 
 namespace hadron {
 
-class GenImpl;
-
 class Generator {
 public:
     Generator();
@@ -39,10 +37,8 @@ private:
     // Performs a recursive postorder traversal of the blocks and saves the output in |blockOrder|.
     void orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
                      library::TypedArray<library::BlockId> blockOrder);
-    void buildFunction(asmjit::FuncSignature signature, std::vector<library::CFGBlock>& blocks,
-                       library::TypedArray<library::BlockId> blockOrder);
-
-    std::unique_ptr<GenImpl> m_impl;
+    void buildFunction(const library::CFGFrame frame, asmjit::FuncSignature signature,
+                       std::vector<library::CFGBlock>& blocks, library::TypedArray<library::BlockId> blockOrder);
 
     asmjit::JitRuntime m_jitRuntime; // needs to last for the lifetime of the program
     asmjit::CodeHolder m_codeHolder; // needs to last until compilation is complete
