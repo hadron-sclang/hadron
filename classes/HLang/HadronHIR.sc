@@ -34,7 +34,9 @@ HadronMessageHIR : HadronHIR {
 	var <>keywordArguments;
 }
 
-HadronMethodReturnHIR : HadronHIR { }
+HadronMethodReturnHIR : HadronHIR {
+	var <>returnValue;
+}
 
 HadronPhiHIR : HadronHIR {
 	var <>name;
@@ -67,10 +69,6 @@ HadronReadFromThisHIR : HadronHIR {
 
 HadronRouteToSuperclassHIR : HadronHIR {
 	var <>thisId;
-}
-
-HadronStoreReturnHIR : HadronHIR {
-	var <>returnValue;
 }
 
 HadronWriteToClassHIR : HadronHIR {

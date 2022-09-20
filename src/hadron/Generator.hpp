@@ -24,6 +24,11 @@
 
 #include <vector>
 
+// Thinking about generating three functions:
+//   a) Innermost function takes exactly the number of arguments (and later types) expected
+//   b) Wrapper function to correct args: f(context, int numArgs, ... args) <- args has inOrder followed by key/value
+//   c) Selector-specific dispatch function that handles routing
+
 namespace hadron {
 
 class Generator {

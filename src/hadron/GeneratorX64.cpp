@@ -6,11 +6,13 @@
 
 namespace hadron {
 
-void Generator::buildFunction(const library::CFGFrame frame, asmjit::FuncSignature signature,
+void Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::FuncSignature signature,
                               std::vector<library::CFGBlock>& blocks,
                               library::TypedArray<library::BlockId> blockOrder) {
     asmjit::x86::Compiler compiler(&m_codeHolder);
     auto funcNode = compiler.addFunc(signature);
+
+    // Make room on stack frame for local variables.
 
     std::vector<asmjit::Label> blockLabels(blocks.size());
     // TODO: maybe lazily create, as some blocks may have been deleted?
@@ -94,20 +96,19 @@ void Generator::buildFunction(const library::CFGFrame frame, asmjit::FuncSignatu
                 // TODO: super routing, perhaps with a different interrupt code to dispatch?
             } break;
 
-            case library::StoreReturnHIR::nameHash(): {
-                auto storeReturnHIR = library::StoreReturnHIR(hir.slot());
-            } break;
-
             case library::WriteToClassHIR::nameHash(): {
                 auto writeToClassHIR = library::WriteToClassHIR(hir.slot());
             } break;
 
             case library::WriteToFrameHIR::nameHash(): {
                 auto writeToFrameHIR = library::WriteToFrameHIR(hir.slot());
+
             } break;
 
             case library::WriteToThisHIR::nameHash(): {
                 auto writeToThisHIR = library::WriteToThisHIR(hir.slot());
+                auto dest = asmjit::x86::ptr(vRegs[writeToThisHIR.thisId().int32()], writeToThisHIR.index());
+                compiler.mov(dest, vRegs[writeToThisHIR.toWrite().int32()]);
             } break;
 
             default:

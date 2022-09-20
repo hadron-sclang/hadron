@@ -23,7 +23,6 @@ HIRId HIR::proposeId(HIRId proposedId) {
     case BranchHIR::nameHash():
     case BranchIfTrueHIR::nameHash():
     case MethodReturnHIR::nameHash():
-    case StoreReturnHIR::nameHash():
     case WriteToClassHIR::nameHash():
     case WriteToFrameHIR::nameHash():
     case WriteToThisHIR::nameHash():
