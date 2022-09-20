@@ -84,6 +84,7 @@ void Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::FuncS
                 auto readFromContextHIR = library::ReadFromContextHIR(hir.slot());
             } break;
 
+            // TODO: args are no longer in frame
             case library::ReadFromFrameHIR::nameHash(): {
                 auto readFromFrameHIR = library::ReadFromFrameHIR(hir.slot());
             } break;
