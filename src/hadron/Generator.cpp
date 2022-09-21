@@ -1,11 +1,11 @@
 #include "hadron/Generator.hpp"
 
+#include "asmjit/core/func.h"
 #include "hadron/ThreadContext.hpp"
 
 namespace hadron {
 
-Generator::Generator() { m_codeHolder.init(m_jitRuntime.environment()); }
-void Generator::serialize(ThreadContext* context, const library::CFGFrame frame) {
+SCMethod Generator::serialize(ThreadContext* context, const library::CFGFrame frame) {
     // Map of block number (index) to Block struct, useful when traversing control flow graph.
     std::vector<library::CFGBlock> blocks;
     blocks.resize(frame.numberOfBlocks(), library::CFGBlock());
@@ -19,17 +19,17 @@ void Generator::serialize(ThreadContext* context, const library::CFGFrame frame)
     // Build function signature
     // TODO: varArgs
     assert(!frame.hasVarArgs());
-    asmjit::FuncSignatureBuilder signature;
+    asmjit::FuncSignatureBuilder signature(asmjit::CallConvId::kHost, 3);
     // Hadron functions always return a slot.
     signature.setRet(asmjit::TypeId::kUInt64);
     // First argument is always the context pointer.
-    signature.addArg(asmjit::TypeId::kUIntPtr);
-    // All remaining arguments are Slots
-    for (int32_t i = 0; i < frame.argumentNames().size(); ++i) {
-        signature.addArg(asmjit::TypeId::kUInt64);
-    }
+    signature.addArg(asmjit::TypeId::kIntPtr);
+    // Second argument is the number of in-order args provided to the vaArgs (not inclusive of this_)
+    signature.addArg(asmjit::TypeId::kInt32);
+    // Third argument is the target of the method
+    signature.addArg(asmjit::TypeId::kUInt64);
 
-    buildFunction(frame, signature, blocks, blockOrder);
+    return buildFunction(frame, signature, blocks, blockOrder);
 }
 
 void Generator::orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,

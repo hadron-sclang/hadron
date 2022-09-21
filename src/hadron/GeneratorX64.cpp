@@ -1,3 +1,4 @@
+#include "asmjit/core/func.h"
 #include "hadron/Generator.hpp"
 
 #include "hadron/library/HadronHIR.hpp"
@@ -6,13 +7,22 @@
 
 namespace hadron {
 
-void Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::FuncSignature signature,
-                              std::vector<library::CFGBlock>& blocks,
-                              library::TypedArray<library::BlockId> blockOrder) {
-    asmjit::x86::Compiler compiler(&m_codeHolder);
-    auto funcNode = compiler.addFunc(signature);
+SCMethod Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::FuncSignature signature,
+                                  std::vector<library::CFGBlock>& blocks,
+                                  library::TypedArray<library::BlockId> blockOrder) {
+    asmjit::CodeHolder codeHolder;
+    codeHolder.init(m_jitRuntime.environment());
 
-    // Make room on stack frame for local variables.
+    asmjit::x86::Compiler compiler(&codeHolder);
+    compiler.addFunc(signature);
+
+    /*
+        // All remaining arguments are Slots
+        for (int32_t i = 0; i < frame.argumentNames().size(); ++i) {
+            signature.addArg(asmjit::TypeId::kUInt64);
+        }
+    */
+
 
     std::vector<asmjit::Label> blockLabels(blocks.size());
     // TODO: maybe lazily create, as some blocks may have been deleted?
@@ -66,10 +76,10 @@ void Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::FuncS
                 assert(false);
             } break;
 
-            // Need to adjust to include a return value.
             case library::MethodReturnHIR::nameHash(): {
-                assert(false);
-            }
+                auto methodReturnHIR = library::MethodReturnHIR(hir.slot());
+                compiler.ret(vRegs[methodReturnHIR.returnValue().int32()]);
+            } break;
 
             case library::PhiHIR::nameHash(): {
                 // Shouldn't encounter phis in block statements.
@@ -117,6 +127,16 @@ void Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::FuncS
             }
         }
     }
+
+    compiler.endFunc();
+    compiler.finalize();
+
+    SCMethod method;
+    auto error = m_jitRuntime.add(&method, &codeHolder);
+    if (error)
+        return nullptr;
+
+    return method;
 }
 
 } // namespace hadron

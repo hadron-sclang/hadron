@@ -24,10 +24,6 @@ HadronConstantHIR : HadronHIR {
 	var <>constant;
 }
 
-HadronLoadArgumentHIR : HadronHIR {
-	var <>argIndex;
-}
-
 HadronLoadOuterFrameHIR : HadronHIR {
 	var <>innerContext;
 }

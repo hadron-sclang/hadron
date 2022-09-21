@@ -210,6 +210,9 @@ library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
     return library::Class::wrapUnsafe(classIter->second);
 }
 
+// static
+Slot dispatch(ThreadContext* context, Hash selector, Slot target, int32_t numArgs, int32_t numKeywordArgs, ...) { }
+
 bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_classMap.clear();
     m_classArray = library::ClassArray::typedArrayAlloc(context, 1);

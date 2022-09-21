@@ -31,10 +31,7 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
 
     m_frame.setArgumentNames(blockAST.argumentNames());
 
-    // Life of an argument: we need a LoadArgumentHIR again. Binds arg to vReg.
-    // Then if it gets written to it becomes a frane variable.
-
-    // Add arguments to the prototype frame.
+    // Add argument values to the prototype frame.
     m_frame.setPrototypeFrame(m_frame.prototypeFrame().addAll(context, blockAST.argumentDefaults()));
 
     // Include the arguments in the root scope value names set.

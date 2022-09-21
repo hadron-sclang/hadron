@@ -4,6 +4,7 @@
 #include "hadron/library/Array.hpp"
 #include "hadron/library/HadronCFG.hpp"
 #include "hadron/library/Integer.hpp"
+#include "hadron/Slot.hpp"
 
 #if defined(__clang__) || defined(__GNUC__)
 #    pragma GCC diagnostic push
@@ -31,22 +32,23 @@
 
 namespace hadron {
 
+typedef Slot (*SCMethod)(ThreadContext*, int32_t, Slot, ...);
+
 class Generator {
 public:
-    Generator();
+    Generator() = default;
     ~Generator() = default;
 
-    void serialize(ThreadContext* context, const library::CFGFrame frame);
+    SCMethod serialize(ThreadContext* context, const library::CFGFrame frame);
 
 private:
     // Performs a recursive postorder traversal of the blocks and saves the output in |blockOrder|.
     void orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
                      library::TypedArray<library::BlockId> blockOrder);
-    void buildFunction(const library::CFGFrame frame, asmjit::FuncSignature signature,
-                       std::vector<library::CFGBlock>& blocks, library::TypedArray<library::BlockId> blockOrder);
+    SCMethod buildFunction(const library::CFGFrame frame, asmjit::FuncSignature signature,
+                           std::vector<library::CFGBlock>& blocks, library::TypedArray<library::BlockId> blockOrder);
 
     asmjit::JitRuntime m_jitRuntime; // needs to last for the lifetime of the program
-    asmjit::CodeHolder m_codeHolder; // needs to last until compilation is complete
 };
 
 } // namespace hadron
