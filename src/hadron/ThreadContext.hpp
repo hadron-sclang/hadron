@@ -13,7 +13,7 @@ struct ArraySchema;
 struct FramePrivateSchema;
 struct ProcessSchema;
 struct ThreadSchema;
-}
+} // namespace schema
 
 class ClassLibrary;
 class Heap;

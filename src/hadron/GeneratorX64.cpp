@@ -28,8 +28,8 @@ SCMethod Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::F
     // TODO: maybe lazily create, as some blocks may have been deleted?
     std::generate(blockLabels.begin(), blockLabels.end(), [&compiler]() { return compiler.newLabel(); });
 
-    std::vector<asmjit::x86::Gpq> vRegs(blocks[0].frame().values().size());
-    std::generate(vRegs.begin(), vRegs.end(), [&compiler]() { return compiler.newGpq(); });
+    std::vector<asmjit::x86::Gp> vRegs(blocks[0].frame().values().size());
+    std::generate(vRegs.begin(), vRegs.end(), [&compiler]() { return compiler.newGp(asmjit::TypeId::kUInt64); });
 
     for (int32_t i = 0; i < blockOrder.size(); ++i) {
         auto blockNumber = blockOrder.typedAt(i).int32();

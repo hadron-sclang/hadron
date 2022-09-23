@@ -8,68 +8,13 @@
 
 namespace hadron {
 
-Heap::Heap(): m_stackPageOffset(0) { }
-
-Heap::~Heap() { /* WRITEME */
-}
-
-void* Heap::allocateNew(size_t sizeInBytes) { return allocateSized(sizeInBytes, m_youngPages, false); }
-
-void* Heap::allocateJIT(size_t sizeInBytes, size_t& allocatedSize) {
-    auto address = allocateSized(sizeInBytes, m_executablePages, true);
-    if (address) {
-        auto sizeClass = getSizeClass(sizeInBytes);
-        allocatedSize = getSize(sizeClass);
-    } else {
-        allocatedSize = 0;
-    }
-    return address;
-}
-
-void* Heap::allocateStackSegment() {
-    if (m_stackPageOffset == 0) {
-        m_stackSegments.emplace_back(std::make_unique<Page>(kLargeObjectSize, kPageSize, false));
-        if (!m_stackSegments.back()->map()) {
-            SPDLOG_CRITICAL("Failed to map new stack segment.");
-            assert(false);
-            return nullptr;
-        }
-    }
-
-    auto address = m_stackSegments.back()->startAddress();
-    assert(address);
-    m_pageEnds[reinterpret_cast<uintptr_t>(address) + kPageSize] = m_stackSegments.back().get();
-    address += m_stackPageOffset;
-
-    m_stackPageOffset = (m_stackPageOffset + kLargeObjectSize) % kPageSize;
-    return address;
-}
-
-void Heap::freeTopStackSegment() {
-    // TODO: consider some page recycling or other hysterisis here to prevent stack boundary oscillation from spamming
-    // map/unmap syscalls.
-    if (m_stackPageOffset == 0) {
-        assert(m_stackSegments.size());
-        m_stackSegments.pop_back();
-        m_stackPageOffset = kPageSize - kLargeObjectSize;
-    } else {
-        assert(m_stackPageOffset >= kLargeObjectSize);
-        m_stackPageOffset -= kLargeObjectSize;
-    }
+void* Heap::allocateNew(int32_t sizeInBytes, int32_t& allocatedSize) {
+    return allocateSized(sizeInBytes, allocatedSize, m_youngPages);
 }
 
 void Heap::addToRootSet(Slot object) { m_rootSet.emplace(object.getPointer()); }
 
 void Heap::removeFromRootSet(Slot object) { m_rootSet.erase(object.getPointer()); }
-
-size_t Heap::getAllocationSize(void* address) {
-    Page* page = findPageContaining(address);
-    if (!page) {
-        assert(false);
-        return 0;
-    }
-    return page->objectSize();
-}
 
 library::Schema* Heap::getContainingObject(const void* address) {
     Page* page = findPageContaining(address);
@@ -84,9 +29,7 @@ library::Schema* Heap::getContainingObject(const void* address) {
     return reinterpret_cast<library::Schema*>(aligned);
 }
 
-size_t Heap::getMaximumSize(size_t sizeInBytes) { return getSize(getSizeClass(sizeInBytes)); }
-
-Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
+Heap::SizeClass Heap::getSizeClass(int32_t sizeInBytes) {
     if (sizeInBytes <= kSmallObjectSize) {
         return SizeClass::kSmall;
     } else if (sizeInBytes <= kMediumObjectSize) {
@@ -97,7 +40,7 @@ Heap::SizeClass Heap::getSizeClass(size_t sizeInBytes) {
     return SizeClass::kOversize;
 }
 
-size_t Heap::getSize(SizeClass sizeClass) {
+int32_t Heap::getSize(SizeClass sizeClass) {
     switch (sizeClass) {
     case kSmall:
         return kSmallObjectSize;
@@ -110,18 +53,21 @@ size_t Heap::getSize(SizeClass sizeClass) {
     }
 }
 
-void* Heap::allocateSized(size_t sizeInBytes, SizedPages& sizedPages, bool isExecutable) {
+void* Heap::allocateSized(int32_t sizeInBytes, int32_t& allocatedSize, SizedPages& sizedPages) {
     auto sizeClass = getSizeClass(sizeInBytes);
     if (sizeClass == kOversize) {
         assert(false);
-        sizedPages[kOversize].emplace_back(std::make_unique<Page>(sizeInBytes, sizeInBytes, isExecutable));
+        sizedPages[kOversize].emplace_back(std::make_unique<Page>(sizeInBytes, sizeInBytes));
         if (!sizedPages[kOversize].back()->map()) {
             SPDLOG_ERROR("Mapping failed for oversize object of {} bytes", sizeInBytes);
             return nullptr;
         }
+        allocatedSize = sizeInBytes;
         // We leave oversize pages out of page address map, and search the oversized pages separately.
         return sizedPages[kOversize].back()->allocate();
     }
+
+    allocatedSize = getSize(sizeClass);
 
     // Find existing capacity in already mapped pages.
     for (auto& page : sizedPages[sizeClass]) {
@@ -131,10 +77,8 @@ void* Heap::allocateSized(size_t sizeInBytes, SizedPages& sizedPages, bool isExe
     }
 
     // HERE is where we would initiate a collection
-    mark();
-    sweep();
 
-    sizedPages[sizeClass].emplace_back(std::make_unique<Page>(getSize(sizeClass), kPageSize, isExecutable));
+    sizedPages[sizeClass].emplace_back(std::make_unique<Page>(getSize(sizeClass), kPageSize));
     if (!sizedPages[sizeClass].back()->map()) {
         assert(false);
         return nullptr;
@@ -142,28 +86,20 @@ void* Heap::allocateSized(size_t sizeInBytes, SizedPages& sizedPages, bool isExe
 
     auto address = sizedPages[sizeClass].back()->startAddress();
     assert(address);
-    m_pageEnds[reinterpret_cast<uintptr_t>(address) + kPageSize] = sizedPages[sizeClass].back().get();
+    m_pageEnds[reinterpret_cast<intptr_t>(address) + kPageSize] = sizedPages[sizeClass].back().get();
 
     return sizedPages[sizeClass].back()->allocate();
 }
 
-void Heap::mark() {
-    // TODO once we add the Stack should be enough to build a decent root set
-}
-
-void Heap::sweep() {
-    // TODO once we have mark() going
-}
-
 Page* Heap::findPageContaining(const void* address) {
-    auto addressValue = reinterpret_cast<uintptr_t>(address);
+    auto addressValue = reinterpret_cast<intptr_t>(address);
     auto page = m_pageEnds.upper_bound(addressValue);
     if (page == m_pageEnds.end()) {
         return nullptr;
     }
-    auto startAddress = reinterpret_cast<uintptr_t>(page->second->startAddress());
+    auto startAddress = reinterpret_cast<intptr_t>(page->second->startAddress());
     assert(addressValue >= startAddress);
-    if (addressValue - startAddress < page->second->totalSize()) {
+    if (addressValue - startAddress < static_cast<int32_t>(page->second->totalSize())) {
         return page->second;
     }
     // TODO: search oversize

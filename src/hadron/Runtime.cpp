@@ -137,7 +137,7 @@ Slot Runtime::interpret(std::string_view code) {
             auto selector = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->method);
             auto target = m_threadContext->stackPointer->arg0;
             assert(target.isPointer());
-            auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(target.getPointer()->_className));
+            auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(target.getPointer()->className));
             auto classDef = m_threadContext->classLibrary->findClassNamed(className);
 
             auto method = library::Method();

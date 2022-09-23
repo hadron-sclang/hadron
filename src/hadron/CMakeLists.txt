@@ -1,3 +1,6 @@
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED)
+
 include_directories(
     "${INSTALL_EXT}/include"
 )

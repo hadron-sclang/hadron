@@ -26,7 +26,7 @@ public:
     // without type checking, use wrapUnsafe().
     explicit Object(S* instance): m_instance(instance) {
         if (m_instance) {
-            assert(m_instance->schema._className == S::kNameHash);
+            assert(m_instance->schema.className == S::kNameHash);
         }
     }
     explicit Object(Slot instance) {
@@ -34,7 +34,7 @@ public:
             m_instance = nullptr;
         } else {
             m_instance = reinterpret_cast<S*>(instance.getPointer());
-            assert(m_instance->schema._className == S::kNameHash);
+            assert(m_instance->schema.className == S::kNameHash);
         }
     }
 
@@ -48,16 +48,18 @@ public:
             return;
         }
         Slot* s = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(m_instance) + sizeof(Schema));
-        for (size_t i = 0; i < (m_instance->schema._sizeInBytes - sizeof(Schema)) / kSlotSize; ++i) {
+        for (int32_t i = 0; i < (m_instance->schema.sizeInBytes - static_cast<int32_t>(sizeof(Schema))) / kSlotSize; ++i) {
             s[i] = Slot::makeNil();
         }
     }
 
     static inline T alloc(ThreadContext* context, int32_t extraSlots = 0) {
-        size_t sizeInBytes = sizeof(S) + (extraSlots * kSlotSize);
-        S* instance = reinterpret_cast<S*>(context->heap->allocateNew(sizeInBytes));
-        instance->schema._className = S::kNameHash;
-        instance->schema._sizeInBytes = sizeInBytes;
+        int32_t sizeInBytes = sizeof(S) + (extraSlots * kSlotSize);
+        int32_t allocationSize = 0;
+        S* instance = reinterpret_cast<S*>(context->heap->allocateNew(sizeInBytes, allocationSize));
+        instance->schema.className = S::kNameHash;
+        instance->schema.sizeInBytes = sizeInBytes;
+        instance->schema.allocationSize = allocationSize;
         return T(instance);
     }
 
@@ -83,7 +85,7 @@ public:
         if (isNil()) {
             return schema::NilSchema::kNameHash;
         }
-        return m_instance->schema._className;
+        return m_instance->schema.className;
     }
     explicit inline operator bool() const { return m_instance != nullptr; }
     static constexpr Hash nameHash() { return S::kNameHash; }

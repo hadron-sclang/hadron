@@ -32,7 +32,7 @@
 
 namespace hadron {
 
-typedef Slot (*SCMethod)(ThreadContext*, int32_t, Slot, ...);
+typedef Slot (*SCMethod)(ThreadContext*);
 
 class Generator {
 public:

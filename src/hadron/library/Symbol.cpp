@@ -9,6 +9,10 @@ Symbol::Symbol(ThreadContext* context, Slot s): m_slot(s) {
     assert(s.isNil() || context->symbolTable->isDefined(s.getSymbolHash()));
 }
 
+Symbol::Symbol(ThreadContext* context, Hash h): m_slot(Slot::makeSymbol(h)) {
+    assert(context->symbolTable->isDefined(h));
+}
+
 // static
 Symbol Symbol::fromView(ThreadContext* context, std::string_view v) {
     return Symbol(context->symbolTable->addSymbol(context, v));

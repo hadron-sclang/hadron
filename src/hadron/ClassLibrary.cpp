@@ -210,9 +210,6 @@ library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
     return library::Class::wrapUnsafe(classIter->second);
 }
 
-// static
-Slot dispatch(ThreadContext* context, Hash selector, Slot target, int32_t numArgs, int32_t numKeywordArgs, ...) { }
-
 bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_classMap.clear();
     m_classArray = library::ClassArray::typedArrayAlloc(context, 1);
@@ -316,10 +313,10 @@ library::Class ClassLibrary::findOrInitClass(ThreadContext* context, library::Sy
 
     // We change the tags on the class objects to reflect the sclang requriements.
     if (className.isMetaClassName(context)) {
-        classDef.instance()->schema._className = context->symbolTable->classSymbol().hash();
+        classDef.instance()->schema.className = context->symbolTable->classSymbol().hash();
     } else {
         auto metaClassName = library::Symbol::fromView(context, fmt::format("Meta_{}", className.view(context)));
-        classDef.instance()->schema._className = metaClassName.hash();
+        classDef.instance()->schema.className = metaClassName.hash();
     }
     classDef.setName(className);
 

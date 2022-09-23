@@ -8,11 +8,10 @@
 
 namespace hadron {
 
-Page::Page(size_t objectSize, size_t totalSize, bool isExecutable):
+Page::Page(int32_t objectSize, int32_t totalSize):
     m_startAddress(nullptr),
     m_objectSize(objectSize),
     m_totalSize(totalSize),
-    m_isExecutable(isExecutable),
     m_nextFreeObject(0),
     m_allocatedObjects(0) {
     m_collectionCounts.resize(totalSize / objectSize, 0);
@@ -26,17 +25,7 @@ bool Page::map() {
         return true;
     }
 
-    void* address = MAP_FAILED;
-    if (!m_isExecutable) {
-        address = mmap(nullptr, m_totalSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    } else {
-#if defined(__APPLE__)
-        address = mmap(nullptr, m_totalSize, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_JIT | MAP_PRIVATE | MAP_ANONYMOUS,
-                       -1, 0);
-#else
-        address = mmap(nullptr, m_totalSize, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-#endif
-    }
+    void* address = mmap(nullptr, m_totalSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     if (address == MAP_FAILED) {
         int mmapError = errno;
@@ -45,7 +34,7 @@ bool Page::map() {
         return false;
     }
 
-    m_startAddress = reinterpret_cast<uint8_t*>(address);
+    m_startAddress = reinterpret_cast<int8_t*>(address);
     return true;
 }
 
@@ -65,14 +54,14 @@ bool Page::unmap() {
 }
 
 void* Page::allocate() {
-    if (m_allocatedObjects == m_collectionCounts.size()) {
+    if (m_allocatedObjects == static_cast<int32_t>(m_collectionCounts.size())) {
         return nullptr;
     }
     assert(m_collectionCounts[m_nextFreeObject] == 0);
     void* address = m_startAddress + (m_nextFreeObject * m_objectSize);
     m_collectionCounts[m_nextFreeObject] = 1;
     ++m_allocatedObjects;
-    if (m_allocatedObjects < m_collectionCounts.size()) {
+    if (m_allocatedObjects < static_cast<int32_t>(m_collectionCounts.size())) {
         for (size_t i = 1; i < m_collectionCounts.size(); ++i) {
             m_nextFreeObject = (m_nextFreeObject + i) % m_collectionCounts.size();
             if (m_collectionCounts[m_nextFreeObject] == 0) {
@@ -85,14 +74,14 @@ void* Page::allocate() {
     return address;
 }
 
-size_t Page::capacity() {
-    assert(m_allocatedObjects <= m_collectionCounts.size());
+int32_t Page::capacity() {
+    assert(m_allocatedObjects <= static_cast<int32_t>(m_collectionCounts.size()));
     return m_collectionCounts.size() - m_allocatedObjects;
 }
 
 void Page::mark(void* address, Color color) {
-    uintptr_t start = reinterpret_cast<uintptr_t>(m_startAddress);
-    uintptr_t addressInt = reinterpret_cast<uintptr_t>(address);
+    intptr_t start = reinterpret_cast<intptr_t>(m_startAddress);
+    intptr_t addressInt = reinterpret_cast<intptr_t>(address);
     assert(start <= addressInt);
     assert(addressInt - start < m_totalSize);
     size_t objectNumber = (addressInt - start) / m_objectSize;

@@ -12,7 +12,7 @@ namespace hadron {
 class Page {
 public:
     Page() = delete;
-    Page(size_t objectSize, size_t totalSize, bool isExecutable = false);
+    Page(int32_t objectSize, int32_t totalSize);
     ~Page();
 
     bool map();
@@ -22,30 +22,28 @@ public:
     // available.
     void* allocate();
     // Returns available room in the page *in number of stored objects*
-    size_t capacity();
+    int32_t capacity();
 
     // Reserve the 2 most significant bits for coloring objects in the m_collectionCounts field.
     enum Color : uint8_t { kWhite = 0, kGray = 0x40, kBlack = 0x80 };
     // Mark the object contained by address.
     void mark(void* address, Color color);
 
-    uint8_t* startAddress() const { return m_startAddress; }
-    size_t totalSize() const { return m_totalSize; }
-    size_t objectSize() const { return m_objectSize; }
+    int8_t* startAddress() const { return m_startAddress; }
+    int32_t totalSize() const { return m_totalSize; }
+    int32_t objectSize() const { return m_objectSize; }
 
 private:
     // Mmaped start of the address of this page.
-    uint8_t* m_startAddress;
+    int8_t* m_startAddress;
     // Individual size of an object stored in this page, in bytes.
-    size_t m_objectSize;
+    int32_t m_objectSize;
     // Total size of page in bytes.
-    size_t m_totalSize;
-    // If true the Page needs to be marked for JIT bytecode on mapping.
-    bool m_isExecutable;
+    int32_t m_totalSize;
     // Index of next free object in Page.
-    size_t m_nextFreeObject;
+    int32_t m_nextFreeObject;
     // Number of allocated objects in Page.
-    size_t m_allocatedObjects;
+    int32_t m_allocatedObjects;
     // Maintains an entry per-object of the collection iterations each object has survived + 1, meaning that if a count
     // is zero that slot is unallocated.
     std::vector<uint8_t> m_collectionCounts;

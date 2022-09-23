@@ -26,18 +26,18 @@ struct Schema {
     // SuperCollider class files.
 
     // A symbol hash of the class name.
-    Hash _className;
+    Hash className;
     // Absolute size, including this header.
-    uint32_t _sizeInBytes;
-
-    // could also consider:
-    // uint32_t _allocationSize;
-    // uint32_t _flags;
+    int32_t sizeInBytes;
+    // Maximum size in bytes of this object.
+    int32_t allocationSize;
+    // Unused at the moment, but here for alignment purposes.
+    int32_t flags;
 };
 
 // Important we not have a vtable in these objects, so no virtual functions.
 static_assert(std::is_standard_layout<Schema>::value);
-static_assert(sizeof(Schema) == 8);
+static_assert(sizeof(Schema) == 16);
 
 } // namespace library
 } // namespace hadron
