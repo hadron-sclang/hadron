@@ -175,10 +175,13 @@ Slot Runtime::interpret(std::string_view code) {
             auto className = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->arg0);
             auto classDef = m_threadContext->classLibrary->findClassNamed(className);
             assert(classDef);
-            size_t sizeInBytes = sizeof(library::Schema) + (classDef.iprototype().size() * kSlotSize);
-            auto* instance = reinterpret_cast<library::Schema*>(m_heap->allocateNew(sizeInBytes));
-            instance->_className = className.hash();
-            instance->_sizeInBytes = sizeInBytes;
+            int32_t sizeInBytes = static_cast<int32_t>(sizeof(library::Schema)) +
+                    (classDef.iprototype().size() * kSlotSize);
+            int32_t allocationSize = 0;
+            auto* instance = reinterpret_cast<library::Schema*>(m_heap->allocateNew(sizeInBytes, allocationSize));
+            instance->className = className.hash();
+            instance->sizeInBytes = sizeInBytes;
+            instance->allocationSize = allocationSize;
             auto slot = Slot::makePointer(instance);
             auto object = library::ObjectBase::wrapUnsafe(slot);
             object.initToNil();
@@ -209,7 +212,7 @@ std::string Runtime::slotToString(Slot s) {
     }
 
     case TypeFlags::kObjectFlag: {
-        auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(s.getPointer()->_className));
+        auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(s.getPointer()->className));
         return fmt::format("a {}", className.view(m_threadContext.get()));
     }
 

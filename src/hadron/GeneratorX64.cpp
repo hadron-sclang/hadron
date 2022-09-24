@@ -16,14 +16,6 @@ SCMethod Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::F
     asmjit::x86::Compiler compiler(&codeHolder);
     compiler.addFunc(signature);
 
-    /*
-        // All remaining arguments are Slots
-        for (int32_t i = 0; i < frame.argumentNames().size(); ++i) {
-            signature.addArg(asmjit::TypeId::kUInt64);
-        }
-    */
-
-
     std::vector<asmjit::Label> blockLabels(blocks.size());
     // TODO: maybe lazily create, as some blocks may have been deleted?
     std::generate(blockLabels.begin(), blockLabels.end(), [&compiler]() { return compiler.newLabel(); });

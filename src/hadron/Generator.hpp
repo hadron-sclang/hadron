@@ -5,6 +5,7 @@
 #include "hadron/library/HadronCFG.hpp"
 #include "hadron/library/Integer.hpp"
 #include "hadron/Slot.hpp"
+#include "hadron/library/Kernel.hpp"
 
 #if defined(__clang__) || defined(__GNUC__)
 #    pragma GCC diagnostic push
@@ -31,8 +32,11 @@
 //   c) Selector-specific dispatch function that handles routing
 
 namespace hadron {
+namespace schema {
+struct FramePrivateSchema;
+} // namespace schema
 
-typedef Slot (*SCMethod)(ThreadContext*);
+typedef Slot (*SCMethod)(ThreadContext*, schema::FramePrivateSchema* frame);
 
 class Generator {
 public:

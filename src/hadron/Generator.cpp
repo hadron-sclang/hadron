@@ -1,6 +1,7 @@
 #include "hadron/Generator.hpp"
 
 #include "asmjit/core/func.h"
+#include "asmjit/core/type.h"
 #include "hadron/ThreadContext.hpp"
 
 namespace hadron {
@@ -17,17 +18,14 @@ SCMethod Generator::serialize(ThreadContext* context, const library::CFGFrame fr
     blockOrder = blockOrder.typedReverse(context);
 
     // Build function signature
-    // TODO: varArgs
     assert(!frame.hasVarArgs());
     asmjit::FuncSignatureBuilder signature(asmjit::CallConvId::kHost, 3);
     // Hadron functions always return a slot.
     signature.setRet(asmjit::TypeId::kUInt64);
     // First argument is always the context pointer.
     signature.addArg(asmjit::TypeId::kIntPtr);
-    // Second argument is the number of in-order args provided to the vaArgs (not inclusive of this_)
-    signature.addArg(asmjit::TypeId::kInt32);
-    // Third argument is the target of the method
-    signature.addArg(asmjit::TypeId::kUInt64);
+    // Second argument is the frame pointer.
+    signature.addArg(asmjit::TypeId::kIntPtr);
 
     return buildFunction(frame, signature, blocks, blockOrder);
 }
