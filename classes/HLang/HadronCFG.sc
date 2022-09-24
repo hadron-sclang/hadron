@@ -60,8 +60,6 @@ HadronCFGBlock {
 	var <>successors;
 	var <>phis;
 	var <>statements;
-	// Branch and return statements executed after any HIR in statements.
-	var <>exitStatements;
 	// A boolean which is true if this Block has an explicit return statement in it.
 	var <>hasMethodReturn;
 	// The last HIR id computed by this Block.

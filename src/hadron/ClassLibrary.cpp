@@ -2,13 +2,12 @@
 
 #include "hadron/ASTBuilder.hpp"
 #include "hadron/BlockBuilder.hpp"
+#include "hadron/Generator.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/internal/FileSystem.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/library/Object.hpp"
-#include "hadron/LighteningJIT.hpp"
-#include "hadron/Materializer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/SourceFile.hpp"
 #include "hadron/SymbolTable.hpp"
@@ -428,9 +427,9 @@ bool ClassLibrary::materializeFrames(ThreadContext* context) {
                 continue;
             }
 
-            auto bytecode = Materializer::materialize(context, frameIter->second);
-            assert(bytecode);
-            method.setCode(bytecode);
+            auto jitMethod = context->generator->serialize(context, frameIter->second);
+            assert(jitMethod);
+            method.setCode(Slot::makeRawPointer(reinterpret_cast<int8_t*>(jitMethod)));
         }
     }
 

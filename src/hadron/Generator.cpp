@@ -1,7 +1,5 @@
 #include "hadron/Generator.hpp"
 
-#include "asmjit/core/func.h"
-#include "asmjit/core/type.h"
 #include "hadron/ThreadContext.hpp"
 
 namespace hadron {
@@ -29,6 +27,22 @@ SCMethod Generator::serialize(ThreadContext* context, const library::CFGFrame fr
 
     return buildFunction(frame, signature, blocks, blockOrder);
 }
+
+// static
+bool Generator::markThreadForJITCompilation() {
+#if defined(__APPLE__)
+    pthread_jit_write_protect_np(false);
+#endif
+    return true;
+}
+
+// static
+void Generator::markThreadForJITExecution() {
+#if defined(__APPLE__)
+    pthread_jit_write_protect_np(true);
+#endif
+}
+
 
 void Generator::orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
                             library::TypedArray<library::BlockId> blockOrder) {

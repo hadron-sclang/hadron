@@ -104,13 +104,13 @@ public:
     explicit FunctionDefBase(Slot instance): Object<T, S>(instance) { }
     ~FunctionDefBase() { }
 
-    Int8Array code() const {
+    Slot code() const {
         const T& t = static_cast<const T&>(*this);
-        return Int8Array(t.m_instance->code);
+        return t.m_instance->code;
     }
-    void setCode(Int8Array c) {
+    void setCode(Slot c) {
         T& t = static_cast<T&>(*this);
-        t.m_instance->code = c.slot();
+        t.m_instance->code = c;
     }
 
     FunctionDefArray selectors() const {

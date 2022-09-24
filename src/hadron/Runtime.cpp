@@ -1,6 +1,7 @@
 #include "hadron/Runtime.hpp"
 
 #include "hadron/ClassLibrary.hpp"
+#include "hadron/Generator.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/library/ArrayedCollection.hpp"
 #include "hadron/library/Kernel.hpp"
@@ -8,13 +9,10 @@
 #include "hadron/library/Schema.hpp"
 #include "hadron/library/Symbol.hpp"
 #include "hadron/library/Thread.hpp"
-#include "hadron/LighteningJIT.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/SourceFile.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
-#include "hadron/VirtualJIT.hpp"
-#include "hadron/VirtualMachine.hpp"
 #include "internal/FileSystem.hpp"
 
 #include "spdlog/spdlog.h"
@@ -22,17 +20,11 @@
 
 namespace hadron {
 
-Runtime::Runtime(bool debugMode): m_heap(std::make_shared<Heap>()), m_threadContext(std::make_unique<ThreadContext>()) {
-    m_threadContext->debugMode = debugMode;
-    if (!debugMode) {
-        LighteningJIT::initJITGlobals();
-    } else {
-        //        m_virtualMachine = std::make_unique<VirtualMachine>();
-        //        m_threadContext->virtualMachine = m_virtualMachine.get();
-    }
+Runtime::Runtime(): m_heap(std::make_shared<Heap>()), m_threadContext(std::make_unique<ThreadContext>()) {
     m_threadContext->heap = m_heap;
     m_threadContext->symbolTable = std::make_unique<SymbolTable>();
     m_threadContext->classLibrary = std::make_unique<ClassLibrary>();
+    m_threadContext->generator = std::make_unique<Generator>();
 }
 
 Runtime::~Runtime() { }
@@ -84,9 +76,7 @@ bool Runtime::scanClassString(std::string_view input, std::string_view filename)
 bool Runtime::finalizeClassLibrary() { return m_threadContext->classLibrary->finalizeLibrary(m_threadContext.get()); }
 
 Slot Runtime::interpret(std::string_view code) {
-    if (!m_threadContext->debugMode) {
-        LighteningJIT::markThreadForJITCompilation();
-    }
+    Generator::markThreadForJITCompilation();
 
     // TODO: refactor to avoid this needless copy
     auto codeString = library::String::fromView(m_threadContext.get(), code);
@@ -99,7 +89,6 @@ Slot Runtime::interpret(std::string_view code) {
     // Convention is caller pushes, callee pops.
     auto callerFrame = library::Frame::alloc(m_threadContext.get());
     callerFrame.initToNil();
-    callerFrame.setIp(m_threadContext->exitMachineCode);
 
     auto calleeFrame =
         library::Frame::alloc(m_threadContext.get(), std::max(function.def().prototypeFrame().size() - 1, 0));
@@ -116,86 +105,11 @@ Slot Runtime::interpret(std::string_view code) {
     spareFrame.initToNil();
     m_threadContext->stackPointer = spareFrame.instance();
 
-    if (!m_threadContext->debugMode) {
-        LighteningJIT::markThreadForJITExecution();
-    }
+    Generator::markThreadForJITExecution();
 
-    //    const int8_t* machineCode = function.def().code().start();
-    while (true) {
-        // Enter JIT machine code.
-        //        m_entryTrampoline(m_threadContext.get(), machineCode);
-
-        // If this was a normal completion of the Hadron stack the frame pointer will be pointing at the callerFrame.
-        if (m_threadContext->framePointer == callerFrame.instance()) {
-            // Extract return value from callee frame pointer, which is our stack pointer.
-            return m_threadContext->stackPointer->arg0;
-        }
-
-        // This is an interrupt call
-        switch (m_threadContext->interruptCode) {
-        case ThreadContext::InterruptCode::kDispatch: {
-            auto selector = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->method);
-            auto target = m_threadContext->stackPointer->arg0;
-            assert(target.isPointer());
-            auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(target.getPointer()->className));
-            auto classDef = m_threadContext->classLibrary->findClassNamed(className);
-
-            auto method = library::Method();
-            while (classDef && !method) {
-                for (int32_t i = 0; i < classDef.methods().size(); ++i) {
-                    if (classDef.methods().typedAt(i).name(m_threadContext.get()) == selector) {
-                        method = classDef.methods().typedAt(i);
-                        break;
-                    }
-                }
-                classDef = m_threadContext->classLibrary->findClassNamed(classDef.superclass(m_threadContext.get()));
-            }
-            if (!method) {
-                SPDLOG_ERROR("Failed to find method {} in class {}", selector.view(m_threadContext.get()),
-                             classDef.name(m_threadContext.get()).view(m_threadContext.get()));
-                return Slot::makeNil();
-            }
-
-            // Stack pointer has saved frame pointer, safe to clobber frame pointer with stack.
-            m_threadContext->framePointer = m_threadContext->stackPointer;
-            // TODO: does the new frame need anything else?
-            spareFrame = library::Frame::alloc(m_threadContext.get(), 16);
-            spareFrame.initToNil();
-            m_threadContext->stackPointer = spareFrame.instance();
-
-            assert(method.code());
-            //            machineCode = method.code().start();
-        } break;
-
-        case ThreadContext::InterruptCode::kFatalError:
-            SPDLOG_CRITICAL("Fatal Error");
-            return Slot::makeNil();
-
-        case ThreadContext::InterruptCode::kNewObject: {
-            auto className = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->arg0);
-            auto classDef = m_threadContext->classLibrary->findClassNamed(className);
-            assert(classDef);
-            int32_t sizeInBytes = static_cast<int32_t>(sizeof(library::Schema)) +
-                    (classDef.iprototype().size() * kSlotSize);
-            int32_t allocationSize = 0;
-            auto* instance = reinterpret_cast<library::Schema*>(m_heap->allocateNew(sizeInBytes, allocationSize));
-            instance->className = className.hash();
-            instance->sizeInBytes = sizeInBytes;
-            instance->allocationSize = allocationSize;
-            auto slot = Slot::makePointer(instance);
-            auto object = library::ObjectBase::wrapUnsafe(slot);
-            object.initToNil();
-            m_threadContext->stackPointer->arg0 = slot;
-            //            machineCode = m_threadContext->framePointer->ip.getRawPointer();
-        } break;
-
-        case ThreadContext::InterruptCode::kPrimitive:
-            SPDLOG_CRITICAL("Primitive");
-            return Slot::makeNil();
-        }
-    }
-
-    return Slot::makeNil();
+    SCMethod scMethod = reinterpret_cast<SCMethod>(function.def().code().getRawPointer());
+    auto result = scMethod(m_threadContext.get(), calleeFrame.instance());
+    return result;
 }
 
 std::string Runtime::slotToString(Slot s) {

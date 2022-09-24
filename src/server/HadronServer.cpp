@@ -3,18 +3,11 @@
 #include "hadron/Arch.hpp"
 #include "hadron/ASTBuilder.hpp"
 #include "hadron/BlockBuilder.hpp"
-#include "hadron/BlockSerializer.hpp"
 #include "hadron/ClassLibrary.hpp"
-#include "hadron/Emitter.hpp"
 #include "hadron/Lexer.hpp"
-#include "hadron/LifetimeAnalyzer.hpp"
-#include "hadron/LighteningJIT.hpp"
 #include "hadron/Parser.hpp"
-#include "hadron/RegisterAllocator.hpp"
-#include "hadron/Resolver.hpp"
 #include "hadron/Runtime.hpp"
 #include "hadron/SourceFile.hpp"
-#include "hadron/VirtualJIT.hpp"
 #include "server/JSONTransport.hpp"
 
 #include "fmt/format.h"
@@ -25,7 +18,7 @@ namespace server {
 HadronServer::HadronServer(std::unique_ptr<JSONTransport> jsonTransport):
     m_jsonTransport(std::move(jsonTransport)),
     m_state(kUninitialized),
-    m_runtime(std::make_unique<hadron::Runtime>(false)) {
+    m_runtime(std::make_unique<hadron::Runtime>()) {
     m_jsonTransport->setServer(this);
 }
 

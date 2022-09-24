@@ -45,6 +45,9 @@ public:
 
     SCMethod serialize(ThreadContext* context, const library::CFGFrame frame);
 
+    static bool markThreadForJITCompilation();
+    static void markThreadForJITExecution();
+
 private:
     // Performs a recursive postorder traversal of the blocks and saves the output in |blockOrder|.
     void orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,

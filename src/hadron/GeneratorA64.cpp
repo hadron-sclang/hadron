@@ -6,20 +6,22 @@
 
 namespace hadron {
 
-void Generator::buildFunction(const library::CFGFrame frame, asmjit::FuncSignature signature,
+SCMethod Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::FuncSignature signature,
                               std::vector<library::CFGBlock>& blocks,
                               library::TypedArray<library::BlockId> blockOrder) {
+    asmjit::CodeHolder codeHolder;
+    codeHolder.init(m_jitRuntime.environment());
+
     // Create compiler object and attach to code space
-    asmjit::a64::Compiler compiler(&m_codeHolder);
-    auto funcNode = compiler.addFunc(signature);
+    asmjit::a64::Compiler compiler(&codeHolder);
+    compiler.addFunc(signature);
 
     std::vector<asmjit::Label> blockLabels(blocks.size());
     // TODO: maybe lazily create, as some blocks may have been deleted?
     std::generate(blockLabels.begin(), blockLabels.end(), [&compiler]() { return compiler.newLabel(); });
 
     std::vector<asmjit::a64::Gp> vRegs(blocks[0].frame().values().size());
-    std::generate(vRegs.begin(), vRegs.end(), [&compiler]() { return compiler.newGp(asmjit::TypeId::kUInt64); });
-
+    std::generate(vRegs.begin(), vRegs.end(), [&compiler]() { return compiler.newGpw(); });
 
     for (int32_t i = 0; i < blockOrder.size(); ++i) {
         auto blockNumber = blockOrder.typedAt(i).int32();
@@ -64,10 +66,10 @@ void Generator::buildFunction(const library::CFGFrame frame, asmjit::FuncSignatu
                 assert(false);
             } break;
 
-            // Need to adjust to include a return value.
             case library::MethodReturnHIR::nameHash(): {
-                assert(false);
-            }
+                auto methodReturnHIR = library::MethodReturnHIR(hir.slot());
+                compiler.ret(vRegs[methodReturnHIR.returnValue().int32()]);
+            } break;
 
             case library::PhiHIR::nameHash(): {
                 // Shouldn't encounter phis in block statements.
@@ -94,10 +96,6 @@ void Generator::buildFunction(const library::CFGFrame frame, asmjit::FuncSignatu
                 // TODO: super routing, perhaps with a different interrupt code to dispatch?
             } break;
 
-            case library::StoreReturnHIR::nameHash(): {
-                auto storeReturnHIR = library::StoreReturnHIR(hir.slot());
-            } break;
-
             case library::WriteToClassHIR::nameHash(): {
                 auto writeToClassHIR = library::WriteToClassHIR(hir.slot());
             } break;
@@ -115,6 +113,16 @@ void Generator::buildFunction(const library::CFGFrame frame, asmjit::FuncSignatu
             }
         }
     }
+
+    compiler.endFunc();
+    compiler.finalize();
+
+    SCMethod method;
+    auto error = m_jitRuntime.add(&method, &codeHolder);
+    if (error)
+        return nullptr;
+
+    return method;
 }
 
 } // namespace hadron
