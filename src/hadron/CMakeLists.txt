@@ -1,3 +1,6 @@
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED)
+
 include_directories(
     "${INSTALL_EXT}/include"
 )
@@ -9,40 +12,6 @@ include_directories(
 
 #########################
 # frontend source files
-
-# colm dependency to build Ragel
-ExternalProject_add(colm
-    PREFIX ext
-    STEP_TARGETS install
-    EXCLUDE_FROM_ALL ON
-    GIT_REPOSITORY https://github.com/adrian-thurston/colm
-    GIT_TAG master
-    GIT_PROGRESS ON
-    UPDATE_COMMAND ""
-    CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${INSTALL_EXT} --disable-manual
-    BUILD_IN_SOURCE ON
-    BUILD_COMMAND make -j
-    INSTALL_COMMAND make install
-    EXCLUDE_FROM_ALL ON
-)
-
-# Ragel state machine generator used to generate the Lexer
-ExternalProject_add(ragel
-    PREFIX ext
-    STEP_TARGETS install
-    EXCLUDE_FROM_ALL ON
-    DEPENDS colm-install
-    GIT_REPOSITORY https://github.com/adrian-thurston/ragel
-    GIT_TAG master
-    GIT_PROGRESS ON
-    UPDATE_COMMAND ""
-    CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${INSTALL_EXT} --with-colm=${INSTALL_EXT} --disable-manual
-    BUILD_IN_SOURCE ON
-    BUILD_COMMAND make -j
-    INSTALL_COMMAND make install
-    EXCLUDE_FROM_ALL ON
-)
-
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/internal")
 configure_file(internal/BuildInfo.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/internal/BuildInfo.hpp")
 
@@ -73,22 +42,6 @@ target_link_libraries(schemac
     sprklr
     xxHash::xxhash
 )
-
-#############
-# prim
-add_executable(prim
-    ${HADRON_FRONTEND_FILES}
-    prim.cpp
-)
-
-target_link_libraries(prim
-    gflags
-    fmt
-    spdlog
-    sprklr
-    xxHash::xxhash
-)
-
 
 if (APPLE)
     # Default installed Bison is 2.x, we need a newer version from homebrew.
@@ -154,12 +107,8 @@ endforeach()
 
 list(APPEND HLANG_CLASS_FILES
     "${HLANG_PATH}/HLang/HadronAST.sc"
-    "${HLANG_PATH}/HLang/HadronBuildArtifacts.sc"
     "${HLANG_PATH}/HLang/HadronCFG.sc"
     "${HLANG_PATH}/HLang/HadronHIR.sc"
-    "${HLANG_PATH}/HLang/HadronLifetimeInterval.sc"
-    "${HLANG_PATH}/HLang/HadronLinearFrame.sc"
-    "${HLANG_PATH}/HLang/HadronLIR.sc"
     "${HLANG_PATH}/HLang/HadronParseNode.sc"
 )
 
@@ -183,16 +132,29 @@ add_custom_command(OUTPUT ${SCHEMA_FILES} ${CMAKE_CURRENT_BINARY_DIR}/ClassLibra
 
 add_custom_target(schemafiles DEPENDS ${SCHEMA_FILES})
 
+find_program(RAGEL_EXECUTABLE ragel REQUIRED)
+
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
-    COMMAND ${INSTALL_EXT}/bin/ragel -o "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Lexer.rl"
+    COMMAND ${RAGEL_EXECUTABLE} -o "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Lexer.rl"
     MAIN_DEPENDENCY Lexer.rl
-    DEPENDS ragel-install
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     VERBATIM
 )
 
+
+if (HADRON_HOST_CPU STREQUAL "x86_64")
+    set(HADRON_GENERATOR_FILES
+        "GeneratorX64.cpp"
+    )
+elseif(HADRON_HOST_CPU STREQUAL "aarch64")
+    set(HADRON_GENERATOR_FILES
+        "GeneratorA64.cpp"
+    )
+endif()
+
 add_library(hadron STATIC
     ${HADRON_FRONTEND_FILES}
+    ${HADRON_GENERATOR_FILES}
     ${SCHEMA_FILES}
     "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
@@ -205,17 +167,10 @@ add_library(hadron STATIC
     library/Dictionary.hpp
     library/Function.hpp
     library/HadronAST.hpp
-    library/HadronBuildArtifacts.hpp
     library/HadronCFG.cpp
     library/HadronCFG.hpp
     library/HadronHIR.cpp
     library/HadronHIR.hpp
-    library/HadronLifetimeInterval.cpp
-    library/HadronLifetimeInterval.hpp
-    library/HadronLinearFrame.cpp
-    library/HadronLinearFrame.hpp
-    library/HadronLIR.cpp
-    library/HadronLIR.hpp
     library/HadronParseNode.hpp
     library/Integer.hpp
     library/Interpreter.cpp
@@ -231,40 +186,20 @@ add_library(hadron STATIC
     library/Symbol.hpp
     library/Thread.hpp
 
-    Arch.hpp
     ASTBuilder.cpp
     ASTBuilder.hpp
     BlockBuilder.cpp
     BlockBuilder.hpp
-    BlockSerializer.cpp
-    BlockSerializer.hpp
     ClassLibrary.cpp
     ClassLibrary.hpp
-    Emitter.cpp
-    Emitter.hpp
+    Generator.cpp
+    Generator.hpp
     Heap.cpp
     Heap.hpp
-    JIT.hpp
     Lexer.hpp
-    LifetimeAnalyzer.cpp
-    LifetimeAnalyzer.hpp
-    LighteningJIT.cpp
-    LighteningJIT.hpp
-    Materializer.cpp
-    Materializer.hpp
-    MoveScheduler.cpp
-    MoveScheduler.hpp
-    OpcodeIterator.cpp
-    OpcodeIterator.hpp
     Page.cpp
     Page.hpp
     Parser.hpp
-    PrimitiveDispatcher.cpp
-    PrimitiveDispatcher.hpp
-    RegisterAllocator.cpp
-    RegisterAllocator.hpp
-    Resolver.cpp
-    Resolver.hpp
     Runtime.cpp
     Runtime.hpp
     SlotDumpJSON.cpp
@@ -272,21 +207,14 @@ add_library(hadron STATIC
     SymbolTable.cpp
     SymbolTable.hpp
     ThreadContext.hpp
-    VirtualJIT.cpp
-    VirtualJIT.hpp
-    VirtualMachine.cpp
-    VirtualMachine.hpp
 )
 
 set(HADRON_COMPILER_UNITTESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/Lexer_unittests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MoveScheduler_unittests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/OpcodeIterator_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Slot_unittests.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Array_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/ArrayedCollection_unittests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/library/HadronLifetimeInterval_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Dictionary_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/LibraryTestFixture.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Set_unittests.cpp
@@ -311,10 +239,10 @@ target_compile_definitions(hadron PUBLIC
 )
 
 target_link_libraries(hadron PUBLIC
+    asmjit
     fmt
     spdlog
     xxHash::xxhash
-    lightening
 )
 
 target_include_directories(hadron PUBLIC

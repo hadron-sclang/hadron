@@ -104,13 +104,13 @@ public:
     explicit FunctionDefBase(Slot instance): Object<T, S>(instance) { }
     ~FunctionDefBase() { }
 
-    Int8Array code() const {
+    Slot code() const {
         const T& t = static_cast<const T&>(*this);
-        return Int8Array(t.m_instance->code);
+        return t.m_instance->code;
     }
-    void setCode(Int8Array c) {
+    void setCode(Slot c) {
         T& t = static_cast<T&>(*this);
-        t.m_instance->code = c.slot();
+        t.m_instance->code = c;
     }
 
     FunctionDefArray selectors() const {
@@ -192,8 +192,8 @@ public:
 
     // Copies all elements (if any) after the first element in |prototypeFrame| into the space after arg0.
     void copyPrototypeAfterThis(Array prototypeFrame) {
-        assert(m_instance->schema._sizeInBytes
-               >= (sizeof(schema::FramePrivateSchema) + (prototypeFrame.size() * kSlotSize) - kSlotSize));
+        assert(m_instance->schema.sizeInBytes >= (static_cast<int32_t>(sizeof(schema::FramePrivateSchema))
+                                                  + (prototypeFrame.size() * kSlotSize) - kSlotSize));
         std::memcpy(reinterpret_cast<int8_t*>(m_instance) + sizeof(schema::FramePrivateSchema),
                     prototypeFrame.start() + kSlotSize, (prototypeFrame.size() - 1) * kSlotSize);
     }

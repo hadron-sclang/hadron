@@ -49,8 +49,6 @@ HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
         return id;
     }
 
-    bool addToExitStatements = false;
-
     // Adding a new constant, update the constants map and set.
     if (hir.className() == ConstantHIR::nameHash()) {
         auto constantHIR = ConstantHIR(hir.slot());
@@ -62,16 +60,9 @@ HIRId CFGBlock::append(ThreadContext* context, HIR hir) {
         }
     } else if (hir.className() == MethodReturnHIR::nameHash()) {
         setHasMethodReturn(true);
-        addToExitStatements = true;
-    } else if (hir.className() == BranchHIR::nameHash() || hir.className() == BranchIfTrueHIR::nameHash()) {
-        addToExitStatements = true;
     }
 
-    if (addToExitStatements) {
-        setExitStatements(exitStatements().typedAdd(context, hir));
-    } else {
-        setStatements(statements().typedAdd(context, hir));
-    }
+    setStatements(statements().typedAdd(context, hir));
 
     return id;
 }

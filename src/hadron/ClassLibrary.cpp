@@ -1,20 +1,14 @@
 #include "hadron/ClassLibrary.hpp"
 
-#include "hadron/Arch.hpp"
 #include "hadron/ASTBuilder.hpp"
 #include "hadron/BlockBuilder.hpp"
-#include "hadron/Emitter.hpp"
+#include "hadron/Generator.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/internal/FileSystem.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/library/Object.hpp"
-#include "hadron/LifetimeAnalyzer.hpp"
-#include "hadron/LighteningJIT.hpp"
-#include "hadron/Materializer.hpp"
 #include "hadron/Parser.hpp"
-#include "hadron/RegisterAllocator.hpp"
-#include "hadron/Resolver.hpp"
 #include "hadron/SourceFile.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
@@ -318,10 +312,10 @@ library::Class ClassLibrary::findOrInitClass(ThreadContext* context, library::Sy
 
     // We change the tags on the class objects to reflect the sclang requriements.
     if (className.isMetaClassName(context)) {
-        classDef.instance()->schema._className = context->symbolTable->classSymbol().hash();
+        classDef.instance()->schema.className = context->symbolTable->classSymbol().hash();
     } else {
         auto metaClassName = library::Symbol::fromView(context, fmt::format("Meta_{}", className.view(context)));
-        classDef.instance()->schema._className = metaClassName.hash();
+        classDef.instance()->schema.className = metaClassName.hash();
     }
     classDef.setName(className);
 
@@ -433,9 +427,9 @@ bool ClassLibrary::materializeFrames(ThreadContext* context) {
                 continue;
             }
 
-            auto bytecode = Materializer::materialize(context, frameIter->second);
-            assert(bytecode);
-            method.setCode(bytecode);
+            auto jitMethod = context->generator->serialize(context, frameIter->second);
+            assert(jitMethod);
+            method.setCode(Slot::makeRawPointer(reinterpret_cast<int8_t*>(jitMethod)));
         }
     }
 

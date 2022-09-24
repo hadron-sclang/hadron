@@ -2,7 +2,6 @@
 #define SRC_HADRON_LIBRARY_ARRAYED_COLLECTION_HPP_
 
 #include "hadron/Hash.hpp"
-#include "hadron/Heap.hpp"
 #include "hadron/library/Integer.hpp"
 #include "hadron/library/SequenceableCollection.hpp"
 #include "hadron/library/Symbol.hpp"
@@ -22,20 +21,21 @@ public:
 
     static T arrayAlloc(ThreadContext* context, int32_t maxSize = 0) {
         S* instance = arrayAllocRaw(context, maxSize);
-        instance->schema._className = S::kNameHash;
-        instance->schema._sizeInBytes = sizeof(S);
+        instance->schema.sizeInBytes = sizeof(S);
         return T(instance);
     }
 
-    // Produces a new T with a copy of the values of this. Can specify an optional capacity to make the new array at.
+    // Produces a new T with a copy of the values of this. Can specify an optional capacity to make the new array with.
     T copy(ThreadContext* context, int32_t maxSize = 0) const {
         const T& t = static_cast<const T&>(*this);
         maxSize = std::max(maxSize, t.size());
         if (maxSize > 0) {
             if (t.m_instance) {
                 S* instance = arrayAllocRaw(context, maxSize);
-                std::memcpy(reinterpret_cast<void*>(instance), reinterpret_cast<const void*>(t.m_instance),
-                            t.m_instance->schema._sizeInBytes);
+                std::memcpy(reinterpret_cast<int8_t*>(instance) + sizeof(S),
+                            reinterpret_cast<const int8_t*>(t.m_instance) + sizeof(S),
+                            t.m_instance->schema.sizeInBytes - sizeof(S));
+                instance->schema.sizeInBytes = t.m_instance->schema.sizeInBytes;
                 return T(instance);
             } else {
                 // Copying an empty array but requesting a nonzero maxSize so we just create a new array with that size.
@@ -68,7 +68,7 @@ public:
         if (t.m_instance == nullptr) {
             return 0;
         }
-        int32_t elementsSize = (t.m_instance->schema._sizeInBytes - sizeof(S)) / sizeof(E);
+        int32_t elementsSize = (t.m_instance->schema.sizeInBytes - sizeof(S)) / sizeof(E);
         assert(elementsSize >= 0);
         return elementsSize;
     }
@@ -117,10 +117,9 @@ public:
 
         // If we need to create a new array for resizing, move the elements while copying them, thus avoiding
         // the redundant copy of the unshifted elements in resize().
-        if (t.capacity(context) == t.size()) {
+        if (t.capacity() == t.size()) {
             S* newArray = T::arrayAllocRaw(context, t.size() + 1);
-            newArray->schema._className = t.m_instance->schema._className;
-            newArray->schema._sizeInBytes = sizeof(S) + ((t.size() + 1) * sizeof(E));
+            newArray->schema.sizeInBytes = sizeof(S) + ((t.size() + 1) * sizeof(E));
             // Copy elements before index into the new array.
             std::memcpy(reinterpret_cast<int8_t*>(newArray) + sizeof(S), t.start(), index * sizeof(E));
             // Copy remaining elements into place shifted one right.
@@ -163,12 +162,12 @@ public:
         return reinterpret_cast<E*>((reinterpret_cast<uint8_t*>(t.m_instance) + sizeof(S)));
     }
 
-    int32_t capacity(ThreadContext* context) const {
+    int32_t capacity() const {
         const T& t = static_cast<const T&>(*this);
         if (t.m_instance == nullptr) {
             return 0;
         }
-        auto allocSize = context->heap->getAllocationSize(t.m_instance);
+        auto allocSize = t.m_instance->schema.allocationSize;
         assert(allocSize > 0);
         return (allocSize - sizeof(S)) / sizeof(E);
     }
@@ -176,19 +175,18 @@ public:
     // newSize is in number of elements. If adding elements they are uninitialized.
     void resize(ThreadContext* context, int32_t newSize) {
         T& t = static_cast<T&>(*this);
-        if (newSize > capacity(context)) {
+        if (newSize > capacity()) {
             if (t.m_instance) {
                 T newArray = copy(context, newSize);
                 t.m_instance = newArray.instance();
             } else {
                 S* newArray = arrayAllocRaw(context, newSize);
-                newArray->schema._className = S::kNameHash;
                 t.m_instance = newArray;
             }
         }
 
         if (t.m_instance) {
-            t.m_instance->schema._sizeInBytes = sizeof(S) + (newSize * sizeof(E));
+            t.m_instance->schema.sizeInBytes = sizeof(S) + (newSize * sizeof(E));
         }
     }
 
@@ -205,7 +203,11 @@ public:
 protected:
     static S* arrayAllocRaw(ThreadContext* context, int32_t numberOfElements) {
         int32_t size = sizeof(S) + (numberOfElements * sizeof(E));
-        return reinterpret_cast<S*>(context->heap->allocateNew(size));
+        int32_t allocationSize = 0;
+        S* array = reinterpret_cast<S*>(context->heap->allocateNew(size, allocationSize));
+        array->schema.className = S::kNameHash;
+        array->schema.allocationSize = allocationSize;
+        return array;
     }
 };
 
@@ -224,15 +226,6 @@ public:
         RawArray<Int8Array, schema::Int8ArraySchema, int8_t>(instance) { }
     explicit Int8Array(Slot instance): RawArray<Int8Array, schema::Int8ArraySchema, int8_t>(instance) { }
     ~Int8Array() { }
-
-    static Int8Array arrayAllocJIT(ThreadContext* context, size_t byteSize, size_t& maxSize) {
-        size_t size = sizeof(schema::Int8ArraySchema) + byteSize;
-        schema::Int8ArraySchema* instance =
-            reinterpret_cast<schema::Int8ArraySchema*>(context->heap->allocateJIT(size, maxSize));
-        instance->schema._className = schema::Int8ArraySchema::kNameHash;
-        instance->schema._sizeInBytes = size;
-        return Int8Array(instance);
-    }
 };
 
 class Int32Array : public RawArray<Int32Array, schema::Int32ArraySchema, int32_t> {

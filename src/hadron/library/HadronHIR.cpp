@@ -1,5 +1,4 @@
 #include "hadron/library/HadronHIR.hpp"
-#include "hadron/library/HadronLIR.hpp"
 
 namespace hadron { namespace library {
 
@@ -24,7 +23,6 @@ HIRId HIR::proposeId(HIRId proposedId) {
     case BranchHIR::nameHash():
     case BranchIfTrueHIR::nameHash():
     case MethodReturnHIR::nameHash():
-    case StoreReturnHIR::nameHash():
     case WriteToClassHIR::nameHash():
     case WriteToFrameHIR::nameHash():
     case WriteToThisHIR::nameHash():

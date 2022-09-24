@@ -3,7 +3,6 @@
 
 #include "hadron/library/Array.hpp"
 #include "hadron/library/HadronCFG.hpp"
-#include "hadron/library/HadronLinearFrame.hpp"
 #include "hadron/library/Integer.hpp"
 #include "hadron/library/Kernel.hpp"
 #include "hadron/library/Object.hpp"
@@ -243,11 +242,16 @@ public:
         HIRBase<MethodReturnHIR, schema::HadronMethodReturnHIRSchema, HIR>(instance) { }
     ~MethodReturnHIR() { }
 
-    static MethodReturnHIR makeMethodReturnHIR(ThreadContext* context) {
+    static MethodReturnHIR makeMethodReturnHIR(ThreadContext* context, HIRId retVal) {
         auto methodReturnHIR = MethodReturnHIR::alloc(context);
         methodReturnHIR.initBase(context, TypeFlags::kNoFlags);
+        methodReturnHIR.reads().typedAdd(context, retVal);
+        methodReturnHIR.setReturnValue(retVal);
         return methodReturnHIR;
     }
+
+    HIRId returnValue() const { return HIRId(m_instance->returnValue); }
+    void setReturnValue(HIRId i) { m_instance->returnValue = i.slot(); }
 };
 
 class PhiHIR : public HIRBase<PhiHIR, schema::HadronPhiHIRSchema, HIR> {
@@ -416,27 +420,6 @@ public:
 
     HIRId thisId() const { return HIRId(m_instance->thisId); }
     void setThisId(HIRId i) { m_instance->thisId = i.slot(); }
-};
-
-class StoreReturnHIR : public HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR> {
-public:
-    StoreReturnHIR(): HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR>() { }
-    explicit StoreReturnHIR(schema::HadronStoreReturnHIRSchema* instance):
-        HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR>(instance) { }
-    explicit StoreReturnHIR(Slot instance):
-        HIRBase<StoreReturnHIR, schema::HadronStoreReturnHIRSchema, HIR>(instance) { }
-    ~StoreReturnHIR() { }
-
-    static StoreReturnHIR makeStoreReturnHIR(ThreadContext* context, HIRId retVal) {
-        auto storeReturnHIR = StoreReturnHIR::alloc(context);
-        storeReturnHIR.initBase(context, TypeFlags::kNoFlags);
-        storeReturnHIR.reads().typedAdd(context, retVal);
-        storeReturnHIR.setReturnValue(retVal);
-        return storeReturnHIR;
-    }
-
-    HIRId returnValue() const { return HIRId(m_instance->returnValue); }
-    void setReturnValue(HIRId i) { m_instance->returnValue = i.slot(); }
 };
 
 class WriteToClassHIR : public HIRBase<WriteToClassHIR, schema::HadronWriteToClassHIRSchema, HIR> {

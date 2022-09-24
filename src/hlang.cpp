@@ -8,14 +8,13 @@
 #include <memory>
 
 DEFINE_string(sourceFile, "", "Path to the source code file to execute.");
-DEFINE_bool(debug, false, "Run code in debug mode.");
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, false);
 
     spdlog::default_logger()->set_level(spdlog::level::trace);
 
-    hadron::Runtime runtime(FLAGS_debug);
+    hadron::Runtime runtime;
     if (!runtime.initInterpreter()) {
         return -1;
     }

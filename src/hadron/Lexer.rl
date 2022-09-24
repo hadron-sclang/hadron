@@ -282,8 +282,7 @@
         '...' {
             m_tokens.emplace_back(Token::make(Token::Name::kEllipses, std::string_view(ts, 3), getLocation(ts)));
         };
-        # Four or more consecutive dots is a lexing error.
-        '.' {4, } {
+        '....' {
             return false;
         };
 

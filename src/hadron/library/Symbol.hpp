@@ -28,6 +28,8 @@ public:
     }
     // Asserts that s is either nil or a valid hash in the symbol table.
     Symbol(ThreadContext* context, Slot s);
+    // Asserts that h is a valid hash in the symbol table.
+    Symbol(ThreadContext* context, Hash h);
     ~Symbol() { }
 
     // Creates a new symbol from the string_view |v|, if not already defined.

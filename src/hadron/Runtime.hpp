@@ -1,7 +1,6 @@
 #ifndef SRC_HADRON_RUNTIME_HPP_
 #define SRC_HADRON_RUNTIME_HPP_
 
-#include "hadron/library/ArrayedCollection.hpp"
 #include "hadron/library/Interpreter.hpp"
 #include "hadron/Slot.hpp"
 
@@ -12,16 +11,13 @@
 
 namespace hadron {
 
-class ErrorReporter;
 class Heap;
 struct ThreadContext;
-class VirtualMachine;
 
 // Owns all of the objects required to compile and run SC code, including the Heap, ThreadContext, and ClassLibrary.
 class Runtime {
 public:
-    Runtime() = delete;
-    explicit Runtime(bool debugMode);
+    Runtime();
     ~Runtime();
 
     // Finalize members in ThreadContext, bootstraps class library, initializes language globals needed for the
@@ -50,7 +46,6 @@ public:
 
 private:
     bool buildThreadContext();
-    bool buildTrampolines();
 
     // We keep the normalized paths in a set to prevent duplicate additions of the same path.
     std::unordered_set<std::string> m_libraryPaths;
@@ -60,13 +55,6 @@ private:
 
     // The interpreter instance.
     library::Interpreter m_interpreter;
-
-    // We JIT entry and exit machine code into this array, so we maintain a reference to it.
-    library::Int8Array m_trampolines;
-    // Saves registers, initializes thread context and stack pointer registers, and jumps into the machine code pointer.
-    void (*m_entryTrampoline)(ThreadContext* context, const int8_t* machineCode);
-
-    std::unique_ptr<VirtualMachine> m_virtualMachine;
 };
 
 } // namespace hadron

@@ -3,9 +3,9 @@
 #include "hadron/ASTBuilder.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/ClassLibrary.hpp"
+#include "hadron/Generator.hpp"
 #include "hadron/Lexer.hpp"
 #include "hadron/library/Kernel.hpp"
-#include "hadron/Materializer.hpp"
 #include "hadron/Parser.hpp"
 #include "hadron/SymbolTable.hpp"
 #include "hadron/ThreadContext.hpp"
@@ -37,14 +37,13 @@ Function Interpreter::compile(ThreadContext* context, String code) {
         return function;
     }
 
-    auto bytecode = Materializer::materialize(context, frame);
-    if (!bytecode) {
+    SCMethod method = context->generator->serialize(context, frame);
+    if (!method)
         return function;
-    }
 
     auto def = library::FunctionDef::alloc(context);
     def.initToNil();
-    def.setCode(bytecode);
+    def.setCode(Slot::makeRawPointer(reinterpret_cast<int8_t*>(method)));
     def.setSelectors(frame.selectors());
     def.setPrototypeFrame(frame.prototypeFrame());
     def.setArgNames(frame.argumentNames());

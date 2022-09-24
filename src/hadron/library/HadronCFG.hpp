@@ -307,15 +307,6 @@ public:
         t.m_instance->statements = a.slot();
     }
 
-    TypedArray<HIRT> exitStatements() const {
-        const T& t = static_cast<const T&>(*this);
-        return TypedArray<HIRT>(t.m_instance->exitStatements);
-    }
-    void setExitStatements(TypedArray<HIRT> a) {
-        T& t = static_cast<T&>(*this);
-        t.m_instance->exitStatements = a.slot();
-    }
-
     bool hasMethodReturn() const {
         const T& t = static_cast<const T&>(*this);
         return t.m_instance->hasMethodReturn.getBool();

@@ -12,7 +12,8 @@ following:
  * GNU Libtool
  * GNU Bison newer than 3.2
  * gperf (server dependency)
+ * Ragel
 
 All of which can be installed with the command:
 
-`brew install cmake automake autoconf libtool bison gperf`
+`brew install cmake automake autoconf libtool bison gperf ragel`

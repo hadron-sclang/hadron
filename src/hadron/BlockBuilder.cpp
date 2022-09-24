@@ -7,6 +7,7 @@
 #include "hadron/ThreadContext.hpp"
 
 #include "fmt/format.h"
+#include "hadron/library/HadronHIR.hpp"
 #include "spdlog/spdlog.h"
 
 #include <cassert>
@@ -29,7 +30,8 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
     auto scope = m_frame.rootScope();
 
     m_frame.setArgumentNames(blockAST.argumentNames());
-    // Add arguments to the prototype frame.
+
+    // Add argument values to the prototype frame.
     m_frame.setPrototypeFrame(m_frame.prototypeFrame().addAll(context, blockAST.argumentDefaults()));
 
     // Include the arguments in the root scope value names set.
@@ -48,9 +50,12 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
     // We append a return statement in the final block, if one wasn't already provided.
     if (!m_block.hasMethodReturn()) {
         if (returnFinalValue) {
-            m_block.append(context, library::StoreReturnHIR::makeStoreReturnHIR(context, finalValue).toBase());
+            m_block.append(context, library::MethodReturnHIR::makeMethodReturnHIR(context, finalValue).toBase());
+        } else {
+            // default return value is this
+            auto thisId = findName(context, context->symbolTable->thisSymbol(), library::HIRId());
+            m_block.append(context, library::MethodReturnHIR::makeMethodReturnHIR(context, thisId.id()).toBase());
         }
-        m_block.append(context, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
     }
 
     return m_frame;
@@ -185,9 +190,7 @@ library::HIRId BlockBuilder::buildValue(ThreadContext* context, const library::A
         auto retAST = library::MethodReturnAST(ast.slot());
         nodeValue = buildValue(context, retAST.value());
         assert(nodeValue);
-
-        m_block.append(context, library::StoreReturnHIR::makeStoreReturnHIR(context, nodeValue).toBase());
-        m_block.append(context, library::MethodReturnHIR::makeMethodReturnHIR(context).toBase());
+        m_block.append(context, library::MethodReturnHIR::makeMethodReturnHIR(context, nodeValue).toBase());
     } break;
 
     case library::MultiAssignAST::nameHash(): {

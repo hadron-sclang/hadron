@@ -1,11 +1,11 @@
 include(CTest)
 
 set(SCTESTS
-    expressions/messages
+#    expressions/messages
 #    expressions/primitives
 
-    lexical_analysis/floats
-    lexical_analysis/functions
+#    lexical_analysis/floats
+#    lexical_analysis/functions
     lexical_analysis/integers
 )
 
