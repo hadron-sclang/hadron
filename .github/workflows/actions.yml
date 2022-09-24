@@ -18,7 +18,7 @@ jobs:
         if: steps.linter.outputs.checks-failed > 0
         run: exit 1
 
-  linux-test:
+  test-linux-x86_64:
     needs: cpp-linter
     runs-on: ubuntu-latest
     env:
@@ -38,7 +38,6 @@ jobs:
           echo '#!/bin/bash
             java -Xmx500M -cp "${BUILD_PATH}/install-ext/lib/antlr-4.11.1-complete.jar:$CLASSPATH" org.antlr.v4.Tool $@' > $BUILD_PATH/install-ext/bin/antlr4
           chmod u+x $BUILD_PATH/install-ext/bin/antlr4
-
       - name: configure
         run: |
           cd $BUILD_PATH
@@ -51,4 +50,30 @@ jobs:
         run: |
           cd $BUILD_PATH
           cmake --build . --target=test
+
+  test-macos-x86_64:
+    needs: lint
+    runs-on: macos-latest
+    env:
+      BUILD_PATH: ${{ github.workspace }}/build
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: install dependencies
+        run: |
+          brew install cmake bison gperf ragel antlr ninja
+      - name: configure
+        run: |
+          mkdir $BUILD_PATH && cd $BUILD_PATH
+          cmake -Gninja -DCMAKE_BUILD_TYPE=Debug ..
+      - name: build
+        run: |
+          cd $BUILD_PATH
+          cmake --build .
+      - name: test
+          cd $BUILD_PATH
+          cmake --build . --target=test
+
+
 

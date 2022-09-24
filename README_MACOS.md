@@ -8,12 +8,11 @@ Hadron uses [homebrew](https://brew.sh/) to install the required build dependenc
 following:
 
  * CMake
- * GNU Autotools, specifically automake and autoconf
- * GNU Libtool
  * GNU Bison newer than 3.2
  * gperf (server dependency)
  * Ragel
+ * ANTLR v4.11.1 or newer (for sparkler)
 
 All of which can be installed with the command:
 
-`brew install cmake automake autoconf libtool bison gperf ragel`
+`brew install cmake bison gperf ragel antlr ninja`
