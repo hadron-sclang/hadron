@@ -18,3 +18,37 @@ jobs:
         if: steps.linter.outputs.checks-failed > 0
         run: exit 1
 
+  linux-test:
+    needs: cpp-linter
+    runs-on: ubuntu-latest
+    env:
+      BUILD_PATH: ${{ github.workspace }}/build
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ninja-build cmake bison ragel
+          mkdir -p $BUILD_PATH/install-ext/{lib,bin}
+          cd $BUILD_PATH/install-ext/lib
+          curl -O https://www.antlr.org/download/antlr-4.11.1-complete.jar
+          cd $BUILD_PATH
+          echo '#!/bin/bash
+            java -Xmx500M -cp "${BUILD_PATH}/install-ext/lib/antlr-4.11.1-complete.jar:$CLASSPATH" org.antlr.v4.Tool $@' > $BUILD_PATH/install-ext/bin/antlr4
+          chmod u+x $BUILD_PATH/install-ext/bin/antlr4
+
+      - name: configure
+        run: |
+          cd $BUILD_PATH
+          cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DANTLR_COMMAND_LINE=$BUILD_PATH/install-ext/bin/antlr4 ..
+      - name: build
+        run: |
+          cd $BUILD_PATH
+          cmake --build .
+      - name: test
+        run: |
+          cd $BUILD_PATH
+          cmake --test .
+
