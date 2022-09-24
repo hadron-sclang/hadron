@@ -1,4 +1,3 @@
-#include "asmjit/core/func.h"
 #include "hadron/Generator.hpp"
 
 #include "hadron/library/HadronHIR.hpp"

@@ -4,7 +4,6 @@
 #include "spdlog/spdlog.h"
 
 #include <cassert>
-#include <sys/_types/_uintptr_t.h>
 
 namespace hadron {
 
