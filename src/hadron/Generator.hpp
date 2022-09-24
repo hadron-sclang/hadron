@@ -36,7 +36,7 @@ namespace schema {
 struct FramePrivateSchema;
 } // namespace schema
 
-typedef Slot (*SCMethod)(ThreadContext*, schema::FramePrivateSchema* frame);
+typedef uint64_t (*SCMethod)(ThreadContext*, schema::FramePrivateSchema* frame);
 
 class Generator {
 public:

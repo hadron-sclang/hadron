@@ -54,6 +54,7 @@ public:
     static constexpr Slot makeRawPointer(const int8_t* p) {
         return Slot(kRawPointerTag | reinterpret_cast<uint64_t>(p));
     }
+    static constexpr Slot makeFromBits(uint64_t bits) { return Slot(bits); }
 
     inline bool operator==(const Slot& s) const { return m_bits == s.m_bits; }
     inline bool operator!=(const Slot& s) const { return m_bits != s.m_bits; }

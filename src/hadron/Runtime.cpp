@@ -109,7 +109,7 @@ Slot Runtime::interpret(std::string_view code) {
 
     SCMethod scMethod = reinterpret_cast<SCMethod>(function.def().code().getRawPointer());
     auto result = scMethod(m_threadContext.get(), calleeFrame.instance());
-    return result;
+    return Slot::makeFromBits(result);
 }
 
 std::string Runtime::slotToString(Slot s) {
