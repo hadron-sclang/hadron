@@ -30,7 +30,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes ninja-build cmake bison ragel
+          sudo apt-get install --yes ninja-build cmake bison ragel gperf
           mkdir -p $BUILD_PATH/install-ext/{lib,bin}
           cd $BUILD_PATH/install-ext/lib
           curl -O https://www.antlr.org/download/antlr-4.11.1-complete.jar
