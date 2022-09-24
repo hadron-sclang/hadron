@@ -7,8 +7,8 @@
 namespace hadron {
 
 SCMethod Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::FuncSignature signature,
-                              std::vector<library::CFGBlock>& blocks,
-                              library::TypedArray<library::BlockId> blockOrder) {
+                                  std::vector<library::CFGBlock>& blocks,
+                                  library::TypedArray<library::BlockId> blockOrder) {
     asmjit::CodeHolder codeHolder;
     codeHolder.init(m_jitRuntime.environment());
 
