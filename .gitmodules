@@ -13,9 +13,6 @@
 [submodule "third_party/xxHash"]
 	path = third_party/xxHash
 	url = https://github.com/Cyan4973/xxHash.git
-[submodule "third_party/lightening"]
-	path = third_party/lightening
-	url = https://gitlab.com/wingo/lightening.git
 [submodule "third_party/rapidjson"]
 	path = third_party/rapidjson
 	url = https://github.com/Tencent/rapidjson.git

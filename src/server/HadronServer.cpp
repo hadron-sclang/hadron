@@ -1,6 +1,5 @@
 #include "server/HadronServer.hpp"
 
-#include "hadron/Arch.hpp"
 #include "hadron/ASTBuilder.hpp"
 #include "hadron/BlockBuilder.hpp"
 #include "hadron/ClassLibrary.hpp"

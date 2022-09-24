@@ -107,12 +107,8 @@ endforeach()
 
 list(APPEND HLANG_CLASS_FILES
     "${HLANG_PATH}/HLang/HadronAST.sc"
-#    "${HLANG_PATH}/HLang/HadronBuildArtifacts.sc"
     "${HLANG_PATH}/HLang/HadronCFG.sc"
     "${HLANG_PATH}/HLang/HadronHIR.sc"
-#    "${HLANG_PATH}/HLang/HadronLifetimeInterval.sc"
-#    "${HLANG_PATH}/HLang/HadronLinearFrame.sc"
-#    "${HLANG_PATH}/HLang/HadronLIR.sc"
     "${HLANG_PATH}/HLang/HadronParseNode.sc"
 )
 
@@ -171,17 +167,10 @@ add_library(hadron STATIC
     library/Dictionary.hpp
     library/Function.hpp
     library/HadronAST.hpp
-#    library/HadronBuildArtifacts.hpp
     library/HadronCFG.cpp
     library/HadronCFG.hpp
     library/HadronHIR.cpp
     library/HadronHIR.hpp
-#    library/HadronLifetimeInterval.cpp
-#    library/HadronLifetimeInterval.hpp
-#    library/HadronLinearFrame.cpp
-#    library/HadronLinearFrame.hpp
-#    library/HadronLIR.cpp
-#    library/HadronLIR.hpp
     library/HadronParseNode.hpp
     library/Integer.hpp
     library/Interpreter.cpp
@@ -197,40 +186,20 @@ add_library(hadron STATIC
     library/Symbol.hpp
     library/Thread.hpp
 
-#    Arch.hpp
     ASTBuilder.cpp
     ASTBuilder.hpp
     BlockBuilder.cpp
     BlockBuilder.hpp
-#    BlockSerializer.cpp
-#    BlockSerializer.hpp
     ClassLibrary.cpp
     ClassLibrary.hpp
-#    Emitter.cpp
-#    Emitter.hpp
     Generator.cpp
     Generator.hpp
     Heap.cpp
     Heap.hpp
-#    JIT.hpp
     Lexer.hpp
-#    LifetimeAnalyzer.cpp
-#    LifetimeAnalyzer.hpp
-#    LighteningJIT.cpp
-#    LighteningJIT.hpp
-#    Materializer.cpp
-#    Materializer.hpp
-#    MoveScheduler.cpp
-#    MoveScheduler.hpp
-#    OpcodeIterator.cpp
-#    OpcodeIterator.hpp
     Page.cpp
     Page.hpp
     Parser.hpp
-#    RegisterAllocator.cpp
-#    RegisterAllocator.hpp
-#    Resolver.cpp
-#    Resolver.hpp
     Runtime.cpp
     Runtime.hpp
     SlotDumpJSON.cpp
@@ -238,21 +207,14 @@ add_library(hadron STATIC
     SymbolTable.cpp
     SymbolTable.hpp
     ThreadContext.hpp
-#    VirtualJIT.cpp
-#    VirtualJIT.hpp
-#    VirtualMachine.cpp
-#    VirtualMachine.hpp
 )
 
 set(HADRON_COMPILER_UNITTESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/Lexer_unittests.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/MoveScheduler_unittests.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/OpcodeIterator_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Slot_unittests.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Array_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/ArrayedCollection_unittests.cpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/library/HadronLifetimeInterval_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Dictionary_unittests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/LibraryTestFixture.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/library/Set_unittests.cpp
