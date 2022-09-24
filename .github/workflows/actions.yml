@@ -50,5 +50,5 @@ jobs:
       - name: test
         run: |
           cd $BUILD_PATH
-          cmake --test .
+          cmake --build . --target=test
 
