@@ -57,14 +57,37 @@ if (APPLE)
     endif()
 endif()
 
-find_package(BISON REQUIRED)
+if (WIN32)
+    ExternalProject_add(winflexbison
+        PREFIX ext
+        STEP_TARGETS build
+        EXCLUDE_FROM_ALL ON
+        GIT_REPOSITORY https://github.com/lexxmark/winflexbison.git
+        GIT_TAG v2.5.25
+        GIT_SHALLOW ON
+        GIT_PROGRESS ON
+        UPDATE_COMMAND ""
+        CMAKE_ARGS -DCMAKE_GENERATOR_PLATFORM=x64
+                   -DCMAKE_BUILD_TYPE=Release
+        )
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
+        COMMAND "${CMAKE_CURRENT_BINARY_DIR}/ext/src/winflexbison/bin/Debug/win_bison.exe"
+            "${CMAKE_CURRENT_SOURCE_DIR}/Parser.yy" -o "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp" -Wall -Werror
+        MAIN_DEPENDENCY Parser.yy
+        DEPENDS winflexbison-build
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        VERBATIM
+    )
+else()
+    find_package(BISON REQUIRED)
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
+        COMMAND "${BISON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/Parser.yy" -o "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp" -Wall -Werror
+        MAIN_DEPENDENCY Parser.yy
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        VERBATIM
+    )
+endif()
 
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
-    COMMAND "${BISON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/Parser.yy" -o "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp" -Wall -Werror
-    MAIN_DEPENDENCY Parser.yy
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    VERBATIM
-)
 
 #############
 # libhadron
@@ -132,7 +155,7 @@ add_custom_command(OUTPUT ${SCHEMA_FILES} ${CMAKE_CURRENT_BINARY_DIR}/ClassLibra
 
 add_custom_target(schemafiles DEPENDS ${SCHEMA_FILES})
 
-find_program(RAGEL_EXECUTABLE ragel REQUIRED)
+find_program(RAGEL_EXECUTABLE ragel ragel.exe REQUIRED)
 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     COMMAND ${RAGEL_EXECUTABLE} -o "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Lexer.rl"
@@ -140,7 +163,6 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     VERBATIM
 )
-
 
 if (HADRON_HOST_CPU STREQUAL "x86_64")
     set(HADRON_GENERATOR_FILES

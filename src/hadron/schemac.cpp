@@ -155,10 +155,10 @@ int main(int argc, char* argv[]) {
     // Map of input file path to output file path.
     std::unordered_map<std::string, std::string> ioFiles;
 
-    if (!processPaths(FLAGS_classFiles, libraryPath, schemaBasePath, ioFiles)) {
+    if (!processPaths(FLAGS_classFiles, libraryPath.string(), schemaBasePath.string(), ioFiles)) {
         return -1;
     }
-    if (!processPaths(FLAGS_hlangFiles, hlangPath, schemaBasePath, ioFiles)) {
+    if (!processPaths(FLAGS_hlangFiles, hlangPath.string(), schemaBasePath.string(), ioFiles)) {
         return -1;
     }
 
@@ -171,7 +171,7 @@ int main(int argc, char* argv[]) {
         auto classFile = fs::path(ioPair.first);
         auto schemaPath = fs::path(ioPair.second);
 
-        hadron::SourceFile sourceFile(classFile);
+        hadron::SourceFile sourceFile(classFile.string());
         if (!sourceFile.read()) {
             std::cerr << "Failed to read input class file: " << classFile << "\n";
             return -1;
@@ -196,7 +196,7 @@ int main(int argc, char* argv[]) {
             return -1;
         }
 
-        classFiles.emplace(std::make_pair(schemaPath, listener.classNames()));
+        classFiles.emplace(std::make_pair(schemaPath.string(), listener.classNames()));
     }
 
     std::ofstream bootstrapFile(FLAGS_bootstrapPath);
