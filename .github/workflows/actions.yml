@@ -72,6 +72,7 @@ jobs:
           cd $BUILD_PATH
           cmake --build .
       - name: test
+        run: |
           cd $BUILD_PATH
           cmake --build . --target=test
 
