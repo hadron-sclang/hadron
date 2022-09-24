@@ -52,7 +52,7 @@ jobs:
           cmake --build . --target=test
 
   test-macos-x86_64:
-    needs: lint
+    needs: cpp-linter
     runs-on: macos-latest
     env:
       BUILD_PATH: ${{ github.workspace }}/build
