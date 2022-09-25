@@ -40,11 +40,11 @@ bool Runtime::initInterpreter() {
 }
 
 void Runtime::addDefaultPaths() {
-    addClassDirectory(findSCClassLibrary());
-    addClassDirectory(findHLangClassLibrary());
+    addClassDirectory(findSCClassLibrary().string());
+    addClassDirectory(findHLangClassLibrary().string());
 }
 
-void Runtime::addClassDirectory(const std::string& path) { m_libraryPaths.emplace(fs::absolute(path)); }
+void Runtime::addClassDirectory(const std::string& path) { m_libraryPaths.emplace(fs::absolute(path).string()); }
 
 bool Runtime::scanClassFiles() {
     for (const auto& classLibPath : m_libraryPaths) {

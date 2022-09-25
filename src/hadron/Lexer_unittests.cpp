@@ -307,14 +307,14 @@ TEST_CASE("Lexer Hexadecimal Integers") {
         CHECK(lexer.tokens()[0].value.getInt32() == 0xAAE724F);
     }
     SUBCASE("multi-digit lower") {
-        const char* code = "0xdeadb33f";
+        const char* code = "0x0dedb33f";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 1);
         CHECK(lexer.tokens()[0].name == Token::Name::kLiteral);
         CHECK(lexer.tokens()[0].range.data() == code);
         CHECK(lexer.tokens()[0].range.size() == 10);
-        CHECK(lexer.tokens()[0].value.getInt32() == 0xdeadb33f);
+        CHECK(lexer.tokens()[0].value.getInt32() == static_cast<int32_t>(0x0dedb33f));
     }
     SUBCASE("multi-digit mixed") {
         const char* code = "0x1A2b3C";

@@ -35,6 +35,16 @@ add_executable(schemac
     schemac.cpp
 )
 
+if(WIN32)
+    set_property(TARGET schemac PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
+    )
+    # required if linking to static library
+    target_compile_definitions(schemac PUBLIC ANTLR4CPP_STATIC)
+    # using /MD flag for antlr4_runtime (for Visual C++ compilers only)
+    set(ANTLR4_WITH_STATIC_CRT OFF)
+endif()
+
 target_link_libraries(schemac
     gflags
     fmt
@@ -57,14 +67,36 @@ if (APPLE)
     endif()
 endif()
 
-find_package(BISON REQUIRED)
-
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
-    COMMAND "${BISON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/Parser.yy" -o "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp" -Wall -Werror
-    MAIN_DEPENDENCY Parser.yy
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    VERBATIM
-)
+if (WIN32)
+    ExternalProject_add(winflexbison
+        PREFIX ext
+        STEP_TARGETS build
+        EXCLUDE_FROM_ALL ON
+        GIT_REPOSITORY https://github.com/lexxmark/winflexbison.git
+        GIT_TAG v2.5.25
+        GIT_SHALLOW ON
+        GIT_PROGRESS ON
+        UPDATE_COMMAND ""
+        CMAKE_ARGS -DCMAKE_GENERATOR_PLATFORM=x64
+                   -DCMAKE_BUILD_TYPE=Debug
+        )
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
+        COMMAND "${CMAKE_CURRENT_BINARY_DIR}/ext/src/winflexbison/bin/Debug/win_bison.exe"
+            "${CMAKE_CURRENT_SOURCE_DIR}/Parser.yy" -o "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp" -Wall -Werror
+        MAIN_DEPENDENCY Parser.yy
+        DEPENDS winflexbison-build
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        VERBATIM
+    )
+else()
+    find_package(BISON REQUIRED)
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
+        COMMAND "${BISON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/Parser.yy" -o "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp" -Wall -Werror
+        MAIN_DEPENDENCY Parser.yy
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        VERBATIM
+    )
+endif()
 
 #############
 # libhadron
@@ -132,7 +164,7 @@ add_custom_command(OUTPUT ${SCHEMA_FILES} ${CMAKE_CURRENT_BINARY_DIR}/ClassLibra
 
 add_custom_target(schemafiles DEPENDS ${SCHEMA_FILES})
 
-find_program(RAGEL_EXECUTABLE ragel REQUIRED)
+find_program(RAGEL_EXECUTABLE ragel ragel.exe REQUIRED)
 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     COMMAND ${RAGEL_EXECUTABLE} -o "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/Lexer.rl"
@@ -140,7 +172,6 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Lexer.cpp"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     VERBATIM
 )
-
 
 if (HADRON_HOST_CPU STREQUAL "x86_64")
     set(HADRON_GENERATOR_FILES
@@ -225,17 +256,30 @@ set(HADRON_COMPILER_UNITTESTS
 file(GLOB HADRON_PUBLIC_HEADERS *.hpp)
 set_target_properties(hadron PROPERTIES PUBLIC_HEADER "${HADRON_PUBLIC_HEADERS}")
 
-target_compile_options(hadron PUBLIC
-    -g
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Werror
+target_compile_options(hadron PRIVATE
+     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
+     -Wall -Wextra -Wpedantic -Werror>
+     $<$<CXX_COMPILER_ID:MSVC>:
+     /W4 /WX /DNOMINMAX>
 )
+
+if(WIN32)
+    set_property(TARGET hadron PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
+    )
+    target_compile_definitions(hadron PUBLIC _USE_MATH_DEFINES)
+endif()
+
+if (HADRON_HOST_CPU STREQUAL "x86_64")
+    target_compile_definitions(hadron PUBLIC HADRON_HOST_CPU_X86_64)
+elseif(HADRON_HOST_CPU STREQUAL "aarch64")
+    target_compile_definitions(hadron PUBLIC HADRON_HOST_CPU_AARCH_64)
+else()
+    message(FATAL_ERROR "TODO: add CPU support")
+endif()
 
 target_compile_definitions(hadron PUBLIC
     SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
-    HADRON_64_BIT
 )
 
 target_link_libraries(hadron PUBLIC

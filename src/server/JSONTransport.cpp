@@ -251,8 +251,8 @@ void JSONTransport::JSONTransportImpl::sendSemanticTokens(const std::vector<hadr
     document.AddMember("jsonrpc", rapidjson::Value("2.0"), document.GetAllocator());
     rapidjson::Value data;
     data.SetArray();
-    size_t lineNumber = 0;
-    size_t characterNumber = 0;
+    int32_t lineNumber = 0;
+    int32_t characterNumber = 0;
     for (auto token : tokens) {
         // First element is deltaLine, line number relative to previous token.
         data.PushBack(static_cast<unsigned>(token.location.lineNumber - lineNumber), document.GetAllocator());
@@ -287,7 +287,7 @@ size_t JSONTransport::JSONTransportImpl::readHeaders() {
             if (fileError == EINTR) {
                 errno = 0;
             } else {
-                SPDLOG_ERROR("File error on input stream while reading headers: {}.", strerror(fileError));
+                SPDLOG_ERROR("File error on input stream while reading headers.");
                 return 0;
             }
         }

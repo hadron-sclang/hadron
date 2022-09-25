@@ -72,6 +72,11 @@
 #include "spdlog/spdlog.h"
 
 #include <cmath>
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4127 4065)
+#endif
 %}
 
 %code{
@@ -1272,6 +1277,10 @@ stringlist[target]  : string { $target = $string; }
                     ;
 %%
 
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // MSVC
+
 yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContext* threadContext) {
     if (hadronParser->sendInterpret()) {
         hadronParser->setInterpret(false);
@@ -1286,8 +1295,8 @@ yy::parser::symbol_type yylex(hadron::Parser* hadronParser, hadron::ThreadContex
     scToken.setValue(token.value);
     scToken.setLineNumber(token.location.lineNumber + 1);
     scToken.setCharacterNumber(token.location.characterNumber + 1);
-    scToken.setOffset(token.range.data() - hadronParser->lexer()->code().data());
-    scToken.setLength(token.range.size());
+    scToken.setOffset(static_cast<int32_t>(token.range.data() - hadronParser->lexer()->code().data()));
+    scToken.setLength(static_cast<int32_t>(token.range.size()));
     scToken.setSnippet(hadron::library::Symbol::fromView(threadContext, token.range));
     scToken.setHasEscapeCharacters(token.escapeString);
 

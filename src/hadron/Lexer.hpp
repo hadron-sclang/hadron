@@ -30,7 +30,7 @@ private:
 
     std::string_view m_code;
     std::vector<Token> m_tokens;
-    std::set<size_t> m_lineEndings;
+    std::set<int32_t> m_lineEndings;
 };
 
 } // namespace hadron

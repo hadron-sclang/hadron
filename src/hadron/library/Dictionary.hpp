@@ -48,9 +48,9 @@ public:
             // TODO: repair unbounded size doubling.
             auto newDict = IdentityDictionary::makeIdentityDictionary(context, size() * 2);
             for (int32_t i = 0; i < array().size(); i += 2) {
-                auto key = array().at(i);
-                if (key) {
-                    newDict.put(context, key, array().at(i + 1));
+                auto newKey = array().at(i);
+                if (newKey) {
+                    newDict.put(context, newKey, array().at(i + 1));
                 }
             }
             // Copy the array from the new dictionary over our internal dictionary.

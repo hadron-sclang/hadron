@@ -12,11 +12,9 @@
 #    pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
-#if defined(__i386__)
-#elif defined(__x86_64__)
+#if defined(HADRON_HOST_CPU_X86_64)
 #    include "asmjit/x86.h"
-#elif defined(__arm__)
-#elif defined(__aarch64__)
+#elif defined(HADRON_HOST_CPU_AARCH_64)
 #    include "asmjit/a64.h"
 #endif
 

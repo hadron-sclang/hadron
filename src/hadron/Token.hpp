@@ -79,8 +79,8 @@ struct Token {
     bool escapeString;
     // Both are zero-based.
     struct Location {
-        size_t lineNumber = 0;
-        size_t characterNumber = 0;
+        int32_t lineNumber = 0;
+        int32_t characterNumber = 0;
     };
     Location location;
 
