@@ -36,7 +36,7 @@ jobs:
           curl -O https://www.antlr.org/download/antlr-4.11.1-complete.jar
           cd $BUILD_PATH
           echo '#!/bin/bash
-            java -Xmx500M -cp "${BUILD_PATH}/install-ext/lib/antlr-4.11.1-complete.jar:$CLASSPATH" org.antlr.v4.Tool $@' > $BUILD_PATH/install-ext/bin/antlr4
+java -Xmx500M -cp "${BUILD_PATH}/install-ext/lib/antlr-4.11.1-complete.jar:$CLASSPATH" org.antlr.v4.Tool $@' > $BUILD_PATH/install-ext/bin/antlr4
           chmod u+x $BUILD_PATH/install-ext/bin/antlr4
       - name: configure
         run: |
@@ -93,15 +93,12 @@ jobs:
           cd $BUILD_PATH/install-ext/lib
           curl -O https://www.antlr.org/download/antlr-4.11.1-complete.jar
           cd $BUILD_PATH
-          echo '"java.exe" -cp "C:\Users\luken\Downloads\antlr-4.11.1-complete.jar" org.antlr.v4.Tool %*' >
-          $BUILD_PATH/install-ext/bin/antlr4.bat
+          echo '"java.exe" -cp "$BUILD_PATH/antlr-4.11.1-complete.jar" org.antlr.v4.Tool %*' > $BUILD_PATH/install-ext/bin/antlr4.bat
       - name: configure
         shell: bash
         run: |
           cd $BUILD_PATH
-          cmake -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT
-          -DANTLR_COMMAND_LINE=$BUILD_PATH/install-ext/bin/antlr4.bat -DCMAKE_GENERATOR_PLATFORM=x64
-          -DCMAKE_BUILD_TYPE=Debug ..
+          cmake -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT -DANTLR_COMMAND_LINE=$BUILD_PATH/install-ext/bin/antlr4.bat -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_BUILD_TYPE=Debug ..
       - name: test
         shell: bash
         run: |
