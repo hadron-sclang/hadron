@@ -93,7 +93,7 @@ jobs:
           cd $BUILD_PATH/install-ext/lib
           curl -O https://www.antlr.org/download/antlr-4.11.1-complete.jar
           cd $BUILD_PATH
-          echo '"java.exe" -cp "$BUILD_PATH/antlr-4.11.1-complete.jar" org.antlr.v4.Tool %*' > $BUILD_PATH/install-ext/bin/antlr4.bat
+          echo "java.exe -cp \"$BUILD_PATH/antlr-4.11.1-complete.jar\" org.antlr.v4.Tool %*" > $BUILD_PATH/install-ext/bin/antlr4.bat
       - name: configure
         shell: bash
         run: |
