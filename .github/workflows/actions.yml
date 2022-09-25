@@ -36,7 +36,7 @@ jobs:
           curl -O https://www.antlr.org/download/antlr-4.11.1-complete.jar
           cd $BUILD_PATH
           echo '#!/bin/bash
-java -Xmx500M -cp "${BUILD_PATH}/install-ext/lib/antlr-4.11.1-complete.jar:$CLASSPATH" org.antlr.v4.Tool $@' > $BUILD_PATH/install-ext/bin/antlr4
+            java -Xmx500M -cp "${BUILD_PATH}/install-ext/lib/antlr-4.11.1-complete.jar:$CLASSPATH" org.antlr.v4.Tool $@' > $BUILD_PATH/install-ext/bin/antlr4
           chmod u+x $BUILD_PATH/install-ext/bin/antlr4
       - name: configure
         run: |
