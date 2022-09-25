@@ -97,6 +97,7 @@ jobs:
           echo "batch file:"
           cat $BUILD_PATH/install-ext/bin/antlr4.bat
           echo "end of batch file"
+          where java
       - name: configure
         shell: bash
         run: |
