@@ -107,7 +107,7 @@ jobs:
         shell: bash
         run: |
           cd $BUILD_PATH
-          cmake --build . --config=DEBUG
+          cmake --build . --config=Debug
       - name: test
         shell: bash
         run: |
