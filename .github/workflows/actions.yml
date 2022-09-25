@@ -80,7 +80,7 @@ jobs:
     needs: cpp-linter
     runs-on: windows-latest
     env:
-      BUILD_PATH: ${{ github.workspace }}/build
+      BUILD_PATH: ${{ github.workspace }}\build
     steps:
       - uses: actions/checkout@v3
         with:
@@ -93,7 +93,7 @@ jobs:
           cd $BUILD_PATH/install-ext/lib
           curl -O https://www.antlr.org/download/antlr-4.11.1-complete.jar
           cd $BUILD_PATH
-          echo "java.exe -cp \"$BUILD_PATH/antlr-4.11.1-complete.jar\" org.antlr.v4.Tool %*" > $BUILD_PATH/install-ext/bin/antlr4.bat
+          echo "java.exe -cp \"$BUILD_PATH\\antlr-4.11.1-complete.jar\" org.antlr.v4.Tool %*" > $BUILD_PATH/install-ext/bin/antlr4.bat
           echo "batch file:"
           cat $BUILD_PATH/install-ext/bin/antlr4.bat
           echo "end of batch file"
