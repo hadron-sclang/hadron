@@ -95,9 +95,6 @@ jobs:
           cd $BUILD_PATH
           export NEWER_JAVA=`where java | tail -n1`
           echo "\"$NEWER_JAVA\" -cp \"$BUILD_PATH\\install-ext\\lib\\antlr-4.11.1-complete.jar\" org.antlr.v4.Tool %*" > $BUILD_PATH/install-ext/bin/antlr4.bat
-          echo "batch file:"
-          cat $BUILD_PATH/install-ext/bin/antlr4.bat
-          echo "end of batch file"
       - name: configure
         shell: bash
         run: |
@@ -112,5 +109,5 @@ jobs:
         shell: bash
         run: |
           cd $BUILD_PATH
-          cmake --build . --config=Debug --target=test
+          ctest -C Debug -T test
 
