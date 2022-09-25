@@ -30,15 +30,12 @@ target_link_libraries(server
     hadron
 )
 
-target_compile_options(server PUBLIC
-    -g
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Werror
+target_compile_options(server PRIVATE
+     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
+     -Wall -Wextra -Wpedantic -Werror>
+     $<$<CXX_COMPILER_ID:MSVC>:
+     /W4 /WX /DNOMINMAX>
 )
-
 target_compile_definitions(server PUBLIC
     SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
-    HADRON_64_BIT
 )

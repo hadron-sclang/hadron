@@ -10,21 +10,21 @@ namespace hadron { namespace library {
 
 // static
 String String::fromView(ThreadContext* context, std::string_view v, int32_t additionalSize) {
-    String s = String::arrayAlloc(context, v.size() + additionalSize);
+    String s = String::arrayAlloc(context, static_cast<int32_t>(v.size()) + additionalSize);
     std::memcpy(s.start(), v.data(), v.size());
-    s.m_instance->schema.sizeInBytes = sizeof(schema::StringSchema) + v.size();
+    s.m_instance->schema.sizeInBytes = static_cast<int32_t>(sizeof(schema::StringSchema) + v.size());
     return s;
 }
 
 String String::appendView(ThreadContext* context, std::string_view v, bool hasEscape) {
     String string = *this;
     if (size() + static_cast<int32_t>(v.length()) > capacity()) {
-        string = fromView(context, std::string_view(start(), size()), v.length());
+        string = fromView(context, std::string_view(start(), size()), static_cast<int32_t>(v.length()));
     }
 
     if (!hasEscape) {
         std::memcpy(string.start() + string.size(), v.data(), v.length());
-        string.m_instance->schema.sizeInBytes += v.length();
+        string.m_instance->schema.sizeInBytes += static_cast<int32_t>(v.length());
         return string;
     }
 
@@ -58,7 +58,7 @@ String String::appendView(ThreadContext* context, std::string_view v, bool hasEs
         ++input;
     }
 
-    string.m_instance->schema.sizeInBytes += append - (string.start() + string.size());
+    string.m_instance->schema.sizeInBytes += static_cast<int32_t>(append - (string.start() + string.size()));
 
     return string;
 }

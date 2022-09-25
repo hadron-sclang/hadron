@@ -287,7 +287,9 @@ size_t JSONTransport::JSONTransportImpl::readHeaders() {
             if (fileError == EINTR) {
                 errno = 0;
             } else {
-                SPDLOG_ERROR("File error on input stream while reading headers: {}.", strerror(fileError));
+                std::array<char, 1024> errorBuf;
+                strerror_s(errorBuf.data(), errorBuf.size(), fileError);
+                SPDLOG_ERROR("File error on input stream while reading headers: {}.", errorBuf.data());
                 return 0;
             }
         }

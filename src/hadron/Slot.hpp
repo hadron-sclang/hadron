@@ -118,7 +118,7 @@ public:
     }
     inline char getChar() const {
         assert(isChar());
-        return m_bits & (~kTagMask);
+        return static_cast<char>(m_bits & (~kTagMask));
     }
     inline int8_t* getRawPointer() const {
         assert(isRawPointer());

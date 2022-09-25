@@ -16,6 +16,7 @@ namespace hadron {
 namespace schema {
 // Frame has no public members in the class library, so we add some privately here.
 struct FramePrivateSchema {
+    ~FramePrivateSchema() = delete;
     static constexpr Hash kNameHash = FrameSchema::kNameHash;
     static constexpr Hash kMetaNameHash = FrameSchema::kMetaNameHash;
 

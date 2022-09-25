@@ -263,9 +263,23 @@ target_compile_options(hadron PRIVATE
      /W4 /WX /DNOMINMAX>
 )
 
+if(WIN32)
+    set_property(TARGET hadron PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
+    )
+    target_compile_definitions(hadron PUBLIC _USE_MATH_DEFINES)
+endif()
+
+if (HADRON_HOST_CPU STREQUAL "x86_64")
+    target_compile_definitions(hadron PUBLIC HADRON_HOST_CPU_X86_64)
+elseif(HADRON_HOST_CPU STREQUAL "aarch64")
+    target_compile_definitions(hadron PUBLIC HADRON_HOST_CPU_AARCH_64)
+else()
+    message(FATAL_ERROR "TODO: add CPU support")
+endif()
+
 target_compile_definitions(hadron PUBLIC
     SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
-    HADRON_64_BIT
 )
 
 target_link_libraries(hadron PUBLIC

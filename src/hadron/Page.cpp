@@ -4,7 +4,13 @@
 
 #include <errno.h>
 #include <string.h>
-#include <sys/mman.h>
+
+#if WIN32
+#    define WIN32_LEAN_AND_MEAN
+#    include "windows.h"
+#else
+#    include <sys/mman.h>
+#endif // WIN32
 
 namespace hadron {
 
@@ -25,12 +31,16 @@ bool Page::map() {
         return true;
     }
 
+#if WIN32
+    void* address = VirtualAlloc(nullptr, m_totalSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    bool success = (address != nullptr);
+#else
     void* address = mmap(nullptr, m_totalSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    bool success = (address != MAP_FAILED);
+#endif
 
-    if (address == MAP_FAILED) {
-        int mmapError = errno;
-        SPDLOG_CRITICAL("Page mmap failed for {} bytes, errno: {}, string: {}", m_totalSize, mmapError,
-                        strerror(mmapError));
+    if (!success) {
+        SPDLOG_CRITICAL("VM Page map failed for {} bytes", m_totalSize);
         return false;
     }
 
@@ -43,9 +53,14 @@ bool Page::unmap() {
         return true;
     }
 
-    if (munmap(m_startAddress, m_totalSize) != 0) {
-        int munmapError = errno;
-        SPDLOG_ERROR("Page munmap failed for with errno: {}, string: {}", munmapError, strerror(munmapError));
+#if WIN32
+    bool success = VirtualFree(m_startAddress, 0, MEM_RELEASE);
+#else
+    bool success = munmap(m_startAddress, m_totalSize) == 0;
+#endif
+
+    if (!success) {
+        SPDLOG_ERROR("Page munmap failed");
         return false;
     }
 
@@ -63,20 +78,20 @@ void* Page::allocate() {
     ++m_allocatedObjects;
     if (m_allocatedObjects < static_cast<int32_t>(m_collectionCounts.size())) {
         for (size_t i = 1; i < m_collectionCounts.size(); ++i) {
-            m_nextFreeObject = (m_nextFreeObject + i) % m_collectionCounts.size();
+            m_nextFreeObject = (m_nextFreeObject + i) % static_cast<int32_t>(m_collectionCounts.size());
             if (m_collectionCounts[m_nextFreeObject] == 0) {
                 break;
             }
         }
     } else {
-        m_nextFreeObject = m_collectionCounts.size();
+        m_nextFreeObject = static_cast<int32_t>(m_collectionCounts.size());
     }
     return address;
 }
 
 int32_t Page::capacity() {
     assert(m_allocatedObjects <= static_cast<int32_t>(m_collectionCounts.size()));
-    return m_collectionCounts.size() - m_allocatedObjects;
+    return static_cast<int32_t>(m_collectionCounts.size()) - m_allocatedObjects;
 }
 
 void Page::mark(void* address, Color color) {

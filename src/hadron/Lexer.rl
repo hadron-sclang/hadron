@@ -7,7 +7,7 @@
     action marker { marker = p; }
     action hasEscape { hasEscapeChars = true; }
     action eof_ok { return true; }
-    action newline { m_lineEndings.emplace(p - m_code.data()); }
+    action newline { m_lineEndings.emplace(static_cast<int32_t>(p - m_code.data())); }
 
     binopChar = ('!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' | '?' | '/');
     blockComment := (((any - '\n') | ('\n' @newline))* - ('/*' | '*/')) (('/*' @callBlock) | ('*/' @returnBlock));
@@ -18,18 +18,18 @@
         ###################
         # Integer base-10
         digit+ {
-            int32_t value = strtol(ts, nullptr, 10);
+            int32_t value = static_cast<int32_t>(strtol(ts, nullptr, 10));
             m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
         # Hex integer base-16. Marker points at first digit past 'x'
         ('0x' %marker) xdigit+ {
-            int32_t value = strtol(marker, nullptr, 16);
+            int32_t value = static_cast<int32_t>(strtol(marker, nullptr, 16));
             m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
         # Integer radix
         digit+ ('r' %marker) [a-zA-Z0-9]+ {
-            int32_t radix = strtol(ts, nullptr, 10);
-            int32_t value = strtol(marker, nullptr, radix);
+            int32_t radix = static_cast<int32_t>(strtol(ts, nullptr, 10));
+            int32_t value = static_cast<int32_t>(strtol(marker, nullptr, radix));
             m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
         # Float base-10
@@ -44,7 +44,7 @@
         };
         # Float radix
         digit+ ('r' %marker) [a-zA-Z0-9]+ '.' [A-Z0-9]+ {
-            int32_t radix = strtol(ts, nullptr, 10);
+            int32_t radix = static_cast<int32_t>(strtol(ts, nullptr, 10));
             char* dot = nullptr;
             double value = static_cast<double>(strtoll(marker, &dot, radix));
             double decimal = static_cast<double>(strtoll(dot + 1, nullptr, radix));
@@ -335,10 +335,14 @@
 #include <vector>
 
 namespace {
+#if defined(__clang__) || defined(__GNUC__)
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wunused-const-variable"
+#endif
     %% write data;
+#if defined(__clang__) || defined(__GNUC__)
 #   pragma GCC diagnostic pop
+#endif
 }
 
 namespace hadron {
@@ -371,8 +375,8 @@ bool Lexer::lex() {
 }
 
 Token::Location Lexer::getLocation(const char* p) {
-    size_t lineNumber = m_lineEndings.size();
-    size_t offset = p - m_code.data();
+    int32_t lineNumber = static_cast<int32_t>(m_lineEndings.size());
+    int32_t offset = static_cast<int32_t>(p - m_code.data());
     // While the scanner does backtrack, tokens are built from the start to the end of the file, so start looking
     // from the back. Find first element less than offset.
     for (auto iter = m_lineEndings.rbegin(); iter != m_lineEndings.rend(); ++iter) {

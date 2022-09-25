@@ -3,4 +3,4 @@ at how the build bots configure ANTLR4 and Bison, which are not provided by vcpk
 
 Recommend using vcpkg for build-time dependencies.
 
-vcpkg install --triplet x64-windows ragel gperf   
+vcpkg install --triplet x64-windows ragel gperf

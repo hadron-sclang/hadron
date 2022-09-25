@@ -172,15 +172,15 @@ private:
             auto identityDict = library::IdentityDictionary(slot);
             Slot key = identityDict.nextKey(Slot::makeNil());
             while (key) {
-                Slot value = identityDict.get(key);
-                assert(value);
+                Slot keyValue = identityDict.get(key);
+                assert(keyValue);
                 rapidjson::Value keyValPair;
                 keyValPair.SetObject();
                 rapidjson::Value keyJson;
                 encodeSlot(context, key, keyJson);
                 keyValPair.AddMember("_key", keyJson, alloc);
                 rapidjson::Value valueJson;
-                encodeSlot(context, value, valueJson);
+                encodeSlot(context, keyValue, valueJson);
                 keyValPair.AddMember("_value", valueJson, alloc);
                 elements.PushBack(keyValPair, alloc);
                 key = identityDict.nextKey(key);

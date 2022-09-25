@@ -25,21 +25,17 @@ target_link_libraries(unittests
     hadron
 )
 
-add_custom_target(run_unittests ALL
-    DEPENDS unittests
-    COMMAND "${CMAKE_CURRENT_BINARY_DIR}/unittests"
-)
-
-#############
-# dump-diag
-#add_executable(dump-diag
-#    dump-diag.cpp
-#)
-
-#target_link_libraries(dump-diag
-#    gflags
-#    hadron
-#)
+if(WIN32)
+    add_custom_target(run_unittests ALL
+        DEPENDS unittests
+        COMMAND "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/unittests.exe"
+    )
+else()
+    add_custom_target(run_unittests ALL
+        DEPENDS unittests
+        COMMAND "${CMAKE_CURRENT_BINARY_DIR}/unittests"
+    )
+endif()
 
 #############
 # hlang

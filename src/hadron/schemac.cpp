@@ -236,6 +236,7 @@ int main(int argc, char* argv[]) {
 
             outFile << "// ========== " << className << "\n";
             outFile << fmt::format("struct {}Schema {{\n", className);
+            outFile << fmt::format("    ~{}Schema() = delete;\n", className);
             outFile << fmt::format("    static constexpr Hash kNameHash = 0x{:08x};\n", hadron::hash(className));
             outFile << fmt::format("    static constexpr Hash kMetaNameHash = 0x{:08x};\n",
                                    hadron::hash(fmt::format("Meta_{}", className)));
