@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    auto tokenRegex = std::regex("(^|\\n)//[+][ ]*([/A-Z]+):[ ]*([^ \\n]+[^\\n]*)?");
+    auto tokenRegex = std::regex("(^|\\n|\\r\\n)//[+][ ]*([/A-Z]+):[ ]*([^ \\n][^\\n]*)?");
     auto iter = std::cregex_iterator(sourceFile.code(), sourceFile.code() + sourceFile.size(), tokenRegex);
     auto endIter = std::cregex_iterator();
 
