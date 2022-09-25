@@ -98,7 +98,12 @@ jobs:
         shell: bash
         run: |
           cd $BUILD_PATH
-          cmake -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT -DANTLR_COMMAND_LINE=$BUILD_PATH/install-ext/bin/antlr4.bat -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_BUILD_TYPE=Debug ..
+          cmake -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DANTLR_COMMAND_LINE=$BUILD_PATH/install-ext/bin/antlr4.bat -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_BUILD_TYPE=Debug ..
+      - name: build
+        shell: bash
+        run: |
+          cd $BUILD_PATH
+          cmake --build . --config=DEBUG
       - name: test
         shell: bash
         run: |
