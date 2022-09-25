@@ -42,6 +42,10 @@ jobs:
         run: |
           cd $BUILD_PATH
           cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DANTLR_COMMAND_LINE=$BUILD_PATH/install-ext/bin/antlr4 ..
+      - name: build
+        run: |
+          cd $BUILD_PATH
+          cmake --build .
       - name: test
         run: |
           cd $BUILD_PATH
@@ -63,6 +67,10 @@ jobs:
         run: |
           mkdir $BUILD_PATH && cd $BUILD_PATH
           cmake -GNinja -DCMAKE_BUILD_TYPE=Debug ..
+      - name: build
+        run: |
+          cd $BUILD_PATH
+          cmake --build .
       - name: test
         run: |
           cd $BUILD_PATH
@@ -78,6 +86,7 @@ jobs:
         with:
           submodules: recursive
       - name: install dependencies
+        shell: bash
         run: |
           vcpkg install --triplet x64-windows ragel gperf
           mkdir -p $BUILD_PATH/install-ext/{lib,bin}
@@ -87,12 +96,14 @@ jobs:
           echo '"java.exe" -cp "C:\Users\luken\Downloads\antlr-4.11.1-complete.jar" org.antlr.v4.Tool %*' >
           $BUILD_PATH/install-ext/bin/antlr4.bat
       - name: configure
+        shell: bash
         run: |
           cd $BUILD_PATH
           cmake -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT
           -DANTLR_COMMAND_LINE=$BUILD_PATH/install-ext/bin/antlr4.bat -DCMAKE_GENERATOR_PLATFORM=x64
           -DCMAKE_BUILD_TYPE=Debug ..
       - name: test
+        shell: bash
         run: |
           cd $BUILD_PATH
           cmake --build . --config=Debug --target=test
