@@ -179,6 +179,12 @@ bool ClassLibrary::scanString(ThreadContext* context, std::string_view input, li
 
             method.setCharPos(methodNode.token().offset());
 
+            auto methodListIter = m_methods.find(methodName);
+            if (methodListIter == m_methods.end()) {
+                methodListIter = m_methods.insert(std::make_pair(methodName, std::vector<library::Method>())).first;
+            }
+            methodListIter->second.push_back(method);
+
             methodNode = library::MethodNode(methodNode.next().slot());
         }
 

@@ -12,7 +12,6 @@
 #include <cassert>
 
 namespace hadron {
-
 namespace schema {
 // Frame has no public members in the class library, so we add some privately here.
 struct FramePrivateSchema {
@@ -29,7 +28,6 @@ struct FramePrivateSchema {
     Slot ip;
     Slot arg0;
 };
-
 } // namespace schema
 
 namespace library {
