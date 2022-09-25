@@ -23,12 +23,17 @@
         };
         # Hex integer base-16. Marker points at first digit past 'x'
         ('0x' %marker) xdigit+ {
+            // If we've received a number longer than 8 digits (max we can fit in 32 bit integer) we ignore the
+            // most sigficant digits and only parse the last 8.
+            if (te - marker > 8)
+                marker = te - 8;
             int32_t value = static_cast<int32_t>(strtol(marker, nullptr, 16));
             m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
         # Integer radix
         digit+ ('r' %marker) [a-zA-Z0-9]+ {
             int32_t radix = static_cast<int32_t>(strtol(ts, nullptr, 10));
+            radix = std::min(radix, 36);
             int32_t value = static_cast<int32_t>(strtol(marker, nullptr, radix));
             m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
@@ -45,6 +50,7 @@
         # Float radix
         digit+ ('r' %marker) [a-zA-Z0-9]+ '.' [A-Z0-9]+ {
             int32_t radix = static_cast<int32_t>(strtol(ts, nullptr, 10));
+            radix = std::min(radix, 36);
             char* dot = nullptr;
             double value = static_cast<double>(strtoll(marker, &dot, radix));
             double decimal = static_cast<double>(strtoll(dot + 1, nullptr, radix));
