@@ -35,6 +35,16 @@ add_executable(schemac
     schemac.cpp
 )
 
+if(WIN32)
+    set_property(TARGET schemac PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
+    )
+    # required if linking to static library
+    target_compile_definitions(schemac PUBLIC ANTLR4CPP_STATIC)
+    # using /MD flag for antlr4_runtime (for Visual C++ compilers only)
+    set(ANTLR4_WITH_STATIC_CRT OFF)
+endif()
+
 target_link_libraries(schemac
     gflags
     fmt
@@ -68,7 +78,7 @@ if (WIN32)
         GIT_PROGRESS ON
         UPDATE_COMMAND ""
         CMAKE_ARGS -DCMAKE_GENERATOR_PLATFORM=x64
-                   -DCMAKE_BUILD_TYPE=Release
+                   -DCMAKE_BUILD_TYPE=Debug
         )
     add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Parser.cpp"
         COMMAND "${CMAKE_CURRENT_BINARY_DIR}/ext/src/winflexbison/bin/Debug/win_bison.exe"
@@ -87,7 +97,6 @@ else()
         VERBATIM
     )
 endif()
-
 
 #############
 # libhadron
@@ -247,12 +256,11 @@ set(HADRON_COMPILER_UNITTESTS
 file(GLOB HADRON_PUBLIC_HEADERS *.hpp)
 set_target_properties(hadron PROPERTIES PUBLIC_HEADER "${HADRON_PUBLIC_HEADERS}")
 
-target_compile_options(hadron PUBLIC
-    -g
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Werror
+target_compile_options(hadron PRIVATE
+     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
+     -Wall -Wextra -Wpedantic -Werror>
+     $<$<CXX_COMPILER_ID:MSVC>:
+     /W4 /WX /DNOMINMAX>
 )
 
 target_compile_definitions(hadron PUBLIC
