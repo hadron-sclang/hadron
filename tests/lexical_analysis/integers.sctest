@@ -57,7 +57,20 @@
 //+ CHECK: 36rzzzzzzzzzzzzzzzzzzzzzzzzz
 //+ GIVES: -1
 
-//+ CHECK: 36rzzzzzzzzzzzzzzz
-//+ GIVES: 1073741823
+//+//: TODO: sclang does its own number conversions on radix numbers, so has different overflow results. I think that
+//+//: literals that overflow should raise a compilation error. Arithmetic overflow during runtime should probably
+//+//: continue to be a silent error due to the performance cost of detecting, and possible incompatibility worries.
+
+//+//: //+ CHECK: 36rzzzzzzzzzzzzzzz
+//+//: //+ GIVES: 1073741823
+
+//+//: //+ CHECK: 36rzzzzzzzzzzzzzz
+//+//: //+ GIVES: 268435455
+
+//+//: //+ CHECK: 36rzzzzzzzzzzzzz
+//+//: //+ GIVES: -1543503873
+
+//+ CHECK: 36rzzzzzzzzzzzz
+//+ GIVES: -520093697
 
 //+//: TODO: radix values > 36 should be an error. sclang accepts radix values up to INT_MAX.

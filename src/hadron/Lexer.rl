@@ -34,7 +34,7 @@
         digit+ ('r' %marker) [a-zA-Z0-9]+ {
             int32_t radix = static_cast<int32_t>(strtol(ts, nullptr, 10));
             radix = std::min(radix, 36);
-            int32_t value = static_cast<int32_t>(strtol(marker, nullptr, radix));
+            int32_t value = static_cast<int32_t>(strtoll(marker, nullptr, radix));
             m_tokens.emplace_back(Token::makeIntegerLiteral(value, std::string_view(ts, te - ts), getLocation(ts)));
         };
         # Float base-10
