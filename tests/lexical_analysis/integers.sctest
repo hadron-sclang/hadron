@@ -30,36 +30,36 @@
 //+ GIVES: -288
 
 //+//: -------------------- overflow --------------------
-//+ CHECK: 100000000000
-//+ GIVES: 1215752192
-
-//+ CHECK: -1000000000000
-//+ GIVES: 727379968
-
-//+ CHECK: 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-//+ GIVES: -1
-
-//+ CHECK: 0xdeadbeef
-//+ GIVES: -559038737
-
-//+ CHECK: -0xdeadbeef
-//+ GIVES: 559038737
-
-//+ CHECK: 0xdeadbeefdeadbeef
-//+ GIVES: -559038737
-
-//+ CHECK: 0xdeadbeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffeeddead
-//+ GIVES: -17965395
-
-//+ CHECK: 2r11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
-//+ GIVES: -1
-
-//+ CHECK: 36rzzzzzzzzzzzzzzzzzzzzzzzzz
-//+ GIVES: -1
-
 //+//: TODO: sclang does its own number conversions on radix numbers, so has different overflow results. I think that
 //+//: literals that overflow should raise a compilation error. Arithmetic overflow during runtime should probably
 //+//: continue to be a silent error due to the performance cost of detecting, and possible incompatibility worries.
+
+//+//: //+ CHECK: 100000000000
+//+//: //+ GIVES: 1215752192
+
+//+//: //+ CHECK: -1000000000000
+//+//: //+ GIVES: 727379968
+
+//+//: //+ CHECK: 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+//+//: //+ GIVES: -1
+
+//+//: //+ CHECK: 0xdeadbeef
+//+//: //+ GIVES: -559038737
+
+//+//: //+ CHECK: -0xdeadbeef
+//+//: //+ GIVES: 559038737
+
+//+//: //+ CHECK: 0xdeadbeefdeadbeef
+//+//: //+ GIVES: -559038737
+
+//+//: //+ CHECK: 0xdeadbeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffeeddead
+//+//: //+ GIVES: -17965395
+
+//+//: //+ CHECK: 2r11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
+//+//: //+ GIVES: -1
+
+//+//: //+ CHECK: 36rzzzzzzzzzzzzzzzzzzzzzzzzz
+//+//: //+ GIVES: -1
 
 //+//: //+ CHECK: 36rzzzzzzzzzzzzzzz
 //+//: //+ GIVES: 1073741823
@@ -70,7 +70,7 @@
 //+//: //+ CHECK: 36rzzzzzzzzzzzzz
 //+//: //+ GIVES: -1543503873
 
-//+ CHECK: 36rzzzzzzzzzzzz
-//+ GIVES: -520093697
+//+//: //+ CHECK: 36rzzzzzzzzzzzz
+//+//: //+ GIVES: -520093697
 
 //+//: TODO: radix values > 36 should be an error. sclang accepts radix values up to INT_MAX.
