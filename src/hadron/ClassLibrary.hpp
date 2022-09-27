@@ -45,6 +45,8 @@ public:
 
     library::Array classArray() const { return m_classArray; }
 
+    static Slot dispatch(ThreadContext* context, Hash selector, int numArgs, int numKeyArgs, Slot* stack)
+
 private:
     // Call to delete any existing class libary compilation structures and start fresh.
     bool resetLibrary(ThreadContext* context);
@@ -81,9 +83,6 @@ private:
 
     using MethodFrame = std::unordered_map<library::Symbol, library::CFGFrame>;
     std::unordered_map<library::Symbol, std::unique_ptr<MethodFrame>> m_methodFrames;
-
-    // Methods organized by name, for selector jump table generation.
-    std::unordered_map<library::Symbol, std::vector<library::Method>> m_methods;
 
     // Set of class names that are bootstrapped from schema generation, before class library compilation.
     std::unordered_set<library::Symbol> m_bootstrapClasses;
