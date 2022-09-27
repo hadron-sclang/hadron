@@ -45,7 +45,7 @@ public:
 
     library::Array classArray() const { return m_classArray; }
 
-    static Slot dispatch(ThreadContext* context, Hash selector, int numArgs, int numKeyArgs, Slot* stack)
+    static Slot dispatch(ThreadContext* context, Hash selector, int numArgs, int numKeyArgs, Slot* sp);
 
 private:
     // Call to delete any existing class libary compilation structures and start fresh.

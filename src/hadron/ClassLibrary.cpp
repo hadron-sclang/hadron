@@ -179,12 +179,6 @@ bool ClassLibrary::scanString(ThreadContext* context, std::string_view input, li
 
             method.setCharPos(methodNode.token().offset());
 
-            auto methodListIter = m_methods.find(methodName);
-            if (methodListIter == m_methods.end()) {
-                methodListIter = m_methods.insert(std::make_pair(methodName, std::vector<library::Method>())).first;
-            }
-            methodListIter->second.push_back(method);
-
             methodNode = library::MethodNode(methodNode.next().slot());
         }
 
@@ -213,6 +207,41 @@ library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
         return library::Class();
     }
     return library::Class::wrapUnsafe(classIter->second);
+}
+
+// static
+Slot ClassLibrary::dispatch(ThreadContext* context, Hash selector, int numArgs, int numKeyArgs, Slot *sp) {
+    auto selector = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->method);
+    auto target = m_threadContext->stackPointer->arg0;
+    assert(target.isPointer());
+    auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(target.getPointer()->_className));
+    auto classDef = m_threadContext->classLibrary->findClassNamed(className);
+
+    auto method = library::Method();
+    while (classDef && !method) {
+        for (int32_t i = 0; i < classDef.methods().size(); ++i) {
+            if (classDef.methods().typedAt(i).name(m_threadContext.get()) == selector) {
+                method = classDef.methods().typedAt(i);
+                break;
+            }
+        }
+        classDef = m_threadContext->classLibrary->findClassNamed(classDef.superclass(m_threadContext.get()));
+    }
+    if (!method) {
+        SPDLOG_ERROR("Failed to find method {} in class {}", selector.view(m_threadContext.get()),
+                classDef.name(m_threadContext.get()).view(m_threadContext.get()));
+        return Slot::makeNil();
+    }
+
+    // Stack pointer has saved frame pointer, safe to clobber frame pointer with stack.
+    m_threadContext->framePointer = m_threadContext->stackPointer;
+    // TODO: does the new frame need anything else?
+    spareFrame = library::Frame::alloc(m_threadContext.get(), 16);
+    spareFrame.initToNil();
+    m_threadContext->stackPointer = spareFrame.instance();
+
+    assert(method.code());
+    machineCode = method.code().start();
 }
 
 bool ClassLibrary::resetLibrary(ThreadContext* context) {
