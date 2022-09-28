@@ -36,6 +36,13 @@ bool Runtime::initInterpreter() {
     m_interpreter = library::Interpreter::alloc(m_threadContext.get());
     m_interpreter.initToNil();
 
+    m_process = library::Process::alloc(m_threadContext.get());
+    m_process.setMainThread(library::Thread::makeThread(m_threadContext.get()));
+    m_process.setCurThread(m_process.mainThread());
+
+    m_threadContext->thisProcess = m_process.instance();
+    m_threadContext->thisThread = m_process.mainThread().instance();
+
     return true;
 }
 
@@ -86,6 +93,8 @@ Slot Runtime::interpret(std::string_view code) {
         return Slot::makeNil();
     }
 
+    Generator::markThreadForJITExecution();
+
     // Convention is caller pushes, callee pops.
     auto callerFrame = library::Frame::alloc(m_threadContext.get());
     callerFrame.initToNil();
@@ -98,14 +107,6 @@ Slot Runtime::interpret(std::string_view code) {
     calleeFrame.setHomeContext(calleeFrame);
     calleeFrame.setArg0(m_interpreter.slot());
     calleeFrame.copyPrototypeAfterThis(function.def().prototypeFrame());
-
-    m_threadContext->framePointer = calleeFrame.instance();
-
-    auto spareFrame = library::Frame::alloc(m_threadContext.get(), 16);
-    spareFrame.initToNil();
-    m_threadContext->stackPointer = spareFrame.instance();
-
-    Generator::markThreadForJITExecution();
 
     SCMethod scMethod = reinterpret_cast<SCMethod>(function.def().code().getRawPointer());
     auto result = scMethod(m_threadContext.get(), calleeFrame.instance());

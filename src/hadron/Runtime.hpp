@@ -2,6 +2,7 @@
 #define SRC_HADRON_RUNTIME_HPP_
 
 #include "hadron/library/Interpreter.hpp"
+#include "hadron/library/Kernel.hpp"
 #include "hadron/Slot.hpp"
 
 #include <memory>
@@ -42,7 +43,7 @@ public:
     Slot interpret(std::string_view code);
     std::string slotToString(Slot s);
 
-    ThreadContext* context() { return m_threadContext.get(); }
+    ThreadContext* context() const { return m_threadContext.get(); }
 
 private:
     bool buildThreadContext();
@@ -55,6 +56,7 @@ private:
 
     // The interpreter instance.
     library::Interpreter m_interpreter;
+    library::Process m_process;
 };
 
 } // namespace hadron

@@ -210,7 +210,56 @@ library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
 }
 
 // static
-Slot ClassLibrary::dispatch(ThreadContext* context, Hash selector, int numArgs, int numKeyArgs, Slot *sp) {
+Slot ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int numArgs,
+        int numKeyArgs, schema::FramePrivateSchema* callerFrame, Slot* stackPointer) {
+    auto selector = library::Symbol(context, selectorHash);
+
+    // Should be at least 1 arg, the `this` arg, load it.
+    assert(numArgs >= 1);
+    Slot targetSlot = *stackPointer;
+
+    // TODO: non-object routing
+    assert(targetSlot.isPointer());
+    auto target = library::ObjectBase::wrapUnsafe(targetSlot);
+    auto className = library::Symbol(context, target.nameHash());
+    auto classDef = context->classLibrary->findClassNamed(className);
+
+    auto method = library::Method();
+    while (classDef && !method) {
+        for (int32_t i = 0; i < classDef.methods().size(); ++i) {
+            if (classDef.methods().typedAt(i).name(context) == selector) {
+                method = classDef.methods().typedAt(i);
+                break;
+            }
+        }
+        classDef = context->classLibrary->findClassNamed(classDef.superclass(context));
+    }
+    if (!method) {
+        SPDLOG_ERROR("Failed to find method {} in class {}", selector.view(context),
+                classDef.name(context).view(context));
+        return Slot::makeNil();
+    }
+
+    // Init frame with inorder arguments.
+    auto calleeFrame = library::Frame::alloc(context, method.prototypeFrame().size());
+    calleeFrame.setMethod(method);
+    calleeFrame.setCaller(library::Frame(callerFrame));
+    calleeFrame.setContext(calleeFrame);
+    calleeFrame.setHomeContext(calleeFrame);
+    calleeFrame.setArg0(targetSlot);
+    std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema),
+            reinterpret_cast<int8_t*>(stackPointer) + kSlotSize, numArgs - 1);
+
+    // Init any uninitialized inorder args and all variables with prototype frame.
+    std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema) +
+            (numArgs * kSlotSize), reinterpret_cast<int8_t*>(method.prototypeFrame().start()) + (numArgs * kSlotSize),
+            (method.prototypeFrame().size() - numArgs) * kSlotSize);
+
+    // Process keyword arguments.
+    if (numKeyArgs) {
+        Slot* keyArg = stackPointer + numArgs;
+    }
+/*
     auto selector = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->method);
     auto target = m_threadContext->stackPointer->arg0;
     assert(target.isPointer());
@@ -242,6 +291,8 @@ Slot ClassLibrary::dispatch(ThreadContext* context, Hash selector, int numArgs, 
 
     assert(method.code());
     machineCode = method.code().start();
+    */
+    return Slot::makeNil();
 }
 
 bool ClassLibrary::resetLibrary(ThreadContext* context) {

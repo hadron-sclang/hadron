@@ -34,7 +34,7 @@ namespace schema {
 struct FramePrivateSchema;
 } // namespace schema
 
-typedef uint64_t (*SCMethod)(ThreadContext*, schema::FramePrivateSchema* frame);
+typedef uint64_t (*SCMethod)(ThreadContext*, schema::FramePrivateSchema* framePointer, Slot* stackPointer);
 
 class Generator {
 public:
