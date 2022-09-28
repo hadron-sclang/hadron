@@ -106,10 +106,12 @@ Slot Runtime::interpret(std::string_view code) {
     calleeFrame.setContext(calleeFrame);
     calleeFrame.setHomeContext(calleeFrame);
     calleeFrame.setArg0(m_interpreter.slot());
-    calleeFrame.copyPrototypeAfterThis(function.def().prototypeFrame());
+    std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema),
+                function.def().prototypeFrame().start() + kSlotSize,
+                (function.def().prototypeFrame().size() - 1) * kSlotSize);
 
     SCMethod scMethod = reinterpret_cast<SCMethod>(function.def().code().getRawPointer());
-    auto result = scMethod(m_threadContext.get(), calleeFrame.instance());
+    auto result = scMethod(m_threadContext.get(), calleeFrame.instance(), m_process.curThread().stack().start());
     return Slot::makeFromBits(result);
 }
 

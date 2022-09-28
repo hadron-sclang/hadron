@@ -45,7 +45,7 @@ public:
 
     library::Array classArray() const { return m_classArray; }
 
-    static Slot dispatch(ThreadContext* context, Hash selectorHash, int numArgs, int numKeyArgs,
+    static uint64_t dispatch(ThreadContext* context, Hash selectorHash, int numArgs, int numKeyArgs,
             schema::FramePrivateSchema* callerFrame, Slot* stackPointer);
 
 private:

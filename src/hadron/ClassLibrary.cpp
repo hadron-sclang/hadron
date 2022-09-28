@@ -210,7 +210,7 @@ library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
 }
 
 // static
-Slot ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int numArgs,
+uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int numArgs,
         int numKeyArgs, schema::FramePrivateSchema* callerFrame, Slot* stackPointer) {
     auto selector = library::Symbol(context, selectorHash);
 
@@ -237,7 +237,7 @@ Slot ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int numAr
     if (!method) {
         SPDLOG_ERROR("Failed to find method {} in class {}", selector.view(context),
                 classDef.name(context).view(context));
-        return Slot::makeNil();
+        return Slot::makeNil().asBits();
     }
 
     // Init frame with inorder arguments.
@@ -258,41 +258,25 @@ Slot ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int numAr
     // Process keyword arguments.
     if (numKeyArgs) {
         Slot* keyArg = stackPointer + numArgs;
-    }
-/*
-    auto selector = library::Symbol(m_threadContext.get(), m_threadContext->stackPointer->method);
-    auto target = m_threadContext->stackPointer->arg0;
-    assert(target.isPointer());
-    auto className = library::Symbol(m_threadContext.get(), Slot::makeSymbol(target.getPointer()->_className));
-    auto classDef = m_threadContext->classLibrary->findClassNamed(className);
+        for (int32_t i = 0; i < numKeyArgs; ++i) {
+            auto keyName = library::Symbol(context, *keyArg);
+            ++keyArg;
+            auto keyValue = *keyArg;
+            ++keyArg;
 
-    auto method = library::Method();
-    while (classDef && !method) {
-        for (int32_t i = 0; i < classDef.methods().size(); ++i) {
-            if (classDef.methods().typedAt(i).name(m_threadContext.get()) == selector) {
-                method = classDef.methods().typedAt(i);
-                break;
+            for (int32_t j = 0; j < method.argNames().size(); ++j) {
+                if (keyName == method.argNames().at(i)) {
+                    Slot* arg = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(calleeFrame.instance()) +
+                        offsetof(schema::FramePrivateSchema, arg0));
+                    *arg = keyValue;
+                    break;
+                }
             }
         }
-        classDef = m_threadContext->classLibrary->findClassNamed(classDef.superclass(m_threadContext.get()));
-    }
-    if (!method) {
-        SPDLOG_ERROR("Failed to find method {} in class {}", selector.view(m_threadContext.get()),
-                classDef.name(m_threadContext.get()).view(m_threadContext.get()));
-        return Slot::makeNil();
     }
 
-    // Stack pointer has saved frame pointer, safe to clobber frame pointer with stack.
-    m_threadContext->framePointer = m_threadContext->stackPointer;
-    // TODO: does the new frame need anything else?
-    spareFrame = library::Frame::alloc(m_threadContext.get(), 16);
-    spareFrame.initToNil();
-    m_threadContext->stackPointer = spareFrame.instance();
-
-    assert(method.code());
-    machineCode = method.code().start();
-    */
-    return Slot::makeNil();
+    auto scMethod = reinterpret_cast<SCMethod>(method.code().getRawPointer());
+    return scMethod(context, calleeFrame.instance(), stackPointer);
 }
 
 bool ClassLibrary::resetLibrary(ThreadContext* context) {

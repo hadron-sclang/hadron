@@ -195,16 +195,6 @@ public:
     explicit Frame(Slot instance): Object<Frame, schema::FramePrivateSchema>(instance) { }
     ~Frame() { }
 
-/*
-    // Copies all elements (if any) after the first element in |prototypeFrame| into the space after arg0.
-    void copyPrototypeAfterThis(Array prototypeFrame) {
-        assert(m_instance->schema.sizeInBytes >= (static_cast<int32_t>(sizeof(schema::FramePrivateSchema))
-                                                  + (prototypeFrame.size() * kSlotSize) - kSlotSize));
-        std::memcpy(reinterpret_cast<int8_t*>(m_instance) + sizeof(schema::FramePrivateSchema),
-                    prototypeFrame.start() + kSlotSize, (prototypeFrame.size() - 1) * kSlotSize);
-    }
-*/
-
     Method method() const { return Method(m_instance->method); }
     void setMethod(Method method) { m_instance->method = method.slot(); }
 
