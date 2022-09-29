@@ -40,8 +40,10 @@ int main(int argc, char* argv[]) {
     }
 
 #if WIN32
+    static constexpr int32_t kNewLinePadding = 2;
     auto tokenRegex = std::regex("(^|\\r\\n)//[+][ ]*([/A-Z]+):[ ]*([^ \\r][^\\r]*)?");
 #else
+    static constexpr int32_t kNewLinePadding = 1;
     auto tokenRegex = std::regex("(^|\\n|)//[+][ ]*([/A-Z]+):[ ]*([^ \\n][^\\n]*)?");
 #endif
     auto iter = std::cregex_iterator(sourceFile.code(), sourceFile.code() + sourceFile.size(), tokenRegex);
@@ -79,7 +81,7 @@ int main(int argc, char* argv[]) {
 
         name = std::string_view(match[3].first, match[3].second - match[3].first);
         // Payload starts after the newline at the end of the match.
-        payloadStart = match[0].second + 1;
+        payloadStart = match[0].second + kNewLinePadding;
 
         if (match[2].compare("CHECK") == 0) {
             verb = kCheck;
@@ -98,6 +100,7 @@ int main(int argc, char* argv[]) {
             return -1;
         }
     }
+
 
     if (payloadStart) {
         auto payload = std::string_view(payloadStart, sourceFile.code() + sourceFile.size() - payloadStart - 1);
