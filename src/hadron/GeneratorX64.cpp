@@ -7,10 +7,8 @@
 
 namespace hadron {
 
-SCMethod Generator::buildFunction(ThreadContext* context,
-                                  const library::CFGFrame /* frame */,
-                                  asmjit::FuncSignature signature,
-                                  std::vector<library::CFGBlock>& blocks,
+SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFrame /* frame */,
+                                  asmjit::FuncSignature signature, std::vector<library::CFGBlock>& blocks,
                                   library::TypedArray<library::BlockId> blockOrder) {
     asmjit::CodeHolder codeHolder;
     codeHolder.init(m_jitRuntime.environment());
@@ -89,8 +87,8 @@ SCMethod Generator::buildFunction(ThreadContext* context,
 
                 asmjit::InvokeNode* invokeNode = nullptr;
                 compiler.invoke(&invokeNode, ClassLibrary::dispatch,
-                        asmjit::FuncSignatureT<uint64_t, ThreadContext*, Hash, int32_t, int32_t, 
-                        schema::FramePrivateSchema*, Slot*>());
+                                asmjit::FuncSignatureT<uint64_t, ThreadContext*, Hash, int32_t, int32_t,
+                                                       schema::FramePrivateSchema*, Slot*>());
                 invokeNode->setArg(0, contextReg);
                 invokeNode->setArg(1, asmjit::Imm(messageHIR.selector(context).hash()));
                 invokeNode->setArg(2, asmjit::Imm(messageHIR.arguments().size()));

@@ -46,7 +46,7 @@ public:
     library::Array classArray() const { return m_classArray; }
 
     static uint64_t dispatch(ThreadContext* context, Hash selectorHash, int32_t numArgs, int32_t numKeyArgs,
-            schema::FramePrivateSchema* callerFrame, Slot* stackPointer);
+                             schema::FramePrivateSchema* callerFrame, Slot* stackPointer);
 
 private:
     // Call to delete any existing class libary compilation structures and start fresh.

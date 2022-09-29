@@ -210,8 +210,8 @@ library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
 }
 
 // static
-uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int numArgs,
-        int numKeyArgs, schema::FramePrivateSchema* callerFrame, Slot* stackPointer) {
+uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int numArgs, int numKeyArgs,
+                                schema::FramePrivateSchema* callerFrame, Slot* stackPointer) {
     auto selector = library::Symbol(context, selectorHash);
 
     // Should be at least 1 arg, the `this` arg, load it.
@@ -236,7 +236,7 @@ uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int n
     }
     if (!method) {
         SPDLOG_ERROR("Failed to find method {} in class {}", selector.view(context),
-                classDef.name(context).view(context));
+                     classDef.name(context).view(context));
         return Slot::makeNil().asBits();
     }
 
@@ -250,14 +250,15 @@ uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int n
     calleeFrame.setHomeContext(calleeFrame);
     calleeFrame.setArg0(targetSlot);
     std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema),
-            reinterpret_cast<int8_t*>(stackPointer) + kSlotSize, numUsableArgs - 1);
+                reinterpret_cast<int8_t*>(stackPointer) + kSlotSize, numUsableArgs - 1);
 
     assert(method.prototypeFrame().size() >= numUsableArgs);
 
     // Init any uninitialized inorder args and all variables with prototype frame.
-    std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema) +
-            (numUsableArgs * kSlotSize), reinterpret_cast<int8_t*>(method.prototypeFrame().start()) + (numUsableArgs * kSlotSize),
-            (method.prototypeFrame().size() - numUsableArgs) * kSlotSize);
+    std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema)
+                    + (numUsableArgs * kSlotSize),
+                reinterpret_cast<int8_t*>(method.prototypeFrame().start()) + (numUsableArgs * kSlotSize),
+                (method.prototypeFrame().size() - numUsableArgs) * kSlotSize);
 
     // Process keyword arguments.
     if (numKeyArgs) {
@@ -270,8 +271,8 @@ uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int n
 
             for (int32_t j = 0; j < method.argNames().size(); ++j) {
                 if (keyName == method.argNames().at(i)) {
-                    Slot* arg = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(calleeFrame.instance()) +
-                        offsetof(schema::FramePrivateSchema, arg0));
+                    Slot* arg = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(calleeFrame.instance())
+                                                        + offsetof(schema::FramePrivateSchema, arg0));
                     *arg = keyValue;
                     break;
                 }

@@ -207,10 +207,10 @@ public:
     Frame homeContext() const { return Frame(m_instance->homeContext); }
     void setHomeContext(Frame homeContext) { m_instance->homeContext = homeContext.slot(); }
 
-/*
-    const int8_t* ip() const { return m_instance->ip.getRawPointer(); }
-    void setIp(const int8_t* ip) { m_instance->ip = Slot::makeRawPointer(ip); }
-*/
+    /*
+        const int8_t* ip() const { return m_instance->ip.getRawPointer(); }
+        void setIp(const int8_t* ip) { m_instance->ip = Slot::makeRawPointer(ip); }
+    */
 
     Slot arg0() const { return m_instance->arg0; }
     void setArg0(Slot arg) { m_instance->arg0 = arg; }
