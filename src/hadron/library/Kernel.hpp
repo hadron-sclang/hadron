@@ -7,12 +7,12 @@
 #include "hadron/library/Object.hpp"
 #include "hadron/library/String.hpp"
 #include "hadron/library/Symbol.hpp"
+#include "hadron/library/Thread.hpp"
 #include "hadron/schema/Common/Core/KernelSchema.hpp"
 
 #include <cassert>
 
 namespace hadron {
-
 namespace schema {
 // Frame has no public members in the class library, so we add some privately here.
 struct FramePrivateSchema {
@@ -26,10 +26,8 @@ struct FramePrivateSchema {
     Slot caller;
     Slot context;
     Slot homeContext;
-    Slot ip;
     Slot arg0;
 };
-
 } // namespace schema
 
 namespace library {
@@ -96,6 +94,12 @@ public:
     Process(): Object<Process, schema::ProcessSchema>() { }
     explicit Process(schema::ProcessSchema* instance): Object<Process, schema::ProcessSchema>(instance) { }
     ~Process() { }
+
+    Thread mainThread() const { return Thread(m_instance->mainThread); }
+    void setMainThread(Thread t) { m_instance->mainThread = t.slot(); }
+
+    Thread curThread() const { return Thread(m_instance->curThread); }
+    void setCurThread(Thread t) { m_instance->curThread = t.slot(); }
 };
 
 template <typename T, typename S> class FunctionDefBase : public Object<T, S> {
@@ -191,14 +195,6 @@ public:
     explicit Frame(Slot instance): Object<Frame, schema::FramePrivateSchema>(instance) { }
     ~Frame() { }
 
-    // Copies all elements (if any) after the first element in |prototypeFrame| into the space after arg0.
-    void copyPrototypeAfterThis(Array prototypeFrame) {
-        assert(m_instance->schema.sizeInBytes >= (static_cast<int32_t>(sizeof(schema::FramePrivateSchema))
-                                                  + (prototypeFrame.size() * kSlotSize) - kSlotSize));
-        std::memcpy(reinterpret_cast<int8_t*>(m_instance) + sizeof(schema::FramePrivateSchema),
-                    prototypeFrame.start() + kSlotSize, (prototypeFrame.size() - 1) * kSlotSize);
-    }
-
     Method method() const { return Method(m_instance->method); }
     void setMethod(Method method) { m_instance->method = method.slot(); }
 
@@ -210,9 +206,6 @@ public:
 
     Frame homeContext() const { return Frame(m_instance->homeContext); }
     void setHomeContext(Frame homeContext) { m_instance->homeContext = homeContext.slot(); }
-
-    const int8_t* ip() const { return m_instance->ip.getRawPointer(); }
-    void setIp(const int8_t* ip) { m_instance->ip = Slot::makeRawPointer(ip); }
 
     Slot arg0() const { return m_instance->arg0; }
     void setArg0(Slot arg) { m_instance->arg0 = arg; }

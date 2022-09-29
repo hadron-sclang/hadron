@@ -24,8 +24,10 @@ SCMethod Generator::serialize(ThreadContext* context, const library::CFGFrame fr
     signature.addArg(asmjit::TypeId::kIntPtr);
     // Second argument is the frame pointer.
     signature.addArg(asmjit::TypeId::kIntPtr);
+    // Third argument is the stack pointer.
+    signature.addArg(asmjit::TypeId::kIntPtr);
 
-    return buildFunction(frame, signature, blocks, blockOrder);
+    return buildFunction(context, frame, signature, blocks, blockOrder);
 }
 
 // static

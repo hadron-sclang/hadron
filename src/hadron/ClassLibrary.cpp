@@ -209,6 +209,81 @@ library::Class ClassLibrary::findClassNamed(library::Symbol name) const {
     return library::Class::wrapUnsafe(classIter->second);
 }
 
+// static
+uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int numArgs, int numKeyArgs,
+                                schema::FramePrivateSchema* callerFrame, Slot* stackPointer) {
+    auto selector = library::Symbol(context, selectorHash);
+
+    // Should be at least 1 arg, the `this` arg, load it.
+    assert(numArgs >= 1);
+    Slot targetSlot = *stackPointer;
+
+    // TODO: non-object routing (e.g. Integer)
+    assert(targetSlot.isPointer());
+    auto target = library::ObjectBase::wrapUnsafe(targetSlot);
+    auto className = library::Symbol(context, target.className());
+    auto classDef = context->classLibrary->findClassNamed(className);
+
+    auto method = library::Method();
+    while (classDef && !method) {
+        for (int32_t i = 0; i < classDef.methods().size(); ++i) {
+            if (classDef.methods().typedAt(i).name(context) == selector) {
+                method = classDef.methods().typedAt(i);
+                break;
+            }
+        }
+        classDef = context->classLibrary->findClassNamed(classDef.superclass(context));
+    }
+    if (!method) {
+        SPDLOG_ERROR("Failed to find method {} in class {}", selector.view(context),
+                     classDef.name(context).view(context));
+        return Slot::makeNil().asBits();
+    }
+
+    int32_t numUsableArgs = std::min(method.argNames().size(), numArgs);
+
+    // Init frame with inorder arguments.
+    auto calleeFrame = library::Frame::alloc(context, method.prototypeFrame().size());
+    calleeFrame.setMethod(method);
+    calleeFrame.setCaller(library::Frame(callerFrame));
+    calleeFrame.setContext(calleeFrame);
+    calleeFrame.setHomeContext(calleeFrame);
+    calleeFrame.setArg0(targetSlot);
+    std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema),
+                reinterpret_cast<int8_t*>(stackPointer) + kSlotSize, numUsableArgs - 1);
+
+    assert(method.prototypeFrame().size() >= numUsableArgs);
+
+    // Init any uninitialized inorder args and all variables with prototype frame.
+    std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema)
+                    + (numUsableArgs * kSlotSize),
+                reinterpret_cast<int8_t*>(method.prototypeFrame().start()) + (numUsableArgs * kSlotSize),
+                (method.prototypeFrame().size() - numUsableArgs) * kSlotSize);
+
+    // Process keyword arguments.
+    if (numKeyArgs) {
+        Slot* keyArg = stackPointer + numArgs;
+        for (int32_t i = 0; i < numKeyArgs; ++i) {
+            auto keyName = library::Symbol(context, *keyArg);
+            ++keyArg;
+            auto keyValue = *keyArg;
+            ++keyArg;
+
+            for (int32_t j = 0; j < method.argNames().size(); ++j) {
+                if (keyName == method.argNames().at(i)) {
+                    Slot* arg = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(calleeFrame.instance())
+                                                        + offsetof(schema::FramePrivateSchema, arg0));
+                    *arg = keyValue;
+                    break;
+                }
+            }
+        }
+    }
+
+    auto scMethod = reinterpret_cast<SCMethod>(method.code().getRawPointer());
+    return scMethod(context, calleeFrame.instance(), stackPointer);
+}
+
 bool ClassLibrary::resetLibrary(ThreadContext* context) {
     m_classMap.clear();
     m_classArray = library::ClassArray::typedArrayAlloc(context, 1);
@@ -382,6 +457,11 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         if (!frame) {
             return false;
         }
+
+        // Copy some basic elements out of the frame into the Method data structure.
+        method.setPrototypeFrame(frame.prototypeFrame());
+        method.setArgNames(frame.argumentNames());
+        method.setVarNames(frame.variableNames());
 
         // TODO: Here's where we could extract some message signatures and compute dependencies, to decide on final
         // ordering of compilation of methods to support inlining.

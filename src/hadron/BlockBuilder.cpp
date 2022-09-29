@@ -11,7 +11,6 @@
 #include "spdlog/spdlog.h"
 
 #include <cassert>
-#include <stack>
 #include <string>
 
 namespace hadron {

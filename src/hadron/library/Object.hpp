@@ -47,6 +47,7 @@ public:
             assert(false);
             return;
         }
+        // TODO: asArray()/clear() using std::fill?
         Slot* s = reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(m_instance) + sizeof(Schema));
         for (int32_t i = 0; i < (m_instance->schema.sizeInBytes - static_cast<int32_t>(sizeof(Schema))) / kSlotSize;
              ++i) {

@@ -23,6 +23,7 @@ public:
     // Makes a new array of size |indexedSize| with each element set to nil.
     static Array newClear(ThreadContext* context, int32_t indexedSize) {
         Array array = Array::alloc(context, indexedSize);
+        // TODO: std::fill after iterators?
         for (int32_t i = 0; i < indexedSize; ++i) {
             array.put(i, Slot::makeNil());
         }

@@ -24,24 +24,17 @@ struct ThreadContext {
     ThreadContext() = default;
     ~ThreadContext() = default;
 
-    // We keep a separate stack for Hadron JIT from the main C/C++ application stack.
-    schema::FramePrivateSchema* framePointer = nullptr;
-    schema::FramePrivateSchema* stackPointer = nullptr;
-
-    enum InterruptCode : int32_t { kDispatch, kFatalError, kNewObject, kPrimitive };
-    InterruptCode interruptCode = InterruptCode::kFatalError;
+    // Objects accessible from the language. To break the cyclical dependency between library objects and ThreadContext,
+    // but still keep strongly typed references here, we maintain forward-declared instance pointers, and then just
+    // always wrap them in their corresponding library objects when using them from the C++ side.
+    schema::ProcessSchema* thisProcess;
+    schema::ThreadSchema* thisThread;
+    schema::ArraySchema* classVariablesArray;
 
     std::shared_ptr<Heap> heap;
     std::unique_ptr<SymbolTable> symbolTable;
     std::unique_ptr<ClassLibrary> classLibrary;
     std::unique_ptr<Generator> generator;
-
-    // Objects accessible from the language. To break the cyclical dependency between library objects and ThreadContext,
-    // but still keep strongly typed references here, we maintain forward-decleared instance pointers, and then just
-    // always wrap them in their corresponding library objects when using them from the C++ side.
-    schema::ProcessSchema* thisProcess;
-    schema::ThreadSchema* thisThread;
-    schema::ArraySchema* classVariablesArray;
 };
 
 // ThreadContext is accessed by machine code, so needs a simple layout in memory.

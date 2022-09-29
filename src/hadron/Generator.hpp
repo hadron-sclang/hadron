@@ -34,7 +34,7 @@ namespace schema {
 struct FramePrivateSchema;
 } // namespace schema
 
-typedef uint64_t (*SCMethod)(ThreadContext*, schema::FramePrivateSchema* frame);
+typedef uint64_t (*SCMethod)(ThreadContext*, schema::FramePrivateSchema* framePointer, Slot* stackPointer);
 
 class Generator {
 public:
@@ -50,7 +50,7 @@ private:
     // Performs a recursive postorder traversal of the blocks and saves the output in |blockOrder|.
     void orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
                      library::TypedArray<library::BlockId> blockOrder);
-    SCMethod buildFunction(const library::CFGFrame frame, asmjit::FuncSignature signature,
+    SCMethod buildFunction(ThreadContext* context, const library::CFGFrame frame, asmjit::FuncSignature signature,
                            std::vector<library::CFGBlock>& blocks, library::TypedArray<library::BlockId> blockOrder);
 
     asmjit::JitRuntime m_jitRuntime; // needs to last for the lifetime of the program
