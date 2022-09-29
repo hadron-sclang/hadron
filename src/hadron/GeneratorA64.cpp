@@ -7,7 +7,8 @@
 
 namespace hadron {
 
-SCMethod Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::FuncSignature signature,
+SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFrame /* frame */,
+                                  asmjit::FuncSignature signature,
                                   std::vector<library::CFGBlock>& blocks,
                                   library::TypedArray<library::BlockId> blockOrder) {
     asmjit::CodeHolder codeHolder;
@@ -15,7 +16,14 @@ SCMethod Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::F
 
     // Create compiler object and attach to code space
     asmjit::a64::Compiler compiler(&codeHolder);
-    compiler.addFunc(signature);
+    auto funcNode = compiler.addFunc(signature);
+
+    asmjit::a64::Gp contextReg = compiler.newGp(asmjit::TypeId::kIntPtr);
+    funcNode->setArg(0, contextReg);
+    asmjit::a64::Gp framePointerReg = compiler.newGp(asmjit::TypeId::kIntPtr);
+    funcNode->setArg(1, framePointerReg);
+    asmjit::a64::Gp stackPointerReg = compiler.newGp(asmjit::TypeId::kIntPtr);
+    funcNode->setArg(2, stackPointerReg);
 
     std::vector<asmjit::Label> blockLabels(blocks.size());
     // TODO: maybe lazily create, as some blocks may have been deleted?
@@ -64,10 +72,33 @@ SCMethod Generator::buildFunction(const library::CFGFrame /* frame */, asmjit::F
 
             case library::MessageHIR::nameHash(): {
                 auto messageHIR = library::MessageHIR(hir.slot());
-                // first we save all the arguments onto the stack.
+                // Save arguments to the stack
+                int32_t offset = 0;
+                for (int32_t k = 0; k < messageHIR.arguments().size(); ++k) {
+                    auto dest = asmjit::a64::ptr(stackPointerReg, offset);
+                    compiler.str(vRegs[messageHIR.arguments().typedAt(k).int32()], dest);
+                    offset += kSlotSize;
+                }
+                for (int32_t k = 0; k < messageHIR.keywordArguments().size(); ++k) {
+                    auto dest = asmjit::a64::ptr(stackPointerReg, offset);
+                    compiler.str(vRegs[messageHIR.keywordArguments().typedAt(k).int32()], dest);
+                    offset += kSlotSize;
+                }
 
+                // a64 compiler always wants function pointers in a register, otherwise the generated code will crash.
+                asmjit::a64::Gp functionPointer = compiler.newUIntPtr();
+                compiler.mov(functionPointer, (uint64_t)ClassLibrary::dispatch);
 
-                assert(false);
+                asmjit::InvokeNode* invokeNode = nullptr;
+                compiler.invoke(&invokeNode, functionPointer,
+                        asmjit::FuncSignatureT<uint64_t, ThreadContext*, Hash, int32_t, int32_t, schema::FramePrivateSchema*, Slot*>(asmjit::CallConvId::kHost));
+                invokeNode->setArg(0, contextReg);
+                invokeNode->setArg(1, asmjit::Imm(messageHIR.selector(context).hash()));
+                invokeNode->setArg(2, asmjit::Imm(messageHIR.arguments().size()));
+                invokeNode->setArg(3, asmjit::Imm(messageHIR.keywordArguments().size() / 2));
+                invokeNode->setArg(4, framePointerReg);
+                invokeNode->setArg(5, stackPointerReg);
+                invokeNode->setRet(0, vRegs[messageHIR.id().int32()]);
             } break;
 
             case library::MethodReturnHIR::nameHash(): {

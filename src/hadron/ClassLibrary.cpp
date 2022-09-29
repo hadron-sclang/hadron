@@ -214,7 +214,6 @@ uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int n
         int numKeyArgs, schema::FramePrivateSchema* callerFrame, Slot* stackPointer) {
     auto selector = library::Symbol(context, selectorHash);
 
-
     // Should be at least 1 arg, the `this` arg, load it.
     assert(numArgs >= 1);
     Slot targetSlot = *stackPointer;
@@ -241,6 +240,8 @@ uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int n
         return Slot::makeNil().asBits();
     }
 
+    int32_t numUsableArgs = std::min(method.argNames().size(), numArgs);
+
     // Init frame with inorder arguments.
     auto calleeFrame = library::Frame::alloc(context, method.prototypeFrame().size());
     calleeFrame.setMethod(method);
@@ -249,16 +250,14 @@ uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int n
     calleeFrame.setHomeContext(calleeFrame);
     calleeFrame.setArg0(targetSlot);
     std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema),
-            reinterpret_cast<int8_t*>(stackPointer) + kSlotSize, numArgs - 1);
+            reinterpret_cast<int8_t*>(stackPointer) + kSlotSize, numUsableArgs - 1);
 
-    // This doesn't necessarily have to be true.
-    assert(method.prototypeFrame().size() >= numArgs);
-    SPDLOG_CRITICAL("prototypeFrame size: {}, numArgs: {}", method.prototypeFrame().size(), numArgs);
+    assert(method.prototypeFrame().size() >= numUsableArgs);
 
     // Init any uninitialized inorder args and all variables with prototype frame.
     std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema) +
-            (numArgs * kSlotSize), reinterpret_cast<int8_t*>(method.prototypeFrame().start()) + (numArgs * kSlotSize),
-            (method.prototypeFrame().size() - numArgs) * kSlotSize);
+            (numUsableArgs * kSlotSize), reinterpret_cast<int8_t*>(method.prototypeFrame().start()) + (numUsableArgs * kSlotSize),
+            (method.prototypeFrame().size() - numUsableArgs) * kSlotSize);
 
     // Process keyword arguments.
     if (numKeyArgs) {
@@ -457,6 +456,11 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
         if (!frame) {
             return false;
         }
+
+        // Copy some basic elements out of the frame into the Method data structure.
+        method.setPrototypeFrame(frame.prototypeFrame());
+        method.setArgNames(frame.argumentNames());
+        method.setVarNames(frame.variableNames());
 
         // TODO: Here's where we could extract some message signatures and compute dependencies, to decide on final
         // ordering of compilation of methods to support inlining.

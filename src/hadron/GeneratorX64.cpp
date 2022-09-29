@@ -89,7 +89,8 @@ SCMethod Generator::buildFunction(ThreadContext* context,
 
                 asmjit::InvokeNode* invokeNode = nullptr;
                 compiler.invoke(&invokeNode, ClassLibrary::dispatch,
-                        asmjit::FuncSignatureT<uint64_t, void*, Hash, int32_t, int32_t, void*, void*>());
+                        asmjit::FuncSignatureT<uint64_t, ThreadContext*, Hash, int32_t, int32_t, 
+                        schema::FramePrivateSchema*, Slot*>());
                 invokeNode->setArg(0, contextReg);
                 invokeNode->setArg(1, asmjit::Imm(messageHIR.selector(context).hash()));
                 invokeNode->setArg(2, asmjit::Imm(messageHIR.arguments().size()));
