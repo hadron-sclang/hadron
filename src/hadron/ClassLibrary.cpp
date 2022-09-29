@@ -214,14 +214,15 @@ uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int n
         int numKeyArgs, schema::FramePrivateSchema* callerFrame, Slot* stackPointer) {
     auto selector = library::Symbol(context, selectorHash);
 
+
     // Should be at least 1 arg, the `this` arg, load it.
     assert(numArgs >= 1);
     Slot targetSlot = *stackPointer;
 
-    // TODO: non-object routing
+    // TODO: non-object routing (e.g. Integer)
     assert(targetSlot.isPointer());
     auto target = library::ObjectBase::wrapUnsafe(targetSlot);
-    auto className = library::Symbol(context, target.nameHash());
+    auto className = library::Symbol(context, target.className());
     auto classDef = context->classLibrary->findClassNamed(className);
 
     auto method = library::Method();
@@ -249,6 +250,10 @@ uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int n
     calleeFrame.setArg0(targetSlot);
     std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema),
             reinterpret_cast<int8_t*>(stackPointer) + kSlotSize, numArgs - 1);
+
+    // This doesn't necessarily have to be true.
+    assert(method.prototypeFrame().size() >= numArgs);
+    SPDLOG_CRITICAL("prototypeFrame size: {}, numArgs: {}", method.prototypeFrame().size(), numArgs);
 
     // Init any uninitialized inorder args and all variables with prototype frame.
     std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema) +

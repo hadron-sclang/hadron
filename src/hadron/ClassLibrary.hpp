@@ -45,7 +45,7 @@ public:
 
     library::Array classArray() const { return m_classArray; }
 
-    static uint64_t dispatch(ThreadContext* context, Hash selectorHash, int numArgs, int numKeyArgs,
+    static uint64_t dispatch(ThreadContext* context, Hash selectorHash, int32_t numArgs, int32_t numKeyArgs,
             schema::FramePrivateSchema* callerFrame, Slot* stackPointer);
 
 private:
