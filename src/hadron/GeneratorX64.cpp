@@ -116,7 +116,6 @@ SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFram
                 auto readFromContextHIR = library::ReadFromContextHIR(hir.slot());
             } break;
 
-            // TODO: args are no longer in frame
             case library::ReadFromFrameHIR::nameHash(): {
                 auto readFromFrameHIR = library::ReadFromFrameHIR(hir.slot());
             } break;

@@ -250,7 +250,7 @@ uint64_t ClassLibrary::dispatch(ThreadContext* context, Hash selectorHash, int n
     calleeFrame.setHomeContext(calleeFrame);
     calleeFrame.setArg0(targetSlot);
     std::memcpy(reinterpret_cast<int8_t*>(calleeFrame.instance()) + sizeof(schema::FramePrivateSchema),
-                reinterpret_cast<int8_t*>(stackPointer) + kSlotSize, numUsableArgs - 1);
+                reinterpret_cast<int8_t*>(stackPointer) + kSlotSize, (numUsableArgs - 1) * kSlotSize);
 
     assert(method.prototypeFrame().size() >= numUsableArgs);
 
