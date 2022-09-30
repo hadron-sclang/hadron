@@ -108,5 +108,4 @@ public:
 } // namespace library
 } // namespace hadron
 
-
 #endif // SRC_HADRON_LIBRARY_OBJECT_HPP_
