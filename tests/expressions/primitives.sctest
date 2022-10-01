@@ -1,14 +1,9 @@
 //+//: Primitives Tests
 //+ CLASSES:
-PrimitivesTest {
+A {
     *a { |maxSize = 0|
         _BasicNew;
     }
 }
-//+ RUN: Empty function declaration
-(
-    PrimitivesTest.a(0);
-)
-//+ EXPECTING:
-0
-//+//:
+//+ CHECK: A.a(0);
+//+ GIVES: a A

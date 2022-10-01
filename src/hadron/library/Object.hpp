@@ -104,7 +104,7 @@ public:
     explicit ObjectBase(Slot instance): Object<ObjectBase, schema::ObjectSchema>(instance) { }
     ~ObjectBase() { }
 
-    Slot _BasicNew(ThreadContext* /* context */, int32_t maxSize) { return Slot::makeInt32(maxSize); }
+    Slot _BasicNew(ThreadContext* context, int32_t maxSize);
 };
 
 } // namespace library
