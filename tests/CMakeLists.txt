@@ -2,7 +2,7 @@ include(CTest)
 
 set(SCTESTS
     expressions/messages
-#    expressions/primitives
+    expressions/primitives
 
     lexical_analysis/floats
 #    lexical_analysis/functions

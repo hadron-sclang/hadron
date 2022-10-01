@@ -443,12 +443,6 @@ bool ClassLibrary::composeSubclassesFrom(ThreadContext* context, library::Class 
 
     for (int32_t i = 0; i < classDef.methods().size(); ++i) {
         auto method = classDef.methods().typedAt(i);
-
-        // We don't compile methods that include primitives.
-        if (method.primitiveName(context)) {
-            continue;
-        }
-
         auto methodName = method.name(context);
 
         auto astIter = classASTs->second->find(methodName);
@@ -503,7 +497,17 @@ bool ClassLibrary::materializeFrames(ThreadContext* context) {
             auto method = methods.typedAt(i);
             auto methodName = method.name(context);
 
-            // Methods that call a primitive have no Frame and should not be compiled.
+            auto primitiveName = method.primitiveName(context);
+            if (primitiveName) {
+                auto primIter = m_primitives.find(primitiveName);
+                if (primIter != m_primitives.end()) {
+                    method.setCode(Slot::makeRawPointer(reinterpret_cast<int8_t*>(primIter->second)));
+                    continue;
+                } else {
+                    SPDLOG_WARN("Missing primitive definition for {}", primitiveName.view(context));
+                }
+            }
+
             auto frameIter = methodMap.second->find(methodName);
             if (frameIter == methodMap.second->end()) {
                 continue;

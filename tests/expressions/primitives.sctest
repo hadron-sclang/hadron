@@ -1,13 +1,13 @@
 //+//: Primitives Tests
 //+ CLASSES:
 PrimitivesTest {
-    *a {
-        _HTestReturnZero;
+    *a { |maxSize = 0|
+        _BasicNew;
     }
 }
 //+ RUN: Empty function declaration
 (
-    PrimitivesTest.a;
+    PrimitivesTest.a(0);
 )
 //+ EXPECTING:
 0

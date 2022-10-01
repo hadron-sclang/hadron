@@ -21,7 +21,7 @@ namespace {
 template <typename T> inline T wrapArg(hadron::schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
     auto arg = framePointer->getArg(argNumber);
     ++argNumber;
-    return T(arg);
+    return T::wrapUnsafe(arg);
 }
 template <> inline int32_t wrapArg<int32_t>(hadron::schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
     auto arg = framePointer->getArg(argNumber);
@@ -68,6 +68,7 @@ public:
         m_primitives.emplace(std::make_pair(primitiveName, method));
     }
 
+    // All primitives should be registered before calling finalizeLibrary().
     bool finalizeLibrary(ThreadContext* context);
 
     library::Class findClassNamed(library::Symbol name) const;
