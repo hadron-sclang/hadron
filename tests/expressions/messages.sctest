@@ -4,6 +4,7 @@
 A {
     *a { ^\a }
 	*me { ^\a }
+    *echo { |t| ^t }
 }
 B : A {
     *b { ^\b }
@@ -34,3 +35,8 @@ C : B {
 //+ GIVES: c
 //+ CHECK: C.me
 //+ GIVES: c
+
+//+ CHECK: C.echo(1)
+//+ GIVES: 1
+//+ CHECK: C.echo(\test)
+//+ GIVES: test

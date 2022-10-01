@@ -206,6 +206,7 @@ add_library(hadron STATIC
     library/Integer.hpp
     library/Interpreter.cpp
     library/Kernel.hpp
+    library/Object.cpp
     library/Object.hpp
     library/Schema.hpp
     library/SequenceableCollection.hpp

@@ -45,7 +45,6 @@ void Generator::markThreadForJITExecution() {
 #endif
 }
 
-
 void Generator::orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
                             library::TypedArray<library::BlockId> blockOrder) {
     // Mark block as visited by updating number to pointer map.

@@ -1,6 +1,7 @@
 #ifndef SRC_HADRON_CLASS_LIBRARY_HPP_
 #define SRC_HADRON_CLASS_LIBRARY_HPP_
 
+#include "hadron/Generator.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/library/Array.hpp"
@@ -13,7 +14,21 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
+
+namespace {
+template <typename T> inline T wrapArg(hadron::schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
+    auto arg = framePointer->getArg(argNumber);
+    ++argNumber;
+    return T::wrapUnsafe(arg);
+}
+template <> inline int32_t wrapArg<int32_t>(hadron::schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
+    auto arg = framePointer->getArg(argNumber);
+    ++argNumber;
+    return arg.getInt32();
+}
+} // namespace
 
 namespace hadron {
 
@@ -36,6 +51,24 @@ public:
     // inputs, call finalizeLibrary() to finish class library compilation.
     bool scanString(ThreadContext* context, std::string_view input, library::Symbol filename);
 
+    template <typename T, typename... TArgs> struct PrimSignature {
+        using functionType = Slot (T::*)(ThreadContext*, TArgs...);
+
+        template <functionType F> static constexpr SCMethod makeMethod() {
+            return +[](ThreadContext* context, schema::FramePrivateSchema* framePointer, Slot*) -> uint64_t {
+                int32_t argNumber = 0;
+                auto target = wrapArg<T>(framePointer, argNumber);
+                auto value = (target.*F)(context, wrapArg<TArgs>(framePointer, argNumber)...);
+                return value.asBits();
+            };
+        }
+    };
+
+    void registerPrimitive(library::Symbol primitiveName, SCMethod method) {
+        m_primitives.emplace(std::make_pair(primitiveName, method));
+    }
+
+    // All primitives should be registered before calling finalizeLibrary().
     bool finalizeLibrary(ThreadContext* context);
 
     library::Class findClassNamed(library::Symbol name) const;
@@ -89,6 +122,8 @@ private:
     std::unordered_set<library::Symbol> m_bootstrapClasses;
 
     library::Method m_functionCompileContext;
+
+    std::unordered_map<library::Symbol, SCMethod> m_primitives;
 };
 
 } // namespace hadron

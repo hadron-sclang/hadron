@@ -3,6 +3,8 @@
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/library/HadronHIR.hpp"
 
+#include "spdlog/spdlog.h"
+
 #include <algorithm>
 
 namespace hadron {
@@ -113,34 +115,45 @@ SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFram
 
             case library::ReadFromClassHIR::nameHash(): {
                 auto readFromClassHIR = library::ReadFromClassHIR(hir.slot());
+                assert(false);
             } break;
 
             case library::ReadFromContextHIR::nameHash(): {
                 auto readFromContextHIR = library::ReadFromContextHIR(hir.slot());
+                assert(false);
             } break;
 
             case library::ReadFromFrameHIR::nameHash(): {
                 auto readFromFrameHIR = library::ReadFromFrameHIR(hir.slot());
+                auto src = asmjit::a64::ptr(framePointerReg,
+                                            sizeof(schema::FramePrivateSchema)
+                                                + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
+                compiler.ldr(vRegs[readFromFrameHIR.id().int32()], src);
             } break;
 
             case library::ReadFromThisHIR::nameHash(): {
                 auto readFromThisHIR = library::ReadFromThisHIR(hir.slot());
+                assert(false);
             } break;
 
             case library::RouteToSuperclassHIR::nameHash(): {
                 // TODO: super routing, perhaps with a different interrupt code to dispatch?
+                assert(false);
             } break;
 
             case library::WriteToClassHIR::nameHash(): {
                 auto writeToClassHIR = library::WriteToClassHIR(hir.slot());
+                assert(false);
             } break;
 
             case library::WriteToFrameHIR::nameHash(): {
                 auto writeToFrameHIR = library::WriteToFrameHIR(hir.slot());
+                assert(false);
             } break;
 
             case library::WriteToThisHIR::nameHash(): {
                 auto writeToThisHIR = library::WriteToThisHIR(hir.slot());
+                assert(false);
             } break;
 
             default:

@@ -4,8 +4,8 @@
 #include "hadron/library/Array.hpp"
 #include "hadron/library/HadronCFG.hpp"
 #include "hadron/library/Integer.hpp"
-#include "hadron/Slot.hpp"
 #include "hadron/library/Kernel.hpp"
+#include "hadron/Slot.hpp"
 
 #if defined(__clang__) || defined(__GNUC__)
 #    pragma GCC diagnostic push

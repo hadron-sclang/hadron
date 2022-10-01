@@ -29,14 +29,12 @@ library::CFGFrame BlockBuilder::buildFrame(ThreadContext* context, const library
     auto scope = m_frame.rootScope();
 
     m_frame.setArgumentNames(blockAST.argumentNames());
-
     // Add argument values to the prototype frame.
     m_frame.setPrototypeFrame(m_frame.prototypeFrame().addAll(context, blockAST.argumentDefaults()));
 
     // Include the arguments in the root scope value names set.
     for (int32_t i = 0; i < blockAST.argumentNames().size(); ++i) {
-        scope.valueIndices().typedPut(context, blockAST.argumentNames().at(i), m_frame.prototypeFrame().size());
-        m_frame.setPrototypeFrame(m_frame.prototypeFrame().add(context, blockAST.argumentDefaults().at(i)));
+        scope.valueIndices().typedPut(context, blockAST.argumentNames().at(i), i);
     }
 
     scope.setBlocks(

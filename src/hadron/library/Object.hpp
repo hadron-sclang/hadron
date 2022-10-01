@@ -103,10 +103,11 @@ public:
     explicit ObjectBase(schema::ObjectSchema* instance): Object<ObjectBase, schema::ObjectSchema>(instance) { }
     explicit ObjectBase(Slot instance): Object<ObjectBase, schema::ObjectSchema>(instance) { }
     ~ObjectBase() { }
+
+    Slot _BasicNew(ThreadContext* context, int32_t maxSize);
 };
 
 } // namespace library
 } // namespace hadron
-
 
 #endif // SRC_HADRON_LIBRARY_OBJECT_HPP_

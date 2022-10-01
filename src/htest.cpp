@@ -1,6 +1,7 @@
 // htest, command line SuperCollider language script interpreter
 #include "hadron/ClassLibrary.hpp"
 #include "hadron/internal/FileSystem.hpp"
+#include "hadron/library/Object.hpp"
 #include "hadron/Runtime.hpp"
 #include "hadron/SlotDumpJSON.hpp"
 #include "hadron/SlotDumpJSON.hpp"
