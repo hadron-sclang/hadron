@@ -1,6 +1,7 @@
 #ifndef SRC_HADRON_CLASS_LIBRARY_HPP_
 #define SRC_HADRON_CLASS_LIBRARY_HPP_
 
+#include "hadron/Generator.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Slot.hpp"
 #include "hadron/library/Array.hpp"
@@ -35,6 +36,9 @@ public:
     // compilation. |input| must be valid only for the lifetime of the call. After providing all class definition
     // inputs, call finalizeLibrary() to finish class library compilation.
     bool scanString(ThreadContext* context, std::string_view input, library::Symbol filename);
+
+    template<typename T, typename F, typename ...TArgs>
+    void registerPrimitive(library::Symbol primitiveName, F memberFunc);
 
     bool finalizeLibrary(ThreadContext* context);
 
@@ -89,7 +93,34 @@ private:
     std::unordered_set<library::Symbol> m_bootstrapClasses;
 
     library::Method m_functionCompileContext;
+
+    std::unordered_map<library::Symbol, SCMethod> m_primitives;
 };
+
+template<typename T>
+inline T wrapArg(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
+    auto arg = framePointer->getArg(argNumber);
+    ++argNumber;
+    return T(arg);
+}
+template<>
+inline int32_t wrapArg(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
+    auto arg = framePointer->getArg(argNumber);
+    ++argNumber;
+    return arg.getInt32();
+}
+
+template<typename T, typename F, typename ...TArgs>
+void ClassLibrary::registerPrimitive(library::Symbol primitiveName, F memberFunc) {
+    SCMethod method =
+        +[memberFunc](ThreadContext* context, schema::FramePrivateSchema* framePointer, Slot* /* stackPointer */) -> Slot {
+        int32_t argNumber = 0;
+        auto target = wrapArg<T>(framePointer, argNumber);
+        return (target.*memberFunc)(context, wrapArg<TArgs>(framePointer, argNumber)...);
+    };
+
+    m_primitives.emplace(std::make_pair(primitiveName, method));
+}
 
 } // namespace hadron
 

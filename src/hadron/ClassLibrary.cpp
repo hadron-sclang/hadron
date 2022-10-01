@@ -2,7 +2,6 @@
 
 #include "hadron/ASTBuilder.hpp"
 #include "hadron/BlockBuilder.hpp"
-#include "hadron/Generator.hpp"
 #include "hadron/Hash.hpp"
 #include "hadron/Heap.hpp"
 #include "hadron/internal/FileSystem.hpp"
@@ -189,6 +188,10 @@ bool ClassLibrary::scanString(ThreadContext* context, std::string_view input, li
 }
 
 bool ClassLibrary::finalizeLibrary(ThreadContext* context) {
+    registerPrimitive<library::ObjectBase, Slot(library::ObjectBase::*)(ThreadContext*, int32_t), int32_t>
+    (library::Symbol::fromView(context, "_BasicNew"),
+        &library::ObjectBase::_BasicNew);
+
     if (!finalizeHeirarchy(context)) {
         return false;
     }

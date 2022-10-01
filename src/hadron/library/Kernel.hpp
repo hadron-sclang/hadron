@@ -27,6 +27,11 @@ struct FramePrivateSchema {
     Slot context;
     Slot homeContext;
     Slot arg0;
+
+    inline Slot getArg(int32_t i) {
+        return *reinterpret_cast<Slot*>(reinterpret_cast<int8_t*>(this) + offsetof(FramePrivateSchema, arg0) +
+            (i * kSlotSize));
+    }
 };
 } // namespace schema
 

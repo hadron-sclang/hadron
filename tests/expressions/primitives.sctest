@@ -2,7 +2,7 @@
 //+ CLASSES:
 PrimitivesTest {
     *a {
-        _ReturnZero;
+        _HTestReturnZero;
     }
 }
 //+ RUN: Empty function declaration
