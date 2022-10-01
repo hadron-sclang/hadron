@@ -14,7 +14,21 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
+
+namespace {
+template <typename T> inline T wrapArg(hadron::schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
+    auto arg = framePointer->getArg(argNumber);
+    ++argNumber;
+    return T(arg);
+}
+template <> inline int32_t wrapArg<int32_t>(hadron::schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
+    auto arg = framePointer->getArg(argNumber);
+    ++argNumber;
+    return arg.getInt32();
+}
+} // namespace
 
 namespace hadron {
 
@@ -38,19 +52,6 @@ public:
     bool scanString(ThreadContext* context, std::string_view input, library::Symbol filename);
 
     template <typename T, typename... TArgs> struct PrimSignature {
-    private:
-        template <typename W> static inline W wrapArg(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
-            auto arg = framePointer->getArg(argNumber);
-            ++argNumber;
-            return W(arg);
-        }
-        template <> inline int32_t wrapArg<int32_t>(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
-            auto arg = framePointer->getArg(argNumber);
-            ++argNumber;
-            return arg.getInt32();
-        }
-
-    public:
         using functionType = Slot (T::*)(ThreadContext*, TArgs...);
 
         template <functionType F> static constexpr SCMethod makeMethod() {

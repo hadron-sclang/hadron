@@ -110,31 +110,40 @@ SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFram
 
             case library::ReadFromClassHIR::nameHash(): {
                 auto readFromClassHIR = library::ReadFromClassHIR(hir.slot());
+                assert(false);
             } break;
 
             case library::ReadFromContextHIR::nameHash(): {
                 auto readFromContextHIR = library::ReadFromContextHIR(hir.slot());
+                assert(false);
             } break;
 
             case library::ReadFromFrameHIR::nameHash(): {
                 auto readFromFrameHIR = library::ReadFromFrameHIR(hir.slot());
+                auto src = asmjit::x86::ptr(framePointerReg,
+                                            sizeof(schema::FramePrivateSchema)
+                                                + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
+                compiler.mov(vRegs[readFromFrameHIR.id().int32()], src);
             } break;
 
             case library::ReadFromThisHIR::nameHash(): {
                 auto readFromThisHIR = library::ReadFromThisHIR(hir.slot());
+                assert(false);
             } break;
 
             case library::RouteToSuperclassHIR::nameHash(): {
                 // TODO: super routing, perhaps with a different interrupt code to dispatch?
+                assert(false);
             } break;
 
             case library::WriteToClassHIR::nameHash(): {
                 auto writeToClassHIR = library::WriteToClassHIR(hir.slot());
+                assert(false);
             } break;
 
             case library::WriteToFrameHIR::nameHash(): {
                 auto writeToFrameHIR = library::WriteToFrameHIR(hir.slot());
-
+                assert(false);
             } break;
 
             case library::WriteToThisHIR::nameHash(): {
