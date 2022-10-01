@@ -188,9 +188,8 @@ bool ClassLibrary::scanString(ThreadContext* context, std::string_view input, li
 }
 
 bool ClassLibrary::finalizeLibrary(ThreadContext* context) {
-    registerPrimitive<library::ObjectBase, Slot(library::ObjectBase::*)(ThreadContext*, int32_t), int32_t>
-    (library::Symbol::fromView(context, "_BasicNew"),
-        &library::ObjectBase::_BasicNew);
+    registerPrimitive(library::Symbol::fromView(context, "_BasicNew"),
+            PrimSignature<library::ObjectBase, int32_t>::makeMethod<&library::ObjectBase::_BasicNew>());
 
     if (!finalizeHeirarchy(context)) {
         return false;

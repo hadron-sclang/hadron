@@ -37,8 +37,38 @@ public:
     // inputs, call finalizeLibrary() to finish class library compilation.
     bool scanString(ThreadContext* context, std::string_view input, library::Symbol filename);
 
-    template<typename T, typename F, typename ...TArgs>
-    void registerPrimitive(library::Symbol primitiveName, F memberFunc);
+    template<typename T, typename ...TArgs>
+    struct PrimSignature {
+    private:
+        template<typename W>
+        static inline W wrapArg(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
+            auto arg = framePointer->getArg(argNumber);
+            ++argNumber;
+            return W(arg);
+        }
+        template<>
+        inline int32_t wrapArg<int32_t>(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
+            auto arg = framePointer->getArg(argNumber);
+            ++argNumber;
+            return arg.getInt32();
+        }
+    public:
+        using functionType = Slot (T::*)(ThreadContext*, TArgs...);
+
+        template<functionType F>
+        static constexpr SCMethod makeMethod() {
+            return +[](ThreadContext* context, schema::FramePrivateSchema* framePointer, Slot*) -> uint64_t {
+                int32_t argNumber = 0;
+                auto target = wrapArg<T>(framePointer, argNumber);
+                auto value = (target.*F)(context, wrapArg<TArgs>(framePointer, argNumber)...);
+                return value.asBits();
+            };
+        }
+    };
+
+    void registerPrimitive(library::Symbol primitiveName, SCMethod method) {
+        m_primitives.emplace(std::make_pair(primitiveName, method));
+    }
 
     bool finalizeLibrary(ThreadContext* context);
 
@@ -96,31 +126,6 @@ private:
 
     std::unordered_map<library::Symbol, SCMethod> m_primitives;
 };
-
-template<typename T>
-inline T wrapArg(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
-    auto arg = framePointer->getArg(argNumber);
-    ++argNumber;
-    return T(arg);
-}
-template<>
-inline int32_t wrapArg(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
-    auto arg = framePointer->getArg(argNumber);
-    ++argNumber;
-    return arg.getInt32();
-}
-
-template<typename T, typename F, typename ...TArgs>
-void ClassLibrary::registerPrimitive(library::Symbol primitiveName, F memberFunc) {
-    SCMethod method =
-        +[memberFunc](ThreadContext* context, schema::FramePrivateSchema* framePointer, Slot* /* stackPointer */) -> Slot {
-        int32_t argNumber = 0;
-        auto target = wrapArg<T>(framePointer, argNumber);
-        return (target.*memberFunc)(context, wrapArg<TArgs>(framePointer, argNumber)...);
-    };
-
-    m_primitives.emplace(std::make_pair(primitiveName, method));
-}
 
 } // namespace hadron
 
