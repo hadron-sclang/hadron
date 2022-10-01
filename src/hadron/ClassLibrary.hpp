@@ -37,26 +37,23 @@ public:
     // inputs, call finalizeLibrary() to finish class library compilation.
     bool scanString(ThreadContext* context, std::string_view input, library::Symbol filename);
 
-    template<typename T, typename ...TArgs>
-    struct PrimSignature {
+    template <typename T, typename... TArgs> struct PrimSignature {
     private:
-        template<typename W>
-        static inline W wrapArg(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
+        template <typename W> static inline W wrapArg(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
             auto arg = framePointer->getArg(argNumber);
             ++argNumber;
             return W(arg);
         }
-        template<>
-        inline int32_t wrapArg<int32_t>(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
+        template <> inline int32_t wrapArg<int32_t>(schema::FramePrivateSchema* framePointer, int32_t& argNumber) {
             auto arg = framePointer->getArg(argNumber);
             ++argNumber;
             return arg.getInt32();
         }
+
     public:
         using functionType = Slot (T::*)(ThreadContext*, TArgs...);
 
-        template<functionType F>
-        static constexpr SCMethod makeMethod() {
+        template <functionType F> static constexpr SCMethod makeMethod() {
             return +[](ThreadContext* context, schema::FramePrivateSchema* framePointer, Slot*) -> uint64_t {
                 int32_t argNumber = 0;
                 auto target = wrapArg<T>(framePointer, argNumber);

@@ -126,7 +126,8 @@ SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFram
             case library::ReadFromFrameHIR::nameHash(): {
                 auto readFromFrameHIR = library::ReadFromFrameHIR(hir.slot());
                 auto src = asmjit::a64::ptr(framePointerReg,
-                        sizeof(schema::FramePrivateSchema) + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
+                                            sizeof(schema::FramePrivateSchema)
+                                                + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
                 compiler.ldr(vRegs[readFromFrameHIR.id().int32()], src);
             } break;
 
