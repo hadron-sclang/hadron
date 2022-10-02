@@ -436,7 +436,7 @@ TEST_CASE("Lexer Strings") {
         CHECK(!lexer.tokens()[1].escapeString);
     }
     SUBCASE("extended characters in string") {
-        const char* code = "\"(╯°□°)╯︵ ┻━┻\"";
+        const char* code = u8"\"(╯°□°)╯︵ ┻━┻\"";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 1);
@@ -569,7 +569,7 @@ TEST_CASE("Lexer Symbols") {
         CHECK(!lexer.tokens()[8].escapeString);
     }
     SUBCASE("extended characters in quote symbols") {
-        const char* code = "'🖤💛💙💜💚🧡'";
+        const char* code = u8"'🖤💛💙💜💚🧡'";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 1);
@@ -1705,7 +1705,7 @@ TEST_CASE("Lexer Comments") {
         CHECK(lexer.tokens()[0].range.size() == 1);
     }
     SUBCASE("line comment extended chars") {
-        const char* code = "// 寧為太平犬，不做亂世人\n";
+        const char* code = u8"// 寧為太平犬，不做亂世人\n";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 0);
@@ -1776,7 +1776,7 @@ TEST_CASE("Lexer Comments") {
         CHECK(lexer.tokens()[1].range.compare("a") == 0);
     }
     SUBCASE("block comment extended characters") {
-        const char* code = "/* // ✌️a */";
+        const char* code = u8"/* // ✌️a */";
         Lexer lexer(code);
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 0);

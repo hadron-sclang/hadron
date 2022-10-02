@@ -318,7 +318,8 @@
 
         any {
             auto loc = getLocation(ts);
-            SPDLOG_ERROR("Lexer error near line {} char {}.", loc.lineNumber, loc.characterNumber);
+            std::string_view localBuff(ts, std::min(5ul, static_cast<size_t>(te - ts)));
+            SPDLOG_ERROR("Lexer error near line {} char {}: '{}'.", loc.lineNumber, loc.characterNumber, localBuff);
             return false;
         };
     *|;
