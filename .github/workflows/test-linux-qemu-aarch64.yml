@@ -3,7 +3,6 @@ on: [push, pull_request]
 jobs:
   # GitHub action testing of aarch64 on linux under emulation using https://github.com/uraimo/run-on-arch-action
   test-linux-qemu-aarch64:
-    needs: cpp-linter
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
