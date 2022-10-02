@@ -11,8 +11,6 @@ jobs:
         with:
           arch: aarch64
           distro: ubuntu_latest
-          env: |
-            BUILD_PATH: ${{ github.workspace }}/build
           install: |
             export BUILD_PATH=${{ github.workspace }}/build
             apt-get update
@@ -25,7 +23,7 @@ jobs:
               java -Xmx500M -cp "${BUILD_PATH}/install-ext/lib/antlr-4.11.1-complete.jar:$CLASSPATH" org.antlr.v4.Tool $@' > $BUILD_PATH/install-ext/bin/antlr4
             chmod u+x $BUILD_PATH/install-ext/bin/antlr4
           run: |
-            cd $BUILD_PATH
+            export BUILD_PATH=${{ github.workspace }}/build
             cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DANTLR_COMMAND_LINE=$BUILD_PATH/install-ext/bin/antlr4 ..
             cmake --build .
             ctest -C Debug -T test --output-on-failure
