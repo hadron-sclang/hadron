@@ -14,6 +14,7 @@ jobs:
           env: |
             BUILD_PATH: ${{ github.workspace }}/build
           install: |
+            export BUILD_PATH=${{ github.workspace }}/build
             apt-get update
             apt-get install --yes ninja-build cmake bison ragel gperf build-essential
             mkdir -p $BUILD_PATH/install-ext/{lib,bin}
