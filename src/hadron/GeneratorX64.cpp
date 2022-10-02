@@ -129,9 +129,9 @@ SCMethod Generator::buildFunction(ThreadContext* context, asmjit::FuncSignature 
 
             case library::ReadFromFrameHIR::nameHash(): {
                 auto readFromFrameHIR = library::ReadFromFrameHIR(hir.slot());
-                auto src = asmjit::x86::ptr(framePointerReg,
-                                            sizeof(schema::FramePrivateSchema)
-                                                + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
+                auto fp = readFromFrameHIR.frameId() ? vRegs[readFromFrameHIR.frameId().int32()] : framePointerReg;
+                auto src = asmjit::x86::ptr(
+                    fp, sizeof(schema::FramePrivateSchema) + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
                 compiler.mov(vRegs[readFromFrameHIR.id().int32()], src);
             } break;
 
