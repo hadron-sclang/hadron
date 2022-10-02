@@ -53,8 +53,8 @@ SCMethod Generator::buildFunction(ThreadContext* context, asmjit::FuncSignature 
                 compiler.mov(invokePointer, (uint64_t)Generator::newFunction);
                 asmjit::InvokeNode* invokeNode = nullptr;
                 compiler.invoke(&invokeNode, invokePointer,
-                                asmjit::FuncSignatureT<schema::FunctionSchema*, ThreadContext*, uint64_t,
-                                                       schema::FramePrivateSchema*>(asmjit::CallConvId::kHost));
+                                asmjit::FuncSignatureT<uint64_t, ThreadContext*, uint64_t, schema::FramePrivateSchema*>(
+                                    asmjit::CallConvId::kHost));
                 invokeNode->setRet(0, vRegs[blockLiteralHIR.id().int32()]);
                 invokeNode->setArg(0, contextReg);
                 invokeNode->setArg(1, asmjit::Imm(blockLiteralHIR.functionDef().slot().asBits()));
