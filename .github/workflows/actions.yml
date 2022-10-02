@@ -51,6 +51,7 @@ jobs:
           cd $BUILD_PATH
           ctest -C Debug -T test --output-on-failure
 
+  # GitHub action testing of aarch64 on linux under emulation using https://github.com/uraimo/run-on-arch-action
   test-linux-qemu-aarch64:
     needs: cpp-linter
     runs-on: ubuntu-latest
@@ -60,7 +61,7 @@ jobs:
         name: run commands
         with:
           arch: aarch64
-          distro: ubuntu-latest
+          distro: ubuntu_latest
           env: |
             BUILD_PATH: ${{ github.workspace }}/build
           install: |
