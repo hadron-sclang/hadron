@@ -1,5 +1,5 @@
 name: test-windows-x86_64
-on: [pull_request]
+on: [push, pull_request]
 jobs:
   test-windows-x86_64:
     runs-on: windows-latest

@@ -1,5 +1,5 @@
 name: test-linux-x86_64
-on: [pull_request]
+on: [push, pull_request]
 jobs:
   test-linux-x86_64:
     runs-on: ubuntu-latest
