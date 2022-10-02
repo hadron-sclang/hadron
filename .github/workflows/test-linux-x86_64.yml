@@ -7,6 +7,8 @@ jobs:
       BUILD_PATH: ${{ github.workspace }}/build
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - name: install dependencies
         run: |
           sudo apt-get update
