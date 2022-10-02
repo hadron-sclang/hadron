@@ -1,6 +1,7 @@
 #include "hadron/Generator.hpp"
 
 #include "hadron/ClassLibrary.hpp"
+#include "hadron/library/Function.hpp"
 #include "hadron/library/HadronHIR.hpp"
 
 #include "spdlog/spdlog.h"
@@ -9,8 +10,8 @@
 
 namespace hadron {
 
-SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFrame /* frame */,
-                                  asmjit::FuncSignature signature, std::vector<library::CFGBlock>& blocks,
+SCMethod Generator::buildFunction(ThreadContext* context, asmjit::FuncSignature signature,
+                                  std::vector<library::CFGBlock>& blocks,
                                   library::TypedArray<library::BlockId> blockOrder) {
     asmjit::CodeHolder codeHolder;
     codeHolder.init(m_jitRuntime.environment());
@@ -46,9 +47,20 @@ SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFram
         for (int32_t j = 0; j < block.statements().size(); ++j) {
             auto hir = block.statements().typedAt(j);
             switch (hir.className()) {
-            case library::BlockLiteralHIR::nameHash():
-                assert(false);
+            case library::BlockLiteralHIR::nameHash(): {
+                auto blockLiteralHIR = library::BlockLiteralHIR(hir.slot());
+                auto invokePointer = compiler.newGp(asmjit::TypeId::kUIntPtr);
+                compiler.mov(invokePointer, (uint64_t)Generator::newFunction);
+                asmjit::InvokeNode* invokeNode = nullptr;
+                compiler.invoke(&invokeNode, invokePointer,
+                                asmjit::FuncSignatureT<uint64_t, ThreadContext*, uint64_t, schema::FramePrivateSchema*>(
+                                    asmjit::CallConvId::kHost));
+                invokeNode->setRet(0, vRegs[blockLiteralHIR.id().int32()]);
+                invokeNode->setArg(0, contextReg);
+                invokeNode->setArg(1, asmjit::Imm(blockLiteralHIR.functionDef().slot().asBits()));
+                invokeNode->setArg(2, framePointerReg);
                 break;
+            }
 
             case library::BranchHIR::nameHash(): {
                 auto branchHIR = library::BranchHIR(hir.slot());
@@ -94,13 +106,13 @@ SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFram
                 compiler.invoke(&invokeNode, functionPointer,
                                 asmjit::FuncSignatureT<uint64_t, ThreadContext*, Hash, int32_t, int32_t,
                                                        schema::FramePrivateSchema*, Slot*>(asmjit::CallConvId::kHost));
+                invokeNode->setRet(0, vRegs[messageHIR.id().int32()]);
                 invokeNode->setArg(0, contextReg);
                 invokeNode->setArg(1, asmjit::Imm(messageHIR.selector(context).hash()));
                 invokeNode->setArg(2, asmjit::Imm(messageHIR.arguments().size()));
                 invokeNode->setArg(3, asmjit::Imm(messageHIR.keywordArguments().size() / 2));
                 invokeNode->setArg(4, framePointerReg);
                 invokeNode->setArg(5, stackPointerReg);
-                invokeNode->setRet(0, vRegs[messageHIR.id().int32()]);
             } break;
 
             case library::MethodReturnHIR::nameHash(): {
@@ -125,9 +137,9 @@ SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFram
 
             case library::ReadFromFrameHIR::nameHash(): {
                 auto readFromFrameHIR = library::ReadFromFrameHIR(hir.slot());
-                auto src = asmjit::a64::ptr(framePointerReg,
-                                            sizeof(schema::FramePrivateSchema)
-                                                + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
+                auto fp = readFromFrameHIR.frameId() ? vRegs[readFromFrameHIR.frameId().int32()] : framePointerReg;
+                auto src = asmjit::a64::ptr(
+                    fp, sizeof(schema::FramePrivateSchema) + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
                 compiler.ldr(vRegs[readFromFrameHIR.id().int32()], src);
             } break;
 

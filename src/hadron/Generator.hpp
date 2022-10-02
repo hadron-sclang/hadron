@@ -30,9 +30,6 @@
 //   c) Selector-specific dispatch function that handles routing
 
 namespace hadron {
-namespace schema {
-struct FramePrivateSchema;
-} // namespace schema
 
 typedef uint64_t (*SCMethod)(ThreadContext*, schema::FramePrivateSchema* framePointer, Slot* stackPointer);
 
@@ -41,16 +38,18 @@ public:
     Generator() = default;
     ~Generator() = default;
 
-    SCMethod serialize(ThreadContext* context, const library::CFGFrame frame);
+    SCMethod serialize(ThreadContext* context, library::CFGFrame frame);
 
     static bool markThreadForJITCompilation();
     static void markThreadForJITExecution();
 
 private:
+    static uint64_t newFunction(ThreadContext* context, uint64_t functionDef, schema::FramePrivateSchema* framePointer);
+
     // Performs a recursive postorder traversal of the blocks and saves the output in |blockOrder|.
     void orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,
                      library::TypedArray<library::BlockId> blockOrder);
-    SCMethod buildFunction(ThreadContext* context, const library::CFGFrame frame, asmjit::FuncSignature signature,
+    SCMethod buildFunction(ThreadContext* context, asmjit::FuncSignature signature,
                            std::vector<library::CFGBlock>& blocks, library::TypedArray<library::BlockId> blockOrder);
 
     asmjit::JitRuntime m_jitRuntime; // needs to last for the lifetime of the program

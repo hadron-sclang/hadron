@@ -25,6 +25,12 @@ Slot ObjectBase::_BasicNew(ThreadContext* context, int32_t maxSize) {
     object->sizeInBytes = sizeInBytes;
     object->className = targetName.hash();
     object->allocationSize = allocatedSize;
+    Slot* contents = reinterpret_cast<Slot*>(object + 1);
+    for (int32_t i = 0; i < sizeInSlots; ++i) {
+        *contents = Slot::makeNil();
+        ++contents;
+    }
+
     return Slot::makePointer(object);
 }
 

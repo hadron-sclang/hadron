@@ -1,9 +1,5 @@
 //+//: Function Declarations Tests
 
-//+ RUN: Empty function declaration
-(
-{}
-)
-//+ EXPECTING:
-a Function
+//+ CHECK: {}
+//+ GIVES: a Function
 //+//:

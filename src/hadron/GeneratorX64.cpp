@@ -1,14 +1,15 @@
 #include "hadron/Generator.hpp"
 
 #include "hadron/ClassLibrary.hpp"
+#include "hadron/library/Function.hpp"
 #include "hadron/library/HadronHIR.hpp"
 
 #include <algorithm>
 
 namespace hadron {
 
-SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFrame /* frame */,
-                                  asmjit::FuncSignature signature, std::vector<library::CFGBlock>& blocks,
+SCMethod Generator::buildFunction(ThreadContext* context, asmjit::FuncSignature signature,
+                                  std::vector<library::CFGBlock>& blocks,
                                   library::TypedArray<library::BlockId> blockOrder) {
     asmjit::CodeHolder codeHolder;
     codeHolder.init(m_jitRuntime.environment());
@@ -45,9 +46,17 @@ SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFram
         for (int32_t j = 0; j < block.statements().size(); ++j) {
             auto hir = block.statements().typedAt(j);
             switch (hir.className()) {
-            case library::BlockLiteralHIR::nameHash():
-                assert(false);
-                break;
+            case library::BlockLiteralHIR::nameHash(): {
+                auto blockLiteralHIR = library::BlockLiteralHIR(hir.slot());
+                asmjit::InvokeNode* invokeNode = nullptr;
+                compiler.invoke(&invokeNode, Generator::newFunction,
+                                asmjit::FuncSignatureT<uint64_t, ThreadContext*, uint64_t, schema::FramePrivateSchema*>(
+                                    asmjit::CallConvId::kHost));
+                invokeNode->setRet(0, vRegs[blockLiteralHIR.id().int32()]);
+                invokeNode->setArg(0, contextReg);
+                invokeNode->setArg(1, asmjit::Imm(blockLiteralHIR.functionDef().slot().asBits()));
+                invokeNode->setArg(2, framePointerReg);
+            } break;
 
             case library::BranchHIR::nameHash(): {
                 auto branchHIR = library::BranchHIR(hir.slot());
@@ -120,9 +129,9 @@ SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFram
 
             case library::ReadFromFrameHIR::nameHash(): {
                 auto readFromFrameHIR = library::ReadFromFrameHIR(hir.slot());
-                auto src = asmjit::x86::ptr(framePointerReg,
-                                            sizeof(schema::FramePrivateSchema)
-                                                + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
+                auto fp = readFromFrameHIR.frameId() ? vRegs[readFromFrameHIR.frameId().int32()] : framePointerReg;
+                auto src = asmjit::x86::ptr(
+                    fp, sizeof(schema::FramePrivateSchema) + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
                 compiler.mov(vRegs[readFromFrameHIR.id().int32()], src);
             } break;
 
