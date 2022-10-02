@@ -32,6 +32,7 @@ jobs:
             chmod u+x $BUILD_PATH/install-ext/bin/antlr4
           run: |
             export BUILD_PATH=/hadron/build
+            cd $BUILD_PATH
             cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DANTLR_COMMAND_LINE=$BUILD_PATH/install-ext/bin/antlr4 ..
             cmake --build .
             ctest -C Debug -T test --output-on-failure
