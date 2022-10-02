@@ -28,8 +28,10 @@ jobs:
             cd $BUILD_PATH/install-ext/lib
             curl -O https://www.antlr.org/download/antlr-4.11.1-complete.jar
             cd $BUILD_PATH
-            echo '#!/bin/bash
-              java -Xmx500M -cp "${BUILD_PATH}/install-ext/lib/antlr-4.11.1-complete.jar:$CLASSPATH" org.antlr.v4.Tool $@' > $BUILD_PATH/install-ext/bin/antlr4
+            echo $'#!/bin/bash\njava -Xmx500M -cp "${BUILD_PATH}/install-ext/lib/antlr-4.11.1-complete.jar:$CLASSPATH" org.antlr.v4.Tool $@' > $BUILD_PATH/install-ext/bin/antlr4
+            echo "$BUILD_PATH/install-ext/bin/antlr4: "
+            cat $BUILD_PATH/install-ext/bin/antlr4
+            which java
             chmod u+x $BUILD_PATH/install-ext/bin/antlr4
           run: |
             export BUILD_PATH=/hadron/build
