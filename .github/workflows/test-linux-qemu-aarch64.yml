@@ -21,10 +21,11 @@ jobs:
             --volume "$SRC_PATH:/hadron"
           install: |
             export BUILD_PATH=/hadron/build
+            apt-get update
+            apt-get install --yes locales language-pack-en
             locale-gen en_US.UTF-8
             echo $'LC_ALL=en_US.UTF-8\nLANG=en_US.UTF-8' >> /etc/environment
             dpkg-reconfigure locales
-            apt-get update
             apt-get install --yes ninja-build cmake bison ragel gperf build-essential curl git default-jre-headless
             git config --global --add safe.directory /hadron
           run: |
@@ -35,10 +36,6 @@ jobs:
             cd $BUILD_PATH
             echo $'#!/bin/bash\njava -Xmx500M -cp "${BUILD_PATH}/install-ext/lib/antlr-4.11.1-complete.jar:$CLASSPATH" org.antlr.v4.Tool $@' > $BUILD_PATH/install-ext/bin/antlr4
             chmod a+x $BUILD_PATH/install-ext/bin/antlr4
-            echo "$BUILD_PATH/install-ext/bin/antlr4: "
-            cat $BUILD_PATH/install-ext/bin/antlr4
-            which java
-            java --version
             $BUILD_PATH/install-ext/bin/antlr4
             cd $BUILD_PATH
             cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DANTLR_COMMAND_LINE=$BUILD_PATH/install-ext/bin/antlr4 ..
