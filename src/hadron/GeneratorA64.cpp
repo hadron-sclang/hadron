@@ -9,8 +9,8 @@
 
 namespace hadron {
 
-SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFrame /* frame */,
-                                  asmjit::FuncSignature signature, std::vector<library::CFGBlock>& blocks,
+SCMethod Generator::buildFunction(ThreadContext* context, asmjit::FuncSignature signature,
+                                  std::vector<library::CFGBlock>& blocks,
                                   library::TypedArray<library::BlockId> blockOrder) {
     asmjit::CodeHolder codeHolder;
     codeHolder.init(m_jitRuntime.environment());
@@ -46,9 +46,21 @@ SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFram
         for (int32_t j = 0; j < block.statements().size(); ++j) {
             auto hir = block.statements().typedAt(j);
             switch (hir.className()) {
-            case library::BlockLiteralHIR::nameHash():
-                assert(false);
+            case library::BlockLiteralHIR::nameHash(): {
+                auto blockLiteralHIR = library::BlockLiteralHIR(hir.slot());
+                auto funcPointerReg = compiler.newGp(asmjit::TypeId::kIntPtr);
+                auto functionPointer = compiler.newGp(asmjit::TypeId::kUIntPtr);
+                compiler.mov(functionPointer, (uint64_t)Generator::newFunction);
+                asmjit::InvokeNode* invokeNode = nullptr;
+                compiler.invoke(
+                    &invokeNode, functionPointer,
+                    asmjit::FuncSignatureT<schema::FunctionSchema*, ThreadContext*>(asmjit::CallConvId::kHost));
+                invokeNode->setArg(0, contextReg);
+                invokeNode->setRet(0, funcPointerReg);
+
+                // Do something with the func Pointer? Or just have the function build it?
                 break;
+            }
 
             case library::BranchHIR::nameHash(): {
                 auto branchHIR = library::BranchHIR(hir.slot());
@@ -125,9 +137,9 @@ SCMethod Generator::buildFunction(ThreadContext* context, const library::CFGFram
 
             case library::ReadFromFrameHIR::nameHash(): {
                 auto readFromFrameHIR = library::ReadFromFrameHIR(hir.slot());
-                auto src = asmjit::a64::ptr(framePointerReg,
-                                            sizeof(schema::FramePrivateSchema)
-                                                + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
+                auto fp = readFromFrameHIR.frameId() ? vRegs[readFromFrameHIR.frameId().int32()] : framePointerReg;
+                auto src = asmjit::a64::ptr(
+                    fp, sizeof(schema::FramePrivateSchema) + ((readFromFrameHIR.frameIndex() - 1) * kSlotSize));
                 compiler.ldr(vRegs[readFromFrameHIR.id().int32()], src);
             } break;
 

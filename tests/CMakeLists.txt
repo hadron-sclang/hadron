@@ -5,7 +5,7 @@ set(SCTESTS
     expressions/primitives
 
     lexical_analysis/floats
-#    lexical_analysis/functions
+    lexical_analysis/functions
     lexical_analysis/integers
 )
 
