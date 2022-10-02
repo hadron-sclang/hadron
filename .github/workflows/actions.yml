@@ -61,7 +61,7 @@ jobs:
         with:
           arch: aarch64
           distro: ubuntu-latest
-          env:
+          env: |
             BUILD_PATH: ${{ github.workspace }}/build
           install: |
             sudo apt-get update
