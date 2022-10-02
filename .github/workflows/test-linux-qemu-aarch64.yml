@@ -1,5 +1,10 @@
 name: test-linux-qemu-aarch64
-on: [push, pull_request]
+
+on:
+  workflow_run:
+    workflows: [linter]
+    types: [completed]
+
 jobs:
   # GitHub action testing of aarch64 on linux under emulation using https://github.com/uraimo/run-on-arch-action
   test-linux-qemu-aarch64:
