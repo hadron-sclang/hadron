@@ -32,7 +32,9 @@ jobs:
             echo "$BUILD_PATH/install-ext/bin/antlr4: "
             cat $BUILD_PATH/install-ext/bin/antlr4
             which java
-            chmod u+x $BUILD_PATH/install-ext/bin/antlr4
+            java --version
+            chmod a+x $BUILD_PATH/install-ext/bin/antlr4
+            $BUILD_PATH/install-ext/bin/antlr4
           run: |
             export BUILD_PATH=/hadron/build
             cd $BUILD_PATH
