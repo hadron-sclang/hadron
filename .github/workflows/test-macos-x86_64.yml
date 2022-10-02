@@ -1,5 +1,5 @@
 name: test-macos-x86_64
-on: [push, pull_request]
+on: [pull_request]
 jobs:
   test-macos-x86_64:
     runs-on: macos-latest
