@@ -1,6 +1,7 @@
 #include "hadron/Generator.hpp"
 
 #include "hadron/ClassLibrary.hpp"
+#include "hadron/library/Function.hpp"
 #include "hadron/library/HadronHIR.hpp"
 
 #include <algorithm>
@@ -45,9 +46,17 @@ SCMethod Generator::buildFunction(ThreadContext* context, asmjit::FuncSignature 
         for (int32_t j = 0; j < block.statements().size(); ++j) {
             auto hir = block.statements().typedAt(j);
             switch (hir.className()) {
-            case library::BlockLiteralHIR::nameHash():
-                assert(false);
-                break;
+            case library::BlockLiteralHIR::nameHash(): {
+                auto blockLiteralHIR = library::BlockLiteralHIR(hir.slot());
+                asmjit::InvokeNode* invokeNode = nullptr;
+                compiler.invoke(&invokeNode, Generator::newFunction,
+                                asmjit::FuncSignatureT<schema::FunctionSchema*, ThreadContext*, uint64_t,
+                                                       schema::FramePrivateSchema*>(asmjit::CallConvId::kHost));
+                invokeNode->setRet(0, vRegs[blockLiteralHIR.id().int32()]);
+                invokeNode->setArg(0, contextReg);
+                invokeNode->setArg(1, asmjit::Imm(blockLiteralHIR.functionDef().slot().asBits()));
+                invokeNode->setArg(2, framePointerReg);
+            } break;
 
             case library::BranchHIR::nameHash(): {
                 auto branchHIR = library::BranchHIR(hir.slot());

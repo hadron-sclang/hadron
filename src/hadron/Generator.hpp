@@ -30,10 +30,6 @@
 //   c) Selector-specific dispatch function that handles routing
 
 namespace hadron {
-namespace schema {
-struct FramePrivateSchema;
-struct FunctionSchema;
-} // namespace schema
 
 typedef uint64_t (*SCMethod)(ThreadContext*, schema::FramePrivateSchema* framePointer, Slot* stackPointer);
 
@@ -48,7 +44,7 @@ public:
     static void markThreadForJITExecution();
 
 private:
-    static schema::FunctionSchema* newFunction(ThreadContext* context);
+    static uint64_t newFunction(ThreadContext* context, uint64_t functionDef, schema::FramePrivateSchema* framePointer);
 
     // Performs a recursive postorder traversal of the blocks and saves the output in |blockOrder|.
     void orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,

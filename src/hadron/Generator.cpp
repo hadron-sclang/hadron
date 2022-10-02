@@ -61,9 +61,14 @@ void Generator::markThreadForJITExecution() {
 }
 
 // static
-schema::FunctionSchema* newFunction(ThreadContext* context) {
+uint64_t Generator::newFunction(ThreadContext* context, uint64_t functionDef,
+                                schema::FramePrivateSchema* framePointer) {
+    auto def = library::FunctionDef(Slot::makeFromBits(functionDef));
+    auto frame = library::Frame(framePointer);
     auto f = library::Function::alloc(context);
-    return f.instance();
+    f.setDef(def);
+    f.setContext(frame);
+    return f.slot().asBits();
 }
 
 void Generator::orderBlocks(ThreadContext* context, library::CFGBlock block, std::vector<library::CFGBlock>& blocks,

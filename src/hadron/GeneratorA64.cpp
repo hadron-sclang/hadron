@@ -1,6 +1,7 @@
 #include "hadron/Generator.hpp"
 
 #include "hadron/ClassLibrary.hpp"
+#include "hadron/library/Function.hpp"
 #include "hadron/library/HadronHIR.hpp"
 
 #include "spdlog/spdlog.h"
@@ -48,17 +49,16 @@ SCMethod Generator::buildFunction(ThreadContext* context, asmjit::FuncSignature 
             switch (hir.className()) {
             case library::BlockLiteralHIR::nameHash(): {
                 auto blockLiteralHIR = library::BlockLiteralHIR(hir.slot());
-                auto funcPointerReg = compiler.newGp(asmjit::TypeId::kIntPtr);
-                auto functionPointer = compiler.newGp(asmjit::TypeId::kUIntPtr);
-                compiler.mov(functionPointer, (uint64_t)Generator::newFunction);
+                auto invokePointer = compiler.newGp(asmjit::TypeId::kUIntPtr);
+                compiler.mov(invokePointer, (uint64_t)Generator::newFunction);
                 asmjit::InvokeNode* invokeNode = nullptr;
-                compiler.invoke(
-                    &invokeNode, functionPointer,
-                    asmjit::FuncSignatureT<schema::FunctionSchema*, ThreadContext*>(asmjit::CallConvId::kHost));
+                compiler.invoke(&invokeNode, invokePointer,
+                                asmjit::FuncSignatureT<schema::FunctionSchema*, ThreadContext*, uint64_t,
+                                                       schema::FramePrivateSchema*>(asmjit::CallConvId::kHost));
+                invokeNode->setRet(0, vRegs[blockLiteralHIR.id().int32()]);
                 invokeNode->setArg(0, contextReg);
-                invokeNode->setRet(0, funcPointerReg);
-
-                // Do something with the func Pointer? Or just have the function build it?
+                invokeNode->setArg(1, asmjit::Imm(blockLiteralHIR.functionDef().slot().asBits()));
+                invokeNode->setArg(2, framePointerReg);
                 break;
             }
 
@@ -106,13 +106,13 @@ SCMethod Generator::buildFunction(ThreadContext* context, asmjit::FuncSignature 
                 compiler.invoke(&invokeNode, functionPointer,
                                 asmjit::FuncSignatureT<uint64_t, ThreadContext*, Hash, int32_t, int32_t,
                                                        schema::FramePrivateSchema*, Slot*>(asmjit::CallConvId::kHost));
+                invokeNode->setRet(0, vRegs[messageHIR.id().int32()]);
                 invokeNode->setArg(0, contextReg);
                 invokeNode->setArg(1, asmjit::Imm(messageHIR.selector(context).hash()));
                 invokeNode->setArg(2, asmjit::Imm(messageHIR.arguments().size()));
                 invokeNode->setArg(3, asmjit::Imm(messageHIR.keywordArguments().size() / 2));
                 invokeNode->setArg(4, framePointerReg);
                 invokeNode->setArg(5, stackPointerReg);
-                invokeNode->setRet(0, vRegs[messageHIR.id().int32()]);
             } break;
 
             case library::MethodReturnHIR::nameHash(): {
