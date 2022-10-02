@@ -22,13 +22,14 @@ jobs:
           install: |
             export BUILD_PATH=/hadron/build
             apt-get update
-            echo $'LC_ALL=en_US.UTF-8\nLANG=en_US.UTF-8' >> /etc/environment
             apt-get install --yes locales language-pack-en
             apt-get install --yes ninja-build cmake bison ragel gperf build-essential curl git default-jre-headless
             git config --global --add safe.directory /hadron
           run: |
-            locale -x
             export BUILD_PATH=/hadron/build
+            export LANG="en_US.utf8"
+            export LANGUAGE="en_US.utf8"
+            export LC_ALL="en_US.utf8"
             mkdir -p $BUILD_PATH/install-ext/{lib,bin}
             cd $BUILD_PATH/install-ext/lib
             curl -O https://www.antlr.org/download/antlr-4.11.1-complete.jar
