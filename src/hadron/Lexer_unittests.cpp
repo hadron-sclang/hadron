@@ -436,13 +436,13 @@ TEST_CASE("Lexer Strings") {
         CHECK(!lexer.tokens()[1].escapeString);
     }
     SUBCASE("extended characters in string") {
-        const char* code = u8"\"(╯°□°)╯︵ ┻━┻\"";
-        Lexer lexer(code);
+        std::string code = u8"\"(╯°□°)╯︵ ┻━┻\"";
+        Lexer lexer(code.data());
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 1);
         CHECK(lexer.tokens()[0].name == Token::Name::kString);
-        CHECK(lexer.tokens()[0].range.data() == code + 1);
-        CHECK(lexer.tokens()[0].range.size() == std::strlen(code) - 2);
+        CHECK(lexer.tokens()[0].range.data() == code.data() + 1);
+        CHECK(lexer.tokens()[0].range.size() == std::strlen(code.data()) - 2);
         CHECK(!lexer.tokens()[0].escapeString);
     }
     SUBCASE("unterminated string") {
@@ -569,13 +569,13 @@ TEST_CASE("Lexer Symbols") {
         CHECK(!lexer.tokens()[8].escapeString);
     }
     SUBCASE("extended characters in quote symbols") {
-        const char* code = u8"'🖤💛💙💜💚🧡'";
-        Lexer lexer(code);
+        std::string code = u8"'🖤💛💙💜💚🧡'";
+        Lexer lexer(code.data());
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 1);
         CHECK(lexer.tokens()[0].name == Token::kSymbol);
-        CHECK(lexer.tokens()[0].range.data() == code + 1);
-        CHECK(lexer.tokens()[0].range.size() == std::strlen(code) - 2);
+        CHECK(lexer.tokens()[0].range.data() == code.data() + 1);
+        CHECK(lexer.tokens()[0].range.size() == std::strlen(code.data()) - 2);
         CHECK(!lexer.tokens()[0].escapeString);
     }
 }
@@ -1705,8 +1705,8 @@ TEST_CASE("Lexer Comments") {
         CHECK(lexer.tokens()[0].range.size() == 1);
     }
     SUBCASE("line comment extended chars") {
-        const char* code = u8"// 寧為太平犬，不做亂世人\n";
-        Lexer lexer(code);
+        std::string code = u8"// 寧為太平犬，不做亂世人\n";
+        Lexer lexer(code.data());
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 0);
     }
@@ -1776,8 +1776,8 @@ TEST_CASE("Lexer Comments") {
         CHECK(lexer.tokens()[1].range.compare("a") == 0);
     }
     SUBCASE("block comment extended characters") {
-        const char* code = u8"/* // ✌️a */";
-        Lexer lexer(code);
+        std::string code = u8"/* // ✌️a */";
+        Lexer lexer(code.data());
         REQUIRE(lexer.lex());
         REQUIRE(lexer.tokens().size() == 0);
     }

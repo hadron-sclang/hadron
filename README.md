@@ -1,8 +1,8 @@
 # Hadron
 
 Hadron is a re-implementation of the [SuperCollider](https://supercollider.github.io/) language interpreter, designed to
-Just-In-Time (JIT) compile SuperCollider code into machine code instructions. Hadron is in early development stage and
-is not ready for use, but will hopefully one day be useful for the SuperCollider community.
+Just-In-Time (JIT) compile SuperCollider code into machine code instructions. Hadron is in the pre-alpha development
+stage and is not ready for use, but will hopefully one day be useful for the SuperCollider community.
 
 The goals of Hadron are to make the SuperCollider language a *faster*, more *extensible*, and more *usable* programming
 language than ever before.
@@ -10,7 +10,7 @@ language than ever before.
 ## Execution Speed
 
 Hadron compiles blocks of SuperCollider code into machine code for execution directly on the host microprocessor.
-Balancing against compilation speed, it makes a best effort to pack local variables into processor registers, and to
+Balancing against compilation speed, it makes an effort to pack local variables into processor registers, and to
 deduce types of variables to "narrow down" the possible types of values to inline and optimize code at compile time as
 much as can be done on a dynamically-typed programming language.
 
