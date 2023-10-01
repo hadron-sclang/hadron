@@ -63,7 +63,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// // Add an integer to a Slot.
     /// fn add_integer(operand: i32, slot: Slot) -> Slot {
     ///     match slot.extract() {
@@ -94,7 +94,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// // Make a type-appropriate zero or nil type from the supplied Slot.
     /// fn nullify(slot: Slot) -> Slot {
     ///     let slot_type = match slot.extract() {
@@ -122,7 +122,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// let slot_true = Slot::from_boolean(true);
     /// let slot_false = Slot::from_boolean(false);
     /// assert!(slot_true.as_boolean().unwrap());
@@ -144,7 +144,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// let slot_bool = Slot::from_boolean(false);
     /// let slot_float = Slot::from_float(0.0);
     /// assert!(slot_bool.is_boolean());
@@ -159,7 +159,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// let slot = Slot::from_boolean(true);
     /// if (slot.as_boolean().unwrap()) {
     ///     println!("true!");
@@ -185,7 +185,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// let fire = Slot::from_character('🔥');
     /// assert_eq!(fire.extract(), SlotType::Character('🔥'));
     /// ```
@@ -202,7 +202,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// let character = Slot::from_character('\0');
     /// let integer = Slot::from_integer(0);
     /// assert!(character.is_character());
@@ -217,7 +217,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// fn to_uppercase(slot: Slot) -> Option<char> {
     ///     match slot.as_character() {
     ///         Some(c) => c.to_uppercase().next(),
@@ -244,7 +244,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// let a = Slot::from_float(-1.23);
     /// assert_eq!(a.extract(), SlotType::Float(-1.23));
     /// ```
@@ -258,7 +258,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// let a = Slot::from_float(1e7);
     /// let b = Slot::nil();
     /// assert!(a.is_float());
@@ -273,7 +273,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// fn square(slot: Slot) -> Option<f64> {
     ///     match slot.as_float() {
     ///         None => None,
@@ -299,7 +299,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// let k = Slot::from_integer(23);
     /// assert_eq!(k.extract(), SlotType::Integer(23));
     /// ```
@@ -315,7 +315,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// let i = Slot::from_integer(0);
     /// let f = Slot::from_float(0.0);
     /// assert!(i.is_integer());
@@ -331,7 +331,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// fn halve(slot: Slot) -> Option<i32> {
     ///     match slot.as_integer() {
     ///         None => None,
@@ -358,7 +358,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// let n = Slot::nil();
     /// assert!(n.is_nil());
     /// ```
@@ -373,7 +373,7 @@ impl Slot {
     /// # Examples
     ///
     /// ```
-    /// # use hadron::runtime::slot::{Slot, SlotType};
+    /// # use hadron_sclang::runtime::slot::{Slot, SlotType};
     /// let n = Slot::nil();
     /// let c = Slot::from_character('\0');
     /// assert!(n.is_nil());

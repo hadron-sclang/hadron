@@ -1,9 +1,15 @@
 [package]
-name = "hadron"
+name = "hadron_sclang"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "Apache-2.0"
+description = "Experimental SuperCollider music language interpreter"
+homepage = "https://hadron-sclang.org"
+repository = "https://github.com/hadron-sclang/hadron"
+readme = "README.md"
+authors = ["Lucile Rose Nihlen <none>"]
+keywords = [ "music", "audio", "synthesis", "language" ]
+categories = [ "multimedia", "parser-implementations" ]
 
 [dependencies]
 static_assertions = "1.1.0"
