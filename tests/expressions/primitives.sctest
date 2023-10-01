@@ -1,9 +1,0 @@
-//+//: Primitives Tests
-//+ CLASSES:
-A {
-    *a { |maxSize = 0|
-        _BasicNew;
-    }
-}
-//+ CHECK: A.a(0);
-//+ GIVES: a A

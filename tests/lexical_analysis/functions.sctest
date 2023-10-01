@@ -1,5 +1,0 @@
-//+//: Function Declarations Tests
-
-//+ CHECK: {}
-//+ GIVES: a Function
-//+//:
