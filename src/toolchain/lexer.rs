@@ -17,19 +17,29 @@ use crate::toolchain::cursor::Cursor;
 ///
 /// Because the lexer considers blank space as a [TokenKind::BlankSpace] token, and unrecognized
 /// characters as [TokenKind::Unknown] tokens, every character in the input string is covered by
-/// a [Token]. [Token]s are as small as possible to be cache-friendly.
+/// a [Token].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Token {
+pub struct Token<'a> {
     /// The kind of Token.
     pub kind: TokenKind,
 
-    /// Token length in *characters*, not bytes.
-    pub length: u32,
+    // The substring representing the Token.
+    pub string: &'a str,
+
+    // The 1-based line position in the input string.
+    pub line: u32,
+
+    // The 1-based character column on the line.
+    pub column: u32,
 }
 
-impl Token {
-    fn new(kind: TokenKind, length: u32) -> Token {
-        Token { kind, length }
+impl<'a> Token<'a> {
+    fn new(kind: TokenKind, string: &'a str, line: u32, column: u32) -> Token<'a> {
+        Token { kind, string, line, column }
+    }
+
+    fn end() -> Token<'a> {
+        Token { kind: TokenKind::EndOfInput, string: "", line: 0, column: 0 }
     }
 }
 
@@ -52,21 +62,6 @@ pub enum TokenKind {
     /// A block comment, including any nested comments within. It may contain line breaks.
     BlockComment,
 
-    /// `}` single-character delimiter.
-    BraceClose,
-
-    /// `{` single-character delimiter.
-    BraceOpen,
-
-    /// `]` single-character delimiter.
-    BracketClose,
-
-    /// `[` single-character delimiter.
-    BracketOpen,
-
-    /// `^` single-character delimiter.
-    Caret,
-
     /// A character literal, such as `$a` or `$\t`. `is_escaped` is `false` in the former example,
     /// `true` in the latter.
     Character { is_escaped: bool },
@@ -74,11 +69,7 @@ pub enum TokenKind {
     /// A class name starting with an uppercase letter, such as `SynthDef`.
     ClassName,
 
-    /// `:` single-character delimiter.
-    Colon,
-
-    /// `,` single-character delimiter.
-    Comma,
+    Delimiter { kind: DelimiterKind },
 
     /// A single period.
     Dot,
@@ -93,13 +84,8 @@ pub enum TokenKind {
     /// not appear to [Token] consumers.
     EndOfInput,
 
-    /// \` single-character delimiter.
-    Grave,
-
-    /// `#` single-character delimiter.
-    Hash,
-
-    /// Any valid name, including reserved words like `var`.
+    /// Any name starting with a lowercase letter and followed by 0 or more alphanumeric letters or
+    /// underscore `_`.
     Identifier,
 
     /// A symbol starting with a forward slash, such as `\synth`.
@@ -115,18 +101,11 @@ pub enum TokenKind {
     /// how to convert it to machine representation.
     Number { kind: NumberKind },
 
-    /// `)` single-character delimiter.
-    ParenClose,
-
-    /// `(` single-character delimiter.
-    ParenOpen,
-
     /// A binding to a C++ function in legacy SuperCollider. An underscore followed by one or more
     /// valid identifier characters (alphanumeric or underscore). For example, `_Basic_New`.
     Primitive,
 
-    /// `;` single-character delimiter.
-    Semicolon,
+    ReservedWord { kind: ReservedWordKind },
 
     /// A double-quoted character literal sequence. If it has backslash (`\`) escape characters in
     /// it `has_escapes` is true, telling later stages if they must process the string more or can
@@ -136,44 +115,8 @@ pub enum TokenKind {
     /// A single-quoted character literal sequence.
     Symbol { has_escapes: bool },
 
-    /// `~` single-character delimiter.
-    Tilde,
-
-    /// `_` single-character delimiter.
-    Underscore,
-
     /// Anything that the lexer didn't recognize as valid SuperCollider language input.
     Unknown
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NumberKind {
-    /// A base-10 number with a single dot, `1.0` for example.
-    Float,
-
-    /// A base-10 number followed by 1-3 `b` or `s` characters, `10bb` for example.
-    FloatAccidental,
-
-    /// A base-10 number followed by a `b` or `s` character and a cent number, `10b499` for
-    /// example.
-    FloatAccidentalCents,
-
-    /// A base-10 radix number followed by an `r` and then a radix floating point number,
-    /// `36rSUPER.C0LLIDER` for example.
-    FloatRadix,
-
-    /// A base-10 radix floating point number followed by an `e` and exponent number.
-    FloatSci,
-
-    /// A base-10 integer number, `0` for example.
-    Integer,
-
-    /// A base-10 number followed by an `x` and then a base-16 integer number, `0xdeadbeef` for
-    /// example.
-    IntegerHex,
-
-    /// A base-10 number followed by an `r` and then a radix integer number, `2r100` for example.
-    IntegerRadix,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -209,8 +152,114 @@ pub enum BinopKind {
     ReadWriteVar,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DelimiterKind {
+    /// `}` single-character delimiter.
+    BraceClose,
+
+    /// `{` single-character delimiter.
+    BraceOpen,
+
+    /// `]` single-character delimiter.
+    BracketClose,
+
+    /// `[` single-character delimiter.
+    BracketOpen,
+
+    /// `^` single-character delimiter.
+    Caret,
+
+    /// `:` single-character delimiter.
+    Colon,
+
+    /// `,` single-character delimiter.
+    Comma,
+
+    /// \` single-character delimiter.
+    Grave,
+
+    /// `#` single-character delimiter.
+    Hash,
+
+    /// `)` single-character delimiter.
+    ParenClose,
+
+    /// `(` single-character delimiter.
+    ParenOpen,
+
+    /// `;` single-character delimiter.
+    Semicolon,
+
+    /// `~` single-character delimiter.
+    Tilde,
+
+    /// `_` single-character delimiter.
+    Underscore,
+}
+
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NumberKind {
+    /// A base-10 number with a single dot, `1.0` for example.
+    Float,
+
+    /// A base-10 number followed by 1-3 `b` or `s` characters, `10bb` for example.
+    FloatAccidental,
+
+    /// A base-10 number followed by a `b` or `s` character and a cent number, `10b499` for
+    /// example.
+    FloatAccidentalCents,
+
+    /// A base-10 radix number followed by an `r` and then a radix floating point number,
+    /// `36rSUPER.C0LLIDER` for example.
+    FloatRadix,
+
+    /// A base-10 radix floating point number followed by an `e` and exponent number.
+    FloatSci,
+
+    /// A base-10 integer number, `0` for example.
+    Integer,
+
+    /// A base-10 number followed by an `x` and then a base-16 integer number, `0xdeadbeef` for
+    /// example.
+    IntegerHex,
+
+    /// A base-10 number followed by an `r` and then a radix integer number, `2r100` for example.
+    IntegerRadix,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReservedWordKind {
+    /// `arg` declares method and function arguments.
+    Arg,
+
+    /// `classvar` marks a variable as belonging to the class.
+    Classvar,
+
+    /// `const` marks a class member as read-only.
+    Const,
+
+    /// `false` is a constant boolean type.
+    False,
+
+    /// `inf` is a constant float value representing infinity.
+    Inf,
+
+    /// `nil` is the constant nil type.
+    Nil,
+
+    /// `pi` is a constant float value representing pi.
+    Pi,
+
+    /// `true` is a constant boolean type.
+    True,
+
+    /// `var` declares local and object instance variables.
+    Var
+}
+
 /// Returns a [Token] iterator over the `input` string.
-pub fn tokenize(input: &str) -> impl Iterator<Item = Token> + '_ {
+pub fn tokenize<'a>(input: &'a str) -> impl Iterator<Item = Token<'a>> + '_ {
     let mut cursor = Cursor::new(input);
     std::iter::from_fn(move || {
         let token = cursor.advance_token();
@@ -218,11 +267,15 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> + '_ {
     })
 }
 
-impl Cursor<'_> {
-    pub fn advance_token(&mut self) -> Token {
+impl<'a> Cursor<'a> {
+    pub fn advance_token(&mut self) -> Token<'a> {
+        // Collect string position at the start of the token.
+        let line = self.line();
+        let column = self.column();
+
         let first_char = match self.bump() {
             Some(c) => c,
-            None => return Token::new(TokenKind::EndOfInput, 0),
+            None => return Token::end(),
         };
 
         let token_kind = match first_char {
@@ -237,7 +290,7 @@ impl Cursor<'_> {
             // Blank spaces.
             c if is_blank_space(c) => self.blank_space(),
 
-            // Identifiers starting with a lowercase letter
+            // Identifiers starting with a lowercase letter, as do keywords.
             c if c.is_lowercase() => self.identifier(),
 
             // ClassNames starting with an uppercase letter.
@@ -263,19 +316,19 @@ impl Cursor<'_> {
             },
 
             // Single-character delimiters.
-            '^' => TokenKind::Caret,
-            ':' => TokenKind::Colon,
-            ',' => TokenKind::Comma,
-            '(' => TokenKind::ParenOpen,
-            ')' => TokenKind::ParenClose,
-            '{' => TokenKind::BraceOpen,
-            '}' => TokenKind::BraceClose,
-            '[' => TokenKind::BracketOpen,
-            ']' => TokenKind::BracketClose,
-            '`' => TokenKind::Grave,
-            '#' => TokenKind::Hash,
-            '~' => TokenKind::Tilde,
-            ';' => TokenKind::Semicolon,
+            '^' => TokenKind::Delimiter { kind: DelimiterKind::Caret },
+            ':' => TokenKind::Delimiter { kind: DelimiterKind::Colon },
+            ',' => TokenKind::Delimiter { kind: DelimiterKind::Comma },
+            '(' => TokenKind::Delimiter { kind: DelimiterKind::ParenOpen },
+            ')' => TokenKind::Delimiter { kind: DelimiterKind::ParenClose },
+            '{' => TokenKind::Delimiter { kind: DelimiterKind::BraceOpen },
+            '}' => TokenKind::Delimiter { kind: DelimiterKind::BraceClose },
+            '[' => TokenKind::Delimiter { kind: DelimiterKind::BracketOpen },
+            ']' => TokenKind::Delimiter { kind: DelimiterKind::BracketClose },
+            '`' => TokenKind::Delimiter { kind: DelimiterKind::Grave },
+            '#' => TokenKind::Delimiter { kind: DelimiterKind::Hash },
+            '~' => TokenKind::Delimiter { kind: DelimiterKind::Tilde },
+            ';' => TokenKind::Delimiter { kind: DelimiterKind::Semicolon },
 
             // Underscores can be single-character delimiters, but if they are followed by an
             // alphanumeric string or more underscores, we lex them as primitives.
@@ -323,9 +376,27 @@ impl Cursor<'_> {
             _ => TokenKind::Unknown
         };
 
-        let token = Token::new(token_kind, self.counter());
-        self.reset_counter();
-        token
+        // End of token, extract the substring.
+        let token_str = self.extract_substring();
+
+        // Fixup identifiers to match against reserved words
+        if token_kind == TokenKind::Identifier {
+            let identifier_kind = match token_str {
+                "arg" => TokenKind::ReservedWord { kind: ReservedWordKind::Arg },
+                "classvar" => TokenKind::ReservedWord { kind: ReservedWordKind::Classvar },
+                "const" => TokenKind::ReservedWord { kind: ReservedWordKind::Const },
+                "false" => TokenKind::ReservedWord { kind: ReservedWordKind::False },
+                "inf" => TokenKind::ReservedWord { kind: ReservedWordKind::Inf },
+                "nil" => TokenKind::ReservedWord { kind: ReservedWordKind::Nil },
+                "pi" => TokenKind::ReservedWord { kind: ReservedWordKind::Pi },
+                "true" => TokenKind::ReservedWord { kind: ReservedWordKind::True },
+                "var" => TokenKind::ReservedWord { kind: ReservedWordKind::Var },
+                _ => TokenKind::Identifier
+            };
+            Token::new(identifier_kind, token_str, line, column)
+        } else {
+            Token::new(token_kind, token_str, line, column)
+        }
     }
 
     fn line_comment(&mut self) -> TokenKind {
@@ -565,38 +636,38 @@ mod tests {
     #[test]
     fn smoke_test() {
         check_lexing(r#"SynthDef(\a, { var snd = SinOsc.ar(440, mul: 0.5); snd; });"#, r#"
-Token { kind: ClassName, length: 8 }
-Token { kind: ParenOpen, length: 1 }
-Token { kind: InlineSymbol, length: 2 }
-Token { kind: Comma, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: BraceOpen, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Identifier, length: 3 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Identifier, length: 3 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Assign }, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: ClassName, length: 6 }
-Token { kind: Dot, length: 1 }
-Token { kind: Identifier, length: 2 }
-Token { kind: ParenOpen, length: 1 }
-Token { kind: Number { kind: Integer }, length: 3 }
-Token { kind: Comma, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Keyword, length: 4 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Number { kind: Float }, length: 3 }
-Token { kind: ParenClose, length: 1 }
-Token { kind: Semicolon, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Identifier, length: 3 }
-Token { kind: Semicolon, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: BraceClose, length: 1 }
-Token { kind: ParenClose, length: 1 }
-Token { kind: Semicolon, length: 1 }"#);
+Token { kind: ClassName, string: "SynthDef", line: 1, column: 1 }
+Token { kind: ParenOpen, string: "(", line: 1, column: 9 }
+Token { kind: InlineSymbol, string: "\a", line: 1, column: 10 }
+Token { kind: Comma, string: ",", line: 1, column: 12 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 13 }
+Token { kind: BraceOpen, string: "{", line: 1, column: 14 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 15 }
+Token { kind: Identifier, string: "var", line: 1, column: 16 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 19 }
+Token { kind: Identifier, string: "snd", line: 1, column: 20 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 23 }
+Token { kind: Binop { kind: Assign }, string: "=", line: 1, column: 24 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 25 }
+Token { kind: ClassName, string: "SinOsc", line: 1, column: 26 }
+Token { kind: Dot, string: ".", line: 1, column: 32 }
+Token { kind: Identifier, string: "ar", line: 1, column: 33 }
+Token { kind: ParenOpen, string: "(", line: 1, column: 35 }
+Token { kind: Number { kind: Integer }, string: "440", line: 1, column: 36 }
+Token { kind: Comma, string: ",", line: 1, column: 39 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 40 }
+Token { kind: Keyword, string: "mul:", line: 1, column: 41 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 45 }
+Token { kind: Number { kind: Float }, string: "0.5", line: 1, column: 46 }
+Token { kind: ParenClose, string: ")", line: 1, column: 49 }
+Token { kind: Semicolon, string: ";", line: 1, column: 50 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 51 }
+Token { kind: Identifier, string: "snd", line: 1, column: 52 }
+Token { kind: Semicolon, string: ";", line: 1, column: 55 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 56 }
+Token { kind: BraceClose, string: "}", line: 1, column: 57 }
+Token { kind: ParenClose, string: ")", line: 1, column: 58 }
+Token { kind: Semicolon, string: ";", line: 1, column: 59 }"#);
     }
 
     #[test]
@@ -646,17 +717,17 @@ Token { kind: Binop { kind: Identifier }, length: 3 }"#);
     fn block_comments() {
         // Simple inline comments.
         check_lexing("/**/ /*/ hello */", r#"
-Token { kind: BlockComment, length: 4 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: BlockComment, length: 12 }"#);
+Token { kind: BlockComment, string: "/**/" }
+Token { kind: BlankSpace, string: " " }
+Token { kind: BlockComment, string: "/*/ hello */" }"#);
 
         // Multi-line comment.
         check_lexing(r#"/*
-*********
-//        Some Documentation
-    Some Code: var a = 2; SinOsc.ar(a);
-       */"#, r#"
-Token { kind: BlockComment, length: 91 }"#);
+        *********
+        //        Some Documentation
+            Some Code: var a = 2; SinOsc.ar(a);
+               */"#,
+            "\nToken");
 
         // Nested comments.
         check_lexing(r#"/* / * / * / *
