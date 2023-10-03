@@ -279,14 +279,6 @@ impl<'a> Cursor<'a> {
         };
 
         let token_kind = match first_char {
-            // Either a block or line comment.
-            '/' => match self.first() {
-                // Double slashes mean a line comment.
-                '/' => self.line_comment(),
-                '*' => self.block_comment(),
-                _ => TokenKind::Unknown,
-            },
-
             // Blank spaces.
             c if is_blank_space(c) => self.blank_space(),
 
@@ -337,7 +329,7 @@ impl<'a> Cursor<'a> {
                     self.eat_while(|c| is_identifier(c));
                     TokenKind::Primitive
                 } else {
-                    TokenKind::Underscore
+                    TokenKind::Delimiter { kind: DelimiterKind:: Underscore }
                 }
             },
 
@@ -353,11 +345,7 @@ impl<'a> Cursor<'a> {
 
             // Several tokens could either be generic binop identifiers or have their own special
             // meaning. Disambiguate.
-            c if is_binop(c) => {
-                // Most special meaning binop identifiers are only a single character.
-                let binop_kind = self.binop_kind(c);
-                TokenKind::Binop { kind: binop_kind }
-            },
+            c if is_binop(c) => self.binop_or_comment(c),
 
             '.' => {
                 if self.first() != '.' {
@@ -431,6 +419,47 @@ impl<'a> Cursor<'a> {
         }
 
         TokenKind::BlockComment
+    }
+
+    fn binop_or_comment(&mut self, first: char) -> TokenKind {
+        // Most interesting binops are a single character in length. Check for those first.
+        if !is_binop(self.first()) {
+            return match first {
+                '*' => TokenKind::Binop { kind: BinopKind::Asterisk },
+                '=' => TokenKind::Binop { kind: BinopKind::Assign },
+                '>' => TokenKind::Binop { kind: BinopKind::GreaterThan },
+                '<' => TokenKind::Binop { kind: BinopKind::LessThan },
+                '-' => TokenKind::Binop { kind: BinopKind::Minus },
+                '|' => TokenKind::Binop { kind: BinopKind::Pipe },
+                '+' => TokenKind::Binop { kind: BinopKind::Plus },
+                _ => TokenKind::Binop { kind: BinopKind::Identifier },
+            };
+        }
+
+        // Next character is a binop character too, extract.
+        let next = self.bump().expect("Expecting a valid binop character.");
+
+        // Block and line comments are only lexed as such if they are the first characters
+        // in the sequence of binop characters.
+        if first == '/' {
+            if next == '/' {
+                return self.line_comment();
+            }
+            if next == '*' {
+                return self.block_comment();
+            }
+        }
+
+        if first == '<' && !is_binop(self.first()) {
+            return match next {
+                '-' => TokenKind::Binop { kind: BinopKind::LeftArrow },
+                '>' => TokenKind::Binop { kind: BinopKind::ReadWriteVar},
+                _ => TokenKind::Binop { kind: BinopKind::Identifier }
+            }
+        }
+
+        self.eat_while(|c| is_binop(c));
+        TokenKind::Binop { kind: BinopKind::Identifier }
     }
 
     fn blank_space(&mut self) -> TokenKind {
@@ -559,37 +588,6 @@ impl<'a> Cursor<'a> {
             true
         }
     }
-
-    fn binop_kind(&mut self, c: char) -> BinopKind {
-        // Most interesting binops are a single character in length. Check for those first.
-        if !is_binop(self.first()) {
-            return match c {
-                '*' => BinopKind::Asterisk,
-                '=' => BinopKind::Assign,
-                '>' => BinopKind::GreaterThan,
-                '<' => BinopKind::LessThan,
-                '-' => BinopKind::Minus,
-                '|' => BinopKind::Pipe,
-                '+' => BinopKind::Plus,
-                _ => BinopKind::Identifier,
-            };
-        }
-
-        // Both of the two-character interesting binops start with '<'.
-        if c == '<' {
-            let next = self.bump().expect("Expected a valid binop character after '<'");
-            if !is_binop(self.first()) {
-                return match next {
-                    '-' => BinopKind::LeftArrow,
-                    '>' => BinopKind::ReadWriteVar,
-                    _ => BinopKind::Identifier
-                }
-            }
-        }
-
-        self.eat_while(|c| is_binop(c));
-        BinopKind::Identifier
-    }
 }
 
 fn is_blank_space(c: char) -> bool {
@@ -637,13 +635,13 @@ mod tests {
     fn smoke_test() {
         check_lexing(r#"SynthDef(\a, { var snd = SinOsc.ar(440, mul: 0.5); snd; });"#, r#"
 Token { kind: ClassName, string: "SynthDef", line: 1, column: 1 }
-Token { kind: ParenOpen, string: "(", line: 1, column: 9 }
+Token { kind: Delimiter { kind: ParenOpen }, string: "(", line: 1, column: 9 }
 Token { kind: InlineSymbol, string: "\a", line: 1, column: 10 }
-Token { kind: Comma, string: ",", line: 1, column: 12 }
+Token { kind: Delimiter { kind: Comma }, string: ",", line: 1, column: 12 }
 Token { kind: BlankSpace, string: " ", line: 1, column: 13 }
-Token { kind: BraceOpen, string: "{", line: 1, column: 14 }
+Token { kind: Delimiter { kind: BraceOpen }, string: "{", line: 1, column: 14 }
 Token { kind: BlankSpace, string: " ", line: 1, column: 15 }
-Token { kind: Identifier, string: "var", line: 1, column: 16 }
+Token { kind: ReservedWord { kind: Var }, string: "var", line: 1, column: 16 }
 Token { kind: BlankSpace, string: " ", line: 1, column: 19 }
 Token { kind: Identifier, string: "snd", line: 1, column: 20 }
 Token { kind: BlankSpace, string: " ", line: 1, column: 23 }
@@ -652,22 +650,22 @@ Token { kind: BlankSpace, string: " ", line: 1, column: 25 }
 Token { kind: ClassName, string: "SinOsc", line: 1, column: 26 }
 Token { kind: Dot, string: ".", line: 1, column: 32 }
 Token { kind: Identifier, string: "ar", line: 1, column: 33 }
-Token { kind: ParenOpen, string: "(", line: 1, column: 35 }
+Token { kind: Delimiter { kind: ParenOpen }, string: "(", line: 1, column: 35 }
 Token { kind: Number { kind: Integer }, string: "440", line: 1, column: 36 }
-Token { kind: Comma, string: ",", line: 1, column: 39 }
+Token { kind: Delimiter { kind: Comma }, string: ",", line: 1, column: 39 }
 Token { kind: BlankSpace, string: " ", line: 1, column: 40 }
 Token { kind: Keyword, string: "mul:", line: 1, column: 41 }
 Token { kind: BlankSpace, string: " ", line: 1, column: 45 }
 Token { kind: Number { kind: Float }, string: "0.5", line: 1, column: 46 }
-Token { kind: ParenClose, string: ")", line: 1, column: 49 }
-Token { kind: Semicolon, string: ";", line: 1, column: 50 }
+Token { kind: Delimiter { kind: ParenClose }, string: ")", line: 1, column: 49 }
+Token { kind: Delimiter { kind: Semicolon }, string: ";", line: 1, column: 50 }
 Token { kind: BlankSpace, string: " ", line: 1, column: 51 }
 Token { kind: Identifier, string: "snd", line: 1, column: 52 }
-Token { kind: Semicolon, string: ";", line: 1, column: 55 }
+Token { kind: Delimiter { kind: Semicolon }, string: ";", line: 1, column: 55 }
 Token { kind: BlankSpace, string: " ", line: 1, column: 56 }
-Token { kind: BraceClose, string: "}", line: 1, column: 57 }
-Token { kind: ParenClose, string: ")", line: 1, column: 58 }
-Token { kind: Semicolon, string: ";", line: 1, column: 59 }"#);
+Token { kind: Delimiter { kind: BraceClose }, string: "}", line: 1, column: 57 }
+Token { kind: Delimiter { kind: ParenClose }, string: ")", line: 1, column: 58 }
+Token { kind: Delimiter { kind: Semicolon }, string: ";", line: 1, column: 59 }"#);
     }
 
     #[test]
@@ -711,6 +709,9 @@ Token { kind: BlankSpace, length: 1 }
 Token { kind: Binop { kind: Identifier }, length: 2 }
 Token { kind: BlankSpace, length: 1 }
 Token { kind: Binop { kind: Identifier }, length: 3 }"#);
+
+        // Comment patterns only lexed as comments at the start of a binop string.
+        check_lexing(r#"+//*"#, "");
     }
 
     #[test]
