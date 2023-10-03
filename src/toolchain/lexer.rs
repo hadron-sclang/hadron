@@ -387,9 +387,8 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    // Note that line comments will ignore any block comments that start subsequently on that line.
     fn line_comment(&mut self) -> TokenKind {
-        // Consume the second forward slash in the block comment beginner.
-        self.bump();
         self.eat_while(|c| c != '\n');
         // Consume the line end character.
         self.bump();
@@ -397,9 +396,6 @@ impl<'a> Cursor<'a> {
     }
 
     fn block_comment(&mut self) -> TokenKind {
-        // Consume the star in the block comment
-        self.bump();
-
         let mut depth = 1usize;
         while let Some(c) = self.bump() {
             match c {
@@ -450,6 +446,7 @@ impl<'a> Cursor<'a> {
             }
         }
 
+        // Check for two-character binops that start with '<'.
         if first == '<' && !is_binop(self.first()) {
             return match next {
                 '-' => TokenKind::Binop { kind: BinopKind::LeftArrow },
@@ -458,6 +455,7 @@ impl<'a> Cursor<'a> {
             }
         }
 
+        // Identifier binop, consume the rest of the characters.
         self.eat_while(|c| is_binop(c));
         TokenKind::Binop { kind: BinopKind::Identifier }
     }
@@ -626,6 +624,21 @@ fn is_identifier(c: char) -> bool {
 mod tests {
     use super::tokenize;
 
+    /// Lexing helper function to compare expected lexing to a provided debug string of the tokens.
+    ///
+    /// Prepends a carriage return in front of each token, for readability of the test code.
+    ///
+    /// Note that the debug printer escapes `"` and `\` characters inside strings, so for example:
+    ///
+    /// ```
+    ///         check_lexing(r#""\"""#, r#"
+    ///Token { kind: String { has_escapes: true }, string: "\"\\\"\"", line: 1, column: 1 }"#);
+    /// ```
+    /// Will pass.
+    ///
+    /// The input is a string `"\""` which is escaped by the `format!` call into the output
+    /// `\"\\\"\"`. In a failed test, the entire Token string is again escaped, meaning that the
+    /// contents of string will be *double* escaped when printed in the test failure.
     fn check_lexing(src: &str, expect: &str) {
         let actual: String = tokenize(src).map(|token| format!("\n{:?}", token)).collect();
         assert_eq!(expect, &actual);
@@ -636,7 +649,7 @@ mod tests {
         check_lexing(r#"SynthDef(\a, { var snd = SinOsc.ar(440, mul: 0.5); snd; });"#, r#"
 Token { kind: ClassName, string: "SynthDef", line: 1, column: 1 }
 Token { kind: Delimiter { kind: ParenOpen }, string: "(", line: 1, column: 9 }
-Token { kind: InlineSymbol, string: "\a", line: 1, column: 10 }
+Token { kind: InlineSymbol, string: "\\a", line: 1, column: 10 }
 Token { kind: Delimiter { kind: Comma }, string: ",", line: 1, column: 12 }
 Token { kind: BlankSpace, string: " ", line: 1, column: 13 }
 Token { kind: Delimiter { kind: BraceOpen }, string: "{", line: 1, column: 14 }
@@ -672,249 +685,247 @@ Token { kind: Delimiter { kind: Semicolon }, string: ";", line: 1, column: 59 }"
     fn binops() {
         // Check the special binops.
         check_lexing("= * > <- < - | + <>", r#"
-Token { kind: Binop { kind: Assign }, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Asterisk }, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: GreaterThan }, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: LeftArrow }, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: LessThan }, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Minus }, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Pipe }, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Plus }, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: ReadWriteVar }, length: 2 }"#);
+Token { kind: Binop { kind: Assign }, string: "=", line: 1, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 2 }
+Token { kind: Binop { kind: Asterisk }, string: "*", line: 1, column: 3 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 4 }
+Token { kind: Binop { kind: GreaterThan }, string: ">", line: 1, column: 5 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 6 }
+Token { kind: Binop { kind: LeftArrow }, string: "<-", line: 1, column: 7 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 9 }
+Token { kind: Binop { kind: LessThan }, string: "<", line: 1, column: 10 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 11 }
+Token { kind: Binop { kind: Minus }, string: "-", line: 1, column: 12 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 13 }
+Token { kind: Binop { kind: Pipe }, string: "|", line: 1, column: 14 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 15 }
+Token { kind: Binop { kind: Plus }, string: "+", line: 1, column: 16 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 17 }
+Token { kind: Binop { kind: ReadWriteVar }, string: "<>", line: 1, column: 18 }"#);
 
         // Check that the lexer doesn't get confused on binops with special prefixes.
         check_lexing("== ** >< <-- << -- || ++ <><", r#"
-Token { kind: Binop { kind: Identifier }, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Identifier }, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Identifier }, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Identifier }, length: 3 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Identifier }, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Identifier }, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Identifier }, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Identifier }, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Binop { kind: Identifier }, length: 3 }"#);
+Token { kind: Binop { kind: Identifier }, string: "==", line: 1, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 3 }
+Token { kind: Binop { kind: Identifier }, string: "**", line: 1, column: 4 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 6 }
+Token { kind: Binop { kind: Identifier }, string: "><", line: 1, column: 7 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 9 }
+Token { kind: Binop { kind: Identifier }, string: "<--", line: 1, column: 10 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 13 }
+Token { kind: Binop { kind: Identifier }, string: "<<", line: 1, column: 14 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 16 }
+Token { kind: Binop { kind: Identifier }, string: "--", line: 1, column: 17 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 19 }
+Token { kind: Binop { kind: Identifier }, string: "||", line: 1, column: 20 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 22 }
+Token { kind: Binop { kind: Identifier }, string: "++", line: 1, column: 23 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 25 }
+Token { kind: Binop { kind: Identifier }, string: "<><", line: 1, column: 26 }"#);
 
-        // Comment patterns only lexed as comments at the start of a binop string.
-        check_lexing(r#"+//*"#, "");
+        // Comment patterns only lexed as comments at the start of a binop token.
+        check_lexing(r#"+//*"#, r#"
+Token { kind: Binop { kind: Identifier }, string: "+//*", line: 1, column: 1 }"#);
     }
 
     #[test]
     fn block_comments() {
         // Simple inline comments.
         check_lexing("/**/ /*/ hello */", r#"
-Token { kind: BlockComment, string: "/**/" }
-Token { kind: BlankSpace, string: " " }
-Token { kind: BlockComment, string: "/*/ hello */" }"#);
+Token { kind: BlockComment, string: "/**/", line: 1, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 5 }
+Token { kind: BlockComment, string: "/*/ hello */", line: 1, column: 6 }"#);
 
-        // Multi-line comment.
-        check_lexing(r#"/*
-        *********
-        //        Some Documentation
-            Some Code: var a = 2; SinOsc.ar(a);
-               */"#,
-            "\nToken");
+        // Commented out code.
+        check_lexing(r#"/* var a = 2; */"#, r#"
+Token { kind: BlockComment, string: "/* var a = 2; */", line: 1, column: 1 }"#);
 
         // Nested comments.
-        check_lexing(r#"/* / * / * / *
-    /************
-        /**/
-     / * / * *****/
-*/"#, r#"
-Token { kind: BlockComment, length: 68 }"#);
-    }
-
-    #[test]
-    fn delimiters() {
-        check_lexing(r#"^:,(){}[]`#~_;"#, r#"
-Token { kind: Caret, length: 1 }
-Token { kind: Colon, length: 1 }
-Token { kind: Comma, length: 1 }
-Token { kind: ParenOpen, length: 1 }
-Token { kind: ParenClose, length: 1 }
-Token { kind: BraceOpen, length: 1 }
-Token { kind: BraceClose, length: 1 }
-Token { kind: BracketOpen, length: 1 }
-Token { kind: BracketClose, length: 1 }
-Token { kind: Grave, length: 1 }
-Token { kind: Hash, length: 1 }
-Token { kind: Tilde, length: 1 }
-Token { kind: Underscore, length: 1 }
-Token { kind: Semicolon, length: 1 }"#);
+        check_lexing(r#"/* / * / * / * /** /**/ // * / * **/*/"#, r#"
+Token { kind: BlockComment, string: "/* / * / * / * /** /**/ // * / * **/*/", line: 1, column: 1 }"#);
     }
 
     #[test]
     fn characters() {
         check_lexing(r#"$\t$a$$$ $""#, r#"
-Token { kind: Character { is_escaped: true }, length: 3 }
-Token { kind: Character { is_escaped: false }, length: 2 }
-Token { kind: Character { is_escaped: false }, length: 2 }
-Token { kind: Character { is_escaped: false }, length: 2 }
-Token { kind: Character { is_escaped: false }, length: 2 }"#);
+Token { kind: Character { is_escaped: true }, string: "$\\t", line: 1, column: 1 }
+Token { kind: Character { is_escaped: false }, string: "$a", line: 1, column: 4 }
+Token { kind: Character { is_escaped: false }, string: "$$", line: 1, column: 6 }
+Token { kind: Character { is_escaped: false }, string: "$ ", line: 1, column: 8 }
+Token { kind: Character { is_escaped: false }, string: "$\"", line: 1, column: 10 }"#);
     }
 
     #[test]
     fn class_names() {
         check_lexing("A B C SinOsc Main_32a", r#"
-Token { kind: ClassName, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: ClassName, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: ClassName, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: ClassName, length: 6 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: ClassName, length: 8 }"#);
+Token { kind: ClassName, string: "A", line: 1, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 2 }
+Token { kind: ClassName, string: "B", line: 1, column: 3 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 4 }
+Token { kind: ClassName, string: "C", line: 1, column: 5 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 6 }
+Token { kind: ClassName, string: "SinOsc", line: 1, column: 7 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 13 }
+Token { kind: ClassName, string: "Main_32a", line: 1, column: 14 }"#);
     }
+
+    #[test]
+    fn delimiters() {
+        check_lexing(r#"^:,(){}[]`#~_;"#, r##"
+Token { kind: Delimiter { kind: Caret }, string: "^", line: 1, column: 1 }
+Token { kind: Delimiter { kind: Colon }, string: ":", line: 1, column: 2 }
+Token { kind: Delimiter { kind: Comma }, string: ",", line: 1, column: 3 }
+Token { kind: Delimiter { kind: ParenOpen }, string: "(", line: 1, column: 4 }
+Token { kind: Delimiter { kind: ParenClose }, string: ")", line: 1, column: 5 }
+Token { kind: Delimiter { kind: BraceOpen }, string: "{", line: 1, column: 6 }
+Token { kind: Delimiter { kind: BraceClose }, string: "}", line: 1, column: 7 }
+Token { kind: Delimiter { kind: BracketOpen }, string: "[", line: 1, column: 8 }
+Token { kind: Delimiter { kind: BracketClose }, string: "]", line: 1, column: 9 }
+Token { kind: Delimiter { kind: Grave }, string: "`", line: 1, column: 10 }
+Token { kind: Delimiter { kind: Hash }, string: "#", line: 1, column: 11 }
+Token { kind: Delimiter { kind: Tilde }, string: "~", line: 1, column: 12 }
+Token { kind: Delimiter { kind: Underscore }, string: "_", line: 1, column: 13 }
+Token { kind: Delimiter { kind: Semicolon }, string: ";", line: 1, column: 14 }"##);
+    }
+
 
     #[test]
     fn dots() {
         check_lexing(". .. ... .... ..... ......", r#"
-Token { kind: Dot, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: DotDot, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Ellipses, length: 3 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Ellipses, length: 3 }
-Token { kind: Dot, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Ellipses, length: 3 }
-Token { kind: DotDot, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Ellipses, length: 3 }
-Token { kind: Ellipses, length: 3 }"#);
+Token { kind: Dot, string: ".", line: 1, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 2 }
+Token { kind: DotDot, string: "..", line: 1, column: 3 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 5 }
+Token { kind: Ellipses, string: "...", line: 1, column: 6 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 9 }
+Token { kind: Ellipses, string: "...", line: 1, column: 10 }
+Token { kind: Dot, string: ".", line: 1, column: 13 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 14 }
+Token { kind: Ellipses, string: "...", line: 1, column: 15 }
+Token { kind: DotDot, string: "..", line: 1, column: 18 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 20 }
+Token { kind: Ellipses, string: "...", line: 1, column: 21 }
+Token { kind: Ellipses, string: "...", line: 1, column: 24 }"#);
     }
 
     #[test]
     fn identifiers() {
         check_lexing("a b c if while const classvar zz_Top3", r#"
-Token { kind: Identifier, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Identifier, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Identifier, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Identifier, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Identifier, length: 5 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Identifier, length: 5 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Identifier, length: 8 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Identifier, length: 7 }"#);
+Token { kind: Identifier, string: "a", line: 1, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 2 }
+Token { kind: Identifier, string: "b", line: 1, column: 3 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 4 }
+Token { kind: Identifier, string: "c", line: 1, column: 5 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 6 }
+Token { kind: Identifier, string: "if", line: 1, column: 7 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 9 }
+Token { kind: Identifier, string: "while", line: 1, column: 10 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 15 }
+Token { kind: ReservedWord { kind: Const }, string: "const", line: 1, column: 16 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 21 }
+Token { kind: ReservedWord { kind: Classvar }, string: "classvar", line: 1, column: 22 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 30 }
+Token { kind: Identifier, string: "zz_Top3", line: 1, column: 31 }"#);
 
         check_lexing("mul: add:",r#"
-Token { kind: Keyword, length: 4 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Keyword, length: 4 }"#);
-}
+Token { kind: Keyword, string: "mul:", line: 1, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 5 }
+Token { kind: Keyword, string: "add:", line: 1, column: 6 }"#);
+    }
 
     #[test]
     fn inline_symbols() {
         check_lexing(r#"\a \b \c \1 \ \_ \A_l0ng3r_SYMBOL"#, r#"
-Token { kind: InlineSymbol, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: InlineSymbol, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: InlineSymbol, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: InlineSymbol, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: InlineSymbol, length: 1 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: InlineSymbol, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: InlineSymbol, length: 16 }"#);
+Token { kind: InlineSymbol, string: "\\a", line: 1, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 3 }
+Token { kind: InlineSymbol, string: "\\b", line: 1, column: 4 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 6 }
+Token { kind: InlineSymbol, string: "\\c", line: 1, column: 7 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 9 }
+Token { kind: InlineSymbol, string: "\\1", line: 1, column: 10 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 12 }
+Token { kind: InlineSymbol, string: "\\", line: 1, column: 13 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 14 }
+Token { kind: InlineSymbol, string: "\\_", line: 1, column: 15 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 17 }
+Token { kind: InlineSymbol, string: "\\A_l0ng3r_SYMBOL", line: 1, column: 18 }"#);
     }
 
     #[test]
     fn line_comments() {
         check_lexing(r#"// start of line
-    // end of line
-// /* start of block */"#, r#"
-Token { kind: LineComment, length: 17 }
-Token { kind: BlankSpace, length: 4 }
-Token { kind: LineComment, length: 15 }
-Token { kind: LineComment, length: 23 }"#);
+// /* start of block
+        // end of line"#, r#"
+Token { kind: LineComment, string: "// start of line\n", line: 1, column: 1 }
+Token { kind: LineComment, string: "// /* start of block\n", line: 2, column: 1 }
+Token { kind: BlankSpace, string: "        ", line: 3, column: 1 }
+Token { kind: LineComment, string: "// end of line", line: 3, column: 9 }"#);
     }
 
     #[test]
     fn numbers() {
         check_lexing(r#"123 0x1aAfF 36rZIGZAG10
 100.100 4bbb 23s200 16rA.F 1.7e-9 1e+7"#, r#"
-Token { kind: Number { kind: Integer }, length: 3 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Number { kind: IntegerHex }, length: 7 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Number { kind: IntegerRadix }, length: 11 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Number { kind: Float }, length: 7 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Number { kind: FloatAccidental }, length: 4 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Number { kind: FloatAccidentalCents }, length: 6 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Number { kind: FloatRadix }, length: 6 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Number { kind: FloatSci }, length: 6 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Number { kind: FloatSci }, length: 4 }"#);
+Token { kind: Number { kind: Integer }, string: "123", line: 1, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 4 }
+Token { kind: Number { kind: IntegerHex }, string: "0x1aAfF", line: 1, column: 5 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 12 }
+Token { kind: Number { kind: IntegerRadix }, string: "36rZIGZAG10", line: 1, column: 13 }
+Token { kind: BlankSpace, string: "\n", line: 1, column: 24 }
+Token { kind: Number { kind: Float }, string: "100.100", line: 2, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 2, column: 8 }
+Token { kind: Number { kind: FloatAccidental }, string: "4bbb", line: 2, column: 9 }
+Token { kind: BlankSpace, string: " ", line: 2, column: 13 }
+Token { kind: Number { kind: FloatAccidentalCents }, string: "23s200", line: 2, column: 14 }
+Token { kind: BlankSpace, string: " ", line: 2, column: 20 }
+Token { kind: Number { kind: FloatRadix }, string: "16rA.F", line: 2, column: 21 }
+Token { kind: BlankSpace, string: " ", line: 2, column: 27 }
+Token { kind: Number { kind: FloatSci }, string: "1.7e-9", line: 2, column: 28 }
+Token { kind: BlankSpace, string: " ", line: 2, column: 34 }
+Token { kind: Number { kind: FloatSci }, string: "1e+7", line: 2, column: 35 }"#);
     }
 
     #[test]
     fn primitives() {
         check_lexing("_abc123 _Test_ _PrimitiTooTaah", r#"
-Token { kind: Primitive, length: 7 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Primitive, length: 6 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: Primitive, length: 15 }"#);
+Token { kind: Primitive, string: "_abc123", line: 1, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 8 }
+Token { kind: Primitive, string: "_Test_", line: 1, column: 9 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 15 }
+Token { kind: Primitive, string: "_PrimitiTooTaah", line: 1, column: 16 }"#);
     }
 
     #[test]
     fn strings() {
         check_lexing(r#""abc" "/*" "*/" "" "'" "#, r#"
-Token { kind: String { has_escapes: false }, length: 5 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: String { has_escapes: false }, length: 4 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: String { has_escapes: false }, length: 4 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: String { has_escapes: false }, length: 2 }
-Token { kind: BlankSpace, length: 1 }
-Token { kind: String { has_escapes: false }, length: 3 }
-Token { kind: BlankSpace, length: 1 }"#);
+Token { kind: String { has_escapes: false }, string: "\"abc\"", line: 1, column: 1 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 6 }
+Token { kind: String { has_escapes: false }, string: "\"/*\"", line: 1, column: 7 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 11 }
+Token { kind: String { has_escapes: false }, string: "\"*/\"", line: 1, column: 12 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 16 }
+Token { kind: String { has_escapes: false }, string: "\"\"", line: 1, column: 17 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 19 }
+Token { kind: String { has_escapes: false }, string: "\"'\"", line: 1, column: 20 }
+Token { kind: BlankSpace, string: " ", line: 1, column: 23 }"#);
+
+        check_lexing(r#""\"""#, r#"
+Token { kind: String { has_escapes: true }, string: "\"\\\"\"", line: 1, column: 1 }"#);
 
         check_lexing(r#""\t\n\r\0\\\"\k""#, r#"
-Token { kind: String { has_escapes: true }, length: 16 }"#);
+Token { kind: String { has_escapes: true }, string: "\"\\t\\n\\r\\0\\\\\\\"\\k\"", line: 1, column: 1 }"#);
     }
+
 
     #[test]
     fn symbols() {
         check_lexing(r#"'134''//''''"'"#, r#"
-Token { kind: Symbol { has_escapes: false }, length: 5 }
-Token { kind: Symbol { has_escapes: false }, length: 4 }
-Token { kind: Symbol { has_escapes: false }, length: 2 }
-Token { kind: Symbol { has_escapes: false }, length: 3 }"#);
+Token { kind: Symbol { has_escapes: false }, string: "'134'", line: 1, column: 1 }
+Token { kind: Symbol { has_escapes: false }, string: "'//'", line: 1, column: 6 }
+Token { kind: Symbol { has_escapes: false }, string: "''", line: 1, column: 10 }
+Token { kind: Symbol { has_escapes: false }, string: "'\"'", line: 1, column: 12 }"#);
 
-        check_lexing(r#"'\'\'\'\\ "'"#, r#"
-Token { kind: Symbol { has_escapes: true }, length: 12 }"#);
+check_lexing(r#"'\'\'\'\\ "'"#, r#"
+Token { kind: Symbol { has_escapes: true }, string: "'\\'\\'\\'\\\\ \"'", line: 1, column: 1 }"#);
     }
 }
