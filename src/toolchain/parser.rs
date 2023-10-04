@@ -47,3 +47,22 @@ pub enum NodeKind {
     SideEffectQualifier,
     TerminationQualifier
 }
+
+enum State {
+    Foo,
+    Bar
+}
+
+struct Context {
+    pub states: Vec<State>,
+}
+
+impl Context {
+    pub fn new() -> Context {
+        Context { states: Vec<State>::new() }
+    }
+}
+
+pub fn parse<'a>(lex: Iterator<Item = Token<'a>>) -> impl Iterator<Item = Node> + '_ {
+
+}
