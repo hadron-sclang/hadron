@@ -361,7 +361,12 @@ impl<'a> Cursor<'a> {
                 }
             },
 
-            _ => TokenKind::Unknown
+            // We coalesce unknown characters into a single Token, to cut down on the number of
+            // Tokens that we lex from a string of garbage input.
+            _ => {
+                self.eat_while(|c| is_unknown(c));
+                TokenKind::Unknown
+            }
         };
 
         // End of token, extract the substring.
@@ -618,6 +623,31 @@ fn is_binop(c: char) -> bool {
 
 fn is_identifier(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
+}
+
+fn is_unknown(c: char) -> bool {
+    match c {
+        u if is_blank_space(u) => false,
+        u if is_identifier(u) => false,
+        u if u.is_uppercase() => false,
+        u if is_binop(u) => false,
+        '^' => false,
+        ':' => false,
+        ',' => false,
+        '(' => false,
+        ')' => false,
+        '{' => false,
+        '}' => false,
+        '[' => false,
+        ']' => false,
+        '`' => false,
+        '#' => false,
+        '~' => false,
+        ';' => false,
+        '$' => false,
+        '.' => false,
+        _ => true
+    }
 }
 
 #[cfg(test)]
