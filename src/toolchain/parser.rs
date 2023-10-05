@@ -53,18 +53,15 @@ pub enum NodeKind {
 }
 
 enum State {
-    Foo,
-    Bar
+    TopLevelStatement,
+    ClassDef,
+    ClassExtDef,
+//    ClassVarDecl,
 }
 
 struct Context {
-    pub states: Vec<State>,
-}
-
-impl Context {
-    pub fn new() -> Context {
-        Context { states: Vec<State>::new() }
-    }
+    pub state: State,
+    pub tree_start: i32,
 }
 
 // A parse tree.
@@ -76,16 +73,90 @@ impl<'a> Tree<'a> {
     pub fn new() -> Tree<'a> {
         Tree { nodes: Vec<Node>::new() }
     }
+
+    pub fn size(&self) -> usize {
+        self.nodes.size()
+    }
 }
 
-pub fn parse<'a>(lex: Iterator<Item = lexer::Token<'a>>) -> Tree<'a> {
+pub fn parse<'a>(&mut lex: Iterator<Item = lexer::Token<'a>>, &mut diags: DiagnosticConsumer) -> Tree<'a> {
     let mut tree = Tree::new();
+    let mut lex_iter = LexIter::new(lex);
+    let mut stack = Vec<Context>::new();
+    stack.push(Context { state: State::RootLevel, tree_start: 0 });
+
+    while !stack.empty() {
+        let &context = stack.last().expect("non-empty stack should have valid last element.");
+        match context.state {
+            // topLevelStatement : classDef
+            //                   | classExtension
+            //                   | interpreterCode
+            //                   ;
+            State::TopLevelStatement => {
+                match lex_iter.front().kind {
+                    lexer::TokenKind::ClassName => {
+                        stack.push(Context { state: State::ClassDef, tree.size() });
+                    },
+                    lexer::TokenKind::Binop { kind: BinopKind::Plus } => {
+                        stack.push(Context { state: State::ClassExtDef, tree.size() });
+                    },
+                    lexer::TokenKind::EndOfInput => ()
+                }
+
+            },
+        }
+    }
+
     tree
 }
 
-// A peekable iterator over the lexer tokens that skips empty space and unknown 
-struct TokenIterator {
+// A peekable iterator over the lexer tokens that skips empty space.
+struct LexIter<'a> {
+    lexer: Iterator<Item = lexer::Token<'a>>,
+    token: lexer::Token<'a>,
+}
 
+impl<'a> LexIter<'a> {
+    pub fn new(lexer: Iterator<Item = lexer::Token<'a>>) -> LexIter<'a> {
+        // Extract first token for peeking, if it exists.
+        let token = match lexer.next() {
+            Some(t) => t,
+            None => lexer::Token::end(),
+        };
+        let lex_iter = LexIter { lexer, token };
+        lex_iter.advance_to_nonempty();
+        lex_iter
+    }
+
+    pub fn first(&self) -> Token<'a> {
+        self.token
+    }
+
+    pub fn bump(&mut self) -> Option<Token<'a>> {
+        if token.kind == lexer::TokenKind::EndOfInput {
+            None
+        } else {
+            let prev = self.token;
+            advance_to_nonempty();
+            prev
+        }
+    }
+
+    fn advance_to_nonempty(&mut self) {
+        while is_empty(self.token.token_kind) {
+            self.token = match lexer.next() {
+                Some(t) => t,
+                None => lexer::Token::end()
+            };
+        }
+    }
+
+    fn is_empty(kind: lexer::TokenKind) -> bool {
+        matches!(kind,
+            lexer::TokenKind::BlankSpace,
+            lexer::TokenKind::BlockComment,
+            lexer::TokenKind::LineComment)
+    }
 }
 
 

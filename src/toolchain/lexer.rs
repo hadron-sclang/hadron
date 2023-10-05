@@ -34,11 +34,11 @@ pub struct Token<'a> {
 }
 
 impl<'a> Token<'a> {
-    fn new(kind: TokenKind, string: &'a str, line: u32, column: u32) -> Token<'a> {
+    pub fn new(kind: TokenKind, string: &'a str, line: u32, column: u32) -> Token<'a> {
         Token { kind, string, line, column }
     }
 
-    fn end() -> Token<'a> {
+    pub fn end() -> Token<'a> {
         Token { kind: TokenKind::EndOfInput, string: "", line: 0, column: 0 }
     }
 }
