@@ -54,12 +54,16 @@ pub enum NodeKind {
 
 enum State {
     TopLevelStatement,
-    ClassDef,
+
+
+    ClassDefStart,
+
     ClassExtDef,
+    InterpreterCode,
 //    ClassVarDecl,
 }
 
-struct Context {
+struct Context<'a> {
     pub state: State,
     pub tree_start: i32,
 }
@@ -77,6 +81,8 @@ impl<'a> Tree<'a> {
     pub fn size(&self) -> usize {
         self.nodes.size()
     }
+
+
 }
 
 pub fn parse<'a>(&mut lex: Iterator<Item = lexer::Token<'a>>, &mut diags: DiagnosticConsumer) -> Tree<'a> {
@@ -95,15 +101,29 @@ pub fn parse<'a>(&mut lex: Iterator<Item = lexer::Token<'a>>, &mut diags: Diagno
             State::TopLevelStatement => {
                 match lex_iter.front().kind {
                     lexer::TokenKind::ClassName => {
-                        stack.push(Context { state: State::ClassDef, tree.size() });
+                        stack.push(Context { state: State::ClassDefStart, tree.size() });
                     },
                     lexer::TokenKind::Binop { kind: BinopKind::Plus } => {
                         stack.push(Context { state: State::ClassExtDef, tree.size() });
                     },
-                    lexer::TokenKind::EndOfInput => ()
+                    lexer::TokenKind::EndOfInput => {
+                        // Normal end of a parse tree, terminate.
+                        stack.pop();
+                    },
+                    _ => {
+                        stack.push(Context { state: State::InterpreterCode, tree.size() });
+                    }
                 }
-
             },
+
+            // classDef : CLASSNAME superclass? CURLY_OPEN classVarDecl* methodDef* CURLY_CLOSE
+            //          | CLASSNAME SQUARE_OPEN name? SQUARE_CLOSE superclass? CURLY_OPEN classVarDecl* methodDef* CURLY_CLOSE
+            State::ClassDefStart => {
+                debug_assert!(lex_iter.front().kind == lexer::TokenKind::ClassName);
+
+                match lex_iter.front().kind {
+                }
+            }
         }
     }
 
@@ -128,7 +148,7 @@ impl<'a> LexIter<'a> {
         lex_iter
     }
 
-    pub fn first(&self) -> Token<'a> {
+    pub fn first(&self) -> &Token<'a> {
         self.token
     }
 
