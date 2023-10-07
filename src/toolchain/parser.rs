@@ -1,3 +1,4 @@
+use crate::toolchain::diagnostics;
 use crate::toolchain::lexer;
 
 pub struct Node<'a> {
@@ -64,7 +65,7 @@ enum State {
 }
 
 struct Context<'a> {
-    pub state: State,
+    pub states: State,
     pub tree_start: i32,
 }
 
@@ -81,8 +82,6 @@ impl<'a> Tree<'a> {
     pub fn size(&self) -> usize {
         self.nodes.size()
     }
-
-
 }
 
 pub fn parse<'a>(&mut lex: Iterator<Item = lexer::Token<'a>>, &mut diags: DiagnosticConsumer) -> Tree<'a> {
