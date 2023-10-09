@@ -1,10 +1,23 @@
+//! So much stuff to do:
+//! [ ] Figure out namespaces and crate structures
+//! [ ] TokenizedBuffer? Should Token become an index type, rename existing to TokenInfo?
+//! [ ] How to get `line` &str into the token?
+//! [ ] Diagnostics usability/macros/emission
+//! [ ] Implement parsing state machine
+//! [ ] Parsing state machine in other files (expr!)
+//! [ ] Parser unit/smoke tests
+//! [ ] Documentation
+//! [ ] Integration testing?
+//! [ ] After merge - fuzz testing
+//! [ ] After merge - benchmarks for lexer and parser + "speed of light"
+
 use crate::toolchain::diagnostics;
 use crate::toolchain::lexer;
 
 pub struct Node<'a> {
     pub kind: NodeKind,
-    pub token: lexer::Token<'a>,
-    pub subtree_size: u32,
+    pub token_index: i32,
+    pub subtree_size: i32,
 }
 
 pub enum NodeKind {
@@ -53,24 +66,10 @@ pub enum NodeKind {
     TerminationQualifier
 }
 
-enum State {
-    TopLevelStatement,
-
-
-    ClassDefStart,
-
-    ClassExtDef,
-    InterpreterCode,
-//    ClassVarDecl,
-}
-
-struct Context<'a> {
-    pub states: State,
-    pub tree_start: i32,
-}
 
 // A parse tree.
 pub struct Tree<'a> {
+    tokens: Vec<Token>,
     nodes: Vec<Node>,
 }
 
@@ -84,7 +83,7 @@ impl<'a> Tree<'a> {
     }
 }
 
-pub fn parse<'a>(&mut lex: Iterator<Item = lexer::Token<'a>>, &mut diags: DiagnosticConsumer) -> Tree<'a> {
+pub fn parse<'a>(&mut lex: Iterator<Item = lexer::Token<'a>>, &mut diags: diagnostics::DiagnosticConsumer) -> Tree<'a> {
     let mut tree = Tree::new();
     let mut lex_iter = LexIter::new(lex);
     let mut stack = Vec<Context>::new();
@@ -119,6 +118,9 @@ pub fn parse<'a>(&mut lex: Iterator<Item = lexer::Token<'a>>, &mut diags: Diagno
             //          | CLASSNAME SQUARE_OPEN name? SQUARE_CLOSE superclass? CURLY_OPEN classVarDecl* methodDef* CURLY_CLOSE
             State::ClassDefStart => {
                 debug_assert!(lex_iter.front().kind == lexer::TokenKind::ClassName);
+
+                // Check for array type indicator, if present.
+
 
                 match lex_iter.front().kind {
                 }
@@ -177,7 +179,6 @@ impl<'a> LexIter<'a> {
             lexer::TokenKind::LineComment)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
