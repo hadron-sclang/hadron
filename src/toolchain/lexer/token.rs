@@ -1,3 +1,5 @@
+use crate::toolchain::diagnostics::{ DiagnosticLocation, DiagnosticLocationTranslator };
+
 /// Represents a single lexical token of SuperCollider language.
 ///
 /// Because the lexer considers blank space as a [TokenKind::BlankSpace] token, and unrecognized
@@ -241,4 +243,14 @@ pub enum ReservedWordKind {
 
     /// `var` declares local and object instance variables.
     Var
+}
+pub struct TokenLocationTranslator<'s> {
+    file_name: &'s str,
+
+}
+
+impl<'s> DiagnosticLocationTranslator<'s, Token<'s>> for TokenLocationTranslator<'s> {
+    fn get_location(loc: Token<'s>) -> DiagnosticLocation<'s> {
+        
+    }
 }

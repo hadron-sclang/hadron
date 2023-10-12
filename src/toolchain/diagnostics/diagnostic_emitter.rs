@@ -10,16 +10,15 @@ pub enum DiagnosticLevel {
 }
 
 /// A location in code referred to by the diagnostic.
-/// TODO: does this need to be two lifetimes?
-pub struct DiagnosticLocation<'code, 'name> {
-    pub file_name: &'name str,
+pub struct DiagnosticLocation<'s> {
+    pub file_name: &'s str,
     pub line_number: u32,
     pub column_number: u32,
 
-    pub line: &'code str,
+    pub line: &'s str,
 }
 
-impl<'code, 'name> fmt::Display for DiagnosticLocation<'code, 'name> {
+impl<'s> fmt::Display for DiagnosticLocation<'s> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.file_name)?;
         if self.line_number > 0 {
@@ -36,35 +35,58 @@ impl<'code, 'name> fmt::Display for DiagnosticLocation<'code, 'name> {
 /// information.
 /// We've made this a trait to allow for polymorphism in the message formatting. This is all to
 /// avoid the cost of formatting strings in error messages unless its needed. Which, like, OK.
-/*
-pub struct DiagnosticMessage<'a> {
-    pub kind: DiagnosticKind,
-    pub location: DiagnosticLocation<'a>,
-    pub format: &str,
-    pub format_args: Vec<&dyn fmt::Display>,
-}
-*/
-
-pub trait DiagnosticMessage<'c, 'n>: fmt::Display {
+/// And also to separate out the message formatting work from the rest of the toolchain. Which,
+/// like, yeah.
+pub trait DiagnosticMessage<'s>: fmt::Display {
     fn kind(&self) -> DiagnosticKind;
-    fn location(&self) -> &DiagnosticLocation<'c, 'n>;
+    fn location(&self) -> &DiagnosticLocation<'s>;
+}
+
+macro_rules! diag_decl {
+    ($e: ident, $m: literal, $($t:ty, $x:expr)* ) => {
+        pub struct concat_idents!($e, Message<'s>) {
+            location: DiagnosticLocation<'s>,
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! diag {
+    ( $e:ident, $f:literal, $($t:ty, $x:expr)* ) => {
+        diag_decl!($e, $m, $($t, $x,)*)
+
+    }
 }
 
 // ***** An attempt to write what should be macro-generated code.
-pub struct ParseUnknownTokenMessage<'c, 'n> {
-    location: DiagnosticLocation<'c, 'n>,
+pub struct ParseUnknownTokenMessage<'s> {
+    location: DiagnosticLocation<'s>,
 
     // extra state variables
     unknown: char,
 }
 
-impl<'c, 'n> DiagnosticMessage<'c, 'n> for ParseUnknownTokenMessage<'c, 'n> {
+impl<'s> DiagnosticMessage<'s> for ParseUnknownTokenMessage<'s> {
     fn kind(&self) -> DiagnosticKind { DiagnosticKind::ParseUnknownToken }
-    fn location(&self) -> &DiagnosticLocation<'c, 'n> { &self.location }
+    fn location(&self) -> &DiagnosticLocation<'s> { &self.location }
 }
 
-impl<'c, 'n> fmt::Display for ParseUnknownTokenMessage<'c, 'n> {
+impl fmt::Display for dyn DiagnosticMessage<'_> {
+    fn fmt(&self, f: fmt::Formatter<'_>) -> fmt::Result {
+        // This is an abuse of the "alternate" syntax in fmt::Display trait used to pass a boolean
+        // argument to fmt(), in this case to tell the DiagnosticMessage to print this message
+        // as an error.
+        let infix = match f.alternate() {
+            true => "ERROR: ",
+            false => ""
+        };
+        f.fmt(format_args!("{}: {}{}", self.location(), infix, /* TODO */ infix))
+    }
+}
+
+impl<'s> fmt::Display for ParseUnknownTokenMessage<'s> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
         f.write_fmt(format_args!("Unrecognized character sequence starting with '{}'",
             self.unknown))
     }
@@ -72,56 +94,77 @@ impl<'c, 'n> fmt::Display for ParseUnknownTokenMessage<'c, 'n> {
 // ***** End of attempt to write what should be macro-generated.
 
 /// A complete Diagnostic, including a main message and optional notes, plus the level.
-pub struct Diagnostic<'c, 'n> {
+pub struct Diagnostic<'s> {
     pub level: DiagnosticLevel,
-    pub message: Box<dyn DiagnosticMessage<'c, 'n>>,
-    pub notes: Vec<Box<dyn DiagnosticMessage<'c, 'n>>>,
+    pub message: Box<dyn DiagnosticMessage<'s>>,
+    pub notes: Vec<Box<dyn DiagnosticMessage<'s>>>,
+}
+
+impl<'s> fmt::Display for Diagnostic<'s> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let prefix = match self.level {
+            DiagnosticLevel::Error => "ERROR",
+            _ => ""
+        };
+    }
 }
 
 /// An interface for an object that can receive diagnostics from the toolchain as they are emitted.
 pub trait DiagnosticConsumer {
-    fn handle_diagnostic(diag: Diagnostic);
-    fn flush();
-}
-
-pub trait DiagnosticLocationTranslator<'c, 'n, LocationT> {
-    fn get_location(loc: LocationT) -> DiagnosticLocation<'c, 'n>;
+    fn handle_diagnostic(&self, diag: Diagnostic);
+    fn flush(&self);
 }
 
 /* 
+pub trait DiagnosticLocationTranslator<'s, LocationT> {
+    fn get_location(&self, loc: LocationT) -> DiagnosticLocation<'s>;
+}
+
 /// A helper structure for building a single diagnostic with a fluid API
 pub struct DiagnosticBuilder<LocationT> {
 }
 
 impl<LocationT> DiagnosticBuilder<LocationT> {
-
 }
+
 
 // This is an adaptor between subsystems (like the lexer/parser) and the diagnostic system.
-pub struct DiagnosticEmitter<LocationT> {
+pub struct DiagnosticEmitter<'s, LocationT> {
+    consumer: Box<dyn DiagnosticConsumer>,
+    translator: Box<dyn DiagnosticLocationTranslator<'s, LocationT>>,
+    /* 
+    build() -> &DiagnosticBuilder<LocationT>
+    note() -> &DiagnosticBuilder<LocationT>
+    emit()
+    */
 }
 
-impl<LocationT> DiagnosticEmitter<LocationT> {
-    pub fn emit(location: LocationT, diagnostic: DiagnosticBase, ...) -> DiagnosticBuilder<LocationT> {
+impl<'s, LocationT> DiagnosticEmitter<'s, LocationT> {
+    pub fn build(location: LocationT, 
+    pub fn emit(location: LocationT, diagnostic: Diagnostic<'s>) -> DiagnosticBuilder<LocationT> {
     }
 
 }
 */
-
-pub struct StreamDiagnosticConsumer<'a> {
-    stream: &'a dyn std::io::Write,
+pub struct StreamDiagnosticConsumer<W: std::io::Write> {
+    stream: std::io::BufWriter<W>
 }
 
-impl<'a> StreamDiagnosticConsumer<'a> {
-    pub fn new(stream: &'a impl std::io::Write) -> StreamDiagnosticConsumer {
-        StreamDiagnosticConsumer { stream }
+impl<W: std::io::Write> StreamDiagnosticConsumer<W> {
+    pub fn new(stream: W) -> StreamDiagnosticConsumer<W> {
+        StreamDiagnosticConsumer { stream: std::io::BufWriter::new(stream) }
     }
 }
 
-impl<'a> DiagnosticConsumer for StreamDiagnosticConsumer<'a> {
-    fn handle_diagnostic(diag: Diagnostic) {
+impl<W: std::io::Write> DiagnosticConsumer for StreamDiagnosticConsumer<W> {
+    fn handle_diagnostic(&self, diag: Diagnostic) {
+        self.stream.write_fmt(format_args!("{}", diag));
     }
-    fn flush() {
+    fn flush(&self) {
+        self.stream.flush();
+    }
+}
 
-    }
+pub fn console_diagnostic_consumer() -> StreamDiagnosticConsumer<impl std::io::Write> {
+    StreamDiagnosticConsumer::new(std::io::stderr())
 }
