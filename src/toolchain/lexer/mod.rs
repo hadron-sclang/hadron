@@ -21,8 +21,8 @@ use token::TokenKind;
 use crate::toolchain::source;
 
 /// Returns a [Token] iterator over the `input` string that will fill `lines` with substrings.
-pub fn tokenize<'s, 'v>(input: &'s source::SourceBuffer, lines: &'v mut Vec<&'s str>) -> impl Iterator<Item = Token<'s>> + 'v {
-    let mut cursor = Cursor::new(input.code(), lines);
+pub fn tokenize<'s>(source: &'s source::SourceBuffer) -> impl Iterator<Item = Token<'s>> + {
+    let mut cursor = Cursor::new(source);
     std::iter::from_fn(move || {
         let token = cursor.advance_token();
         if token.kind != TokenKind::EndOfInput { Some(token) } else { None }
@@ -50,9 +50,8 @@ mod tests {
     /// The input is a string `"\""` which is escaped by the `format!` call into the output
     /// `\"\\\"\"`. In a failed test, the entire Token string is again escaped, meaning that the
     /// contents of string will be *double* escaped when printed in the test failure.
-    fn check_lexing<'a>(src: &source::SourceBuffer, expect: &str) {
-        let mut lines = Vec::<&'a str>::new();
-        let actual: String = tokenize(src, &mut lines).map(|token| format!("\n{:?}", token)).collect();
+    fn check_lexing<'a>(source: &source::SourceBuffer, expect: &str) {
+        let actual: String = tokenize(source).map(|token| format!("\n{:?}", token)).collect();
         assert_eq!(expect, &actual);
     }
 

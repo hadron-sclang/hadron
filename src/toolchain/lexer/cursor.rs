@@ -1,5 +1,8 @@
 use std::str::Chars;
 
+use crate::toolchain::diagnostics::{DiagnosticLocation, DiagnosticLocationTranslator};
+use crate::toolchain::source::SourceBuffer;
+
 use super::token::BinopKind;
 use super::token::DelimiterKind;
 use super::token::NumberKind;
@@ -7,12 +10,12 @@ use super::token::ReservedWordKind;
 use super::token::Token;
 use super::token::TokenKind;
 
-/// Peekable iterator over a char sequence.
+/// Peekable iterator over a SourceBuffer.
 ///
-/// Also tracks file position by line and column.
+/// Also tracks input buffer position by line and column.
 ///
 /// Design roughly inspired by the rustc lexer Cursor.
-pub struct Cursor<'s, 'v> {
+pub struct Cursor<'s> {
     // An iterator over the input character string.
     chars: Chars<'s>,
     string: &'s str,
@@ -21,13 +24,15 @@ pub struct Cursor<'s, 'v> {
     column: i32,
     line_str: &'s str,
     line_bytes_remaining: usize,
-    lines: &'v mut Vec<&'s str>,
+    lines: Vec<&'s str>,
+    file_name: &'s str,
 }
 
-impl<'s, 'v> Cursor<'s, 'v> {
+impl<'s> Cursor<'s> {
     pub const EOF: char = '\0';
 
-    pub fn new(input: &'s str, lines: &'v mut Vec<&'s str>) -> Cursor<'s, 'v> {
+    pub fn new(source: &'s SourceBuffer) -> Cursor<'s> {
+        let input = source.code();
         Cursor {
             chars: input.chars(),
             string: input,
@@ -37,7 +42,8 @@ impl<'s, 'v> Cursor<'s, 'v> {
 
             line_str: input,
             line_bytes_remaining: input.len(),
-            lines: lines
+            lines: Vec::new(),
+            file_name: source.file_name(),
         }
     }
 
@@ -452,6 +458,31 @@ impl<'s, 'v> Cursor<'s, 'v> {
             '.' => false,
             _ => true
         }
+    }
+}
+
+impl<'s> DiagnosticLocationTranslator<'s, Token<'s>> for Cursor<'s> {
+    fn get_location(&self, token: &Token<'s>) -> DiagnosticLocation<'s> {
+        // Switch to zero-based line counting.
+        let line_index = (token.line - 1) as usize;
+        // We extract lines during lexing, so it is likely that the line being lexed hasn't yet.
+        // If so, scan ahead for the next end of line. This is suboptimal and could result in
+        // multiple scans of a long line (when it contains multiple errors), but trades this
+        // suboptimality on error for efficiency in non-error scanning.
+        debug_assert!(line_index <= self.lines.len());
+        let line = if line_index == self.lines.len() {
+            match self.line_str.find('\n') {
+                Some(index) => {
+                    let (prefix, _) = self.line_str.split_at(index);
+                    prefix
+                },
+                None => self.line_str
+            }
+        } else {
+            self.lines[line_index]
+        };
+        DiagnosticLocation { file_name: self.file_name, line_number: token.line,
+                column_number: token.column, line }
     }
 }
 
