@@ -15,13 +15,16 @@ struct StateStackEntry {
    pub subtree_start: i32,
 }
 
-pub struct Context<'a> {
+pub struct Context<'c, 's> {
     states: Vec<StateStackEntry>,
+    emitter: DiagnosticEmitter<'c, 's>,
+
+    lexer: Iterator<Item = lexer::Token<'a>>,
+    token: lexer::Token<'a>,
 }
 
-
 // A peekable iterator over the lexer tokens that skips empty space.
-// TODO: merge into Context I should say
+// TODO: merge into Context I should say? There's too much in Context and in Lexer::Cursor
 
 struct LexIter<'a> {
     lexer: Iterator<Item = lexer::Token<'a>>,
