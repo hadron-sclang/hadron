@@ -6,7 +6,7 @@ enum SourceBufferKind<'a> {
     Memory { string: &'a str },
 }
 
-// Keeps source and a file name in the same object, so they provide the same lifetimes.
+// Keeps source and a file name in the same object, so they provide the same lifetime.
 pub struct SourceBuffer<'a> {
     kind: SourceBufferKind<'a>,
     file_name: String,
