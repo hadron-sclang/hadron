@@ -1,8 +1,5 @@
 use std::str::Chars;
 
-use crate::toolchain::diagnostics::{DiagnosticLocation, DiagnosticLocationTranslator};
-use crate::toolchain::source::SourceBuffer;
-
 use super::token::BinopKind;
 use super::token::DelimiterKind;
 use super::token::NumberKind;
@@ -10,12 +7,12 @@ use super::token::ReservedWordKind;
 use super::token::Token;
 use super::token::TokenKind;
 
-/// Peekable iterator over a SourceBuffer.
+/// Token iterator over a SourceBuffer.
 ///
 /// Also tracks input buffer position by line and column.
 ///
 /// Design roughly inspired by the rustc lexer Cursor.
-pub struct Cursor<'s> {
+pub struct Cursor<'s, 'v> {
     // An iterator over the input character string.
     chars: Chars<'s>,
     string: &'s str,
@@ -24,101 +21,20 @@ pub struct Cursor<'s> {
     column: i32,
     line_str: &'s str,
     line_bytes_remaining: usize,
-    lines: Vec<&'s str>,
-    file_name: &'s str,
+    lines: &'v mut Vec<&'s str>,
 }
 
-impl<'s> Cursor<'s> {
-    pub const EOF: char = '\0';
+impl<'s, 'v> Iterator for Cursor<'s, 'v> {
+    type Item = Token<'s>;
 
-    pub fn new(source: &'s SourceBuffer) -> Cursor<'s> {
-        let input = source.code();
-        Cursor {
-            chars: input.chars(),
-            string: input,
-            bytes_remaining: input.len(),
-            line: 1,
-            column: 1,
-
-            line_str: input,
-            line_bytes_remaining: input.len(),
-            lines: Vec::new(),
-            file_name: source.file_name(),
-        }
-    }
-
-    pub fn first(&self) -> char {
-        self.chars.clone().next().unwrap_or(Self::EOF)
-    }
-
-    pub fn bump(&mut self) -> Option<char> {
-        let next = self.chars.next();
-        match next {
-            None => {
-                if self.line_str.len() > 0 {
-                    self.lines.push(self.line_str);
-                    self.line_str = "";
-                }
-                None
-            },
-            Some(c) => {
-                // Handle newlines as we encounter them.
-                if c == '\n' {
-                    // Extract the line substring for the line we just terminated.
-                    let new_bytes_remaining = self.chars.as_str().len();
-                    let (prefix, suffix) = self.line_str.split_at(
-                        self.line_bytes_remaining - new_bytes_remaining);
-                    self.lines.push(prefix);
-                    self.line_str = suffix;
-                    self.line_bytes_remaining = new_bytes_remaining;
-
-                    // Our 1-based line count should now be the same size as the lines array.
-                    debug_assert!(self.line == self.lines.len().try_into().unwrap());
-                    self.line += 1;
-                    self.column = 1;
-                } else {
-                    self.column += 1;
-                }
-                Some(c)
-            },
-        }
-    }
-
-    pub fn is_eof(&self) -> bool {
-        self.chars.as_str().is_empty()
-    }
-
-    pub fn extract_substring(&mut self) -> &'s str {
-        let new_bytes_remaining = self.chars.as_str().len();
-        let (prefix, suffix) = self.string.split_at(
-            self.bytes_remaining - new_bytes_remaining);
-        self.string = suffix;
-        self.bytes_remaining = new_bytes_remaining;
-        prefix
-    }
-
-    pub fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
-        while predicate(self.first()) && !self.is_eof() {
-            self.bump();
-        }
-    }
-
-    pub fn line(&self) -> i32 {
-        self.line
-    }
-
-    pub fn column(&self) -> i32 {
-        self.column
-    }
-
-    pub fn advance_token(&mut self) -> Token<'s> {
+    fn next(&mut self) -> Option<Token<'s>> {
         // Collect string position at the start of the token.
-        let line = self.line();
-        let column = self.column();
+        let line = self.line;
+        let column = self.column;
 
         let first_char = match self.bump() {
             Some(c) => c,
-            None => return Token::end(),
+            None => return None,
         };
 
         let token_kind = match first_char {
@@ -229,9 +145,83 @@ impl<'s> Cursor<'s> {
                 "var" => TokenKind::ReservedWord { kind: ReservedWordKind::Var },
                 _ => TokenKind::Identifier
             };
-            Token::new(identifier_kind, token_str, line, column)
+            return Some(Token::new(identifier_kind, token_str, line, column));
         } else {
-            Token::new(token_kind, token_str, line, column)
+            return Some(Token::new(token_kind, token_str, line, column));
+        }
+    }
+}
+
+impl<'s, 'v> Cursor<'s, 'v> {
+    pub const EOF: char = '\0';
+
+    pub fn new(input: &'s str, lines: &'v mut Vec<&'s str>) -> Cursor<'s, 'v> {
+        Cursor {
+            chars: input.chars(),
+            string: input,
+            bytes_remaining: input.len(),
+            line: 1,
+            column: 1,
+
+            line_str: input,
+            line_bytes_remaining: input.len(),
+            lines: lines,
+        }
+    }
+
+    fn first(&self) -> char {
+        self.chars.clone().next().unwrap_or(Self::EOF)
+    }
+
+    fn bump(&mut self) -> Option<char> {
+        let next = self.chars.next();
+        match next {
+            None => {
+                if self.line_str.len() > 0 {
+                    self.lines.push(self.line_str);
+                    self.line_str = "";
+                }
+                None
+            },
+            Some(c) => {
+                // Handle newlines as we encounter them.
+                if c == '\n' {
+                    // Extract the line substring for the line we just terminated.
+                    let new_bytes_remaining = self.chars.as_str().len();
+                    let (prefix, suffix) = self.line_str.split_at(
+                        self.line_bytes_remaining - new_bytes_remaining);
+                    self.lines.push(prefix);
+                    self.line_str = suffix;
+                    self.line_bytes_remaining = new_bytes_remaining;
+
+                    // Our 1-based line count should now be the same size as the lines array.
+                    debug_assert!(self.line == self.lines.len().try_into().unwrap());
+                    self.line += 1;
+                    self.column = 1;
+                } else {
+                    self.column += 1;
+                }
+                Some(c)
+            },
+        }
+    }
+
+    fn is_eof(&self) -> bool {
+        self.chars.as_str().is_empty()
+    }
+
+    fn extract_substring(&mut self) -> &'s str {
+        let new_bytes_remaining = self.chars.as_str().len();
+        let (prefix, suffix) = self.string.split_at(
+            self.bytes_remaining - new_bytes_remaining);
+        self.string = suffix;
+        self.bytes_remaining = new_bytes_remaining;
+        prefix
+    }
+
+    fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
+        while predicate(self.first()) && !self.is_eof() {
+            self.bump();
         }
     }
 
@@ -461,32 +451,6 @@ impl<'s> Cursor<'s> {
     }
 }
 
-impl<'s> DiagnosticLocationTranslator<'s, Token<'s>> for Cursor<'s> {
-    fn get_location(&self, token: &Token<'s>) -> DiagnosticLocation<'s> {
-        // Switch to zero-based line counting.
-        let line_index = (token.line - 1) as usize;
-        // We extract lines during lexing, so it is likely that the line being lexed hasn't yet.
-        // If so, scan ahead for the next end of line. This is suboptimal and could result in
-        // multiple scans of a long line (when it contains multiple errors), but trades this
-        // suboptimality on error for efficiency in non-error scanning.
-        debug_assert!(line_index <= self.lines.len());
-        let line = if line_index == self.lines.len() {
-            match self.line_str.find('\n') {
-                Some(index) => {
-                    let (prefix, _) = self.line_str.split_at(index);
-                    prefix
-                },
-                None => self.line_str
-            }
-        } else {
-            self.lines[line_index]
-        };
-        DiagnosticLocation { file_name: self.file_name, line_number: token.line,
-                column_number: token.column, line }
-    }
-}
-
-
 fn is_blank_space(c: char) -> bool {
     // Copied from the rustc lexer.
     matches!(c,
@@ -518,3 +482,4 @@ fn is_binop(c: char) -> bool {
 fn is_identifier(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
 }
+

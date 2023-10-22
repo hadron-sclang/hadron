@@ -3,7 +3,7 @@ use std::fmt;
 
 use super::DiagnosticKind;
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum DiagnosticLevel {
     Note,
     Warning,
@@ -138,7 +138,7 @@ impl<'s, LocationT> DiagnosticBuilder<'s, LocationT> {
         self
     }
 
-    pub fn emit(&self) -> Diagnostic<'s> {
+    pub fn emit(self) -> Diagnostic<'s> {
         Diagnostic { level: self.level, message: self.message, notes: self.notes }
     }
 }
@@ -155,10 +155,10 @@ impl<W: std::io::Write> StreamDiagnosticConsumer<W> {
 
 impl<W: std::io::Write> DiagnosticConsumer for StreamDiagnosticConsumer<W> {
     fn handle_diagnostic(&mut self, diag: &Diagnostic) {
-        self.stream.write_fmt(format_args!("{}", diag));
+        self.stream.write_fmt(format_args!("{}", diag)).expect("should be able to write to the diagnostic stream");
     }
     fn flush(&mut self) {
-        self.stream.flush();
+        self.stream.flush().expect("should be able to flush the diagnostic stream");
     }
 }
 
