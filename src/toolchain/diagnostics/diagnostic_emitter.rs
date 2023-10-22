@@ -59,8 +59,9 @@ pub struct Diagnostic<'s> {
 }
 
 impl<'s> Diagnostic<'s> {
-    pub fn new(level: DiagnosticLevel, message: DiagnosticMessage<'s>) -> Diagnostic<'s> {
-        Diagnostic { level, message, notes: Vec::new() }
+    /// Builds a new diagnostic. Normally called by a [DiagnosticBuilder].
+    pub fn new(level: DiagnosticLevel, message: DiagnosticMessage<'s>, notes: Vec<DiagnosticMessage<'s>>) -> Diagnostic<'s> {
+        Diagnostic { level, message, notes }
     }
 }
 
@@ -87,82 +88,61 @@ pub trait DiagnosticConsumer {
 pub trait DiagnosticLocationTranslator<'s, LocationT> {
     fn get_location(&self, loc: &LocationT) -> DiagnosticLocation<'s>;
 }
-/* TODO: bring this fluid-style API back. A Builder object is much better than the ugliness below.
-/// A helper structure for building a single diagnostic with a fluid API. The emitter must outlive
-/// it.
-pub struct DiagnosticBuilder<'e, 's, 'c, LocationT> {
-    diag: Diagnostic<'s>,
-    emitter: &'e mut DiagnosticEmitter<'s, 'c, LocationT>,
-}
 
-impl<'e, 's, 'c, LocationT> DiagnosticBuilder<'e, 's, 'c, LocationT> {
-    // Normally called by a DiagnosticEmitter, which provides the translator reference.
-    pub fn build(emitter: &'e mut DiagnosticEmitter<'s, 'c, LocationT>,
-                 level: DiagnosticLevel, kind: DiagnosticKind, location: &LocationT,
-                 body: String) -> DiagnosticBuilder<'e, 's, 'c, LocationT> {
-        // Translate location
-        let loc = emitter.get_location(location);
-        let message = DiagnosticMessage { kind, location: loc, body };
-        let diag = Diagnostic::new(level, message);
-        DiagnosticBuilder { diag, emitter }
-    }
-
-    pub fn note(&mut self, kind: DiagnosticKind, location: &LocationT, body: String)
-                -> &DiagnosticBuilder<'e, 's, 'c, LocationT> {
-        let loc = self.emitter.get_location(location);
-        self.diag.notes.push(DiagnosticMessage { kind, location: loc, body });
-        self
-    }
-
-    pub fn emit(&self) {
-        self.emitter.emit(self.diag)
-    }
-}
-*/
 // This is an adaptor between subsystems (like the lexer/parser) and the diagnostic consumer. It
 // holds the conumer and translator and facilitates creating Diagnostics, and ultimately
 // provides the completed diagnostics to the DiagnosticConsumer.
 pub struct DiagnosticEmitter<'c, 's, LocationT> {
     consumer: &'c mut dyn DiagnosticConsumer,
     translator: &'s dyn DiagnosticLocationTranslator<'s, LocationT>,
-    diagnostic: Option<Diagnostic<'s>>,
 }
 
 impl<'c, 's, LocationT> DiagnosticEmitter<'c, 's, LocationT> {
     pub fn new(consumer: &'c mut dyn DiagnosticConsumer,
                translator: &'s dyn DiagnosticLocationTranslator<'s, LocationT>)
                -> DiagnosticEmitter<'c, 's, LocationT> {
-        DiagnosticEmitter { consumer, translator, diagnostic: None }
+        DiagnosticEmitter { consumer, translator }
     }
 
-    pub fn get_location(&self, loc: &LocationT) -> DiagnosticLocation {
-        self.translator.get_location(loc)
+    pub fn build(&self, level: DiagnosticLevel, kind: DiagnosticKind, location: &LocationT, body: String)
+                -> DiagnosticBuilder<'s, LocationT> {
+        DiagnosticBuilder::build(level, kind, location, body, self.translator)
     }
 
-    pub fn build(&mut self, level: DiagnosticLevel, kind: DiagnosticKind, location: &LocationT, body: String)
-                -> &mut DiagnosticEmitter<'c, 's, LocationT> {
-        debug_assert!(self.diagnostic.is_none(), "Repeated calls to build() without calling emit()");
-        let loc = self.translator.get_location(location);
+    pub fn emit(&mut self, diagnostic: &Diagnostic) {
+        self.consumer.handle_diagnostic(diagnostic);
+    }
+}
+
+pub struct DiagnosticBuilder<'s, LocationT> {
+    level: DiagnosticLevel,
+    message: DiagnosticMessage<'s>,
+    notes: Vec<DiagnosticMessage<'s>>,
+
+    translator: &'s dyn DiagnosticLocationTranslator<'s, LocationT>,
+}
+
+impl<'s, LocationT> DiagnosticBuilder<'s, LocationT> {
+    pub fn build(level: DiagnosticLevel, kind: DiagnosticKind, location: &LocationT, body: String,
+            translator: &'s dyn DiagnosticLocationTranslator<'s, LocationT>)
+        -> DiagnosticBuilder<'s, LocationT> {
+        let loc = translator.get_location(location);
         let message = DiagnosticMessage { kind, location: loc, body };
-        self.diagnostic = Some(Diagnostic::new(level, message));
-        self
+        DiagnosticBuilder { level, message, notes: Vec::new(), translator }
     }
 
     pub fn note(&mut self, kind: DiagnosticKind, location: &LocationT, body: String)
-                -> &mut DiagnosticEmitter<'c, 's, LocationT> {
+        -> &DiagnosticBuilder<'s, LocationT> {
         let loc = self.translator.get_location(location);
-        let message = DiagnosticMessage { kind, location: loc, body };
-        self.diagnostic.as_mut().unwrap().notes.push(message);
+        self.notes.push(DiagnosticMessage { kind, location: loc, body });
         self
     }
 
-    // Normally called by DiagnosticBuilder
-    pub fn emit(&mut self) {
-        let diag = self.diagnostic.as_mut().unwrap();
-        self.consumer.handle_diagnostic(diag);
-        self.diagnostic = None;
+    pub fn emit(&self) -> Diagnostic<'s> {
+        Diagnostic { level: self.level, message: self.message, notes: self.notes }
     }
 }
+
 pub struct StreamDiagnosticConsumer<W: std::io::Write> {
     stream: std::io::BufWriter<W>
 }
