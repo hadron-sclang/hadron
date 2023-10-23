@@ -53,34 +53,60 @@ impl<'s, 'v> Iterator for Cursor<'s, 'v> {
 
             // Literal symbols delimited with '\''.
             '\'' => TokenKind::Symbol {
-                has_escapes: self.scan_for_delimiter_or_escapes('\'')
+                has_escapes: self.scan_for_delimiter_or_escapes('\''),
             },
 
             // Inline literal symbols start with a '\'.
             '\\' => {
                 self.eat_while(|c| c.is_alphanumeric() || c == '_');
                 TokenKind::InlineSymbol
-            },
+            }
 
             // Literal strings delimited with '"'.
             '"' => TokenKind::String {
-                has_escapes: self.scan_for_delimiter_or_escapes('"')
+                has_escapes: self.scan_for_delimiter_or_escapes('"'),
             },
 
             // Single-character delimiters.
-            '^' => TokenKind::Delimiter { kind: DelimiterKind::Caret },
-            ':' => TokenKind::Delimiter { kind: DelimiterKind::Colon },
-            ',' => TokenKind::Delimiter { kind: DelimiterKind::Comma },
-            '(' => TokenKind::Delimiter { kind: DelimiterKind::ParenOpen },
-            ')' => TokenKind::Delimiter { kind: DelimiterKind::ParenClose },
-            '{' => TokenKind::Delimiter { kind: DelimiterKind::BraceOpen },
-            '}' => TokenKind::Delimiter { kind: DelimiterKind::BraceClose },
-            '[' => TokenKind::Delimiter { kind: DelimiterKind::BracketOpen },
-            ']' => TokenKind::Delimiter { kind: DelimiterKind::BracketClose },
-            '`' => TokenKind::Delimiter { kind: DelimiterKind::Grave },
-            '#' => TokenKind::Delimiter { kind: DelimiterKind::Hash },
-            '~' => TokenKind::Delimiter { kind: DelimiterKind::Tilde },
-            ';' => TokenKind::Delimiter { kind: DelimiterKind::Semicolon },
+            '^' => TokenKind::Delimiter {
+                kind: DelimiterKind::Caret,
+            },
+            ':' => TokenKind::Delimiter {
+                kind: DelimiterKind::Colon,
+            },
+            ',' => TokenKind::Delimiter {
+                kind: DelimiterKind::Comma,
+            },
+            '(' => TokenKind::Delimiter {
+                kind: DelimiterKind::ParenOpen,
+            },
+            ')' => TokenKind::Delimiter {
+                kind: DelimiterKind::ParenClose,
+            },
+            '{' => TokenKind::Delimiter {
+                kind: DelimiterKind::BraceOpen,
+            },
+            '}' => TokenKind::Delimiter {
+                kind: DelimiterKind::BraceClose,
+            },
+            '[' => TokenKind::Delimiter {
+                kind: DelimiterKind::BracketOpen,
+            },
+            ']' => TokenKind::Delimiter {
+                kind: DelimiterKind::BracketClose,
+            },
+            '`' => TokenKind::Delimiter {
+                kind: DelimiterKind::Grave,
+            },
+            '#' => TokenKind::Delimiter {
+                kind: DelimiterKind::Hash,
+            },
+            '~' => TokenKind::Delimiter {
+                kind: DelimiterKind::Tilde,
+            },
+            ';' => TokenKind::Delimiter {
+                kind: DelimiterKind::Semicolon,
+            },
 
             // Underscores can be single-character delimiters, but if they are followed by an
             // alphanumeric string or more underscores, we lex them as primitives.
@@ -89,9 +115,11 @@ impl<'s, 'v> Iterator for Cursor<'s, 'v> {
                     self.eat_while(|c| is_identifier(c));
                     TokenKind::Primitive
                 } else {
-                    TokenKind::Delimiter { kind: DelimiterKind:: Underscore }
+                    TokenKind::Delimiter {
+                        kind: DelimiterKind::Underscore,
+                    }
                 }
-            },
+            }
 
             // Character literals start with a $ and may be escaped.
             '$' => {
@@ -101,7 +129,7 @@ impl<'s, 'v> Iterator for Cursor<'s, 'v> {
                     self.bump();
                 }
                 TokenKind::Character { is_escaped }
-            },
+            }
 
             // Several tokens could either be generic binop identifiers or have their own special
             // meaning. Disambiguate.
@@ -119,7 +147,7 @@ impl<'s, 'v> Iterator for Cursor<'s, 'v> {
                         TokenKind::Ellipses
                     }
                 }
-            },
+            }
 
             // We coalesce unknown characters into a single Token, to cut down on the number of
             // Tokens that we lex from a string of garbage input.
@@ -135,16 +163,34 @@ impl<'s, 'v> Iterator for Cursor<'s, 'v> {
         // Fixup identifiers to match against reserved words
         if token_kind == TokenKind::Identifier {
             let identifier_kind = match token_str {
-                "arg" => TokenKind::ReservedWord { kind: ReservedWordKind::Arg },
-                "classvar" => TokenKind::ReservedWord { kind: ReservedWordKind::Classvar },
-                "const" => TokenKind::ReservedWord { kind: ReservedWordKind::Const },
-                "false" => TokenKind::ReservedWord { kind: ReservedWordKind::False },
-                "inf" => TokenKind::ReservedWord { kind: ReservedWordKind::Inf },
-                "nil" => TokenKind::ReservedWord { kind: ReservedWordKind::Nil },
-                "pi" => TokenKind::ReservedWord { kind: ReservedWordKind::Pi },
-                "true" => TokenKind::ReservedWord { kind: ReservedWordKind::True },
-                "var" => TokenKind::ReservedWord { kind: ReservedWordKind::Var },
-                _ => TokenKind::Identifier
+                "arg" => TokenKind::ReservedWord {
+                    kind: ReservedWordKind::Arg,
+                },
+                "classvar" => TokenKind::ReservedWord {
+                    kind: ReservedWordKind::Classvar,
+                },
+                "const" => TokenKind::ReservedWord {
+                    kind: ReservedWordKind::Const,
+                },
+                "false" => TokenKind::ReservedWord {
+                    kind: ReservedWordKind::False,
+                },
+                "inf" => TokenKind::ReservedWord {
+                    kind: ReservedWordKind::Inf,
+                },
+                "nil" => TokenKind::ReservedWord {
+                    kind: ReservedWordKind::Nil,
+                },
+                "pi" => TokenKind::ReservedWord {
+                    kind: ReservedWordKind::Pi,
+                },
+                "true" => TokenKind::ReservedWord {
+                    kind: ReservedWordKind::True,
+                },
+                "var" => TokenKind::ReservedWord {
+                    kind: ReservedWordKind::Var,
+                },
+                _ => TokenKind::Identifier,
             };
             return Some(Token::new(identifier_kind, token_str, line, column));
         } else {
@@ -183,14 +229,15 @@ impl<'s, 'v> Cursor<'s, 'v> {
                     self.line_str = "";
                 }
                 None
-            },
+            }
             Some(c) => {
                 // Handle newlines as we encounter them.
                 if c == '\n' {
                     // Extract the line substring for the line we just terminated.
                     let new_bytes_remaining = self.chars.as_str().len();
-                    let (prefix, suffix) = self.line_str.split_at(
-                        self.line_bytes_remaining - new_bytes_remaining);
+                    let (prefix, suffix) = self
+                        .line_str
+                        .split_at(self.line_bytes_remaining - new_bytes_remaining);
                     self.lines.push(prefix);
                     self.line_str = suffix;
                     self.line_bytes_remaining = new_bytes_remaining;
@@ -203,7 +250,7 @@ impl<'s, 'v> Cursor<'s, 'v> {
                     self.column += 1;
                 }
                 Some(c)
-            },
+            }
         }
     }
 
@@ -213,8 +260,9 @@ impl<'s, 'v> Cursor<'s, 'v> {
 
     fn extract_substring(&mut self) -> &'s str {
         let new_bytes_remaining = self.chars.as_str().len();
-        let (prefix, suffix) = self.string.split_at(
-            self.bytes_remaining - new_bytes_remaining);
+        let (prefix, suffix) = self
+            .string
+            .split_at(self.bytes_remaining - new_bytes_remaining);
         self.string = suffix;
         self.bytes_remaining = new_bytes_remaining;
         prefix
@@ -231,7 +279,9 @@ impl<'s, 'v> Cursor<'s, 'v> {
         self.eat_while(|c| c != '\n');
         // Consume the line end character.
         self.bump();
-        TokenKind::Ignored { kind: IgnoredKind::LineComment }
+        TokenKind::Ignored {
+            kind: IgnoredKind::LineComment,
+        }
     }
 
     fn block_comment(&mut self) -> TokenKind {
@@ -253,21 +303,39 @@ impl<'s, 'v> Cursor<'s, 'v> {
             }
         }
 
-        TokenKind::Ignored { kind: IgnoredKind::BlockComment }
+        TokenKind::Ignored {
+            kind: IgnoredKind::BlockComment,
+        }
     }
 
     fn binop_or_comment(&mut self, first: char) -> TokenKind {
         // Most interesting binops are a single character in length. Check for those first.
         if !is_binop(self.first()) {
             return match first {
-                '*' => TokenKind::Binop { kind: BinopKind::Asterisk },
-                '=' => TokenKind::Binop { kind: BinopKind::Assign },
-                '>' => TokenKind::Binop { kind: BinopKind::GreaterThan },
-                '<' => TokenKind::Binop { kind: BinopKind::LessThan },
-                '-' => TokenKind::Binop { kind: BinopKind::Minus },
-                '|' => TokenKind::Binop { kind: BinopKind::Pipe },
-                '+' => TokenKind::Binop { kind: BinopKind::Plus },
-                _ => TokenKind::Binop { kind: BinopKind::BinopIdentifier },
+                '*' => TokenKind::Binop {
+                    kind: BinopKind::Asterisk,
+                },
+                '=' => TokenKind::Binop {
+                    kind: BinopKind::Assign,
+                },
+                '>' => TokenKind::Binop {
+                    kind: BinopKind::GreaterThan,
+                },
+                '<' => TokenKind::Binop {
+                    kind: BinopKind::LessThan,
+                },
+                '-' => TokenKind::Binop {
+                    kind: BinopKind::Minus,
+                },
+                '|' => TokenKind::Binop {
+                    kind: BinopKind::Pipe,
+                },
+                '+' => TokenKind::Binop {
+                    kind: BinopKind::Plus,
+                },
+                _ => TokenKind::Binop {
+                    kind: BinopKind::BinopIdentifier,
+                },
             };
         }
 
@@ -288,28 +356,41 @@ impl<'s, 'v> Cursor<'s, 'v> {
         // Check for two-character binops that start with '<'.
         if first == '<' && !is_binop(self.first()) {
             return match next {
-                '-' => TokenKind::Binop { kind: BinopKind::LeftArrow },
-                '>' => TokenKind::Binop { kind: BinopKind::ReadWriteVar},
-                _ => TokenKind::Binop { kind: BinopKind::BinopIdentifier }
-            }
+                '-' => TokenKind::Binop {
+                    kind: BinopKind::LeftArrow,
+                },
+                '>' => TokenKind::Binop {
+                    kind: BinopKind::ReadWriteVar,
+                },
+                _ => TokenKind::Binop {
+                    kind: BinopKind::BinopIdentifier,
+                },
+            };
         }
 
         // Identifier binop, consume the rest of the characters.
         self.eat_while(|c| is_binop(c));
-        TokenKind::Binop { kind: BinopKind::BinopIdentifier }
+        TokenKind::Binop {
+            kind: BinopKind::BinopIdentifier,
+        }
     }
 
     fn blank_space(&mut self) -> TokenKind {
         self.eat_while(|c| is_blank_space(c));
-        TokenKind::Ignored { kind: IgnoredKind::BlankSpace }
+        TokenKind::Ignored {
+            kind: IgnoredKind::BlankSpace,
+        }
     }
 
     fn identifier(&mut self) -> TokenKind {
         self.eat_while(|c| is_identifier(c));
         // Any valid identifier terminated with a colon converts it into a keyword
         match self.first() {
-            ':' => { self.bump(); TokenKind::Keyword }
-            _ => TokenKind::Identifier
+            ':' => {
+                self.bump();
+                TokenKind::Keyword
+            }
+            _ => TokenKind::Identifier,
         }
     }
 
@@ -322,7 +403,9 @@ impl<'s, 'v> Cursor<'s, 'v> {
         let mut count = 1;
         while count <= 4 {
             self.bump();
-            if self.first() != c { break; }
+            if self.first() != c {
+                break;
+            }
             count += 1;
         }
         if count == 1 && self.first().is_numeric() {
@@ -348,7 +431,7 @@ impl<'s, 'v> Cursor<'s, 'v> {
                     _ => false,
                 });
                 NumberKind::IntegerHex
-            },
+            }
 
             // 1-4 'b' characters or 1 'b' character followed by a number makes a flat float.
             'b' => self.accidental('b'),
@@ -362,7 +445,7 @@ impl<'s, 'v> Cursor<'s, 'v> {
                     'a'..='z' => true,
                     'A'..='Z' => true,
                     '0'..='9' => true,
-                    _ => false
+                    _ => false,
                 });
 
                 if self.first() == '.' {
@@ -371,13 +454,13 @@ impl<'s, 'v> Cursor<'s, 'v> {
                         // Lowercase letters not allowed after the decimal in radix notation.
                         'A'..='Z' => true,
                         '0'..='9' => true,
-                        _ => false
+                        _ => false,
                     });
                     NumberKind::FloatRadix
                 } else {
                     NumberKind::IntegerRadix
                 }
-            },
+            }
 
             '.' => {
                 self.bump();
@@ -417,7 +500,9 @@ impl<'s, 'v> Cursor<'s, 'v> {
             false
         } else {
             while !self.is_eof() && self.first() != delimiter {
-                if self.first() == '\\' { self.bump(); }
+                if self.first() == '\\' {
+                    self.bump();
+                }
                 self.bump();
                 self.eat_while(|c| c != '\\' && c != delimiter);
             }
@@ -447,14 +532,15 @@ impl<'s, 'v> Cursor<'s, 'v> {
             ';' => false,
             '$' => false,
             '.' => false,
-            _ => true
+            _ => true,
         }
     }
 }
 
 fn is_blank_space(c: char) -> bool {
     // Copied from the rustc lexer.
-    matches!(c,
+    matches!(
+        c,
         // Usual ASCII suspects
         '\u{0009}'   // \t
         | '\u{000A}' // \n
@@ -477,10 +563,12 @@ fn is_blank_space(c: char) -> bool {
 }
 
 fn is_binop(c: char) -> bool {
-    matches!(c, '!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' |'?' | '/')
+    matches!(
+        c,
+        '!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' | '?' | '/'
+    )
 }
 
 fn is_identifier(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
 }
-

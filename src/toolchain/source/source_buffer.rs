@@ -18,25 +18,34 @@ impl<'a> SourceBuffer<'a> {
         let file = File::open(file_path)?;
         let len = File::metadata(&file)?.len();
         let buffer = unsafe {
-            mmap_rs::MmapOptions::new(len.try_into().unwrap())?.with_file(&file, 0).map()?
+            mmap_rs::MmapOptions::new(len.try_into().unwrap())?
+                .with_file(&file, 0)
+                .map()?
         };
         let file_name = String::from(file_path.to_str().unwrap());
-        Ok(SourceBuffer { kind: SourceBufferKind::File{buffer}, file_name })
+        Ok(SourceBuffer {
+            kind: SourceBufferKind::File { buffer },
+            file_name,
+        })
     }
 
-    pub fn new_from_string(string: &'a str, name: &str) -> Result<SourceBuffer<'a>, mmap_rs::Error> {
+    pub fn new_from_string(
+        string: &'a str,
+        name: &str,
+    ) -> Result<SourceBuffer<'a>, mmap_rs::Error> {
         let file_name = String::from(name);
-        Ok(SourceBuffer { kind: SourceBufferKind::Memory{string}, file_name })
+        Ok(SourceBuffer {
+            kind: SourceBufferKind::Memory { string },
+            file_name,
+        })
     }
 
     pub fn code(&self) -> &'_ str {
         match &self.kind {
-            SourceBufferKind::File { buffer } => {
-                unsafe {
-                    std::str::from_utf8_unchecked(buffer.as_slice())
-                }
+            SourceBufferKind::File { buffer } => unsafe {
+                std::str::from_utf8_unchecked(buffer.as_slice())
             },
-            SourceBufferKind::Memory { string } => { string }
+            SourceBufferKind::Memory { string } => string,
         }
     }
 
@@ -44,4 +53,3 @@ impl<'a> SourceBuffer<'a> {
         self.file_name.as_str()
     }
 }
-

@@ -385,7 +385,9 @@ impl Slot {
 }
 
 impl Default for Slot {
-    fn default() -> Self { Slot::nil() }
+    fn default() -> Self {
+        Slot::nil()
+    }
 }
 
 impl std::fmt::Debug for Slot {

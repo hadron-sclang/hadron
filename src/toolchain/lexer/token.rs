@@ -20,11 +20,21 @@ pub struct Token<'a> {
 
 impl<'a> Token<'a> {
     pub fn new(kind: TokenKind, string: &'a str, line: i32, column: i32) -> Token<'a> {
-        Token { kind, string, line, column }
+        Token {
+            kind,
+            string,
+            line,
+            column,
+        }
     }
 
     pub fn end() -> Token<'a> {
-        Token { kind: TokenKind::EndOfInput, string: "", line: 0, column: 0 }
+        Token {
+            kind: TokenKind::EndOfInput,
+            string: "",
+            line: 0,
+            column: 0,
+        }
     }
 }
 
@@ -38,16 +48,22 @@ pub enum TokenKind {
     /// `'!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '<' | '>' |'?' | '/'`
     ///
     /// Some binops have special meaning while parsing, so we identify those with [BinopKind].
-    Binop { kind: BinopKind },
+    Binop {
+        kind: BinopKind,
+    },
 
     /// A character literal, such as `$a` or `$\t`. `is_escaped` is `false` in the former example,
     /// `true` in the latter.
-    Character { is_escaped: bool },
+    Character {
+        is_escaped: bool,
+    },
 
     /// A class name starting with an uppercase letter, such as `SynthDef`.
     ClassName,
 
-    Delimiter { kind: DelimiterKind },
+    Delimiter {
+        kind: DelimiterKind,
+    },
 
     /// A single period.
     Dot,
@@ -67,7 +83,9 @@ pub enum TokenKind {
     Identifier,
 
     /// The compiler ignores any empty space or comments.
-    Ignored { kind: IgnoredKind },
+    Ignored {
+        kind: IgnoredKind,
+    },
 
     /// A symbol starting with a forward slash, such as `\synth`.
     InlineSymbol,
@@ -77,24 +95,32 @@ pub enum TokenKind {
 
     /// A numeric literal, either floating-point or integer. The [NumberKind] gives a hint about
     /// how to convert it to machine representation.
-    Number { kind: NumberKind },
+    Number {
+        kind: NumberKind,
+    },
 
     /// A binding to a C++ function in legacy SuperCollider. An underscore followed by one or more
     /// valid identifier characters (alphanumeric or underscore). For example, `_Basic_New`.
     Primitive,
 
-    ReservedWord { kind: ReservedWordKind },
+    ReservedWord {
+        kind: ReservedWordKind,
+    },
 
     /// A double-quoted character literal sequence. If it has backslash (`\`) escape characters in
     /// it `has_escapes` is true, telling later stages if they must process the string more or can
     /// copy it directly to the string literal.
-    String { has_escapes: bool },
+    String {
+        has_escapes: bool,
+    },
 
     /// A single-quoted character literal sequence.
-    Symbol { has_escapes: bool },
+    Symbol {
+        has_escapes: bool,
+    },
 
     /// Anything that the lexer didn't recognize as valid SuperCollider language input.
-    Unknown
+    Unknown,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -245,5 +271,5 @@ pub enum ReservedWordKind {
     True,
 
     /// `var` declares local and object instance variables.
-    Var
+    Var,
 }
