@@ -20,21 +20,11 @@ pub struct Token<'a> {
 
 impl<'a> Token<'a> {
     pub fn new(kind: TokenKind, string: &'a str, line: i32, column: i32) -> Token<'a> {
-        Token {
-            kind,
-            string,
-            line,
-            column,
-        }
+        Token { kind, string, line, column }
     }
 
     pub fn end() -> Token<'a> {
-        Token {
-            kind: TokenKind::EndOfInput,
-            string: "",
-            line: 0,
-            column: 0,
-        }
+        Token { kind: TokenKind::EndOfInput, string: "", line: 0, column: 0 }
     }
 }
 

@@ -65,11 +65,7 @@ impl<'s> Diagnostic<'s> {
         message: DiagnosticMessage<'s>,
         notes: Vec<DiagnosticMessage<'s>>,
     ) -> Diagnostic<'s> {
-        Diagnostic {
-            level,
-            message,
-            notes,
-        }
+        Diagnostic { level, message, notes }
     }
 }
 
@@ -110,10 +106,7 @@ impl<'c, 's, LocationT> DiagnosticEmitter<'c, 's, LocationT> {
         consumer: &'c mut dyn DiagnosticConsumer,
         translator: &'s dyn DiagnosticLocationTranslator<'s, LocationT>,
     ) -> DiagnosticEmitter<'c, 's, LocationT> {
-        DiagnosticEmitter {
-            consumer,
-            translator,
-        }
+        DiagnosticEmitter { consumer, translator }
     }
 
     pub fn build(
@@ -148,17 +141,8 @@ impl<'s, LocationT> DiagnosticBuilder<'s, LocationT> {
         translator: &'s dyn DiagnosticLocationTranslator<'s, LocationT>,
     ) -> DiagnosticBuilder<'s, LocationT> {
         let loc = translator.get_location(location);
-        let message = DiagnosticMessage {
-            kind,
-            location: loc,
-            body,
-        };
-        DiagnosticBuilder {
-            level,
-            message,
-            notes: Vec::new(),
-            translator,
-        }
+        let message = DiagnosticMessage { kind, location: loc, body };
+        DiagnosticBuilder { level, message, notes: Vec::new(), translator }
     }
 
     pub fn note(
@@ -168,20 +152,12 @@ impl<'s, LocationT> DiagnosticBuilder<'s, LocationT> {
         body: String,
     ) -> &DiagnosticBuilder<'s, LocationT> {
         let loc = self.translator.get_location(location);
-        self.notes.push(DiagnosticMessage {
-            kind,
-            location: loc,
-            body,
-        });
+        self.notes.push(DiagnosticMessage { kind, location: loc, body });
         self
     }
 
     pub fn emit(self) -> Diagnostic<'s> {
-        Diagnostic {
-            level: self.level,
-            message: self.message,
-            notes: self.notes,
-        }
+        Diagnostic { level: self.level, message: self.message, notes: self.notes }
     }
 }
 
@@ -191,9 +167,7 @@ pub struct StreamDiagnosticConsumer<W: std::io::Write> {
 
 impl<W: std::io::Write> StreamDiagnosticConsumer<W> {
     pub fn new(stream: W) -> StreamDiagnosticConsumer<W> {
-        StreamDiagnosticConsumer {
-            stream: std::io::BufWriter::new(stream),
-        }
+        StreamDiagnosticConsumer { stream: std::io::BufWriter::new(stream) }
     }
 }
 
@@ -204,9 +178,7 @@ impl<W: std::io::Write> DiagnosticConsumer for StreamDiagnosticConsumer<W> {
             .expect("should be able to write to the diagnostic stream");
     }
     fn flush(&mut self) {
-        self.stream
-            .flush()
-            .expect("should be able to flush the diagnostic stream");
+        self.stream.flush().expect("should be able to flush the diagnostic stream");
     }
 }
 
