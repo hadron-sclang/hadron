@@ -267,7 +267,7 @@ impl<'s, 'v> Cursor<'s, 'v> {
                 '-' => TokenKind::Binop { kind: BinopKind::Minus },
                 '|' => TokenKind::Binop { kind: BinopKind::Pipe },
                 '+' => TokenKind::Binop { kind: BinopKind::Plus },
-                _ => TokenKind::Binop { kind: BinopKind::Identifier },
+                _ => TokenKind::Binop { kind: BinopKind::BinopIdentifier },
             };
         }
 
@@ -290,13 +290,13 @@ impl<'s, 'v> Cursor<'s, 'v> {
             return match next {
                 '-' => TokenKind::Binop { kind: BinopKind::LeftArrow },
                 '>' => TokenKind::Binop { kind: BinopKind::ReadWriteVar},
-                _ => TokenKind::Binop { kind: BinopKind::Identifier }
+                _ => TokenKind::Binop { kind: BinopKind::BinopIdentifier }
             }
         }
 
         // Identifier binop, consume the rest of the characters.
         self.eat_while(|c| is_binop(c));
-        TokenKind::Binop { kind: BinopKind::Identifier }
+        TokenKind::Binop { kind: BinopKind::BinopIdentifier }
     }
 
     fn blank_space(&mut self) -> TokenKind {

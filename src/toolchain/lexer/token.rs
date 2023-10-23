@@ -106,7 +106,7 @@ pub enum BinopKind {
     Asterisk,
 
     /// A non-specific binop that didn't match the reserved binop patterns, `+/+` for example.
-    Identifier,
+    BinopIdentifier,
 
     /// The `>` operator.
     GreaterThan,
