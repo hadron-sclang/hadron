@@ -40,13 +40,6 @@ pub enum TokenKind {
     /// Some binops have special meaning while parsing, so we identify those with [BinopKind].
     Binop { kind: BinopKind },
 
-    /// Blank space, including some extended characters like the vertical tab. See
-    /// `is_blank_space()` for details.
-    BlankSpace,
-
-    /// A block comment, including any nested comments within. It may contain line breaks.
-    BlockComment,
-
     /// A character literal, such as `$a` or `$\t`. `is_escaped` is `false` in the former example,
     /// `true` in the latter.
     Character { is_escaped: bool },
@@ -73,14 +66,14 @@ pub enum TokenKind {
     /// underscore `_`.
     Identifier,
 
+    /// The compiler ignores any empty space or comments.
+    Ignored { kind: IgnoredKind },
+
     /// A symbol starting with a forward slash, such as `\synth`.
     InlineSymbol,
 
     /// An identifier followed by a colon, `add:` for example.
     Keyword,
-
-    /// A double-slash comment terminated by the end of the line or input.
-    LineComment,
 
     /// A numeric literal, either floating-point or integer. The [NumberKind] gives a hint about
     /// how to convert it to machine representation.
@@ -182,6 +175,18 @@ pub enum DelimiterKind {
     Underscore,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IgnoredKind {
+    /// Blank space, including some extended characters like the vertical tab. See
+    /// `is_blank_space()` for details.
+    BlankSpace,
+
+    /// A block comment, including any nested comments within. It may contain line breaks.
+    BlockComment,
+
+    /// A double-slash comment terminated by the end of the line or input.
+    LineComment,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NumberKind {

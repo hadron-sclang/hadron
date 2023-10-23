@@ -2,6 +2,7 @@ use std::str::Chars;
 
 use super::token::BinopKind;
 use super::token::DelimiterKind;
+use super::token::IgnoredKind;
 use super::token::NumberKind;
 use super::token::ReservedWordKind;
 use super::token::Token;
@@ -230,7 +231,7 @@ impl<'s, 'v> Cursor<'s, 'v> {
         self.eat_while(|c| c != '\n');
         // Consume the line end character.
         self.bump();
-        TokenKind::LineComment
+        TokenKind::Ignored { kind: IgnoredKind::LineComment }
     }
 
     fn block_comment(&mut self) -> TokenKind {
@@ -252,7 +253,7 @@ impl<'s, 'v> Cursor<'s, 'v> {
             }
         }
 
-        TokenKind::BlockComment
+        TokenKind::Ignored { kind: IgnoredKind::BlockComment }
     }
 
     fn binop_or_comment(&mut self, first: char) -> TokenKind {
@@ -300,7 +301,7 @@ impl<'s, 'v> Cursor<'s, 'v> {
 
     fn blank_space(&mut self) -> TokenKind {
         self.eat_while(|c| is_blank_space(c));
-        TokenKind::BlankSpace
+        TokenKind::Ignored { kind: IgnoredKind::BlankSpace }
     }
 
     fn identifier(&mut self) -> TokenKind {
