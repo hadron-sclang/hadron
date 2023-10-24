@@ -10,8 +10,11 @@
 //!
 //! The rustc and Carbon lexers inspired this design.
 //!
-
 pub mod token;
 pub mod tokenized_buffer;
 
 mod cursor;
+
+pub use token::Token;
+pub use token::TokenKind;
+pub use tokenized_buffer::TokenizedBuffer;

@@ -9,7 +9,6 @@
 //! the use of a [DiagnosticLocationTranslator] and sends it to a [DiagnosticConsumer], which
 //! delivers the diagnostic messages to the user.
 //!
-
 pub mod diagnostic_emitter;
 pub mod diagnostic_kind;
 

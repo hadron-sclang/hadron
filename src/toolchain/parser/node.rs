@@ -1,3 +1,11 @@
+use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
+
+pub struct Node {
+    pub kind: NodeKind,
+    pub token_index: i32,
+    pub subtree_size: i32,
+}
+
 pub enum NodeKind {
     ArgList,
     ArrayRead,

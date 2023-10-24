@@ -1,8 +1,8 @@
 //! So much stuff to do:
-//! [ ] Figure out namespaces and crate structures
-//! [ ] TokenizedBuffer? Should Token become an index type, rename existing to TokenInfo?
-//! [ ] How to get `line` &str into the token?
-//! [ ] Diagnostics usability/macros/emission
+//! [x] Figure out namespaces and crate structures
+//! [x] TokenizedBuffer? Should Token become an index type, rename existing to TokenInfo?
+//! [x] How to get `line` &str into the token?
+//! [x] Diagnostics usability/macros/emission
 //! [ ] Implement parsing state machine
 //! [ ] Parsing state machine in other files (expr!)
 //! [ ] Parser unit/smoke tests
@@ -10,7 +10,11 @@
 //! [ ] Integration testing?
 //! [ ] After merge - fuzz testing
 //! [ ] After merge - benchmarks for lexer and parser + "speed of light"
+pub mod node;
+pub mod tree;
 
+mod context;
+/*
 use crate::toolchain::diagnostics;
 use crate::toolchain::lexer;
 
@@ -61,14 +65,4 @@ pub fn parse<'a>(&mut lex: Iterator<Item = lexer::Token<'a>>, &mut diags: diagno
 
     tree
 }
-
-
-#[cfg(test)]
-mod tests {
-    use super::parse;
-
-    fn check_parse(src: &str, expect: &str) {
-        let mut lexer = lexer::tokenize(str);
-        let tree = parse(lexer);
-    }
-}
+*/

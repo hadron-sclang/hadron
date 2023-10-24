@@ -1,12 +1,12 @@
 use super::cursor::Cursor;
-use super::token::Token;
+use super::Token;
 use crate::toolchain::diagnostics::{DiagnosticLocation, DiagnosticLocationTranslator};
 use crate::toolchain::source;
 
 pub struct TokenizedBuffer<'s> {
-    pub source: &'s source::SourceBuffer<'s>,
     pub tokens: Vec<Token<'s>>,
     pub lines: Vec<&'s str>,
+    pub source: &'s source::SourceBuffer<'s>,
 }
 
 impl<'s> TokenizedBuffer<'s> {
@@ -14,7 +14,7 @@ impl<'s> TokenizedBuffer<'s> {
         let mut lines = Vec::new();
         let cursor = Cursor::new(source.code(), &mut lines);
         let tokens = cursor.collect();
-        TokenizedBuffer { source, tokens, lines }
+        TokenizedBuffer { tokens, lines, source }
     }
 }
 

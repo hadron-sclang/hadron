@@ -1,21 +1,17 @@
-pub struct Node<'a> {
-    pub kind: NodeKind,
-    pub token_index: i32,
-    pub subtree_size: i32,
-}
+use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
+use crate::toolchain::diagnostics::
+use super::node::Node;
 
 // A parse tree.
-pub struct Tree<'a> {
-    tokens: Vec<Token>,
+pub struct Tree<'tb> {
     nodes: Vec<Node>,
+    tokens: &'tb TokenizedBuffer<'tb>,
 }
 
-impl<'a> Tree<'a> {
-    pub fn new() -> Tree<'a> {
-        Tree { nodes: Vec<Node>::new() }
-    }
+impl<'tb> Tree<'tb> {
+    pub fn parse(tokens: &'tb TokenizedBuffer, diag: &mut Diag) -> Tree<'tb> {
+        let mut nodes = Vec::new();
 
-    pub fn size(&self) -> usize {
-        self.nodes.size()
+        Tree { nodes, tokens }
     }
 }
