@@ -4,10 +4,12 @@ use crate::toolchain::diagnostics::{DiagnosticLocation, DiagnosticLocationTransl
 use crate::toolchain::source;
 
 pub struct TokenizedBuffer<'s> {
-    pub tokens: Vec<Token<'s>>,
-    pub lines: Vec<&'s str>,
-    pub source: &'s source::SourceBuffer<'s>,
+    tokens: Vec<Token<'s>>,
+    lines: Vec<&'s str>,
+    source: &'s source::SourceBuffer<'s>,
 }
+
+type TokenIndex = i32;
 
 impl<'s> TokenizedBuffer<'s> {
     pub fn tokenize(source: &'s source::SourceBuffer) -> TokenizedBuffer<'s> {
@@ -15,6 +17,10 @@ impl<'s> TokenizedBuffer<'s> {
         let cursor = Cursor::new(source.code(), &mut lines);
         let tokens = cursor.collect();
         TokenizedBuffer { tokens, lines, source }
+    }
+
+    pub fn token_at(&self, i: TokenIndex) -> &Token<'s> {
+        self.tokens[i]
     }
 }
 
