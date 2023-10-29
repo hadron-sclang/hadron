@@ -59,7 +59,6 @@ pub struct Diagnostic<'s> {
 }
 
 impl<'s> Diagnostic<'s> {
-    
     /// Builds a new diagnostic. Normally called by a [DiagnosticBuilder].
     pub fn new(
         level: DiagnosticLevel,

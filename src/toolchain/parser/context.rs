@@ -1,6 +1,8 @@
 use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticConsumer;
+use crate::toolchain::lexer::tokenized_buffer::{
+    TokenDiagnosticEmitter, TokenIndex, TokenizedBuffer,
+};
 use crate::toolchain::lexer::TokenKind;
-use crate::toolchain::lexer::tokenized_buffer::{TokenizedBuffer, TokenIndex, TokenDiagnosticEmitter};
 use crate::toolchain::parser::node::{Node, NodeKind};
 use crate::toolchain::parser::tree::NodeIndex;
 
@@ -18,8 +20,8 @@ pub enum State {
 }
 
 struct StateStackEntry {
-   pub state: State,
-   pub subtree_start: NodeIndex,
+    pub state: State,
+    pub subtree_start: NodeIndex,
 }
 
 pub struct Context<'tb> {
@@ -32,8 +34,11 @@ pub struct Context<'tb> {
 }
 
 impl<'tb> Context<'tb> {
-    pub fn new(tokens: &'tb TokenizedBuffer, nodes: &'tb mut Vec<Node>,
-        diags: &'tb mut impl DiagnosticConsumer) -> Context<'tb> {
+    pub fn new(
+        tokens: &'tb TokenizedBuffer,
+        nodes: &'tb mut Vec<Node>,
+        diags: &'tb mut impl DiagnosticConsumer,
+    ) -> Context<'tb> {
         let states = Vec::new();
         let emitter = TokenDiagnosticEmitter::new(diags, tokens);
         Context { states, tokens, nodes, token_index: 0, emitter, has_error: false }
@@ -46,14 +51,32 @@ impl<'tb> Context<'tb> {
     pub fn consume_and_add_leaf_node(&mut self, kind: NodeKind, has_error: bool) {
         let token_index = self.consume();
         self.has_error |= has_error;
-        self.nodes.push(Node { kind, token_index, subtree_size: 1, closing_token: None, has_error: self.has_error });
+        self.nodes.push(Node {
+            kind,
+            token_index,
+            subtree_size: 1,
+            closing_token: None,
+            has_error: self.has_error,
+        });
     }
 
-    pub fn add_node(&mut self, kind: NodeKind, token_index: TokenIndex, subtree_start: NodeIndex,
-            closing_token: Option<TokenIndex>, has_error: bool) {
+    pub fn add_node(
+        &mut self,
+        kind: NodeKind,
+        token_index: TokenIndex,
+        subtree_start: NodeIndex,
+        closing_token: Option<TokenIndex>,
+        has_error: bool,
+    ) {
         self.has_error |= has_error;
         let subtree_size = self.nodes.len() - subtree_start + 1;
-        self.nodes.push(Node { kind, token_index, subtree_size, closing_token, has_error: self.has_error })
+        self.nodes.push(Node {
+            kind,
+            token_index,
+            subtree_size,
+            closing_token,
+            has_error: self.has_error,
+        })
     }
 
     pub fn push_state(&mut self, state: State) {
@@ -63,14 +86,14 @@ impl<'tb> Context<'tb> {
     pub fn state(&self) -> Option<State> {
         match self.states.last() {
             Some(entry) => Some(entry.state),
-            None => None
+            None => None,
         }
     }
 
     pub fn pop_state(&mut self) -> Option<State> {
         match self.states.pop() {
             Some(entry) => Some(entry.state),
-            None => None
+            None => None,
         }
     }
 
@@ -78,8 +101,10 @@ impl<'tb> Context<'tb> {
     pub fn skip_ignored_tokens(&mut self) {
         while let Some(token) = self.tokens.token_at(self.token_index) {
             match token.kind {
-                TokenKind::Ignored { kind: _ } => { self.token_index += 1; },
-                _ => break
+                TokenKind::Ignored { kind: _ } => {
+                    self.token_index += 1;
+                }
+                _ => break,
             }
         }
     }
@@ -93,8 +118,10 @@ impl<'tb> Context<'tb> {
         let mut i = index + 1;
         while let Some(token) = self.tokens.token_at(i) {
             match token.kind {
-                TokenKind::Ignored { kind: _ } => { i += 1; },
-                _ => { return Some(token.kind) }
+                TokenKind::Ignored { kind: _ } => {
+                    i += 1;
+                }
+                _ => return Some(token.kind),
             }
         }
         None

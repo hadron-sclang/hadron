@@ -1,9 +1,9 @@
-use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
-use crate::toolchain::diagnostics::diagnostic_emitter::{DiagnosticLevel, DiagnosticConsumer};
-use crate::toolchain::diagnostics::diagnostic_kind::{ DiagnosticKind, SyntaxDiagnosticKind };
-use crate::toolchain::lexer::token::{BinopKind, DelimiterKind, TokenKind};
+use super::context::{Context, State};
 use super::node::{Node, NodeKind};
-use super::context::{ Context, State };
+use crate::toolchain::diagnostics::diagnostic_emitter::{DiagnosticConsumer, DiagnosticLevel};
+use crate::toolchain::diagnostics::diagnostic_kind::{DiagnosticKind, SyntaxDiagnosticKind};
+use crate::toolchain::lexer::token::{BinopKind, DelimiterKind, TokenKind};
+use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
 
 mod handle_class_def_start;
 
@@ -35,35 +35,32 @@ impl<'tb> Tree<'tb> {
                         // Class definitions start with a ClassName token.
                         Some(TokenKind::ClassName) => {
                             context.push_state(State::ClassDefStart);
-                        },
+                        }
                         // Class Extensions start with a '+' sign.
                         Some(TokenKind::Binop { kind: BinopKind::Plus }) => {
                             context.push_state(State::ClassExtStart);
-                        },
+                        }
                         // Normal expected end of input.
-                        None => { context.pop_state(); },
+                        None => {
+                            context.pop_state();
+                        }
 
                         // Everything else we treat as interpreter input.
-                        _ => {
-                            context.push_state(State::InterpreterCodeStart)
-                        }
+                        _ => context.push_state(State::InterpreterCodeStart),
                     }
-                },
+                }
 
                 State::ClassDefStart => {
                     handle_class_def_start::handle_class_def_start(&mut context);
-                },
+                }
 
                 // classExtension : PLUS CLASSNAME CURLY_OPEN methodDef* CURLY_CLOSE
                 //                ;
-                State::ClassExtStart => {
-                },
+                State::ClassExtStart => {}
 
-                State::InterpreterCodeStart => {
-                },
+                State::InterpreterCodeStart => {}
 
-                State::ClassDefBody => {
-                },
+                State::ClassDefBody => {}
             }
         }
 

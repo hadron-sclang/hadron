@@ -7,7 +7,7 @@ pub struct Node {
     // For matched pairs of delimiters, like '()' and '{}', indicates the index of the closing
     // token, if present.
     pub closing_token: Option<TokenIndex>,
-    pub has_error: bool
+    pub has_error: bool,
 }
 
 pub enum NodeKind {
@@ -55,5 +55,5 @@ pub enum NodeKind {
     GuardQualifier,
     BindingQualifier,
     SideEffectQualifier,
-    TerminationQualifier
+    TerminationQualifier,
 }

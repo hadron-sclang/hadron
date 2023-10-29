@@ -1,6 +1,8 @@
 use super::cursor::Cursor;
 use super::Token;
-use crate::toolchain::diagnostics::{DiagnosticEmitter, DiagnosticLocation, DiagnosticLocationTranslator};
+use crate::toolchain::diagnostics::{
+    DiagnosticEmitter, DiagnosticLocation, DiagnosticLocationTranslator,
+};
 use crate::toolchain::source;
 
 pub struct TokenizedBuffer<'s> {

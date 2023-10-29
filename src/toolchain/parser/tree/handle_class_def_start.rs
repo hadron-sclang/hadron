@@ -29,25 +29,30 @@ pub fn handle_class_def_start(context: &mut Context) {
             Some(TokenKind::Delimiter { kind: DelimiterKind::BracketClose }) => {
                 // Nominal case. consume the bracket close.
                 Some(context.consume())
-            },
+            }
 
             // Perhaps we just forgot a closing bracket, emit error, pretend we
             // encountered the closing bracket, and continue.
             _ => {
                 let token_index = context.token_index();
-                let diag = context.emitter().build(
-                    DiagnosticLevel::Error,
-                    DiagnosticKind::SyntaxError{ kind: SyntaxDiagnosticKind::UnclosedPair },
-                    token_index,
-                    "Expected closing bracket ']' in class definition array type.")
+                let diag = context
+                    .emitter()
+                    .build(
+                        DiagnosticLevel::Error,
+                        DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
+                        token_index,
+                        "Expected closing bracket ']' in class definition array type.",
+                    )
                     .note(
                         DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
                         class_token_index,
-                        "Class defined here.")
+                        "Class defined here.",
+                    )
                     .note(
-                        DiagnosticKind::SyntaxError{ kind: SyntaxDiagnosticKind::UnclosedPair },
+                        DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
                         open_bracket_index,
-                        "Opening bracket '[' here.")
+                        "Opening bracket '[' here.",
+                    )
                     .emit();
                 context.emitter().emit(diag);
                 None
@@ -55,8 +60,13 @@ pub fn handle_class_def_start(context: &mut Context) {
         };
 
         let has_error = closing_bracket_index != None;
-        context.add_node(NodeKind::ClassArrayStorageType, open_bracket_index,
-            subtree_start, closing_bracket_index, has_error)
+        context.add_node(
+            NodeKind::ClassArrayStorageType,
+            open_bracket_index,
+            subtree_start,
+            closing_bracket_index,
+            has_error,
+        )
     }
 
     // A colon indicates there is a superclass name present.
@@ -69,7 +79,7 @@ pub fn handle_class_def_start(context: &mut Context) {
         match context.token_kind() {
             Some(TokenKind::ClassName) => {
                 context.consume_and_add_leaf_node(NodeKind::ClassName, false);
-            },
+            }
             _ => {
                 let diag = context.emitter().build(
                     DiagnosticLevel::Error,
@@ -90,18 +100,23 @@ pub fn handle_class_def_start(context: &mut Context) {
     match context.token_kind() {
         Some(TokenKind::Delimiter { kind: DelimiterKind::BraceOpen }) => {
             context.push_state(State::ClassDefBody);
-        },
+        }
         _ => {
             let token_index = context.token_index();
-            let diag = context.emitter().build(
-                DiagnosticLevel::Error,
-                DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
-                token_index, // TODO: might crash if at EOI
-                "Expected opening brace '{' to start class definition body.")
-            .note(DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
-            class_token_index,
-                "Class defined here.")
-            .emit();
+            let diag = context
+                .emitter()
+                .build(
+                    DiagnosticLevel::Error,
+                    DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
+                    token_index, // TODO: might crash if at EOI
+                    "Expected opening brace '{' to start class definition body.",
+                )
+                .note(
+                    DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
+                    class_token_index,
+                    "Class defined here.",
+                )
+                .emit();
             context.emitter().emit(diag);
         }
     };
