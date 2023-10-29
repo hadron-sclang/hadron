@@ -35,7 +35,7 @@ impl<'s> fmt::Display for DiagnosticLocation<'s> {
 pub struct DiagnosticMessage<'s> {
     pub kind: DiagnosticKind,
     pub location: DiagnosticLocation<'s>,
-    pub body: String,
+    pub body: &'static str,
 }
 
 impl<'s> fmt::Display for DiagnosticMessage<'s> {
@@ -59,6 +59,7 @@ pub struct Diagnostic<'s> {
 }
 
 impl<'s> Diagnostic<'s> {
+    
     /// Builds a new diagnostic. Normally called by a [DiagnosticBuilder].
     pub fn new(
         level: DiagnosticLevel,
@@ -85,16 +86,16 @@ impl<'s> fmt::Display for Diagnostic<'s> {
 
 /// An interface for an object that can receive diagnostics from the toolchain as they are emitted.
 pub trait DiagnosticConsumer {
-    fn handle_diagnostic(&mut self, diag: &Diagnostic);
+    fn handle_diagnostic(&mut self, diag: Diagnostic);
     fn flush(&mut self);
 }
 
 pub trait DiagnosticLocationTranslator<'s, LocationT> {
-    fn get_location(&self, loc: &LocationT) -> DiagnosticLocation<'s>;
+    fn get_location(&self, loc: LocationT) -> DiagnosticLocation<'s>;
 }
 
 // This is an adaptor between subsystems (like the lexer/parser) and the diagnostic consumer. It
-// holds the conumer and translator and facilitates creating Diagnostics, and ultimately
+// holds the consumer and translator and facilitates creating Diagnostics, and ultimately
 // provides the completed diagnostics to the DiagnosticConsumer.
 pub struct DiagnosticEmitter<'c, 's, LocationT> {
     consumer: &'c mut dyn DiagnosticConsumer,
@@ -113,13 +114,13 @@ impl<'c, 's, LocationT> DiagnosticEmitter<'c, 's, LocationT> {
         &self,
         level: DiagnosticLevel,
         kind: DiagnosticKind,
-        location: &LocationT,
-        body: String,
+        location: LocationT,
+        body: &'static str,
     ) -> DiagnosticBuilder<'s, LocationT> {
         DiagnosticBuilder::build(level, kind, location, body, self.translator)
     }
 
-    pub fn emit(&mut self, diagnostic: &Diagnostic) {
+    pub fn emit(&mut self, diagnostic: Diagnostic) {
         self.consumer.handle_diagnostic(diagnostic);
     }
 }
@@ -136,8 +137,8 @@ impl<'s, LocationT> DiagnosticBuilder<'s, LocationT> {
     pub fn build(
         level: DiagnosticLevel,
         kind: DiagnosticKind,
-        location: &LocationT,
-        body: String,
+        location: LocationT,
+        body: &'static str,
         translator: &'s dyn DiagnosticLocationTranslator<'s, LocationT>,
     ) -> DiagnosticBuilder<'s, LocationT> {
         let loc = translator.get_location(location);
@@ -146,11 +147,11 @@ impl<'s, LocationT> DiagnosticBuilder<'s, LocationT> {
     }
 
     pub fn note(
-        &mut self,
+        mut self,
         kind: DiagnosticKind,
-        location: &LocationT,
-        body: String,
-    ) -> &DiagnosticBuilder<'s, LocationT> {
+        location: LocationT,
+        body: &'static str,
+    ) -> DiagnosticBuilder<'s, LocationT> {
         let loc = self.translator.get_location(location);
         self.notes.push(DiagnosticMessage { kind, location: loc, body });
         self
@@ -172,7 +173,7 @@ impl<W: std::io::Write> StreamDiagnosticConsumer<W> {
 }
 
 impl<W: std::io::Write> DiagnosticConsumer for StreamDiagnosticConsumer<W> {
-    fn handle_diagnostic(&mut self, diag: &Diagnostic) {
+    fn handle_diagnostic(&mut self, diag: Diagnostic) {
         self.stream
             .write_fmt(format_args!("{}", diag))
             .expect("should be able to write to the diagnostic stream");

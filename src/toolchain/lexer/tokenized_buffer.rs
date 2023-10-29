@@ -1,6 +1,6 @@
 use super::cursor::Cursor;
 use super::Token;
-use crate::toolchain::diagnostics::{DiagnosticLocation, DiagnosticLocationTranslator};
+use crate::toolchain::diagnostics::{DiagnosticEmitter, DiagnosticLocation, DiagnosticLocationTranslator};
 use crate::toolchain::source;
 
 pub struct TokenizedBuffer<'s> {
@@ -9,7 +9,7 @@ pub struct TokenizedBuffer<'s> {
     source: &'s source::SourceBuffer<'s>,
 }
 
-type TokenIndex = i32;
+pub type TokenIndex = usize;
 
 impl<'s> TokenizedBuffer<'s> {
     pub fn tokenize(source: &'s source::SourceBuffer) -> TokenizedBuffer<'s> {
@@ -19,13 +19,14 @@ impl<'s> TokenizedBuffer<'s> {
         TokenizedBuffer { tokens, lines, source }
     }
 
-    pub fn token_at(&self, i: TokenIndex) -> &Token<'s> {
-        self.tokens[i]
+    pub fn token_at(&self, i: TokenIndex) -> Option<&Token<'s>> {
+        self.tokens.get(i)
     }
 }
 
-impl<'s> DiagnosticLocationTranslator<'s, Token<'s>> for TokenizedBuffer<'s> {
-    fn get_location(&self, token: &Token<'s>) -> DiagnosticLocation<'s> {
+impl<'s> DiagnosticLocationTranslator<'s, TokenIndex> for TokenizedBuffer<'s> {
+    fn get_location(&self, token_index: TokenIndex) -> DiagnosticLocation<'s> {
+        let token = self.tokens[token_index];
         // Switch to zero-based line counting.
         let line_index = (token.line - 1) as usize;
         // TokenizedBuffer is only useful as a location translator after lexing is complete.
@@ -40,6 +41,8 @@ impl<'s> DiagnosticLocationTranslator<'s, Token<'s>> for TokenizedBuffer<'s> {
         }
     }
 }
+
+pub type TokenDiagnosticEmitter<'c, 's> = DiagnosticEmitter<'c, 's, TokenIndex>;
 
 #[cfg(test)]
 mod tests {

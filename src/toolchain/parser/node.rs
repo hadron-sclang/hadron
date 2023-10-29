@@ -1,9 +1,13 @@
-use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
+use crate::toolchain::lexer::tokenized_buffer::TokenIndex;
 
 pub struct Node {
     pub kind: NodeKind,
-    pub token_index: usize,
-    pub subtree_size: i32,
+    pub token_index: TokenIndex,
+    pub subtree_size: TokenIndex,
+    // For matched pairs of delimiters, like '()' and '{}', indicates the index of the closing
+    // token, if present.
+    pub closing_token: Option<TokenIndex>,
+    pub has_error: bool
 }
 
 pub enum NodeKind {
@@ -14,8 +18,11 @@ pub enum NodeKind {
     BinopCall,
     Block,
     Call,
-    Class,
+    ClassArrayStorageType,
+    ClassDefinition,
+    ClassDefinitionBody,
     ClassExtension,
+    ClassName,
     Collection,
     CopySeries,
     Empty,
@@ -38,6 +45,7 @@ pub enum NodeKind {
     Setter,
     Slot,
     String,
+    Superclass,
     Symbol,
     Value,
     VarDef,
