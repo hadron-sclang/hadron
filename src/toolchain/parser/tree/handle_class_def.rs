@@ -200,13 +200,38 @@ mod tests {
 
     #[test]
     fn test_storage_type() {
-        check_parsing(sclang!("A[float]{}"), vec![
-            Node { kind: Name, token_index: 2, subtree_size: 1, closing_token: None, has_error: false },
-            Node { kind: ClassArrayStorageType, token_index: 1, subtree_size: 2,
-                closing_token: Some(3), has_error: false},
-            Node {kind: ClassDefinitionBody, token_index: 4, subtree_size: 1, closing_token: Some(5),
-                has_error: false},
-            Node { kind: ClassDefinition, token_index: 0, subtree_size: 4, closing_token: Some(5), has_error: false}
-        ]);
+        check_parsing(
+            sclang!("A[float]{}"),
+            vec![
+                Node {
+                    kind: Name,
+                    token_index: 2,
+                    subtree_size: 1,
+                    closing_token: None,
+                    has_error: false,
+                },
+                Node {
+                    kind: ClassArrayStorageType,
+                    token_index: 1,
+                    subtree_size: 2,
+                    closing_token: Some(3),
+                    has_error: false,
+                },
+                Node {
+                    kind: ClassDefinitionBody,
+                    token_index: 4,
+                    subtree_size: 1,
+                    closing_token: Some(5),
+                    has_error: false,
+                },
+                Node {
+                    kind: ClassDefinition,
+                    token_index: 0,
+                    subtree_size: 4,
+                    closing_token: Some(5),
+                    has_error: false,
+                },
+            ],
+        );
     }
 }

@@ -5,8 +5,8 @@ use crate::toolchain::diagnostics::diagnostic_kind::{DiagnosticKind, SyntaxDiagn
 use crate::toolchain::lexer::token::{BinopKind, DelimiterKind, ReservedWordKind, TokenKind};
 use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
 
-mod handle_class_def_body;
 mod handle_class_def;
+mod handle_class_def_body;
 
 // A parse tree.
 pub struct Tree<'tb> {
