@@ -119,35 +119,82 @@ pub fn handle_class_def_start(context: &mut Context) {
 
 #[cfg(test)]
 mod tests {
-    use crate::sclang;
-    use crate::toolchain::source;
     use super::super::tests::check_parsing;
+    use crate::sclang;
     use crate::toolchain::parser::node::{Node, NodeKind};
+    use crate::toolchain::source;
 
     #[test]
     fn test_bare_class() {
-        check_parsing(sclang!("A {} B {}"), vec![
-            Node { kind: NodeKind::ClassDefinitionBody, token_index: 2, subtree_size: 1,
-                closing_token: Some(3), has_error: false },
-            Node { kind: NodeKind::ClassDefinition, token_index: 0, subtree_size: 2,
-                closing_token: Some(3), has_error: false },
-            Node { kind: NodeKind::ClassDefinitionBody, token_index: 7, subtree_size: 1,
-                closing_token: Some(8), has_error: false },
-            Node { kind: NodeKind::ClassDefinition, token_index: 5, subtree_size: 2,
-                closing_token: Some(8), has_error: false }]);
+        check_parsing(
+            sclang!("A {} B {}"),
+            vec![
+                Node {
+                    kind: NodeKind::ClassDefinitionBody,
+                    token_index: 2,
+                    subtree_size: 1,
+                    closing_token: Some(3),
+                    has_error: false,
+                },
+                Node {
+                    kind: NodeKind::ClassDefinition,
+                    token_index: 0,
+                    subtree_size: 2,
+                    closing_token: Some(3),
+                    has_error: false,
+                },
+                Node {
+                    kind: NodeKind::ClassDefinitionBody,
+                    token_index: 7,
+                    subtree_size: 1,
+                    closing_token: Some(8),
+                    has_error: false,
+                },
+                Node {
+                    kind: NodeKind::ClassDefinition,
+                    token_index: 5,
+                    subtree_size: 2,
+                    closing_token: Some(8),
+                    has_error: false,
+                },
+            ],
+        );
     }
 
     #[test]
     fn test_superclass() {
-        check_parsing(sclang!("A:B{}"), vec![
-            Node { kind: NodeKind::Name, token_index: 2, subtree_size: 1, closing_token: None,
-                has_error: false },
-            Node { kind: NodeKind::ClassSuperclass, token_index: 1, subtree_size: 2, closing_token: None,
-                has_error: false },
-            Node { kind: NodeKind::ClassDefinitionBody, token_index: 3, subtree_size: 1,
-                closing_token: Some(4), has_error: false },
-            Node { kind: NodeKind::ClassDefinition, token_index: 0, subtree_size: 4,
-                closing_token: Some(4), has_error: false },
-        ])
+        check_parsing(
+            sclang!("A:B{}"),
+            vec![
+                Node {
+                    kind: NodeKind::Name,
+                    token_index: 2,
+                    subtree_size: 1,
+                    closing_token: None,
+                    has_error: false,
+                },
+                Node {
+                    kind: NodeKind::ClassSuperclass,
+                    token_index: 1,
+                    subtree_size: 2,
+                    closing_token: None,
+                    has_error: false,
+                },
+                Node {
+                    kind: NodeKind::ClassDefinitionBody,
+                    token_index: 3,
+                    subtree_size: 1,
+                    closing_token: Some(4),
+                    has_error: false,
+                },
+                Node {
+                    kind: NodeKind::ClassDefinition,
+                    token_index: 0,
+                    subtree_size: 4,
+                    closing_token: Some(4),
+                    has_error: false,
+                },
+            ],
+        )
     }
 }

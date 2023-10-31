@@ -84,11 +84,21 @@ impl<'tb> Context<'tb> {
     // that started when the state was created and ends on the current token.
     pub fn close_state(&mut self, kind: NodeKind, has_error: bool) {
         let state_entry = self.states.pop().unwrap();
-        self.add_node(kind, state_entry.token_index, state_entry.subtree_start, Some(self.token_index), has_error)
+        self.add_node(
+            kind,
+            state_entry.token_index,
+            state_entry.subtree_start,
+            Some(self.token_index),
+            has_error,
+        )
     }
 
     pub fn push_state(&mut self, state: State) {
-        self.states.push(StateStackEntry { state, subtree_start: self.nodes.len(), token_index: self.token_index });
+        self.states.push(StateStackEntry {
+            state,
+            subtree_start: self.nodes.len(),
+            token_index: self.token_index,
+        });
     }
 
     pub fn state(&self) -> Option<State> {

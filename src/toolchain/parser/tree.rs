@@ -53,28 +53,24 @@ impl<'tb> Tree<'tb> {
 
                 State::ClassDefStart => {
                     handle_class_def_start::handle_class_def_start(&mut context);
-                },
+                }
 
                 State::ClassDefBody => {
                     handle_class_def_body::handle_class_def_body(&mut context);
-                },
+                }
 
                 _ => {
                     panic!("unhandled state")
-                }
+                } /*
 
+                  // classExtension : PLUS CLASSNAME CURLY_OPEN methodDef* CURLY_CLOSE
+                  //                ;
+                  State::ClassExtStart => {}
 
+                  State::InterpreterCodeStart => {}
 
-                /* 
-
-                // classExtension : PLUS CLASSNAME CURLY_OPEN methodDef* CURLY_CLOSE
-                //                ;
-                State::ClassExtStart => {}
-
-                State::InterpreterCodeStart => {}
-
-                State::ClassDefBody => {}
-                */
+                  State::ClassDefBody => {}
+                  */
             }
         }
 
@@ -84,11 +80,11 @@ impl<'tb> Tree<'tb> {
 
 #[cfg(test)]
 mod tests {
+    use super::{Node, Tree};
     use crate::sclang;
     use crate::toolchain::diagnostics::diagnostic_emitter::NullDiagnosticConsumer;
-    use crate::toolchain::source;
     use crate::toolchain::lexer::TokenizedBuffer;
-    use super::{Node, Tree};
+    use crate::toolchain::source;
 
     // RPO iterator
     // It's always better when the compiler type-checks your desired input too..

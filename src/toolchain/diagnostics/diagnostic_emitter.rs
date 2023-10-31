@@ -186,10 +186,9 @@ pub fn console_diagnostic_consumer() -> StreamDiagnosticConsumer<impl std::io::W
     StreamDiagnosticConsumer::new(std::io::stderr())
 }
 
-pub struct NullDiagnosticConsumer {
-}
+pub struct NullDiagnosticConsumer {}
 
 impl DiagnosticConsumer for NullDiagnosticConsumer {
-    fn handle_diagnostic(&mut self, _diag: Diagnostic) { }
-    fn flush(&mut self) { }
+    fn handle_diagnostic(&mut self, _diag: Diagnostic) {}
+    fn flush(&mut self) {}
 }
