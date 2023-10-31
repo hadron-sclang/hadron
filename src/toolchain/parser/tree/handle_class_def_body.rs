@@ -1,5 +1,3 @@
-use mmap_rs::Reserved;
-
 use super::*;
 
 // classDefBody : CURLY_OPEN classVarDecl* methodDef* CURLY_CLOSE
@@ -48,8 +46,32 @@ pub fn handle_class_def_body(context: &mut Context) {
             context.push_state(State::MethodDef);
         }
 
+        None => {}
+
         _ => {
-            
+            let token_index = context.token_index();
+            let diag = context
+                .emitter()
+                .build(
+                    DiagnosticLevel::Error,
+                    DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnexpectedToken },
+                    token_index,
+                    "Unexpected token in class definition body. Starting tokens expected \
+                    inside a class definition body are 'classvar', 'var', 'const', and method \
+                    definitions.",
+                )
+                .note(
+                    DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnexpectedToken },
+                    0,
+                    "Class definition body opened here.",
+                )
+                .note(
+                    DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnexpectedToken },
+                    0,
+                    "Class defined here.",
+                )
+                .emit();
+            context.emitter().emit(diag);
         }
     };
 }

@@ -76,14 +76,20 @@ pub fn handle_class_def(context: &mut Context) {
                 context.consume_and_add_leaf_node(NodeKind::Name, false);
             }
             _ => {
-                let diag = context.emitter().build(
-                    DiagnosticLevel::Error,
-                    DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
-                    colon_index,
-                    "Expected a capitalized class name indicating the name of the superclass after the colon ':' in the class definition.")
-                    .note(DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
-                    class_token_index,
-                "Class defined here.")
+                let diag = context
+                    .emitter()
+                    .build(
+                        DiagnosticLevel::Error,
+                        DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
+                        colon_index,
+                        "Expected a capitalized class name indicating the name of the superclass \
+                            after the colon ':' in the class definition.",
+                    )
+                    .note(
+                        DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
+                        class_token_index,
+                        "Class defined here.",
+                    )
                     .emit();
                 context.emitter().emit(diag);
             }
