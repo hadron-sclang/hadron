@@ -3,7 +3,7 @@ use super::*;
 // classDef : CLASSNAME superclass? classDefBody
 //          | CLASSNAME SQUARE_OPEN name? SQUARE_CLOSE superclass? CURLY_OPEN classDefBody
 //          ;
-pub fn handle_class_def_start(context: &mut Context) {
+pub fn handle_class_def(context: &mut Context) {
     // Consume class name
     debug_assert!(context.token_kind() == Some(TokenKind::ClassName));
     let class_token_index = context.token_index();
@@ -54,7 +54,7 @@ pub fn handle_class_def_start(context: &mut Context) {
             }
         };
 
-        let has_error = closing_bracket_index != None;
+        let has_error = closing_bracket_index == None;
         context.add_node(
             NodeKind::ClassArrayStorageType,
             open_bracket_index,
@@ -121,7 +121,7 @@ pub fn handle_class_def_start(context: &mut Context) {
 mod tests {
     use super::super::tests::check_parsing;
     use crate::sclang;
-    use crate::toolchain::parser::node::{Node, NodeKind};
+    use crate::toolchain::parser::node::{Node, NodeKind::*};
     use crate::toolchain::source;
 
     #[test]
@@ -130,28 +130,28 @@ mod tests {
             sclang!("A {} B {}"),
             vec![
                 Node {
-                    kind: NodeKind::ClassDefinitionBody,
+                    kind: ClassDefinitionBody,
                     token_index: 2,
                     subtree_size: 1,
                     closing_token: Some(3),
                     has_error: false,
                 },
                 Node {
-                    kind: NodeKind::ClassDefinition,
+                    kind: ClassDefinition,
                     token_index: 0,
                     subtree_size: 2,
                     closing_token: Some(3),
                     has_error: false,
                 },
                 Node {
-                    kind: NodeKind::ClassDefinitionBody,
+                    kind: ClassDefinitionBody,
                     token_index: 7,
                     subtree_size: 1,
                     closing_token: Some(8),
                     has_error: false,
                 },
                 Node {
-                    kind: NodeKind::ClassDefinition,
+                    kind: ClassDefinition,
                     token_index: 5,
                     subtree_size: 2,
                     closing_token: Some(8),
@@ -167,28 +167,28 @@ mod tests {
             sclang!("A:B{}"),
             vec![
                 Node {
-                    kind: NodeKind::Name,
+                    kind: Name,
                     token_index: 2,
                     subtree_size: 1,
                     closing_token: None,
                     has_error: false,
                 },
                 Node {
-                    kind: NodeKind::ClassSuperclass,
+                    kind: ClassSuperclass,
                     token_index: 1,
                     subtree_size: 2,
                     closing_token: None,
                     has_error: false,
                 },
                 Node {
-                    kind: NodeKind::ClassDefinitionBody,
+                    kind: ClassDefinitionBody,
                     token_index: 3,
                     subtree_size: 1,
                     closing_token: Some(4),
                     has_error: false,
                 },
                 Node {
-                    kind: NodeKind::ClassDefinition,
+                    kind: ClassDefinition,
                     token_index: 0,
                     subtree_size: 4,
                     closing_token: Some(4),
@@ -196,5 +196,17 @@ mod tests {
                 },
             ],
         )
+    }
+
+    #[test]
+    fn test_storage_type() {
+        check_parsing(sclang!("A[float]{}"), vec![
+            Node { kind: Name, token_index: 2, subtree_size: 1, closing_token: None, has_error: false },
+            Node { kind: ClassArrayStorageType, token_index: 1, subtree_size: 2,
+                closing_token: Some(3), has_error: false},
+            Node {kind: ClassDefinitionBody, token_index: 4, subtree_size: 1, closing_token: Some(5),
+                has_error: false},
+            Node { kind: ClassDefinition, token_index: 0, subtree_size: 4, closing_token: Some(5), has_error: false}
+        ]);
     }
 }

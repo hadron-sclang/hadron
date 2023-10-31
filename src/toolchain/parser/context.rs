@@ -6,17 +6,29 @@ use crate::toolchain::lexer::TokenKind;
 use crate::toolchain::parser::node::{Node, NodeKind};
 use crate::toolchain::parser::tree::NodeIndex;
 
+/// TODO: Is there any semantic difference between these states and parse nodes? Is that a
+/// flexibility we need or an obfuscation?
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum State {
     // Root-level parsing context, expecting a class definition, extension, or interpreter code.
     TopLevelStatementLoop,
 
-    ClassDefStart,
+    ClassDef,
     ClassDefBody,
 
-    ClassExtStart,
+    ClassExt,
 
-    InterpreterCodeStart,
+    Classvar,
+
+    Const,
+
+    InterpreterCode,
+
+    MethodDef,
+
+    RWDefList,
+
+    Var,
 }
 
 struct StateStackEntry {
@@ -151,6 +163,12 @@ impl<'tb> Context<'tb> {
         self.token_index += 1;
         self.skip_ignored_tokens();
         index
+    }
+
+    // Same as consume but debug_asserts on the current token being the expected kind.
+    pub fn consume_checked(&mut self, expected: TokenKind) -> TokenIndex {
+        debug_assert!(self.token_kind() == Some(expected));
+        self.consume()
     }
 
     // Advance to next non-ignored token.

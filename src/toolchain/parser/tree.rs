@@ -6,7 +6,7 @@ use crate::toolchain::lexer::token::{BinopKind, DelimiterKind, ReservedWordKind,
 use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
 
 mod handle_class_def_body;
-mod handle_class_def_start;
+mod handle_class_def;
 
 // A parse tree.
 pub struct Tree<'tb> {
@@ -35,11 +35,11 @@ impl<'tb> Tree<'tb> {
                     match context.token_kind() {
                         // Class definitions start with a ClassName token.
                         Some(TokenKind::ClassName) => {
-                            context.push_state(State::ClassDefStart);
+                            context.push_state(State::ClassDef);
                         }
                         // Class Extensions start with a '+' sign.
                         Some(TokenKind::Binop { kind: BinopKind::Plus }) => {
-                            context.push_state(State::ClassExtStart);
+                            context.push_state(State::ClassExt);
                         }
                         // Normal expected end of input.
                         None => {
@@ -47,12 +47,12 @@ impl<'tb> Tree<'tb> {
                         }
 
                         // Everything else we treat as interpreter input.
-                        _ => context.push_state(State::InterpreterCodeStart),
+                        _ => context.push_state(State::InterpreterCode),
                     }
                 }
 
-                State::ClassDefStart => {
-                    handle_class_def_start::handle_class_def_start(&mut context);
+                State::ClassDef => {
+                    handle_class_def::handle_class_def(&mut context);
                 }
 
                 State::ClassDefBody => {
