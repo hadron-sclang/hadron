@@ -185,3 +185,11 @@ impl<W: std::io::Write> DiagnosticConsumer for StreamDiagnosticConsumer<W> {
 pub fn console_diagnostic_consumer() -> StreamDiagnosticConsumer<impl std::io::Write> {
     StreamDiagnosticConsumer::new(std::io::stderr())
 }
+
+pub struct NullDiagnosticConsumer {
+}
+
+impl DiagnosticConsumer for NullDiagnosticConsumer {
+    fn handle_diagnostic(&mut self, _diag: Diagnostic) { }
+    fn flush(&mut self) { }
+}

@@ -1,5 +1,6 @@
 use crate::toolchain::lexer::tokenized_buffer::TokenIndex;
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct Node {
     pub kind: NodeKind,
     pub token_index: TokenIndex,
@@ -10,6 +11,7 @@ pub struct Node {
     pub has_error: bool,
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum NodeKind {
     ArgList,
     ArrayRead,
@@ -18,11 +20,30 @@ pub enum NodeKind {
     BinopCall,
     Block,
     Call,
-    ClassArrayStorageType,
+
+    /// A class defintion:
+    ///     _optional_: Name: identifier token
+    ///   _optional_: ClassArrayStorageType: '[' ']'
+    ///     Name: classname token
+    ///   _optional_: ClassSuperclass: ':'
+    ///   _external_: ClassDefinitionBody: '{' '}'
+    /// ClassDefinition: classname '}'
     ClassDefinition,
+    ClassArrayStorageType,
+    ClassSuperclass,
+
+    /// The body of a class definition:
+    ///   _optional_, _external_: MethodDef: name '}'
+    ///   _optional_, _external_: ConstDef: 'const' ';'
+    ///   _optional_, _external_: VarDef: 'var' ';'
+    ///   _optional_, _external_: ClassVarDef: 'classvar' ';'
+    /// ClassDefinitionBody: '{' '}'
+    ///
+    /// All the children of ClassDefinitionBody may occur zero or more times, in any order.
     ClassDefinitionBody,
+
     ClassExtension,
-    ClassName,
+
     Collection,
     CopySeries,
     Empty,
@@ -34,7 +55,10 @@ pub enum NodeKind {
     Method,
     MultiAssign,
     MultiAssignVars,
+
+
     Name,
+
     New,
     NumericSeries,
     PerformList,
@@ -45,7 +69,6 @@ pub enum NodeKind {
     Setter,
     Slot,
     String,
-    Superclass,
     Symbol,
     Value,
     VarDef,

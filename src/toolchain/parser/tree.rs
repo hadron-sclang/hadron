@@ -2,9 +2,10 @@ use super::context::{Context, State};
 use super::node::{Node, NodeKind};
 use crate::toolchain::diagnostics::diagnostic_emitter::{DiagnosticConsumer, DiagnosticLevel};
 use crate::toolchain::diagnostics::diagnostic_kind::{DiagnosticKind, SyntaxDiagnosticKind};
-use crate::toolchain::lexer::token::{BinopKind, DelimiterKind, TokenKind};
+use crate::toolchain::lexer::token::{BinopKind, DelimiterKind, ReservedWordKind, TokenKind};
 use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
 
+mod handle_class_def_body;
 mod handle_class_def_start;
 
 // A parse tree.
@@ -52,7 +53,19 @@ impl<'tb> Tree<'tb> {
 
                 State::ClassDefStart => {
                     handle_class_def_start::handle_class_def_start(&mut context);
+                },
+
+                State::ClassDefBody => {
+                    handle_class_def_body::handle_class_def_body(&mut context);
+                },
+
+                _ => {
+                    panic!("unhandled state")
                 }
+
+
+
+                /* 
 
                 // classExtension : PLUS CLASSNAME CURLY_OPEN methodDef* CURLY_CLOSE
                 //                ;
@@ -61,9 +74,35 @@ impl<'tb> Tree<'tb> {
                 State::InterpreterCodeStart => {}
 
                 State::ClassDefBody => {}
+                */
             }
         }
 
         Tree { nodes, tokens }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::sclang;
+    use crate::toolchain::diagnostics::diagnostic_emitter::NullDiagnosticConsumer;
+    use crate::toolchain::source;
+    use crate::toolchain::lexer::TokenizedBuffer;
+    use super::{Node, Tree};
+
+    // RPO iterator
+    // It's always better when the compiler type-checks your desired input too..
+    pub fn check_parsing<'a>(source: &source::SourceBuffer, expect: Vec<Node>) {
+        let tokens = TokenizedBuffer::tokenize(source);
+        let mut null = NullDiagnosticConsumer {};
+        let tree = Tree::parse(&tokens, &mut null);
+        assert_eq!(tree.nodes, expect);
+    }
+
+    #[test]
+    fn empty_string() {
+        check_parsing(sclang!(""), vec![]);
+        check_parsing(sclang!("\n\t\n  "), vec![]);
+        check_parsing(sclang!(" /* block comment */"), vec![]);
     }
 }

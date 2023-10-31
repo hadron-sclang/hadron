@@ -61,21 +61,7 @@ mod tests {
 
     use super::TokenizedBuffer;
 
-    /// Lexing helper function to compare expected lexing to a provided debug string of the tokens.
-    ///
-    /// Prepends a carriage return in front of each token, for readability of the test code.
-    ///
-    /// Note that the debug printer escapes `"` and `\` characters inside strings, so for example:
-    ///
-    /// ```
-    ///         check_lexing(r#""\"""#, r#"
-    ///Token { kind: String { has_escapes: true }, string: "\"\\\"\"", line: 1, column: 1 }"#);
-    /// ```
-    /// Will pass.
-    ///
-    /// The input is a string `"\""` which is escaped by the `format!` call into the output
-    /// `\"\\\"\"`. In a failed test, the entire Token string is again escaped, meaning that the
-    /// contents of string will be *double* escaped when printed in the test failure.
+    // Lexing helper function to compare expected lexing to a provided debug string of the tokens.
     fn check_lexing<'a>(source: &source::SourceBuffer, expect: Vec<Token<'a>>) {
         let buffer = TokenizedBuffer::tokenize(source);
         assert_eq!(buffer.tokens, expect);

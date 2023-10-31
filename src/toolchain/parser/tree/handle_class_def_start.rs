@@ -1,18 +1,13 @@
 use super::*;
 
-// classDef : CLASSNAME superclass? CURLY_OPEN classVarDecl* methodDef* CURLY_CLOSE
-//          | CLASSNAME SQUARE_OPEN name? SQUARE_CLOSE superclass? CURLY_OPEN
-//              classVarDecl* methodDef* CURLY_CLOSE
+// classDef : CLASSNAME superclass? classDefBody
+//          | CLASSNAME SQUARE_OPEN name? SQUARE_CLOSE superclass? CURLY_OPEN classDefBody
 //          ;
 pub fn handle_class_def_start(context: &mut Context) {
     // Consume class name
     debug_assert!(context.token_kind() == Some(TokenKind::ClassName));
-
-    let state = context.pop_state();
-    debug_assert!(state == Some(State::ClassDefStart));
-
     let class_token_index = context.token_index();
-    context.consume_and_add_leaf_node(NodeKind::ClassName, false);
+    context.consume();
 
     // Look for optional array storage type declaration, documented within a pair of brackets.
     if context.token_kind() == Some(TokenKind::Delimiter { kind: DelimiterKind::BracketOpen }) {
@@ -78,7 +73,7 @@ pub fn handle_class_def_start(context: &mut Context) {
         // CLASSNAME
         match context.token_kind() {
             Some(TokenKind::ClassName) => {
-                context.consume_and_add_leaf_node(NodeKind::ClassName, false);
+                context.consume_and_add_leaf_node(NodeKind::Name, false);
             }
             _ => {
                 let diag = context.emitter().build(
@@ -93,7 +88,7 @@ pub fn handle_class_def_start(context: &mut Context) {
                 context.emitter().emit(diag);
             }
         };
-        context.add_node(NodeKind::Superclass, colon_index, subtree_start, None, false);
+        context.add_node(NodeKind::ClassSuperclass, colon_index, subtree_start, None, false);
     }
 
     // A brace should follow, opening the class definition body.
@@ -120,4 +115,39 @@ pub fn handle_class_def_start(context: &mut Context) {
             context.emitter().emit(diag);
         }
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::sclang;
+    use crate::toolchain::source;
+    use super::super::tests::check_parsing;
+    use crate::toolchain::parser::node::{Node, NodeKind};
+
+    #[test]
+    fn test_bare_class() {
+        check_parsing(sclang!("A {} B {}"), vec![
+            Node { kind: NodeKind::ClassDefinitionBody, token_index: 2, subtree_size: 1,
+                closing_token: Some(3), has_error: false },
+            Node { kind: NodeKind::ClassDefinition, token_index: 0, subtree_size: 2,
+                closing_token: Some(3), has_error: false },
+            Node { kind: NodeKind::ClassDefinitionBody, token_index: 7, subtree_size: 1,
+                closing_token: Some(8), has_error: false },
+            Node { kind: NodeKind::ClassDefinition, token_index: 5, subtree_size: 2,
+                closing_token: Some(8), has_error: false }]);
+    }
+
+    #[test]
+    fn test_superclass() {
+        check_parsing(sclang!("A:B{}"), vec![
+            Node { kind: NodeKind::Name, token_index: 2, subtree_size: 1, closing_token: None,
+                has_error: false },
+            Node { kind: NodeKind::ClassSuperclass, token_index: 1, subtree_size: 2, closing_token: None,
+                has_error: false },
+            Node { kind: NodeKind::ClassDefinitionBody, token_index: 3, subtree_size: 1,
+                closing_token: Some(4), has_error: false },
+            Node { kind: NodeKind::ClassDefinition, token_index: 0, subtree_size: 4,
+                closing_token: Some(4), has_error: false },
+        ])
+    }
 }
