@@ -9,8 +9,7 @@ mod handle_class_def;
 mod handle_class_def_body;
 
 // A parse tree.
-// TODO: remove once we have the next layer in place.
-#[allow(dead_code)]
+#[allow(dead_code)] // TODO: remove once we have the next layer in place.
 pub struct Tree<'tb> {
     nodes: Vec<Node>,
     tokens: &'tb TokenizedBuffer<'tb>,
