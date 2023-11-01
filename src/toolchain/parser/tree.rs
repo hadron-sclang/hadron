@@ -9,6 +9,8 @@ mod handle_class_def;
 mod handle_class_def_body;
 
 // A parse tree.
+// TODO: remove once we have the next layer in place.
+#[allow(dead_code)]
 pub struct Tree<'tb> {
     nodes: Vec<Node>,
     tokens: &'tb TokenizedBuffer<'tb>,
@@ -66,14 +68,7 @@ impl<'tb> Tree<'tb> {
 
                 _ => {
                     panic!("unhandled state")
-                } /*
-
-                  // classExtension : PLUS CLASSNAME CURLY_OPEN methodDef* CURLY_CLOSE
-                  //                ;
-                  State::ClassExtStart => {}
-
-                  State::InterpreterCodeStart => {}
-                  */
+                }
             }
         }
 

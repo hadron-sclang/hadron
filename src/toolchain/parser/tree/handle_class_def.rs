@@ -231,43 +231,6 @@ mod tests {
     }
 
     #[test]
-    fn test_superclass() {
-        check_parsing(
-            sclang!("A:B{}"),
-            vec![
-                Node {
-                    kind: Name,
-                    token_index: 2,
-                    subtree_size: 1,
-                    closing_token: None,
-                    has_error: false,
-                },
-                Node {
-                    kind: ClassDef { kind: ClassDefKind::Superclass },
-                    token_index: 1,
-                    subtree_size: 2,
-                    closing_token: None,
-                    has_error: false,
-                },
-                Node {
-                    kind: ClassDefinitionBody,
-                    token_index: 3,
-                    subtree_size: 1,
-                    closing_token: Some(4),
-                    has_error: false,
-                },
-                Node {
-                    kind: ClassDef { kind: ClassDefKind::Root },
-                    token_index: 0,
-                    subtree_size: 4,
-                    closing_token: Some(4),
-                    has_error: false,
-                },
-            ],
-        )
-    }
-
-    #[test]
     fn test_storage_type() {
         check_parsing(
             sclang!("A[float]{}"),
@@ -302,5 +265,42 @@ mod tests {
                 },
             ],
         );
+    }
+
+    #[test]
+    fn test_superclass() {
+        check_parsing(
+            sclang!("A:B{}"),
+            vec![
+                Node {
+                    kind: Name,
+                    token_index: 2,
+                    subtree_size: 1,
+                    closing_token: None,
+                    has_error: false,
+                },
+                Node {
+                    kind: ClassDef { kind: ClassDefKind::Superclass },
+                    token_index: 1,
+                    subtree_size: 2,
+                    closing_token: None,
+                    has_error: false,
+                },
+                Node {
+                    kind: ClassDefinitionBody,
+                    token_index: 3,
+                    subtree_size: 1,
+                    closing_token: Some(4),
+                    has_error: false,
+                },
+                Node {
+                    kind: ClassDef { kind: ClassDefKind::Root },
+                    token_index: 0,
+                    subtree_size: 4,
+                    closing_token: Some(4),
+                    has_error: false,
+                },
+            ],
+        )
     }
 }
