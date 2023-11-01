@@ -76,7 +76,7 @@ dependencies = [
 
 [[package]]
 name = "hadron_sclang"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "const_format",
  "mmap-rs",
