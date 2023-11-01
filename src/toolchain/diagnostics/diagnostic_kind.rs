@@ -1,10 +1,12 @@
 /// The enumerated type of all diagnostics Hadron emits.
+#[derive(Clone, Copy)]
 pub enum DiagnosticKind {
     SyntaxError { kind: SyntaxDiagnosticKind },
 
     ParseUnknownToken,
 }
 
+#[derive(Clone, Copy)]
 pub enum SyntaxDiagnosticKind {
     /// We were expecting one particular thing and didn't encounter it.
     MissingToken,

@@ -1,5 +1,5 @@
-use super::context::{Context, State};
-use super::node::{Node, NodeKind};
+use super::context::Context;
+use super::node::{ClassDefKind, Node, NodeKind};
 use crate::toolchain::diagnostics::diagnostic_emitter::{DiagnosticConsumer, DiagnosticLevel};
 use crate::toolchain::diagnostics::diagnostic_kind::{DiagnosticKind, SyntaxDiagnosticKind};
 use crate::toolchain::lexer::token::{BinopKind, DelimiterKind, ReservedWordKind, TokenKind};
@@ -12,6 +12,7 @@ mod handle_class_def_body;
 pub struct Tree<'tb> {
     nodes: Vec<Node>,
     tokens: &'tb TokenizedBuffer<'tb>,
+    has_error: bool,
 }
 
 pub type NodeIndex = usize;
@@ -22,24 +23,28 @@ impl<'tb> Tree<'tb> {
         let mut context = Context::new(tokens, &mut nodes, diags);
 
         context.skip_ignored_tokens();
-        context.push_state(State::TopLevelStatementLoop);
+        context.push_state(NodeKind::TopLevelStatement);
 
         while let Some(state) = context.state() {
-            match state {
+            if context.has_error() {
+                break;
+            }
+
+            match state.kind {
                 // root : topLevelStatement* EOF ;
                 // topLevelStatement : classDef
                 //                   | classExtension
                 //                   | interpreterCode
                 //                   ;
-                State::TopLevelStatementLoop => {
+                NodeKind::TopLevelStatement => {
                     match context.token_kind() {
                         // Class definitions start with a ClassName token.
                         Some(TokenKind::ClassName) => {
-                            context.push_state(State::ClassDef);
+                            context.push_state(NodeKind::ClassDef { kind: ClassDefKind::Root });
                         }
                         // Class Extensions start with a '+' sign.
                         Some(TokenKind::Binop { kind: BinopKind::Plus }) => {
-                            context.push_state(State::ClassExt);
+                            context.push_state(NodeKind::ClassExtension);
                         }
                         // Normal expected end of input.
                         None => {
@@ -47,15 +52,15 @@ impl<'tb> Tree<'tb> {
                         }
 
                         // Everything else we treat as interpreter input.
-                        _ => context.push_state(State::InterpreterCode),
+                        _ => context.push_state(NodeKind::InterpreterCode),
                     }
                 }
 
-                State::ClassDef => {
+                NodeKind::ClassDef { kind: _ } => {
                     handle_class_def::handle_class_def(&mut context);
                 }
 
-                State::ClassDefBody => {
+                NodeKind::ClassDefinitionBody => {
                     handle_class_def_body::handle_class_def_body(&mut context);
                 }
 
@@ -68,13 +73,12 @@ impl<'tb> Tree<'tb> {
                   State::ClassExtStart => {}
 
                   State::InterpreterCodeStart => {}
-
-                  State::ClassDefBody => {}
                   */
             }
         }
 
-        Tree { nodes, tokens }
+        let has_error = context.has_error();
+        Tree { nodes, tokens, has_error }
     }
 }
 
@@ -86,8 +90,6 @@ mod tests {
     use crate::toolchain::lexer::TokenizedBuffer;
     use crate::toolchain::source;
 
-    // RPO iterator
-    // It's always better when the compiler type-checks your desired input too..
     pub fn check_parsing<'a>(source: &source::SourceBuffer, expect: Vec<Node>) {
         let tokens = TokenizedBuffer::tokenize(source);
         let mut null = NullDiagnosticConsumer {};

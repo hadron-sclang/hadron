@@ -11,26 +11,18 @@ pub struct Node {
     pub has_error: bool,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NodeKind {
-    ArgList,
-    ArrayRead,
-    ArrayWrite,
-    Assign,
-    BinopCall,
-    Block,
-    Call,
-
     /// A class defintion:
     ///     _optional_: Name: identifier token
-    ///   _optional_: ClassArrayStorageType: '[' ']'
+    ///   _optional_: ClassDef { ArrayStorageType }: '[' ']'
     ///     Name: classname token
-    ///   _optional_: ClassSuperclass: ':'
+    ///   _optional_: ClassDef { Superclass }: ':'
     ///   _external_: ClassDefinitionBody: '{' '}'
-    /// ClassDefinition: classname '}'
-    ClassDefinition,
-    ClassArrayStorageType,
-    ClassSuperclass,
+    /// ClassDef { Root }: classname '}'
+    ClassDef {
+        kind: ClassDefKind,
+    },
 
     /// The body of a class definition:
     ///   _optional_, _external_: MethodDef: name '}'
@@ -42,40 +34,39 @@ pub enum NodeKind {
     /// All the children of ClassDefinitionBody may occur zero or more times, in any order.
     ClassDefinitionBody,
 
+    /// A 'classvar' class variable definition:
+    ///   _external_: MemberVariableDefinitionList
+    /// ClassVariableDefinition: 'classvar' ';'
+    ClassVariableDefinition,
+
     ClassExtension,
 
-    Collection,
-    CopySeries,
-    Empty,
-    EnvironmentAt,
-    EnvironmentPut,
-    Event,
-    ExprSeq,
-    KeyValue,
-    Method,
-    MultiAssign,
-    MultiAssignVars,
+    ConstantDefinition,
+
+    InterpreterCode,
+
+    /// A 'var' variable definition inside a class:
+    ///   _external_: MemberVariableDefinitionList
+    /// MemberVariableDefinition: 'var' ';'
+    MemberVariableDefinition,
+
+    MemberVariableDefinitionList,
+
+    MethodDefinition,
 
     Name,
 
-    New,
-    NumericSeries,
-    PerformList,
-    PutSeries,
-    Return,
-    Series,
-    SeriesIter,
-    Setter,
-    Slot,
-    String,
-    Symbol,
-    Value,
-    VarDef,
-    VarList,
-    ListComprehension,
-    GeneratorQualifier,
-    GuardQualifier,
-    BindingQualifier,
-    SideEffectQualifier,
-    TerminationQualifier,
+    /// The top-level statement tree in any sclang code:
+    ///   _optional_, _external_: ClassDefinition: Classname '}'
+    ///   _optional_, _external_: ClassExtension: '+' '}'
+    ///   _optional_, _external_: InterpreterCode
+    /// TopLevelStatement
+    TopLevelStatement,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ClassDefKind {
+    Root,
+    Superclass,
+    ArrayStorageType,
 }

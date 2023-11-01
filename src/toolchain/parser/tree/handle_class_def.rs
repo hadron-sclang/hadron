@@ -4,10 +4,13 @@ use super::*;
 //          | CLASSNAME SQUARE_OPEN name? SQUARE_CLOSE superclass? CURLY_OPEN classDefBody
 //          ;
 pub fn handle_class_def(context: &mut Context) {
+    debug_assert_eq!(
+        context.state().unwrap().kind,
+        NodeKind::ClassDef { kind: ClassDefKind::Root }
+    );
+
     // Consume class name
-    debug_assert!(context.token_kind() == Some(TokenKind::ClassName));
-    let class_token_index = context.token_index();
-    context.consume();
+    context.consume_checked(TokenKind::ClassName);
 
     // Look for optional array storage type declaration, documented within a pair of brackets.
     if context.token_kind() == Some(TokenKind::Delimiter { kind: DelimiterKind::BracketOpen }) {
@@ -26,9 +29,30 @@ pub fn handle_class_def(context: &mut Context) {
                 Some(context.consume())
             }
 
+            None => {
+                let class_token_index = context.state().unwrap().token_index;
+                let diag = context
+                    .emitter()
+                    .build(
+                        DiagnosticLevel::Error,
+                        DiagnosticKind::SyntaxError {
+                            kind: SyntaxDiagnosticKind::UnexpectedEndOfInput,
+                        },
+                        open_bracket_index,
+                        "Unexpected end of input after parsing class array storage type. \
+                            Expected closing bracket ']' to match opening bracket here.",
+                    )
+                    .note(class_token_index, "Class Defined Here.")
+                    .emit();
+                context.emitter().emit(diag);
+                context.close_state(NodeKind::ClassDef { kind: ClassDefKind::Root }, true);
+                return;
+            }
+
             // Perhaps we just forgot a closing bracket, emit error, pretend we
             // encountered the closing bracket, and continue.
             _ => {
+                let class_token_index = context.state().unwrap().token_index;
                 let token_index = context.token_index();
                 let diag = context
                     .emitter()
@@ -38,16 +62,8 @@ pub fn handle_class_def(context: &mut Context) {
                         token_index,
                         "Expected closing bracket ']' in class definition array type.",
                     )
-                    .note(
-                        DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
-                        class_token_index,
-                        "Class defined here.",
-                    )
-                    .note(
-                        DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
-                        open_bracket_index,
-                        "Opening bracket '[' here.",
-                    )
+                    .note(class_token_index, "Class defined here.")
+                    .note(open_bracket_index, "Opening bracket '[' here.")
                     .emit();
                 context.emitter().emit(diag);
                 None
@@ -56,7 +72,7 @@ pub fn handle_class_def(context: &mut Context) {
 
         let has_error = closing_bracket_index == None;
         context.add_node(
-            NodeKind::ClassArrayStorageType,
+            NodeKind::ClassDef { kind: ClassDefKind::ArrayStorageType },
             open_bracket_index,
             subtree_start,
             closing_bracket_index,
@@ -75,48 +91,95 @@ pub fn handle_class_def(context: &mut Context) {
             Some(TokenKind::ClassName) => {
                 context.consume_and_add_leaf_node(NodeKind::Name, false);
             }
-            _ => {
+
+            None => {
+                let class_token_index = context.state().unwrap().token_index;
                 let diag = context
                     .emitter()
                     .build(
                         DiagnosticLevel::Error,
-                        DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
+                        DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnexpectedEndOfInput },
                         colon_index,
-                        "Expected a capitalized class name indicating the name of the superclass \
-                            after the colon ':' in the class definition.",
+                        "Unexpected end of input. Expected a capitalized class name indicating \
+                            the name of the superclass after the colon ':' in the class definition.",
                     )
                     .note(
-                        DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
                         class_token_index,
                         "Class defined here.",
                     )
                     .emit();
                 context.emitter().emit(diag);
+                context.close_state(NodeKind::ClassDef { kind: ClassDefKind::Root }, true);
+                return;
+            }
+
+            _ => {
+                let class_token_index = context.state().unwrap().token_index;
+                let token_index = context.token_index();
+                let diag = context
+                    .emitter()
+                    .build(
+                        DiagnosticLevel::Error,
+                        DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnexpectedToken },
+                        token_index,
+                        "Unexpected token. Expected a capitalized class name indicating the \
+                            name of the superclass after the colon ':' in the class definition.",
+                    )
+                    .note(colon_index, "Superclass indicator colon ':' here.")
+                    .note(class_token_index, "Class defined here.")
+                    .emit();
+                context.emitter().emit(diag);
+                context.consume_and_add_leaf_node(NodeKind::Name, true);
             }
         };
-        context.add_node(NodeKind::ClassSuperclass, colon_index, subtree_start, None, false);
+
+        context.add_node(
+            NodeKind::ClassDef { kind: ClassDefKind::Superclass },
+            colon_index,
+            subtree_start,
+            None,
+            false,
+        );
     }
 
     // A brace should follow, opening the class definition body.
     match context.token_kind() {
         Some(TokenKind::Delimiter { kind: DelimiterKind::BraceOpen }) => {
-            context.push_state(State::ClassDefBody);
+            context.push_state(NodeKind::ClassDefinitionBody);
         }
+
+        None => {
+            let class_token_index = context.state().unwrap().token_index;
+            let diag = context
+                .emitter()
+                .build(
+                    DiagnosticLevel::Error,
+                    DiagnosticKind::SyntaxError {
+                        kind: SyntaxDiagnosticKind::UnexpectedEndOfInput,
+                    },
+                    class_token_index,
+                    "Unexpected end of input while parsing class defined here. Expecting an \
+                        open brace '}' to start class definition body.",
+                )
+                .emit();
+            context.emitter().emit(diag);
+            context.close_state(NodeKind::ClassDef { kind: ClassDefKind::Root }, true);
+            return;
+        }
+
         _ => {
+            let class_token_index = context.state().unwrap().token_index;
             let token_index = context.token_index();
             let diag = context
                 .emitter()
                 .build(
                     DiagnosticLevel::Error,
                     DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
-                    token_index, // TODO: might crash if at EOI
-                    "Expected opening brace '{' to start class definition body.",
+                    token_index,
+                    "Unexpected token. Expected opening brace '{' to start class definition \
+                        body.",
                 )
-                .note(
-                    DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::MissingToken },
-                    class_token_index,
-                    "Class defined here.",
-                )
+                .note(class_token_index, "Class defined here.")
                 .emit();
             context.emitter().emit(diag);
         }
@@ -127,7 +190,7 @@ pub fn handle_class_def(context: &mut Context) {
 mod tests {
     use super::super::tests::check_parsing;
     use crate::sclang;
-    use crate::toolchain::parser::node::{Node, NodeKind::*};
+    use crate::toolchain::parser::node::{ClassDefKind, Node, NodeKind::*};
     use crate::toolchain::source;
 
     #[test]
@@ -143,7 +206,7 @@ mod tests {
                     has_error: false,
                 },
                 Node {
-                    kind: ClassDefinition,
+                    kind: ClassDef { kind: ClassDefKind::Root },
                     token_index: 0,
                     subtree_size: 2,
                     closing_token: Some(3),
@@ -157,7 +220,7 @@ mod tests {
                     has_error: false,
                 },
                 Node {
-                    kind: ClassDefinition,
+                    kind: ClassDef { kind: ClassDefKind::Root },
                     token_index: 5,
                     subtree_size: 2,
                     closing_token: Some(8),
@@ -180,7 +243,7 @@ mod tests {
                     has_error: false,
                 },
                 Node {
-                    kind: ClassSuperclass,
+                    kind: ClassDef { kind: ClassDefKind::Superclass },
                     token_index: 1,
                     subtree_size: 2,
                     closing_token: None,
@@ -194,7 +257,7 @@ mod tests {
                     has_error: false,
                 },
                 Node {
-                    kind: ClassDefinition,
+                    kind: ClassDef { kind: ClassDefKind::Root },
                     token_index: 0,
                     subtree_size: 4,
                     closing_token: Some(4),
@@ -217,7 +280,7 @@ mod tests {
                     has_error: false,
                 },
                 Node {
-                    kind: ClassArrayStorageType,
+                    kind: ClassDef { kind: ClassDefKind::ArrayStorageType },
                     token_index: 1,
                     subtree_size: 2,
                     closing_token: Some(3),
@@ -231,7 +294,7 @@ mod tests {
                     has_error: false,
                 },
                 Node {
-                    kind: ClassDefinition,
+                    kind: ClassDef { kind: ClassDefKind::Root },
                     token_index: 0,
                     subtree_size: 4,
                     closing_token: Some(5),

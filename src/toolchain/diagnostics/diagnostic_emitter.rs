@@ -147,11 +147,11 @@ impl<'s, LocationT> DiagnosticBuilder<'s, LocationT> {
 
     pub fn note(
         mut self,
-        kind: DiagnosticKind,
         location: LocationT,
         body: &'static str,
     ) -> DiagnosticBuilder<'s, LocationT> {
         let loc = self.translator.get_location(location);
+        let kind = self.message.kind.clone();
         self.notes.push(DiagnosticMessage { kind, location: loc, body });
         self
     }

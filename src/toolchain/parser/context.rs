@@ -6,33 +6,8 @@ use crate::toolchain::lexer::TokenKind;
 use crate::toolchain::parser::node::{Node, NodeKind};
 use crate::toolchain::parser::tree::NodeIndex;
 
-/// TODO: Is there any semantic difference between these states and parse nodes? Is that a
-/// flexibility we need or an obfuscation?
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub enum State {
-    // Root-level parsing context, expecting a class definition, extension, or interpreter code.
-    TopLevelStatementLoop,
-
-    ClassDef,
-    ClassDefBody,
-
-    ClassExt,
-
-    Classvar,
-
-    Const,
-
-    InterpreterCode,
-
-    MethodDef,
-
-    RWDefList,
-
-    Var,
-}
-
-struct StateStackEntry {
-    pub state: State,
+pub struct StateStackEntry {
+    pub kind: NodeKind,
     pub subtree_start: NodeIndex,
     pub token_index: TokenIndex,
 }
@@ -94,37 +69,41 @@ impl<'tb> Context<'tb> {
 
     // Pop the current state and use the information to create a new parse node of the given kind,
     // that started when the state was created and ends on the current token.
-    pub fn close_state(&mut self, kind: NodeKind, has_error: bool) {
+    pub fn close_state(&mut self, kind: NodeKind, has_error: bool) -> StateStackEntry {
         let state_entry = self.states.pop().unwrap();
+        debug_assert_eq!(kind, state_entry.kind);
         self.add_node(
-            kind,
+            state_entry.kind.clone(),
             state_entry.token_index,
             state_entry.subtree_start,
             Some(self.token_index),
             has_error,
-        )
+        );
+        state_entry
     }
 
-    pub fn push_state(&mut self, state: State) {
+    pub fn push_state(&mut self, kind: NodeKind) {
         self.states.push(StateStackEntry {
-            state,
+            kind,
             subtree_start: self.nodes.len(),
             token_index: self.token_index,
         });
     }
 
-    pub fn state(&self) -> Option<State> {
-        match self.states.last() {
-            Some(entry) => Some(entry.state),
-            None => None,
-        }
+    pub fn state(&self) -> Option<&StateStackEntry> {
+        self.states.last()
     }
 
-    pub fn pop_state(&mut self) -> Option<State> {
-        match self.states.pop() {
-            Some(entry) => Some(entry.state),
-            None => None,
-        }
+    /// Returns the [gen]th element up the stack from the current state. In debug mode will assert
+    /// if the parent [NodeKind] doesn't match [expect].
+    pub fn state_parent(&self, gen: usize, expect: NodeKind) -> Option<&StateStackEntry> {
+        let idx = self.states.len() - gen - 1;
+        debug_assert_eq!(self.states.get(idx).unwrap().kind, expect);
+        self.states.get(idx)
+    }
+
+    pub fn pop_state(&mut self) -> Option<StateStackEntry> {
+        self.states.pop()
     }
 
     // Skip any ignored tokens. If the current token is not ignored, do nothing.
@@ -143,20 +122,6 @@ impl<'tb> Context<'tb> {
         self.token_index
     }
 
-    /// Returns the next non-ignored token kind after the supplied index, if one exists.
-    pub fn next_token_after(&self, index: TokenIndex) -> Option<TokenKind> {
-        let mut i = index + 1;
-        while let Some(token) = self.tokens.token_at(i) {
-            match token.kind {
-                TokenKind::Ignored { kind: _ } => {
-                    i += 1;
-                }
-                _ => return Some(token.kind),
-            }
-        }
-        None
-    }
-
     // Returns the curent token index before advancing to the next non-ignored token.
     pub fn consume(&mut self) -> TokenIndex {
         let index = self.token_index;
@@ -171,18 +136,15 @@ impl<'tb> Context<'tb> {
         self.consume()
     }
 
-    // Advance to next non-ignored token.
-    // TODO: should we combine consuming tokens and changing state?
-    pub fn next_token(&mut self) {
-        self.token_index += 1;
-        self.skip_ignored_tokens();
-    }
-
     pub fn token_kind(&self) -> Option<TokenKind> {
         Some(self.tokens.token_at(self.token_index)?.kind)
     }
 
     pub fn emitter(&mut self) -> &mut TokenDiagnosticEmitter<'tb, 'tb> {
         &mut self.emitter
+    }
+
+    pub fn has_error(&self) -> bool {
+        self.has_error
     }
 }
