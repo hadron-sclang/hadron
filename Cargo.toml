@@ -1,6 +1,6 @@
 [package]
 name = "hadron_sclang"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 edition = "2021"
 license = "Apache-2.0"
 description = "Experimental SuperCollider music language interpreter"
@@ -12,4 +12,6 @@ keywords = [ "music", "audio", "synthesis", "language" ]
 categories = [ "multimedia", "parser-implementations" ]
 
 [dependencies]
+const_format = "0.2.31"
+mmap-rs = "0.6.0"
 static_assertions = "1.1.0"

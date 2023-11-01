@@ -130,12 +130,8 @@ impl Slot {
     /// ```
     pub fn from_boolean(boolean: bool) -> Slot {
         match boolean {
-            true => Slot {
-                bits: Slot::BOOLEAN_TAG | 1,
-            },
-            false => Slot {
-                bits: Slot::BOOLEAN_TAG,
-            },
+            true => Slot { bits: Slot::BOOLEAN_TAG | 1 },
+            false => Slot { bits: Slot::BOOLEAN_TAG },
         }
     }
 
@@ -192,9 +188,7 @@ impl Slot {
     pub fn from_character(character: char) -> Slot {
         let short = character as u32;
         let long = short as u64;
-        Slot {
-            bits: (long | Slot::CHARACTER_TAG),
-        }
+        Slot { bits: (long | Slot::CHARACTER_TAG) }
     }
 
     /// Returns true if the [Slot] holds a character.
@@ -305,9 +299,7 @@ impl Slot {
     /// ```
     pub fn from_integer(int: i32) -> Slot {
         let long = int as u32 as u64;
-        Slot {
-            bits: long | Slot::INTEGER_TAG,
-        }
+        Slot { bits: long | Slot::INTEGER_TAG }
     }
 
     /// Returns true if this [Slot] holds an integer.
@@ -363,9 +355,7 @@ impl Slot {
     /// assert!(n.is_nil());
     /// ```
     pub fn nil() -> Slot {
-        Slot {
-            bits: Slot::NIL_TAG,
-        }
+        Slot { bits: Slot::NIL_TAG }
     }
 
     /// Returns true if this [Slot] holds the SuperCollider nil type.
@@ -385,7 +375,9 @@ impl Slot {
 }
 
 impl Default for Slot {
-    fn default() -> Self { Slot::nil() }
+    fn default() -> Self {
+        Slot::nil()
+    }
 }
 
 impl std::fmt::Debug for Slot {
@@ -417,12 +409,8 @@ mod tests {
         assert!(boolean_true.is_boolean());
         assert!(boolean_false.is_boolean());
         assert_ne!(boolean_true, boolean_false);
-        assert!(boolean_true
-            .as_boolean()
-            .expect("boolean true should return a valid bool"));
-        assert!(!boolean_false
-            .as_boolean()
-            .expect("boolean false should return a valid bool"));
+        assert!(boolean_true.as_boolean().expect("boolean true should return a valid bool"));
+        assert!(!boolean_false.as_boolean().expect("boolean false should return a valid bool"));
     }
 
     #[test]
@@ -430,9 +418,7 @@ mod tests {
         let character_a = Slot::from_character('a');
         assert!(character_a.is_character());
         assert_eq!(
-            character_a
-                .as_character()
-                .expect("character_a should be a valid character"),
+            character_a.as_character().expect("character_a should be a valid character"),
             'a'
         );
 
@@ -445,9 +431,7 @@ mod tests {
         let character_cat = Slot::from_character('😼');
         assert!(character_cat.is_character());
         assert_eq!(
-            character_cat
-                .as_character()
-                .expect("character_cat should return a valid character"),
+            character_cat.as_character().expect("character_cat should return a valid character"),
             '😼'
         );
 
@@ -460,27 +444,18 @@ mod tests {
         let float_positive = Slot::from_float(1.1);
         assert!(float_positive.is_float());
         assert_eq!(
-            float_positive
-                .as_float()
-                .expect("float_positive should return a valid float"),
+            float_positive.as_float().expect("float_positive should return a valid float"),
             1.1
         );
 
         let float_zero = Slot::from_float(0.0);
         assert!(float_zero.is_float());
-        assert_eq!(
-            float_zero
-                .as_float()
-                .expect("float_zero should return a valid float"),
-            0.0
-        );
+        assert_eq!(float_zero.as_float().expect("float_zero should return a valid float"), 0.0);
 
         let float_negative = Slot::from_float(-2.2);
         assert!(float_negative.is_float());
         assert_eq!(
-            float_negative
-                .as_float()
-                .expect("float_negative should return a valid float"),
+            float_negative.as_float().expect("float_negative should return a valid float"),
             -2.2
         );
         assert_ne!(float_negative, float_positive);
@@ -490,21 +465,11 @@ mod tests {
     fn float_min_max() {
         let float_min = Slot::from_float(f64::MIN);
         assert!(float_min.is_float());
-        assert_eq!(
-            float_min
-                .as_float()
-                .expect("float_min should return a valid float"),
-            f64::MIN
-        );
+        assert_eq!(float_min.as_float().expect("float_min should return a valid float"), f64::MIN);
 
         let float_max = Slot::from_float(f64::MAX);
         assert!(float_max.is_float());
-        assert_eq!(
-            float_max
-                .as_float()
-                .expect("float_max should return a valid float"),
-            f64::MAX
-        );
+        assert_eq!(float_max.as_float().expect("float_max should return a valid float"), f64::MAX);
 
         assert_ne!(float_min, float_max);
     }
@@ -513,19 +478,14 @@ mod tests {
     fn float_nan() {
         let float_nan = Slot::from_float(f64::NAN);
         assert!(float_nan.is_float());
-        assert!(float_nan
-            .as_float()
-            .expect("nan stored as a float should be a float")
-            .is_nan());
+        assert!(float_nan.as_float().expect("nan stored as a float should be a float").is_nan());
     }
 
     #[test]
     fn float_inf() {
         let float_inf = Slot::from_float(f64::INFINITY);
         assert!(float_inf.is_float());
-        let inf = float_inf
-            .as_float()
-            .expect("infinity stored as a float should be a float");
+        let inf = float_inf.as_float().expect("infinity stored as a float should be a float");
         assert_eq!(inf, f64::INFINITY);
 
         let float_negative_inf = Slot::from_float(f64::NEG_INFINITY);
@@ -574,12 +534,7 @@ mod tests {
 
         let integer_max = Slot::from_integer(i32::MAX);
         assert!(integer_max.is_integer());
-        assert_eq!(
-            integer_max
-                .as_integer()
-                .expect("integer_max should be an integer"),
-            i32::MAX
-        );
+        assert_eq!(integer_max.as_integer().expect("integer_max should be an integer"), i32::MAX);
 
         assert_ne!(integer_min, integer_max);
     }

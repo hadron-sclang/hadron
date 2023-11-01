@@ -1,0 +1,13 @@
+# Config file for rustfmt.
+# See: https://github.com/rust-lang/rustfmt/blob/master/Configurations.md
+
+# Ask rustfmt to use the entire line width before deciding to break lines up into
+# individual elements.
+use_small_heuristics = "Max"
+
+### unstable heursitics that look nice, maybe turn them on when they move to stable?
+# fn_single_line = true
+# format_code_in_doc_comments = true
+# group_imports = "StdExternalCrate"
+# struct_lit_single_line = true
+# wrap_comments = true
