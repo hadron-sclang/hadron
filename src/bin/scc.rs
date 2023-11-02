@@ -8,7 +8,7 @@ const HELP: &str = "\
 
     OPTIONS:
         --phase PHASE       Which compilation phase to take the compilation through. PHASE is one
-                            of 'tokenized_buffer', or 'tree'.
+                            of 'lex', or 'parse'.
         --quiet             If present, all non-error output is suppressed.
 
     ARGS:

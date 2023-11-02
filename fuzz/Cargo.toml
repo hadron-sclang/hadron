@@ -21,7 +21,7 @@ members = ["."]
 debug = 1
 
 [[bin]]
-name = "tokenized_buffer"
-path = "fuzz_targets/tokenized_buffer.rs"
+name = "lex"
+path = "fuzz_targets/lex.rs"
 test = false
 doc = false
