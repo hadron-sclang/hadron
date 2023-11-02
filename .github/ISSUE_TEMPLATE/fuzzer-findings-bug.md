@@ -9,9 +9,11 @@ assignees: ''
 
 **TARGET:** <fuzz target name>
 
-**CALL STACK:** <Please copy and paste the *debug* stack trace from the fuzzer here>
+**FUZZER FINDING:**
 
-See FUZZING.md to get more information about getting a debug stack trace.
+<Please copy and paste the *entire* finding reported by the fuzzer here>
+
+See FUZZING.md for more information.
 
 **Reminder:** Please attach the fuzzer artifact as a file attachment to this bug.
 
