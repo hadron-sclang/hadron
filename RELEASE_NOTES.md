@@ -12,3 +12,11 @@
 Next Release:
 
 * **v0.1.0-alpha.3**
+  * [x] add fuzzer
+    * [x] adds scc binary for fuzzer bug reproduction
+  * [ ] fix some basic fuzzer findings
+  * [ ] add workflow automation
+    * [ ] cargo fmt
+    * [ ] some kind of script to run scc over the fuzzer findings?
+    * [ ] cargo test
+  * [ ] Advance parser some
