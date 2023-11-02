@@ -24,6 +24,12 @@ impl<'s> TokenizedBuffer<'s> {
     pub fn token_at(&self, i: TokenIndex) -> Option<&Token<'s>> {
         self.tokens.get(i)
     }
+
+    pub fn print_tokens(&self) {
+        for token in self.tokens.iter() {
+            println!("{:?}", &token);
+        }
+    }
 }
 
 impl<'s> DiagnosticLocationTranslator<'s, TokenIndex> for TokenizedBuffer<'s> {

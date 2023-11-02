@@ -11,7 +11,11 @@ authors = ["Lucile Rose Nihlen <none>"]
 keywords = [ "music", "audio", "synthesis", "language" ]
 categories = [ "multimedia", "parser-implementations" ]
 
+[[bin]]
+name = "scc"
+
 [dependencies]
 const_format = "0.2.31"
 mmap-rs = "0.6.0"
+pico-args = "0.5.0"
 static_assertions = "1.1.0"
