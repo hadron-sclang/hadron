@@ -1,7 +1,7 @@
 ---
 name: Fuzzer Findings Bug
 about: Report a crash or hang found by fuzzing
-title: "[fuzz] - crash in <fuzz target name>: <top-level non-library function here>"
+title: "[fuzz] crash in <fuzz target name>: <top-level non-library function here>"
 labels: fuzzer-findings
 assignees: ''
 
