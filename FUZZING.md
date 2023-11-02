@@ -7,7 +7,7 @@ a useful technique to catch these kinds of bugs.
 Fuzzing is the process of applying random inputs to the program under test, in this case Hadron,
 to try to find specific inputs that cause crashes or hangs in the program. Modern fuzzing uses
 *instrumented builds* of the program under test, attempting to find interesting input sequences
-that cause more of the program under test to execute than their siblings.
+that cause more of the program under test to execute than previous sequences did.
 
 **Note:** Fuzzing is *compute intensive*, and in a well-fuzzed application it may take *hours,
 days, or weeks* of fuzzing to find a novel bug. During that time the computer will work at maximum
@@ -39,10 +39,10 @@ toolchain with this shell command:
 $ rustup install nightly
 ```
 
-Hadron does not use the Rust nightly toolchain to build, so for non-fuzzing workflows we compile
-and test Hadron with the standard toolchain. A developer can configure `rustup` to use either
-toolchain as the default, but on the balance it may be easier to keep the standard toolchain as the
-default and specify to use the nightly toolchain to cargo whenever using `cargo-fuzz`. This
+Hadron does not normally use the Rust nightly toolchain to build, so for non-fuzzing workflows we
+compile and test Hadron with the standard toolchain. A developer can configure `rustup` to use
+either toolchain as the default, but on the balance it may be easier to keep the standard toolchain
+as the default and specify to use the nightly toolchain to cargo whenever using `cargo-fuzz`. This
 documentation follows that convention, so will include the `+nightly` argument in each cargo
 fuzzing command.
 
@@ -73,7 +73,7 @@ can cause more of the program code to execute, but it is greatly aided by provid
 of inputs that it can work from.
 
 `cargo-fuzz` is configured to scan the `fuzz/corpus` directoy for example input and can even detect
-and load new data while fuzzing. To avoid bloat (and possible viral license transfer), as well as
+and load new data while fuzzing. To avoid bloat (and possible viral license implications), and
 to help keep some diversity in example inputs between people fuzzing Hadron, `git` will ignore any
 files added to this directory. So, feel free to copy lots of example SuperCollider code here,
 inluding Quarks, class library code, scripts you've written, even broken or incomplete code is
@@ -93,31 +93,27 @@ lexing the input first, so the lexer also receives fuzzing. We maintain the lexe
 target because fuzzing can be more productive on smaller programs, allowing it to fit more
 iterations into the same unit of time. Furthermore, the lexer in particular is the "first line of
 defense" from invalid input, so it deserves the extra attention. On the other hand, choosing later
-compilation phases allows for deeper testing of the later compilation stages.
-
-It might be useful to think of early compilation stages searching for bugs in more breadth, as they
-can run faster and therefore allow for more trials, and later compilation stages search in more
-depth, as they execute more of the compiler.
+compilation phases allows for deeper testing of more of the compiler.
 
 ### Decide On Parallelism
 
 As fuzzing is a randomized search, it's also important to run as many iterations of fuzzing as
 possible, in order to maximize the odds of finding novel bugs. Best practice is to use the same
 number of fuzzing jobs as computer cores on the machine, although bear in mind that fuzzing jobs
-can last for *weeks or months* which during they will consume the *entire capacity* of that CPU
-core, so bear in mind the usability and machine health considerations when determining the level of
-parallelism to apply.
+can last for *weeks* which during they will consume the *entire capacity* of that CPU core, so bear
+in mind the usability and machine health considerations when determining the level of parallelism
+to apply.
 
 On Linux, the `lscpu` command will report the number of cores on the machine. I typically choose to
-fuzz at that number minus 1 or 2, to leave some room for the computer to service other processes,
-albiet slowly.
+fuzz at that number of jobs minus 1 or 2, to leave some room for the computer to service other
+processes, albiet slowly.
 
 ### Consider Fuzzing Release Builds
 
 By default the fuzzer uses development builds, which come with more checks and safeguards but are
 also slower. It's useful to sometimes fuzz release builds, as these are faster so you get more fuzz
-cycles, in addition to more accurately reflecting productions builds users will use. To fuzz
-release builds, add a `--release` 
+cycles, in addition to more accurately reflecting productions builds. To fuzz release builds, add 
+a `--release` flag to the command as documented [below](#fuzz).
 
 ### Fuzz!
 
@@ -127,8 +123,14 @@ With target and number of jobs selected, invoke the fuzzing command as:
 ~/src/hadron$ cargo +nightly fuzz run <target> --jobs=<number of jobs>
 ```
 
-And then let it run. If the fuzzer finds a great many bugs it will stop on its own, otherwise you
-can stop fuzzing at any time by hitting CTRL+C.
+Or if you've chosen to fuzz in release:
+
+```
+~/src/hadron$ cargo +nightly fuzz run --release lex
+```
+
+And then let it run. If the fuzzer determines it has exhausted its search it will stop on its own, 
+otherwise you can stop fuzzing at any time by hitting CTRL+C.
 
 ### Findings
 
@@ -246,7 +248,7 @@ easily solved by installing LLVM:
 sudo apt-get install llvm
 ```
 
-Note that `cargo-fuzz` saves the input that caused the crash to the `fuzz/artifacts/<target>/`
+**Note:** `cargo-fuzz` saves the input that caused the crash to the `fuzz/artifacts/<target>/`
 directory, and includes instructions on how to reproduce the crash. The `fuzz/artifacts` directory
 is also ignored by `git`, so as to not clutter up the repository with gigabytes of possibly
 redundant tiny files. That said, these findings are very useful, if noisy. Getting a fuzzer report
@@ -285,5 +287,9 @@ For the most part, the process of fixing fuzzer bugs is similar to fixing any ot
 crash/hang" issue. The difficulty of these bugs is somewhat variable, but in general they may be
 easier to fix because of the reproduceability.
 
-Fuzzer bugfix commits should include the reproducer input file. Add it to the target-specific
-subdirectory in `/tests/fuzz`.
+Fuzzer bugfix commits should include the reproducer input file. Please add it to the
+target-specific subdirectory in `/tests/fuzz`. 
+
+To simplify debugging of fuzzer crashes it is sometimes easier to use the `scc` binary provided
+by Hadron, which has flags to take compilation to each stage before stopping, and can usually
+reproduce the crash on the example input without all of the fuzzing infrastructure in the way.
