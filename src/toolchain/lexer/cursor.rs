@@ -1,4 +1,13 @@
-use std::str::Chars;
+use bstr;
+use bstr::ByteSlice;
+
+use crate::toolchain::diagnostics::diagnostic_emitter::Diagnostic;
+use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticConsumer;
+use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticLevel;
+use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticMessage;
+use crate::toolchain::diagnostics::diagnostic_kind::*;
+use crate::toolchain::diagnostics::DiagnosticLocation;
+use crate::toolchain::source::SourceBuffer;
 
 use super::token::BinopKind;
 use super::token::DelimiterKind;
@@ -13,19 +22,21 @@ use super::token::TokenKind;
 /// Also tracks input buffer position by line and column.
 ///
 /// Design roughly inspired by the rustc lexer Cursor.
-pub struct Cursor<'s, 'v> {
+pub struct Cursor<'s, 'v, 'd> {
+    source: &'s SourceBuffer<'s>,
     // An iterator over the input character string.
-    chars: Chars<'s>,
-    string: &'s str,
+    chars: bstr::Chars<'s>,
+    string: &'s bstr::BStr,
     bytes_remaining: usize,
     line: i32,
     column: i32,
-    line_str: &'s str,
+    line_str: &'s bstr::BStr,
     line_bytes_remaining: usize,
     lines: &'v mut Vec<&'s str>,
+    diags: &'d mut dyn DiagnosticConsumer,
 }
 
-impl<'s, 'v> Iterator for Cursor<'s, 'v> {
+impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
     type Item = Token<'s>;
 
     fn next(&mut self) -> Option<Token<'s>> {
@@ -117,9 +128,42 @@ impl<'s, 'v> Iterator for Cursor<'s, 'v> {
                 }
             }
 
+            Self::BAD => {
+                // We manually build error messages in the lexer, as we don't yet have the file
+                // completely mapped out for location translation to be meaningful.
+                let location = DiagnosticLocation {
+                    file_name: self.source.file_name(),
+                    line_number: line,
+                    column_number: column,
+                    line: "",
+                };
+                let msg = DiagnosticMessage {
+                    kind: DiagnosticKind::LexerError { kind: LexerDiagnosticKind::InvalidToken },
+                    location,
+                    body: "Invalid utf-8 sequence, input truncated.",
+                };
+                let diag = Diagnostic::new(DiagnosticLevel::Error, msg, Vec::new());
+                self.diags.handle_diagnostic(diag);
+                // Halt lexing and return the invalid token.
+                return Some(Token::new(TokenKind::Invalid, "", line, column));
+            }
+
             // We coalesce unknown characters into a single Token, to cut down on the number of
             // Tokens that we lex from a string of garbage input.
             _ => {
+                let location = DiagnosticLocation {
+                    file_name: self.source.file_name(),
+                    line_number: line,
+                    column_number: column,
+                    line: "",
+                };
+                let msg = DiagnosticMessage {
+                    kind: DiagnosticKind::LexerError { kind: LexerDiagnosticKind::InvalidToken },
+                    location,
+                    body: "Unrecognized character sequence.",
+                };
+                let diag = Diagnostic::new(DiagnosticLevel::Error, msg, Vec::new());
+                self.diags.handle_diagnostic(diag);
                 self.eat_while(|c| Self::is_unknown(c));
                 TokenKind::Unknown
             }
@@ -149,11 +193,23 @@ impl<'s, 'v> Iterator for Cursor<'s, 'v> {
     }
 }
 
-impl<'s, 'v> Cursor<'s, 'v> {
+impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
     pub const EOF: char = '\0';
 
-    pub fn new(input: &'s str, lines: &'v mut Vec<&'s str>) -> Cursor<'s, 'v> {
+    /// The bstr::Chars iterator substitutes invalid utf-8 sequences with the utf-8
+    /// placeholder sequence U+FFFD. We treat the presence of this character as a signifier
+    /// that the source string has invalid utf-8 characters. As rust requires &str elements
+    /// to always contain valid utf-8 only, this is necessarily a fatal lexing error.
+    pub const BAD: char = '\u{fffd}';
+
+    pub fn new(
+        source: &'s SourceBuffer<'s>,
+        lines: &'v mut Vec<&'s str>,
+        diags: &'d mut impl DiagnosticConsumer,
+    ) -> Cursor<'s, 'v, 'd> {
+        let input = source.code();
         Cursor {
+            source,
             chars: input.chars(),
             string: input,
             bytes_remaining: input.len(),
@@ -163,6 +219,7 @@ impl<'s, 'v> Cursor<'s, 'v> {
             line_str: input,
             line_bytes_remaining: input.len(),
             lines: lines,
+            diags,
         }
     }
 
@@ -175,20 +232,33 @@ impl<'s, 'v> Cursor<'s, 'v> {
         match next {
             None => {
                 if self.line_str.len() > 0 {
-                    self.lines.push(self.line_str);
-                    self.line_str = "";
+                    // We are confident that line_str is valid utf-8 because we have just checked
+                    // every code point for validity while parsing.
+                    let line_str = unsafe { self.line_str.to_str_unchecked() };
+                    self.lines.push(line_str);
+                    self.line_str = bstr::BStr::new(&[]);
                 }
                 None
+            }
+            Some(c) if c == Self::BAD => {
+                // Invalidate chars iterator, this is the end of the stream.
+                self.chars = bstr::BStr::new(&[]).chars();
+                Some(Self::BAD)
             }
             Some(c) => {
                 // Handle newlines as we encounter them.
                 if c == '\n' {
                     // Extract the line substring for the line we just terminated.
-                    let new_bytes_remaining = self.chars.as_str().len();
+                    let new_bytes_remaining = self.chars.as_bytes().len();
                     let (prefix, suffix) =
                         self.line_str.split_at(self.line_bytes_remaining - new_bytes_remaining);
-                    self.lines.push(prefix);
-                    self.line_str = suffix;
+
+                    // We just checked every code point in prefix for validity so this does not
+                    // break the requirement that a &str must always reference valid utf-8.
+                    let prefix_str = unsafe { prefix.to_str_unchecked() };
+
+                    self.lines.push(prefix_str);
+                    self.line_str = bstr::BStr::new(suffix);
                     self.line_bytes_remaining = new_bytes_remaining;
 
                     // Our 1-based line count should now be the same size as the lines array.
@@ -204,15 +274,16 @@ impl<'s, 'v> Cursor<'s, 'v> {
     }
 
     fn is_eof(&self) -> bool {
-        self.chars.as_str().is_empty()
+        self.chars.as_bytes().is_empty()
     }
 
     fn extract_substring(&mut self) -> &'s str {
-        let new_bytes_remaining = self.chars.as_str().len();
+        let new_bytes_remaining = self.chars.as_bytes().len();
         let (prefix, suffix) = self.string.split_at(self.bytes_remaining - new_bytes_remaining);
-        self.string = suffix;
+        self.string = bstr::BStr::new(suffix);
         self.bytes_remaining = new_bytes_remaining;
-        prefix
+        let prefix_str = unsafe { prefix.to_str_unchecked() };
+        prefix_str
     }
 
     fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {

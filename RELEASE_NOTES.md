@@ -14,7 +14,9 @@ Next Release:
 * **v0.1.0-alpha.3**
   * [x] add fuzzer
     * [x] adds scc binary for fuzzer bug reproduction
-  * [ ] fix some basic fuzzer findings
+  * [ ] find and fix some basic fuzzer issues
+    * [x]  Validate input source code as
+      utf-8 while lexing. Fixes [#142](https://github.com/hadron-sclang/hadron/issues/142).
   * [ ] add workflow automation
     * [ ] cargo fmt
     * [ ] some kind of script to run scc over the fuzzer findings?

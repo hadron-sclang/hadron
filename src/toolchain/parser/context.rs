@@ -1,8 +1,5 @@
 use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticConsumer;
-use crate::toolchain::lexer::tokenized_buffer::{
-    TokenDiagnosticEmitter, TokenIndex, TokenizedBuffer,
-};
-use crate::toolchain::lexer::TokenKind;
+use crate::toolchain::lexer::{TokenDiagnosticEmitter, TokenIndex, TokenKind, TokenizedBuffer};
 use crate::toolchain::parser::node::{Node, NodeKind};
 use crate::toolchain::parser::tree::NodeIndex;
 

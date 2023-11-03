@@ -1,9 +1,10 @@
+use bstr;
 use mmap_rs;
 use std::fs::File;
 
 enum SourceBufferKind<'a> {
     File { buffer: mmap_rs::Mmap },
-    Memory { string: &'a str },
+    Memory { string: &'a bstr::BStr },
 }
 
 // Keeps source and a file name in the same object, so they provide the same lifetime.
@@ -25,18 +26,16 @@ impl<'a> SourceBuffer<'a> {
     }
 
     pub fn new_from_string(
-        string: &'a str,
+        string: &'a bstr::BStr,
         name: &str,
     ) -> Result<SourceBuffer<'a>, mmap_rs::Error> {
         let file_name = String::from(name);
         Ok(SourceBuffer { kind: SourceBufferKind::Memory { string }, file_name })
     }
 
-    pub fn code(&self) -> &'_ str {
+    pub fn code(&self) -> &'_ bstr::BStr {
         match &self.kind {
-            SourceBufferKind::File { buffer } => unsafe {
-                std::str::from_utf8_unchecked(buffer.as_slice())
-            },
+            SourceBufferKind::File { buffer } => bstr::BStr::new(buffer.as_slice()),
             SourceBufferKind::Memory { string } => string,
         }
     }

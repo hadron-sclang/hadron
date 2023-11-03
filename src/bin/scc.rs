@@ -40,15 +40,24 @@ fn main() {
 
     let source = toolchain::source::SourceBuffer::new_from_file(&args.source_file);
     if source.is_err() {
-        eprintln!("Error opening source file {}: {}", args.source_file.display(), source.err().unwrap());
+        eprintln!(
+            "Error opening source file {}: {}",
+            args.source_file.display(),
+            source.err().unwrap()
+        );
         std::process::exit(1);
     }
     let source = source.unwrap();
 
-    let tb = toolchain::lexer::TokenizedBuffer::tokenize(&source);
+    let mut diags = toolchain::diagnostics::diagnostic_emitter::StreamDiagnosticConsumer::new(
+        std::io::stderr(),
+    );
+    let tb = toolchain::lexer::TokenizedBuffer::tokenize(&source, &mut diags);
     if args.phase == Some(CompilationPhase::Lex) {
         if !args.quiet {
+            println!("TokenizedBuffer [");
             tb.print_tokens();
+            println!("]");
         }
     }
 }
@@ -77,8 +86,8 @@ fn parse_args() -> Result<SCCArgs, pico_args::Error> {
 
 fn parse_phase(s: &str) -> Result<CompilationPhase, &'static str> {
     match s {
-        "lex" => { Ok(CompilationPhase::Lex) }
-        "parse" => { Ok(CompilationPhase::Parse) }
-        _ => Err("unrecognized compilation phase.")
+        "lex" => Ok(CompilationPhase::Lex),
+        "parse" => Ok(CompilationPhase::Parse),
+        _ => Err("unrecognized compilation phase."),
     }
 }

@@ -17,6 +17,7 @@ pub struct DiagnosticLocation<'s> {
     pub column_number: i32,
 
     pub line: &'s str,
+    // TODO: pub length: usize, to allow for underlining on the line
 }
 
 impl<'s> fmt::Display for DiagnosticLocation<'s> {

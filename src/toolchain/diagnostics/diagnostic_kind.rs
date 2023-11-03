@@ -1,9 +1,17 @@
 /// The enumerated type of all diagnostics Hadron emits.
 #[derive(Clone, Copy)]
 pub enum DiagnosticKind {
+    LexerError { kind: LexerDiagnosticKind },
     SyntaxError { kind: SyntaxDiagnosticKind },
+}
 
-    ParseUnknownToken,
+#[derive(Clone, Copy)]
+pub enum LexerDiagnosticKind {
+    /// Token doesn't match any defined pattern.
+    UnknownToken,
+
+    /// Token is not valid utf-8, halting lexing.
+    InvalidToken,
 }
 
 #[derive(Clone, Copy)]
