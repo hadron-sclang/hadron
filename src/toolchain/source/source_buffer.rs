@@ -13,7 +13,6 @@ use bstr;
 use mmap_rs;
 use std::fs::File;
 
-
 enum SourceBufferKind<'a> {
     File { buffer: mmap_rs::Mmap },
     Memory { string: &'a bstr::BStr },
