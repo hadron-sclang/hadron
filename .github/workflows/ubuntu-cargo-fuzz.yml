@@ -1,0 +1,14 @@
+# Attempts to build and run a single fuzzer run per-target, just to validate
+# the fuzzing code is working.
+name: ubuntu cargo fuzz
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: cargo fuzz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo install cargo-fuzz
+      - run: cargo fuzz run lex -- -runs=0
