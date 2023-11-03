@@ -5,7 +5,7 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: cargo test
+    name: cargo fuzz
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
