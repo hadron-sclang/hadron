@@ -15,4 +15,6 @@ pub mod diagnostic_kind;
 pub use diagnostic_emitter::DiagnosticEmitter;
 pub use diagnostic_emitter::DiagnosticLocation;
 pub use diagnostic_emitter::DiagnosticLocationTranslator;
+pub use diagnostic_emitter::NullDiagnosticConsumer;
+pub use diagnostic_emitter::StreamDiagnosticConsumer;
 pub use diagnostic_kind::DiagnosticKind;
