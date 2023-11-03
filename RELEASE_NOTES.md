@@ -15,11 +15,13 @@ Next Release:
   * [x] add fuzzer
     * [x] adds scc binary for fuzzer bug reproduction
   * [ ] find and fix some basic fuzzer issues
-    * [x]  Validate input source code as utf-8 while lexing. Fixes
+    * [x] Validate input source code as utf-8 while lexing. Fixes
       [#142](https://github.com/hadron-sclang/hadron/issues/142).
-  * [ ] [#147](https://github.com/hadron-sclang/hadron/issues/147) add workflow automation
-    * [ ] cargo fmt
-    * [ ] some kind of script to run scc over the fuzzer findings?
-    * [ ] cargo test
-    * [ ] lightweight fuzzing - at lease ensure the fuzzer builds
+  * [x] [#147](https://github.com/hadron-sclang/hadron/issues/147) add workflow automation
+    * [x] cargo fmt
+    * [x] some kind of script to run scc over the fuzzer findings?
+    * [x] cargo test
+    * [x] lightweight fuzzing - at lease ensure the fuzzer builds
   * [ ] Advance parser some
+  * [ ] Code Coverage
+
