@@ -235,7 +235,13 @@ mod tests {
         check_parsing(
             sclang!("A[float]{}"),
             vec![
-                Node { kind: Name, token_index: 2, subtree_size: 1, closing_token: None, has_error: false, },
+                Node {
+                    kind: Name,
+                    token_index: 2,
+                    subtree_size: 1,
+                    closing_token: None,
+                    has_error: false,
+                },
                 Node {
                     kind: ClassDef { kind: ClassDefKind::ArrayStorageType },
                     token_index: 1,
