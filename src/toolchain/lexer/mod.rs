@@ -18,3 +18,8 @@ mod cursor;
 pub use token::Token;
 pub use token::TokenKind;
 pub use tokenized_buffer::TokenizedBuffer;
+
+use crate::toolchain::diagnostics::DiagnosticEmitter;
+
+pub type TokenIndex = usize;
+pub type TokenDiagnosticEmitter<'c, 's> = DiagnosticEmitter<'c, 's, TokenIndex>;

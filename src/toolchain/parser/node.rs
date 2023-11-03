@@ -1,4 +1,4 @@
-use crate::toolchain::lexer::tokenized_buffer::TokenIndex;
+use crate::toolchain::lexer::TokenIndex;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Node {

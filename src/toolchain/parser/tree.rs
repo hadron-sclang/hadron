@@ -85,9 +85,9 @@ mod tests {
     use crate::toolchain::source;
 
     pub fn check_parsing<'a>(source: &source::SourceBuffer, expect: Vec<Node>) {
-        let tokens = TokenizedBuffer::tokenize(source);
-        let mut null = NullDiagnosticConsumer {};
-        let tree = Tree::parse(&tokens, &mut null);
+        let mut diags = NullDiagnosticConsumer {};
+        let tokens = TokenizedBuffer::tokenize(source, &mut diags);
+        let tree = Tree::parse(&tokens, &mut diags);
         assert_eq!(tree.nodes, expect);
     }
 

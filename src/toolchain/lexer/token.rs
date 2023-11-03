@@ -111,6 +111,9 @@ pub enum TokenKind {
 
     /// Anything that the lexer didn't recognize as valid SuperCollider language input.
     Unknown,
+
+    /// Invalid utf-8 sequence in input string, will terminate lexing.
+    Invalid,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -1,8 +1,7 @@
 use super::cursor::Cursor;
-use super::Token;
-use crate::toolchain::diagnostics::{
-    DiagnosticEmitter, DiagnosticLocation, DiagnosticLocationTranslator,
-};
+use super::{Token, TokenIndex};
+use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticConsumer;
+use crate::toolchain::diagnostics::{DiagnosticLocation, DiagnosticLocationTranslator};
 use crate::toolchain::source;
 
 pub struct TokenizedBuffer<'s> {
@@ -11,12 +10,13 @@ pub struct TokenizedBuffer<'s> {
     source: &'s source::SourceBuffer<'s>,
 }
 
-pub type TokenIndex = usize;
-
 impl<'s> TokenizedBuffer<'s> {
-    pub fn tokenize(source: &'s source::SourceBuffer) -> TokenizedBuffer<'s> {
+    pub fn tokenize(
+        source: &'s source::SourceBuffer,
+        diags: &mut impl DiagnosticConsumer,
+    ) -> TokenizedBuffer<'s> {
         let mut lines = Vec::new();
-        let cursor = Cursor::new(source.code(), &mut lines);
+        let cursor = Cursor::new(source, &mut lines, diags);
         let tokens = cursor.collect();
         TokenizedBuffer { tokens, lines, source }
     }
@@ -50,11 +50,10 @@ impl<'s> DiagnosticLocationTranslator<'s, TokenIndex> for TokenizedBuffer<'s> {
     }
 }
 
-pub type TokenDiagnosticEmitter<'c, 's> = DiagnosticEmitter<'c, 's, TokenIndex>;
-
 #[cfg(test)]
 mod tests {
     use crate::sclang;
+    use crate::toolchain::diagnostics::diagnostic_emitter;
     use crate::toolchain::source;
 
     use crate::toolchain::lexer::token::BinopKind::*;
@@ -69,7 +68,8 @@ mod tests {
 
     // Lexing helper function to compare expected lexing to a provided debug string of the tokens.
     fn check_lexing<'a>(source: &source::SourceBuffer, expect: Vec<Token<'a>>) {
-        let buffer = TokenizedBuffer::tokenize(source);
+        let mut diags = diagnostic_emitter::NullDiagnosticConsumer {};
+        let buffer = TokenizedBuffer::tokenize(source, &mut diags);
         assert_eq!(buffer.tokens, expect);
     }
 
