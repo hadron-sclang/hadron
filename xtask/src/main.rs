@@ -52,7 +52,7 @@ fn coverage(report: bool) -> Result<(), DynError> {
     // variables.
     println!("** collecting coverage information.");
     let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
-    cmd!(cargo, "test")
+    cmd!(cargo, "test", "--tests")
         .env("CARGO_INCREMENTAL", "0")
         .env("RUSTFLAGS", "-Cinstrument-coverage")
         .env("LLVM_PROFILE_FILE", "cargo-test-%p-%m.profraw")
@@ -82,8 +82,8 @@ fn coverage(report: bool) -> Result<(), DynError> {
         "/*",
         "--ignore",  // ignore everything in this xtask folder
         "xtask/*",
-        "--ignore",  // ignore integration tests
-        "*/lang/tests/*",
+        "--ignore",  // ignore integration test code, this always runs in a test build!
+        "lang/tests/*",
         "-o",
         output_path,
     )
