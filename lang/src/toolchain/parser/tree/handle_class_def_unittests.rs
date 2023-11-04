@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::toolchain::parser::tree_unittests::tests::check_parsing;
     use crate::sclang;
     use crate::toolchain::parser::node::{ClassDefKind, Node, NodeKind::*};
+    use crate::toolchain::parser::tree_unittests::tests::check_parsing;
     use crate::toolchain::source;
 
     #[test]

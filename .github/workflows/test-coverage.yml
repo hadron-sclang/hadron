@@ -1,15 +1,15 @@
-name: ubuntu cargo test
+name: test coverage
 on: [push, pull_request]
 
 jobs:
   test:
-    name: cargo test
+    name: cargo xtask cov
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: testing with coverage instrumentation
-        run: cargo xtest cov
+        run: cargo xtask cov
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         env:
