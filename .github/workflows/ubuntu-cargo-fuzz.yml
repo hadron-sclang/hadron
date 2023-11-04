@@ -10,5 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo install cargo-fuzz
-      - run: cargo fuzz run lex -- -runs=0
+      - name: installing cargo-fuzz
+        run: cargo install cargo-fuzz
+      - name: checking fuzzer build
+        run: cargo fuzz run lex -- -runs=0

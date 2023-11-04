@@ -8,6 +8,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: installing prerequisites
+        run: cargo install grcov
+      - run: rustup component add llvm-tools-preview
       - name: testing with coverage instrumentation
         run: cargo xtask cov
       - name: Upload coverage reports to Codecov
