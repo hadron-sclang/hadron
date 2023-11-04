@@ -1,13 +1,9 @@
-use std::{
-    env, fs,
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
-};
+use std::{ env, path::{Path, PathBuf}, };
 
 use argh::FromArgs;
-use duct::cmd;
+use duct;
 use fs_extra;
-use glob::glob;
+use glob;
 
 #[derive(FromArgs, PartialEq, Debug)]
 /// Top-level command.
@@ -52,9 +48,9 @@ fn coverage(report: bool) -> Result<(), DynError> {
     // variables.
     println!("** collecting coverage information.");
     let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
-    cmd!(cargo, "test", "--tests")
+    duct::cmd!(cargo, "test", "--tests")
         .env("CARGO_INCREMENTAL", "0")
-        .env("RUSTFLAGS", "-Cinstrument-coverage")
+        .env("RUSTFLAGS", "-C instrument-coverage")
         .env("LLVM_PROFILE_FILE", "cargo-test-%p-%m.profraw")
         .run()?;
 
@@ -65,11 +61,11 @@ fn coverage(report: bool) -> Result<(), DynError> {
     } else {
         ("lcov", cov_path.join("tests.lcov"))
     };
-    cmd!(
+    duct::cmd!(
         "grcov",
         ".",
         "--binary-path",
-        "./target/debug/deps",
+        project_root().join("target").join("debug").join("deps"),
         "-s",
         ".",
         "-t",
@@ -84,6 +80,10 @@ fn coverage(report: bool) -> Result<(), DynError> {
         "xtask/*",
         "--ignore", // ignore integration test code, this always runs in a test build!
         "lang/tests/*",
+        "--ignore", // ignore the binaries, they aren't exercised in test
+        "lang/src/bin/*",
+        "--ignore", // ignore the unittest code, always runs.
+        "*_unittests.rs",
         "-o",
         output_path,
     )

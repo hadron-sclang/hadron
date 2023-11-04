@@ -23,3 +23,6 @@ use crate::toolchain::diagnostics::DiagnosticEmitter;
 
 pub type TokenIndex = usize;
 pub type TokenDiagnosticEmitter<'c, 's> = DiagnosticEmitter<'c, 's, TokenIndex>;
+
+#[cfg(test)]
+mod tokenized_buffer_unittests;

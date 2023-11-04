@@ -8,6 +8,9 @@ use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
 mod handle_class_def;
 mod handle_class_def_body;
 
+#[cfg(test)]
+mod handle_class_def_unittests;
+
 // A parse tree.
 #[allow(dead_code)] // TODO: remove once we have the next layer in place.
 pub struct Tree<'tb> {

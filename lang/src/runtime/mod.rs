@@ -6,3 +6,6 @@
 //!
 
 pub mod slot;
+
+#[cfg(test)]
+mod slot_unittests;
