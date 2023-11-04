@@ -5,7 +5,7 @@
   * Adds a first implementation of `toolchain::source`, a representation of input source either by
     memory-mapped files or from string literals. This is also useful for error reporting, as
     `SourceBuffer` objects include the file name or source location using the `sclang!()` macro.
-  * Adds a first implementatin of a `toolchain::diagnostics` system, for flexible error reporting.
+  * Adds a first implementation of a `toolchain::diagnostics` system, for flexible error reporting.
   * Adds just enough of a parser implementation to establish some of the patterns for how the
     rest could be written.
 
@@ -15,11 +15,13 @@ Next Release:
   * [x] add fuzzer
     * [x] adds scc binary for fuzzer bug reproduction
   * [ ] find and fix some basic fuzzer issues
-    * [x]  Validate input source code as utf-8 while lexing. Fixes
+    * [x] Validate input source code as utf-8 while lexing. Fixes
       [#142](https://github.com/hadron-sclang/hadron/issues/142).
-  * [ ] [#147](https://github.com/hadron-sclang/hadron/issues/147) add workflow automation
-    * [ ] cargo fmt
-    * [ ] some kind of script to run scc over the fuzzer findings?
-    * [ ] cargo test
-    * [ ] lightweight fuzzing - at lease ensure the fuzzer builds
+  * [x] [#147](https://github.com/hadron-sclang/hadron/issues/147) add workflow automation
+    * [x] cargo fmt
+    * [x] some kind of script to run scc over the fuzzer findings?
+    * [x] cargo test
+    * [x] lightweight fuzzing - at least ensure the fuzzer builds
   * [ ] Advance parser some
+  * [x] Code Coverage
+

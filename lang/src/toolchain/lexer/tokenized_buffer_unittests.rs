@@ -1,55 +1,3 @@
-use super::cursor::Cursor;
-use super::{Token, TokenIndex};
-use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticConsumer;
-use crate::toolchain::diagnostics::{DiagnosticLocation, DiagnosticLocationTranslator};
-use crate::toolchain::source;
-
-pub struct TokenizedBuffer<'s> {
-    tokens: Vec<Token<'s>>,
-    lines: Vec<&'s str>,
-    source: &'s source::SourceBuffer<'s>,
-}
-
-impl<'s> TokenizedBuffer<'s> {
-    pub fn tokenize(
-        source: &'s source::SourceBuffer,
-        diags: &mut impl DiagnosticConsumer,
-    ) -> TokenizedBuffer<'s> {
-        let mut lines = Vec::new();
-        let cursor = Cursor::new(source, &mut lines, diags);
-        let tokens = cursor.collect();
-        TokenizedBuffer { tokens, lines, source }
-    }
-
-    pub fn token_at(&self, i: TokenIndex) -> Option<&Token<'s>> {
-        self.tokens.get(i)
-    }
-
-    pub fn print_tokens(&self) {
-        for token in self.tokens.iter() {
-            println!("{:?}", &token);
-        }
-    }
-}
-
-impl<'s> DiagnosticLocationTranslator<'s, TokenIndex> for TokenizedBuffer<'s> {
-    fn get_location(&self, token_index: TokenIndex) -> DiagnosticLocation<'s> {
-        let token = self.tokens[token_index];
-        // Switch to zero-based line counting.
-        let line_index = (token.line - 1) as usize;
-        // TokenizedBuffer is only useful as a location translator after lexing is complete.
-        // Otherwise, it is possible to encounter errors on the line currently being parsed, which
-        // will not be present in the |self.lines| array.
-        assert!(line_index < self.lines.len());
-        DiagnosticLocation {
-            file_name: self.source.file_name(),
-            line_number: token.line,
-            column_number: token.column,
-            line: self.lines[line_index],
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::sclang;
@@ -64,13 +12,13 @@ mod tests {
     use crate::toolchain::lexer::token::Token;
     use crate::toolchain::lexer::token::TokenKind::*;
 
-    use super::TokenizedBuffer;
+    use crate::toolchain::lexer::TokenizedBuffer;
 
     // Lexing helper function to compare expected lexing to a provided debug string of the tokens.
     fn check_lexing<'a>(source: &source::SourceBuffer, expect: Vec<Token<'a>>) {
         let mut diags = diagnostic_emitter::NullDiagnosticConsumer {};
         let buffer = TokenizedBuffer::tokenize(source, &mut diags);
-        assert_eq!(buffer.tokens, expect);
+        assert_eq!(buffer.tokens(), &expect);
     }
 
     #[test]

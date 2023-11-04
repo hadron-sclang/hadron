@@ -12,7 +12,7 @@ libfuzzer-sys = "0.4"
 bstr = "1.7.0"
 
 [dependencies.hadron_sclang]
-path = ".."
+path = "../lang"
 
 # Prevent this from interfering with workspaces
 [workspace]
