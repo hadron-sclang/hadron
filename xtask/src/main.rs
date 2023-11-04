@@ -100,7 +100,7 @@ fn coverage(report: bool) -> Result<(), DynError> {
     if report {
         println!("** done. Generated coverage report in target/coverage/html/index.html.");
     } else {
-        println!("** done. Machine-readable coverage report in target/coverage/")
+        println!("** done. Machine-readable coverage report in target/coverage/tests.lcov")
     }
     Ok(())
 }
