@@ -28,7 +28,7 @@ enum SubCommand {
 struct CoverageArgs {
     #[argh(switch)]
     /// produce an html report instead of the default .lcov file.
-    report: bool
+    report: bool,
 }
 
 fn main() -> Result<(), DynError> {
@@ -103,9 +103,5 @@ fn coverage(report: bool) -> Result<(), DynError> {
 }
 
 fn project_root() -> PathBuf {
-    Path::new(&env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(1)
-        .unwrap()
-        .to_path_buf()
+    Path::new(&env!("CARGO_MANIFEST_DIR")).ancestors().nth(1).unwrap().to_path_buf()
 }
