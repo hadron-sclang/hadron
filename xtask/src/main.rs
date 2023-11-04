@@ -76,14 +76,14 @@ fn coverage(report: bool) -> Result<(), DynError> {
         output_format,
         "--branch",
         "--ignore-not-existing",
-        "--ignore",
+        "--ignore",  // ignore stuff outside root project directory
         "../*",
-        "--ignore",
+        "--ignore",  // ignore stuff with a fully specified path (likely system libs)
         "/*",
-        "--ignore",
+        "--ignore",  // ignore everything in this xtask folder
         "xtask/*",
-        "--ignore",
-        "*/src/tests/*",
+        "--ignore",  // ignore integration tests
+        "*/lang/tests/*",
         "-o",
         output_path,
     )
