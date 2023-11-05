@@ -31,7 +31,11 @@ struct CoverageArgs {
 #[derive(FromArgs, PartialEq, Debug)]
 /// Run the continuous integration validation tests.
 #[argh(subcommand, name = "ci")]
-struct CIArgs {}
+struct CIArgs {
+    #[argh(switch)]
+    /// attempt to automatically fix format and clippy errors.
+    fix: bool,
+}
 
 fn main() -> Result<(), DynError> {
     let args: Args = argh::from_env();
@@ -39,8 +43,8 @@ fn main() -> Result<(), DynError> {
         SubCommand::Coverage(cov_args) => {
             coverage(cov_args.report)?;
         }
-        SubCommand::ContinuousIntegration(_) => {
-            ci()?;
+        SubCommand::ContinuousIntegration(ci_args) => {
+            ci(ci_args.fix)?;
         }
     };
 
@@ -111,13 +115,23 @@ fn coverage(report: bool) -> Result<(), DynError> {
     Ok(())
 }
 
-fn ci() -> Result<(), DynError> {
+fn ci(fix: bool) -> Result<(), DynError> {
     let cargo = cargo();
-    println!("** checking code formatting with `cargo fmt --all -- --check`");
-    duct::cmd!(&cargo, "fmt", "--all", "--", "--check",).run()?;
+    if fix {
+        println!("** automatically fixing code formatting with `cargo fmt --all`");
+        duct::cmd!(&cargo, "fmt", "--all",).run()?;
+    } else {
+        println!("** checking code formatting with `cargo fmt --all -- --check`");
+        duct::cmd!(&cargo, "fmt", "--all", "--", "--check",).run()?;
+    }
 
-    println!("** linting code with `cargo clippy -- --deny all`");
-    duct::cmd!(&cargo, "clippy", "--", "--deny", "clippy::all",).run()?;
+    if fix {
+        println!("** automatically fixing clippy issues with `cargo clippy -- --fix`");
+        duct::cmd!(&cargo, "clippy", "--fix").run()?;
+    } else {
+        println!("** linting code with `cargo clippy -- --deny all`");
+        duct::cmd!(&cargo, "clippy", "--", "--deny", "clippy::all",).run()?;
+    }
 
     println!("** building and testing code with `RUSTFLAGS=\"-D warnings\" cargo test`");
     duct::cmd!(&cargo, "test").env("RUSTFLAGS", "-D warnings").run()?;
