@@ -412,11 +412,13 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
             // We indicate hexadecimal numbers with a lowercase x.
             'x' => {
                 self.bump();
-                self.eat_while(|c| matches!(c,
-                    'a'..='f' |
-                    'A'..='F' |
-                    '0'..='9'
-                ));
+                self.eat_while(|c| {
+                    matches!(c,
+                        'a'..='f' |
+                        'A'..='F' |
+                        '0'..='9'
+                    )
+                });
                 NumberKind::IntegerHex
             }
 
@@ -428,11 +430,13 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
 
             'r' => {
                 self.bump();
-                self.eat_while(|c| matches!(c,
-                    'a'..='z' |
-                    'A'..='Z' |
-                    '0'..='9'
-                ));
+                self.eat_while(|c| {
+                    matches!(c,
+                        'a'..='z' |
+                        'A'..='Z' |
+                        '0'..='9'
+                    )
+                });
 
                 if self.first() == '.' {
                     self.bump();
