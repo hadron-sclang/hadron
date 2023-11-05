@@ -70,7 +70,7 @@ pub fn handle_class_def(context: &mut Context) {
             }
         };
 
-        let has_error = closing_bracket_index == None;
+        let has_error = closing_bracket_index.is_none();
         context.add_node(
             NodeKind::ClassDef { kind: ClassDefKind::ArrayStorageType },
             open_bracket_index,
@@ -164,7 +164,6 @@ pub fn handle_class_def(context: &mut Context) {
                 .emit();
             context.emitter().emit(diag);
             context.close_state(NodeKind::ClassDef { kind: ClassDefKind::Root }, true);
-            return;
         }
 
         _ => {

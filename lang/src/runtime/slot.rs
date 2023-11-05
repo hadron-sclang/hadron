@@ -243,7 +243,7 @@ impl Slot {
     /// assert_eq!(a.extract(), SlotType::Float(-1.23));
     /// ```
     pub fn from_float(float: f64) -> Slot {
-        let s = unsafe { std::mem::transmute::<f64, u64>(float) };
+        let s = float.to_bits();
         Slot { bits: s }
     }
 
@@ -285,7 +285,7 @@ impl Slot {
         }
     }
     fn as_float_unchecked(&self) -> f64 {
-        unsafe { std::mem::transmute::<u64, f64>(self.bits) }
+        f64::from_bits(self.bits)
     }
 
     /// Make a [Slot] from an integer.

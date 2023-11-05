@@ -4,9 +4,6 @@ use std::{
 };
 
 use argh::FromArgs;
-use duct;
-use fs_extra;
-use glob;
 
 #[derive(FromArgs, PartialEq, Debug)]
 /// Top-level command.
@@ -19,6 +16,7 @@ struct Args {
 #[argh(subcommand)]
 enum SubCommand {
     Coverage(CoverageArgs),
+    ContinuousIntegration(CIArgs),
 }
 
 #[derive(FromArgs, PartialEq, Debug)]
@@ -30,11 +28,23 @@ struct CoverageArgs {
     report: bool,
 }
 
+#[derive(FromArgs, PartialEq, Debug)]
+/// Run the continuous integration validation tests.
+#[argh(subcommand, name = "ci")]
+struct CIArgs {
+    #[argh(switch)]
+    /// attempt to automatically fix format and clippy errors.
+    fix: bool,
+}
+
 fn main() -> Result<(), DynError> {
     let args: Args = argh::from_env();
     match args.subcommand {
         SubCommand::Coverage(cov_args) => {
             coverage(cov_args.report)?;
+        }
+        SubCommand::ContinuousIntegration(ci_args) => {
+            ci(ci_args.fix)?;
         }
     };
 
@@ -50,7 +60,7 @@ fn coverage(report: bool) -> Result<(), DynError> {
     // Collect the coverage information by invoking `cargo test` with the appropriate environment
     // variables.
     println!("** collecting coverage information.");
-    let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
+    let cargo = cargo();
     duct::cmd!(cargo, "test", "--tests")
         .env("CARGO_INCREMENTAL", "0")
         .env("RUSTFLAGS", "-C instrument-coverage")
@@ -95,7 +105,7 @@ fn coverage(report: bool) -> Result<(), DynError> {
     // Cleanup any .profraw files in the project.
     println!("** cleaning up *.profraw files.");
     let profraw_files: Result<Vec<PathBuf>, _> = glob::glob("**/*.profraw")?.collect();
-    profraw_files.unwrap().iter().try_for_each(|p| fs_extra::file::remove(p))?;
+    profraw_files.unwrap().iter().try_for_each(fs_extra::file::remove)?;
 
     if report {
         println!("** done. Generated coverage report in target/coverage/html/index.html.");
@@ -105,6 +115,35 @@ fn coverage(report: bool) -> Result<(), DynError> {
     Ok(())
 }
 
+fn ci(fix: bool) -> Result<(), DynError> {
+    let cargo = cargo();
+    if fix {
+        println!("** automatically fixing code formatting with `cargo fmt --all`");
+        duct::cmd!(&cargo, "fmt", "--all",).run()?;
+    } else {
+        println!("** checking code formatting with `cargo fmt --all -- --check`");
+        duct::cmd!(&cargo, "fmt", "--all", "--", "--check",).run()?;
+    }
+
+    if fix {
+        println!("** automatically fixing clippy issues with `cargo clippy -- --fix`");
+        duct::cmd!(&cargo, "clippy", "--fix").run()?;
+    } else {
+        println!("** linting code with `cargo clippy -- --deny all`");
+        duct::cmd!(&cargo, "clippy", "--", "--deny", "clippy::all",).run()?;
+    }
+
+    println!("** building and testing code with `RUSTFLAGS=\"-D warnings\" cargo test`");
+    duct::cmd!(&cargo, "test").env("RUSTFLAGS", "-D warnings").run()?;
+
+    println!("** all checks passed!");
+    Ok(())
+}
+
 fn project_root() -> PathBuf {
     Path::new(&env!("CARGO_MANIFEST_DIR")).ancestors().nth(1).unwrap().to_path_buf()
+}
+
+fn cargo() -> String {
+    env::var("CARGO").unwrap_or_else(|_| "cargo".to_string())
 }

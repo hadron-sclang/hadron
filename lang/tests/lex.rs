@@ -4,7 +4,7 @@ use hadron_sclang::toolchain;
 // crashing.
 fn lex(path: std::path::PathBuf) {
     let source = toolchain::source::SourceBuffer::new_from_file(&path);
-    assert!(!source.is_err());
+    assert!(source.is_ok());
     let source = source.unwrap();
     let mut diags = toolchain::diagnostics::NullDiagnosticConsumer {};
     let _ = toolchain::lexer::TokenizedBuffer::tokenize(&source, &mut diags);

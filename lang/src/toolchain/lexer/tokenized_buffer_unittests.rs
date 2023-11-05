@@ -15,7 +15,7 @@ mod tests {
     use crate::toolchain::lexer::TokenizedBuffer;
 
     // Lexing helper function to compare expected lexing to a provided debug string of the tokens.
-    fn check_lexing<'a>(source: &source::SourceBuffer, expect: Vec<Token<'a>>) {
+    fn check_lexing(source: &source::SourceBuffer, expect: Vec<Token>) {
         let mut diags = diagnostic_emitter::NullDiagnosticConsumer {};
         let buffer = TokenizedBuffer::tokenize(source, &mut diags);
         assert_eq!(buffer.tokens(), &expect);
@@ -24,7 +24,7 @@ mod tests {
     #[test]
     fn smoke_test() {
         check_lexing(
-            sclang!(r#"SynthDef(\a, { var snd = SinOsc.ar(440, mul: 0.5); snd; });"#),
+            sclang!(r"SynthDef(\a, { var snd = SinOsc.ar(440, mul: 0.5); snd; });"),
             vec![
                 Token { kind: ClassName, string: "SynthDef", line: 1, column: 1 },
                 Token { kind: Delimiter { kind: ParenOpen }, string: "(", line: 1, column: 9 },
@@ -283,7 +283,7 @@ mod tests {
     #[test]
     fn inline_symbols() {
         check_lexing(
-            sclang!(r#"\a \b \c \1 \ \_ \A_l0ng3r_SYMBOL"#),
+            sclang!(r"\a \b \c \1 \ \_ \A_l0ng3r_SYMBOL"),
             vec![
                 Token { kind: InlineSymbol, string: "\\a", line: 1, column: 1 },
                 Token { kind: Ignored { kind: BlankSpace }, string: " ", line: 1, column: 3 },
