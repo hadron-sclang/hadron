@@ -58,10 +58,7 @@ pub fn handle_class_ext_body(context: &mut Context) {
             let token_index = context.state().unwrap().token_index;
             let ext_body =
                 context.state_parent(1, NodeKind::ClassExtensionBody).unwrap().token_index;
-            let ext_def = context
-                .state_parent(2, NodeKind::ClassExtension)
-                .unwrap()
-                .token_index;
+            let ext_def = context.state_parent(2, NodeKind::ClassExtension).unwrap().token_index;
             let diag = context
                 .emitter()
                 .build(
@@ -83,10 +80,7 @@ pub fn handle_class_ext_body(context: &mut Context) {
 
         None => {
             let last_token = context.last_token();
-            let ext_def = context
-                .state_parent(2, NodeKind::ClassExtension)
-                .unwrap()
-                .token_index;
+            let ext_def = context.state_parent(2, NodeKind::ClassExtension).unwrap().token_index;
             let diag = context
                 .emitter()
                 .build(
