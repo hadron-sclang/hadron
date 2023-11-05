@@ -1,0 +1,14 @@
+name: ubuntu cargo ci
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: cargo xtask ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: installing clipply
+        run: rustup component add clippy
+      - name: running ci
+        run: cargo xtask ci

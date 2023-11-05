@@ -16,6 +16,7 @@ struct Args {
 #[argh(subcommand)]
 enum SubCommand {
     Coverage(CoverageArgs),
+    ContinuousIntegration(CIArgs),
 }
 
 #[derive(FromArgs, PartialEq, Debug)]
@@ -27,11 +28,19 @@ struct CoverageArgs {
     report: bool,
 }
 
+#[derive(FromArgs, PartialEq, Debug)]
+/// Run the continuous integration validation tests.
+#[argh(subcommand, name = "ci")]
+struct CIArgs {}
+
 fn main() -> Result<(), DynError> {
     let args: Args = argh::from_env();
     match args.subcommand {
         SubCommand::Coverage(cov_args) => {
             coverage(cov_args.report)?;
+        }
+        SubCommand::ContinuousIntegration(_) => {
+            ci()?;
         }
     };
 
@@ -47,7 +56,7 @@ fn coverage(report: bool) -> Result<(), DynError> {
     // Collect the coverage information by invoking `cargo test` with the appropriate environment
     // variables.
     println!("** collecting coverage information.");
-    let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
+    let cargo = cargo();
     duct::cmd!(cargo, "test", "--tests")
         .env("CARGO_INCREMENTAL", "0")
         .env("RUSTFLAGS", "-C instrument-coverage")
@@ -102,6 +111,25 @@ fn coverage(report: bool) -> Result<(), DynError> {
     Ok(())
 }
 
+fn ci() -> Result<(), DynError> {
+    let cargo = cargo();
+    println!("** checking code formatting with `cargo fmt --all -- --check`");
+    duct::cmd!(&cargo, "fmt", "--all", "--", "--check",).run()?;
+
+    println!("** linting code with `cargo clippy -- --deny all`");
+    duct::cmd!(&cargo, "clippy", "--", "--deny", "clippy::all",).run()?;
+
+    println!("** building and testing code with `RUSTFLAGS=\"-D warnings\" cargo test`");
+    duct::cmd!(&cargo, "test").env("RUSTFLAGS", "-D warnings").run()?;
+
+    println!("** all checks passed!");
+    Ok(())
+}
+
 fn project_root() -> PathBuf {
     Path::new(&env!("CARGO_MANIFEST_DIR")).ancestors().nth(1).unwrap().to_path_buf()
+}
+
+fn cargo() -> String {
+    env::var("CARGO").unwrap_or_else(|_| "cargo".to_string())
 }
