@@ -53,12 +53,10 @@ fn main() {
         std::io::stderr(),
     );
     let tb = toolchain::lexer::TokenizedBuffer::tokenize(&source, &mut diags);
-    if args.phase == Some(CompilationPhase::Lex) {
-        if !args.quiet {
-            println!("TokenizedBuffer [");
-            tb.print_tokens();
-            println!("]");
-        }
+    if args.phase == Some(CompilationPhase::Lex) && !args.quiet {
+        println!("TokenizedBuffer [");
+        tb.print_tokens();
+        println!("]");
     }
 }
 

@@ -69,7 +69,6 @@ pub fn handle_class_def_body(context: &mut Context) {
                 .note(class_def, "Class defined here.")
                 .emit();
             context.emitter().emit(diag);
-            return;
         }
 
         _ => {

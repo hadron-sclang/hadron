@@ -93,7 +93,7 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
             // alphanumeric string or more underscores, we lex them as primitives.
             '_' => {
                 if is_identifier(self.first()) {
-                    self.eat_while(|c| is_identifier(c));
+                    self.eat_while(is_identifier);
                     TokenKind::Primitive
                 } else {
                     TokenKind::Delimiter { kind: DelimiterKind::Underscore }
@@ -164,7 +164,7 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
                 };
                 let diag = Diagnostic::new(DiagnosticLevel::Error, msg, Vec::new());
                 self.diags.handle_diagnostic(diag);
-                self.eat_while(|c| Self::is_unknown(c));
+                self.eat_while(Self::is_unknown);
                 TokenKind::Unknown
             }
         };
@@ -218,7 +218,7 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
 
             line_str: input,
             line_bytes_remaining: input.len(),
-            lines: lines,
+            lines,
             diags,
         }
     }
@@ -361,17 +361,17 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
         }
 
         // Identifier binop, consume the rest of the characters.
-        self.eat_while(|c| is_binop(c));
+        self.eat_while(is_binop);
         TokenKind::Binop { kind: BinopKind::BinopIdentifier }
     }
 
     fn blank_space(&mut self) -> TokenKind {
-        self.eat_while(|c| is_blank_space(c));
+        self.eat_while(is_blank_space);
         TokenKind::Ignored { kind: IgnoredKind::BlankSpace }
     }
 
     fn identifier(&mut self) -> TokenKind {
-        self.eat_while(|c| is_identifier(c));
+        self.eat_while(is_identifier);
         // Any valid identifier terminated with a colon converts it into a keyword
         match self.first() {
             ':' => {
@@ -412,12 +412,11 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
             // We indicate hexadecimal numbers with a lowercase x.
             'x' => {
                 self.bump();
-                self.eat_while(|c| match c {
-                    'a'..='f' => true,
-                    'A'..='F' => true,
-                    '0'..='9' => true,
-                    _ => false,
-                });
+                self.eat_while(|c| matches!(c,
+                    'a'..='f' |
+                    'A'..='F' |
+                    '0'..='9'
+                ));
                 NumberKind::IntegerHex
             }
 
@@ -429,12 +428,11 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
 
             'r' => {
                 self.bump();
-                self.eat_while(|c| match c {
-                    'a'..='z' => true,
-                    'A'..='Z' => true,
-                    '0'..='9' => true,
-                    _ => false,
-                });
+                self.eat_while(|c| matches!(c,
+                    'a'..='z' |
+                    'A'..='Z' |
+                    '0'..='9'
+                ));
 
                 if self.first() == '.' {
                     self.bump();

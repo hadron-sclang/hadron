@@ -1,0 +1,3 @@
+```
+rustup component add clippy
+```

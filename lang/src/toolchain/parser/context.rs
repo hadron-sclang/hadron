@@ -70,7 +70,7 @@ impl<'tb> Context<'tb> {
         let state_entry = self.states.pop().unwrap();
         debug_assert_eq!(kind, state_entry.kind);
         self.add_node(
-            state_entry.kind.clone(),
+            state_entry.kind,
             state_entry.token_index,
             state_entry.subtree_start,
             Some(self.token_index),

@@ -4,9 +4,6 @@ use std::{
 };
 
 use argh::FromArgs;
-use duct;
-use fs_extra;
-use glob;
 
 #[derive(FromArgs, PartialEq, Debug)]
 /// Top-level command.
@@ -95,7 +92,7 @@ fn coverage(report: bool) -> Result<(), DynError> {
     // Cleanup any .profraw files in the project.
     println!("** cleaning up *.profraw files.");
     let profraw_files: Result<Vec<PathBuf>, _> = glob::glob("**/*.profraw")?.collect();
-    profraw_files.unwrap().iter().try_for_each(|p| fs_extra::file::remove(p))?;
+    profraw_files.unwrap().iter().try_for_each(fs_extra::file::remove)?;
 
     if report {
         println!("** done. Generated coverage report in target/coverage/html/index.html.");

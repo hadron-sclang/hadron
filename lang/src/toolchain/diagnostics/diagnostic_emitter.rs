@@ -152,7 +152,7 @@ impl<'s, LocationT> DiagnosticBuilder<'s, LocationT> {
         body: &'static str,
     ) -> DiagnosticBuilder<'s, LocationT> {
         let loc = self.translator.get_location(location);
-        let kind = self.message.kind.clone();
+        let kind = self.message.kind;
         self.notes.push(DiagnosticMessage { kind, location: loc, body });
         self
     }

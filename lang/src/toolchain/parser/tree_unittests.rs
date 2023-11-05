@@ -6,7 +6,7 @@ pub mod tests {
     use crate::toolchain::parser::{Node, Tree};
     use crate::toolchain::source;
 
-    pub fn check_parsing<'a>(source: &source::SourceBuffer, expect: Vec<Node>) {
+    pub fn check_parsing(source: &source::SourceBuffer, expect: Vec<Node>) {
         let mut diags = NullDiagnosticConsumer {};
         let tokens = TokenizedBuffer::tokenize(source, &mut diags);
         let tree = Tree::parse(&tokens, &mut diags);
