@@ -1,4 +1,7 @@
-use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticConsumer;
+use crate::toolchain::diagnostics::diagnostic_emitter::{
+    DiagnosticBuilder, DiagnosticConsumer, DiagnosticLevel,
+};
+use crate::toolchain::diagnostics::diagnostic_kind::{DiagnosticKind, SyntaxDiagnosticKind};
 use crate::toolchain::lexer::{TokenDiagnosticEmitter, TokenIndex, TokenKind, TokenizedBuffer};
 use crate::toolchain::parser::node::{Node, NodeKind};
 use crate::toolchain::parser::tree::NodeIndex;
@@ -7,6 +10,7 @@ pub struct StateStackEntry {
     pub kind: NodeKind,
     pub subtree_start: NodeIndex,
     pub token_index: TokenIndex,
+    // TODO: consider adding has_error here to only propagate the error flag to subtrees?
 }
 
 pub struct Context<'tb> {
@@ -119,6 +123,10 @@ impl<'tb> Context<'tb> {
         self.token_index
     }
 
+    pub fn last_token(&self) -> TokenIndex {
+        self.tokens.tokens().len() - 1
+    }
+
     // Returns the curent token index before advancing to the next non-ignored token.
     pub fn consume(&mut self) -> TokenIndex {
         let index = self.token_index;
@@ -143,5 +151,32 @@ impl<'tb> Context<'tb> {
 
     pub fn has_error(&self) -> bool {
         self.has_error
+    }
+
+    pub fn set_error(&mut self) {
+        self.has_error = true;
+    }
+
+    pub fn unexpected_end_of_input(
+        &mut self,
+        body: &'static str,
+    ) -> DiagnosticBuilder<'tb, TokenIndex> {
+        let last_token = self.last_token();
+        self.emitter.build(
+            DiagnosticLevel::Error,
+            DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnexpectedEndOfInput },
+            last_token,
+            body,
+        )
+    }
+
+    pub fn unexpected_token(&mut self, body: &'static str) -> DiagnosticBuilder<'tb, TokenIndex> {
+        let current_token = self.token_index;
+        self.emitter.build(
+            DiagnosticLevel::Error,
+            DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnexpectedToken },
+            current_token,
+            body,
+        )
     }
 }

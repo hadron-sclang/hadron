@@ -34,16 +34,25 @@ pub enum NodeKind {
     /// All the children of ClassDefinitionBody may occur zero or more times, in any order.
     ClassDefinitionBody,
 
+    /// A class extension:
+    ///   Name: classname
+    ///   _external_: ClassExtensionBody: '{' '}'
+    /// ClassExtension: '+'
+    ClassExtension,
+
+    
+    ClassExtensionBody,
+
     /// A 'classvar' class variable definition:
     ///   _external_: MemberVariableDefinitionList
     /// ClassVariableDefinition: 'classvar' ';'
     ClassVariableDefinition,
 
-    ClassExtension,
-
     ConstantDefinition,
 
     InterpreterCode,
+
+    MethodDefinition,
 
     /// A 'var' variable definition inside a class:
     ///   _external_: MemberVariableDefinitionList
@@ -51,8 +60,6 @@ pub enum NodeKind {
     MemberVariableDefinition,
 
     MemberVariableDefinitionList,
-
-    MethodDefinition,
 
     Name,
 

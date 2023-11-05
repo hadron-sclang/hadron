@@ -16,6 +16,9 @@ pub enum LexerDiagnosticKind {
 
 #[derive(Clone, Copy)]
 pub enum SyntaxDiagnosticKind {
+    /// Parser encountered a `const`, `classvar`, or `var` inside a class extension.
+    ConstOrVarDeclInClassExt,
+
     /// We were expecting one particular thing and didn't encounter it.
     MissingToken,
 
