@@ -1,6 +1,24 @@
 #[cfg(test)]
 mod tests {
-    use crate::runtime::slot::Slot;
+    use crate::runtime::slot::{Slot, SlotType};
+
+    #[test]
+    fn insert_and_extract() {
+        let b = Slot::insert(SlotType::Boolean(false));
+        assert_eq!(b.extract(), SlotType::Boolean(false));
+
+        let c = Slot::insert(SlotType::Character('$'));
+        assert_eq!(c.extract(), SlotType::Character('$'));
+
+        let f = Slot::insert(SlotType::Float(-1.0));
+        assert_eq!(f.extract(), SlotType::Float(-1.0));
+
+        let i = Slot::insert(SlotType::Integer(2));
+        assert_eq!(i.extract(), SlotType::Integer(2));
+
+        let n = Slot::insert(SlotType::Nil);
+        assert_eq!(n.extract(), SlotType::Nil);
+    }
 
     #[test]
     fn bool_simple() {
