@@ -24,9 +24,10 @@ pub fn handle_class_ext_body(context: &mut Context) {
         Some(TokenKind::ReservedWord { kind: ReservedWordKind::Classvar }) => {
             const_or_var_def_in_class_ext(
                 context,
-                   "Class extensions cannot contain class variable declarations `classvar`. \
+                "Class extensions cannot contain class variable declarations `classvar`. \
                         Did you mean to define a new class instead?",
-          NodeKind::ClassVariableDefinition);
+                NodeKind::ClassVariableDefinition,
+            );
         }
 
         Some(TokenKind::ReservedWord { kind: ReservedWordKind::Var }) => {
@@ -34,7 +35,8 @@ pub fn handle_class_ext_body(context: &mut Context) {
                 context,
                 "Class extensions cannot contain variable declarations 'var'. Did you \
                     mean to define a new class instead?",
-                NodeKind::MemberVariableDefinition);
+                NodeKind::MemberVariableDefinition,
+            );
         }
 
         Some(TokenKind::ReservedWord { kind: ReservedWordKind::Const }) => {
@@ -42,7 +44,8 @@ pub fn handle_class_ext_body(context: &mut Context) {
                 context,
                 "Class extensions cannot contain variable declarations 'var'. Did you \
                 mean to define a new class instead?",
-                NodeKind::MemberVariableDefinition);
+                NodeKind::MemberVariableDefinition,
+            );
         }
 
         // Identifier or binop. Binop could be class method '*' or name of method.
@@ -50,22 +53,15 @@ pub fn handle_class_ext_body(context: &mut Context) {
             context.push_state(NodeKind::MethodDefinition);
         }
 
-        Some(_) => {
+        Some(_) => {}
 
-        }
-
-        None => {
-            
-        }
+        None => {}
     }
 }
 
 fn const_or_var_def_in_class_ext(context: &mut Context, body: &'static str, kind: NodeKind) {
     let token_index = context.token_index();
-    let class_ext = context
-        .state_parent(2, NodeKind::ClassExtension)
-        .unwrap()
-        .token_index;
+    let class_ext = context.state_parent(2, NodeKind::ClassExtension).unwrap().token_index;
     let diag = context
         .emitter()
         .build(

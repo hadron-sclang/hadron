@@ -40,7 +40,6 @@ pub enum NodeKind {
     /// ClassExtension: '+'
     ClassExtension,
 
-    
     ClassExtensionBody,
 
     /// A 'classvar' class variable definition:

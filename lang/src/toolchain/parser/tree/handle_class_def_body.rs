@@ -61,8 +61,8 @@ pub fn handle_class_def_body(context: &mut Context) {
                 .unwrap()
                 .token_index;
             let diag = context
-                  .emitter()
-                  .build(
+                .emitter()
+                .build(
                     DiagnosticLevel::Error,
                     DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
                     token_index,
