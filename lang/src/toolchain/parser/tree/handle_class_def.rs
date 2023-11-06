@@ -13,7 +13,7 @@ pub fn handle_class_def(context: &mut Context) {
     context.consume_checked(TokenKind::Identifier { kind: IdentifierKind::ClassName });
 
     // Look for optional array storage type declaration, documented within a pair of brackets.
-    if context.token_kind() == Some(TokenKind::Delimiter { kind: DelimiterKind::BracketOpen }) {
+    if context.token_kind() == Some(TokenKind::Group { kind: GroupKind::BracketOpen }) {
         // '['
         let open_bracket_index = context.consume();
         let subtree_start = context.tree_size();
@@ -24,7 +24,7 @@ pub fn handle_class_def(context: &mut Context) {
         }
 
         let closing_bracket_index = match context.token_kind() {
-            Some(TokenKind::Delimiter { kind: DelimiterKind::BracketClose }) => {
+            Some(TokenKind::Group { kind: GroupKind::BracketClose }) => {
                 // Nominal case. consume the bracket close.
                 Some(context.consume())
             }
@@ -124,7 +124,7 @@ pub fn handle_class_def(context: &mut Context) {
 
     // A brace should follow, opening the class definition body.
     match context.token_kind() {
-        Some(TokenKind::Delimiter { kind: DelimiterKind::BraceOpen }) => {
+        Some(TokenKind::Group { kind: GroupKind::BraceOpen }) => {
             context.push_state(NodeKind::ClassDefinitionBody);
         }
 

@@ -44,7 +44,7 @@ pub fn handle_class_ext(context: &mut Context) {
 
     // Open brace '{' should follow classname.
     match context.token_kind() {
-        Some(TokenKind::Delimiter { kind: DelimiterKind::BraceOpen }) => {
+        Some(TokenKind::Group { kind: GroupKind::BraceOpen }) => {
             context.push_state(NodeKind::ClassExtensionBody);
         }
 

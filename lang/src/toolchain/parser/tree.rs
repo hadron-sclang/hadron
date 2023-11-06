@@ -3,7 +3,7 @@ use super::node::{ClassDefKind, Node, NodeKind};
 use crate::toolchain::diagnostics::diagnostic_emitter::{DiagnosticConsumer, DiagnosticLevel};
 use crate::toolchain::diagnostics::diagnostic_kind::{DiagnosticKind, SyntaxDiagnosticKind};
 use crate::toolchain::lexer::token::{
-    BinopKind, DelimiterKind, IdentifierKind, ReservedKind, TokenKind,
+    BinopKind, DelimiterKind, GroupKind, IdentifierKind, ReservedKind, TokenKind,
 };
 use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
 

@@ -12,6 +12,7 @@ use crate::toolchain::source::SourceBuffer;
 use super::token::BinopKind;
 use super::token::DelimiterKind;
 use super::token::FloatKind;
+use super::token::GroupKind;
 use super::token::IdentifierKind;
 use super::token::IgnoredKind;
 use super::token::IntegerKind;
@@ -85,12 +86,12 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
             '^' => TokenKind::Delimiter { kind: DelimiterKind::Caret },
             ':' => TokenKind::Delimiter { kind: DelimiterKind::Colon },
             ',' => TokenKind::Delimiter { kind: DelimiterKind::Comma },
-            '(' => TokenKind::Delimiter { kind: DelimiterKind::ParenOpen },
-            ')' => TokenKind::Delimiter { kind: DelimiterKind::ParenClose },
-            '{' => TokenKind::Delimiter { kind: DelimiterKind::BraceOpen },
-            '}' => TokenKind::Delimiter { kind: DelimiterKind::BraceClose },
-            '[' => TokenKind::Delimiter { kind: DelimiterKind::BracketOpen },
-            ']' => TokenKind::Delimiter { kind: DelimiterKind::BracketClose },
+            '(' => TokenKind::Group { kind: GroupKind::ParenOpen },
+            ')' => TokenKind::Group { kind: GroupKind::ParenClose },
+            '{' => TokenKind::Group { kind: GroupKind::BraceOpen },
+            '}' => TokenKind::Group { kind: GroupKind::BraceClose },
+            '[' => TokenKind::Group { kind: GroupKind::BracketOpen },
+            ']' => TokenKind::Group { kind: GroupKind::BracketClose },
             '`' => TokenKind::Delimiter { kind: DelimiterKind::Grave },
             '#' => TokenKind::Delimiter { kind: DelimiterKind::Hash },
             '~' => TokenKind::Delimiter { kind: DelimiterKind::Tilde },

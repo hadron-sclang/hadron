@@ -7,6 +7,7 @@ mod tests {
     use crate::toolchain::lexer::token::BinopKind;
     use crate::toolchain::lexer::token::DelimiterKind;
     use crate::toolchain::lexer::token::FloatKind;
+    use crate::toolchain::lexer::token::GroupKind;
     use crate::toolchain::lexer::token::IdentifierKind;
     use crate::toolchain::lexer::token::IgnoredKind;
     use crate::toolchain::lexer::token::IntegerKind;
@@ -36,7 +37,7 @@ mod tests {
                     column: 1,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::ParenOpen },
+                    kind: Group { kind: GroupKind::ParenOpen },
                     string: "(",
                     line: 1,
                     column: 9,
@@ -60,7 +61,7 @@ mod tests {
                     column: 13,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::BraceOpen },
+                    kind: Group { kind: GroupKind::BraceOpen },
                     string: "{",
                     line: 1,
                     column: 14,
@@ -121,7 +122,7 @@ mod tests {
                     column: 33,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::ParenOpen },
+                    kind: Group { kind: GroupKind::ParenOpen },
                     string: "(",
                     line: 1,
                     column: 35,
@@ -163,7 +164,7 @@ mod tests {
                     column: 46,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::ParenClose },
+                    kind: Group { kind: GroupKind::ParenClose },
                     string: ")",
                     line: 1,
                     column: 49,
@@ -199,13 +200,13 @@ mod tests {
                     column: 56,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::BraceClose },
+                    kind: Group { kind: GroupKind::BraceClose },
                     string: "}",
                     line: 1,
                     column: 57,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::ParenClose },
+                    kind: Group { kind: GroupKind::ParenClose },
                     string: ")",
                     line: 1,
                     column: 58,
@@ -563,37 +564,37 @@ mod tests {
                     column: 3,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::ParenOpen },
+                    kind: Group { kind: GroupKind::ParenOpen },
                     string: "(",
                     line: 1,
                     column: 4,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::ParenClose },
+                    kind: Group { kind: GroupKind::ParenClose },
                     string: ")",
                     line: 1,
                     column: 5,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::BraceOpen },
+                    kind: Group { kind: GroupKind::BraceOpen },
                     string: "{",
                     line: 1,
                     column: 6,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::BraceClose },
+                    kind: Group { kind: GroupKind::BraceClose },
                     string: "}",
                     line: 1,
                     column: 7,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::BracketOpen },
+                    kind: Group { kind: GroupKind::BracketOpen },
                     string: "[",
                     line: 1,
                     column: 8,
                 },
                 Token {
-                    kind: Delimiter { kind: DelimiterKind::BracketClose },
+                    kind: Group { kind: GroupKind::BracketClose },
                     string: "]",
                     line: 1,
                     column: 9,

@@ -44,6 +44,8 @@ pub enum TokenKind {
         kind: BinopKind,
     },
 
+    /// Zero-context delimiters, meaning stuff that always matches with itself and is used as
+    /// punctuation in the language.
     Delimiter {
         kind: DelimiterKind,
     },
@@ -51,6 +53,11 @@ pub enum TokenKind {
     /// This internal [TokenKind] is for signaling the end of the stream to the iterator. It should
     /// not appear to [Token] consumers.
     EndOfInput,
+
+    /// Grouping tokens which always have an open and close, such as '{' and '}'
+    Group {
+        kind: GroupKind,
+    },
 
     /// Any name starting with a lowercase letter and followed by 0 or more alphanumeric letters or
     /// underscore `_`.
@@ -108,18 +115,6 @@ pub enum BinopKind {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DelimiterKind {
-    /// `}` single-character delimiter.
-    BraceClose,
-
-    /// `{` single-character delimiter.
-    BraceOpen,
-
-    /// `]` single-character delimiter.
-    BracketClose,
-
-    /// `[` single-character delimiter.
-    BracketOpen,
-
     /// `^` single-character delimiter.
     Caret,
 
@@ -144,12 +139,6 @@ pub enum DelimiterKind {
     /// `#` single-character delimiter.
     Hash,
 
-    /// `)` single-character delimiter.
-    ParenClose,
-
-    /// `(` single-character delimiter.
-    ParenOpen,
-
     /// `;` single-character delimiter.
     Semicolon,
 
@@ -158,6 +147,27 @@ pub enum DelimiterKind {
 
     /// `_` single-character delimiter.
     Underscore,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GroupKind {
+    /// `}` closing brace.
+    BraceClose,
+
+    /// `{` opening brace.
+    BraceOpen,
+
+    /// `]` closing bracket.
+    BracketClose,
+
+    /// `[` opening bracket.
+    BracketOpen,
+
+    /// `)` closing parenthesis.
+    ParenClose,
+
+    /// `(` opening parenthesis.
+    ParenOpen,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -294,10 +304,13 @@ impl Display for TokenKind {
             TokenKind::Binop { kind: BinopKind::Plus } => "plus '+'",
             TokenKind::Binop { kind: BinopKind::ReadWriteVar } => "read/write sign '<>'",
 
-            TokenKind::Delimiter { kind: DelimiterKind::BraceClose } => "closing brace '}'",
-            TokenKind::Delimiter { kind: DelimiterKind::BraceOpen } => "opening brace '{'",
-            TokenKind::Delimiter { kind: DelimiterKind::BracketClose } => "closing bracket ']'",
-            TokenKind::Delimiter { kind: DelimiterKind::BracketOpen } => "opening bracket '['",
+            TokenKind::Group { kind: GroupKind::BraceClose } => "closing brace '}'",
+            TokenKind::Group { kind: GroupKind::BraceOpen } => "opening brace '{'",
+            TokenKind::Group { kind: GroupKind::BracketClose } => "closing bracket ']'",
+            TokenKind::Group { kind: GroupKind::BracketOpen } => "opening bracket '['",
+            TokenKind::Group { kind: GroupKind::ParenClose } => "closing parenthesis ')'",
+            TokenKind::Group { kind: GroupKind::ParenOpen } => "opening parenthesis '('",
+
             TokenKind::Delimiter { kind: DelimiterKind::Caret } => "caret '^'",
             TokenKind::Delimiter { kind: DelimiterKind::Colon } => "colon ':'",
             TokenKind::Delimiter { kind: DelimiterKind::Comma } => "comma ','",
@@ -306,8 +319,6 @@ impl Display for TokenKind {
             TokenKind::Delimiter { kind: DelimiterKind::Ellipses } => "ellipses '...'",
             TokenKind::Delimiter { kind: DelimiterKind::Grave } => "grave '^'",
             TokenKind::Delimiter { kind: DelimiterKind::Hash } => "hash mark '$'",
-            TokenKind::Delimiter { kind: DelimiterKind::ParenClose } => "closing parenthesis ')'",
-            TokenKind::Delimiter { kind: DelimiterKind::ParenOpen } => "opening parenthesis '('",
             TokenKind::Delimiter { kind: DelimiterKind::Semicolon } => "semicolon ':'",
             TokenKind::Delimiter { kind: DelimiterKind::Tilde } => "tilde '~'",
             TokenKind::Delimiter { kind: DelimiterKind::Underscore } => "underscore '_'",
@@ -362,6 +373,7 @@ impl<'s> Display for Token<'s> {
             TokenKind::Binop { kind: _ }
             | TokenKind::Delimiter { kind: _ }
             | TokenKind::EndOfInput
+            | TokenKind::Group { kind: _ }
             | TokenKind::Ignored { kind: _ }
             | TokenKind::Literal { kind: LiteralKind::Nil }
             | TokenKind::Reserved { kind: _ } => f.write_fmt(format_args!("{}", self.kind)),

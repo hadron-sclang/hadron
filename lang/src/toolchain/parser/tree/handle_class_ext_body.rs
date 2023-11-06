@@ -9,11 +9,11 @@ pub fn handle_class_ext_body(context: &mut Context) {
     debug_assert_eq!(context.state().unwrap().kind, NodeKind::ClassExtensionBody);
 
     // '{'
-    context.consume_checked(TokenKind::Delimiter { kind: DelimiterKind::BraceOpen });
+    context.consume_checked(TokenKind::Group { kind: GroupKind::BraceOpen });
 
     match context.token_kind() {
         // '}' closes the class extension.
-        Some(TokenKind::Delimiter { kind: DelimiterKind::BraceClose }) => {
+        Some(TokenKind::Group { kind: GroupKind::BraceClose }) => {
             context.close_state(NodeKind::ClassExtensionBody, false);
             context.close_state(NodeKind::ClassExtension, false);
             // '}'

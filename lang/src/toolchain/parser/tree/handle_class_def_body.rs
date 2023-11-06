@@ -1,5 +1,3 @@
-use crate::toolchain::lexer::token::IdentifierKind;
-
 use super::*;
 
 // classDefBody : CURLY_OPEN classVarDecl* methodDef* CURLY_CLOSE
@@ -20,11 +18,11 @@ pub fn handle_class_def_body(context: &mut Context) {
     debug_assert_eq!(context.state().unwrap().kind, NodeKind::ClassDefinitionBody);
 
     // '{'
-    context.consume_checked(TokenKind::Delimiter { kind: DelimiterKind::BraceOpen });
+    context.consume_checked(TokenKind::Group { kind: GroupKind::BraceOpen });
 
     match context.token_kind() {
         // '}' means end of class definition.
-        Some(TokenKind::Delimiter { kind: DelimiterKind::BraceClose }) => {
+        Some(TokenKind::Group { kind: GroupKind::BraceClose }) => {
             context.close_state(NodeKind::ClassDefinitionBody, false);
             context.close_state(NodeKind::ClassDef { kind: ClassDefKind::Root }, false);
             // '}'
