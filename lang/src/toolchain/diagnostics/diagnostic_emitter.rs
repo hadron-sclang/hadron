@@ -146,11 +146,7 @@ impl<'s, LocationT> DiagnosticBuilder<'s, LocationT> {
         DiagnosticBuilder { level, message, notes: Vec::new(), translator }
     }
 
-    pub fn note(
-        mut self,
-        location: LocationT,
-        body: String,
-    ) -> DiagnosticBuilder<'s, LocationT> {
+    pub fn note(mut self, location: LocationT, body: String) -> DiagnosticBuilder<'s, LocationT> {
         let loc = self.translator.get_location(location);
         let kind = self.message.kind;
         self.notes.push(DiagnosticMessage { kind, location: loc, body });

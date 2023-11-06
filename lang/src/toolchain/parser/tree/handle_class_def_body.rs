@@ -49,7 +49,8 @@ pub fn handle_class_def_body(context: &mut Context) {
         }
 
         // name or binop. Binop could be class method '*' or name of method.
-        Some(TokenKind::Identifier {kind: IdentifierKind::Name }) | Some(TokenKind::Binop { kind: _ }) => {
+        Some(TokenKind::Identifier { kind: IdentifierKind::Name })
+        | Some(TokenKind::Binop { kind: _ }) => {
             context.push_state(NodeKind::MethodDefinition);
         }
 
@@ -69,9 +70,12 @@ pub fn handle_class_def_body(context: &mut Context) {
                     DiagnosticLevel::Error,
                     DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
                     token_index,
-                    format!("Unexpected {} in class definition body. Starting tokens expected \
+                    format!(
+                        "Unexpected {} in class definition body. Starting tokens expected \
                     inside a class definition body are 'classvar', 'var', 'const', and method \
-                    definitions. Did you forget a closing brace '}}'?", token_kind)
+                    definitions. Did you forget a closing brace '}}'?",
+                        token_kind
+                    ),
                 )
                 .note(class_body, "Class definition body opened here.".to_string())
                 .note(class_def, "Class defined here.".to_string())
@@ -96,7 +100,8 @@ pub fn handle_class_def_body(context: &mut Context) {
                     DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
                     last_token,
                     "Unexpected end of input while parsing class body. Expecting a closing \
-                            brace '}'.".to_string(),
+                            brace '}'."
+                        .to_string(),
                 )
                 .note(class_def, "Class defined here.".to_string())
                 .emit();

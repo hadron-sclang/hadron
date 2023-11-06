@@ -8,7 +8,7 @@ use super::*;
 pub fn handle_top_level_statement(context: &mut Context) {
     match context.token_kind() {
         // Class definitions start with a ClassName token.
-        Some(TokenKind::Identifier { kind: IdentifierKind::ClassName } ) => {
+        Some(TokenKind::Identifier { kind: IdentifierKind::ClassName }) => {
             context.push_state(NodeKind::ClassDef { kind: ClassDefKind::Root });
         }
 

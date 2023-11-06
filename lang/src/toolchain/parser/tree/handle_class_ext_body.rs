@@ -49,7 +49,8 @@ pub fn handle_class_ext_body(context: &mut Context) {
         }
 
         // Namd or binop. Binop could be class method '*' or name of method.
-        Some(TokenKind::Identifier { kind: IdentifierKind::Name }) | Some(TokenKind::Binop { kind: _ }) => {
+        Some(TokenKind::Identifier { kind: IdentifierKind::Name })
+        | Some(TokenKind::Binop { kind: _ }) => {
             context.push_state(NodeKind::MethodDefinition);
         }
 
@@ -66,7 +67,8 @@ pub fn handle_class_ext_body(context: &mut Context) {
                     DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
                     token_index,
                     "Unexpected token in class extension body. Did you forget a closing \
-                        brace '}'?".to_string(),
+                        brace '}'?"
+                        .to_string(),
                 )
                 .note(ext_body, "Class extension body opened here.".to_string())
                 .note(ext_def, "Class extended here.".to_string())
@@ -88,7 +90,8 @@ pub fn handle_class_ext_body(context: &mut Context) {
                     DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
                     last_token,
                     "Unexpected end of input while parsing class extension body. Expecting a \
-                            closing brace '}'.".to_string(),
+                            closing brace '}'."
+                        .to_string(),
                 )
                 .note(ext_def, "Class extended here.".to_string())
                 .emit();

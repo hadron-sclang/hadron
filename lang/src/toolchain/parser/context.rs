@@ -2,7 +2,9 @@ use crate::toolchain::diagnostics::diagnostic_emitter::{
     DiagnosticBuilder, DiagnosticConsumer, DiagnosticLevel,
 };
 use crate::toolchain::diagnostics::diagnostic_kind::{DiagnosticKind, SyntaxDiagnosticKind};
-use crate::toolchain::lexer::{Token, TokenDiagnosticEmitter, TokenIndex, TokenKind, TokenizedBuffer};
+use crate::toolchain::lexer::{
+    Token, TokenDiagnosticEmitter, TokenIndex, TokenKind, TokenizedBuffer,
+};
 use crate::toolchain::parser::node::{Node, NodeKind};
 use crate::toolchain::parser::tree::NodeIndex;
 

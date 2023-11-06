@@ -55,7 +55,7 @@ pub enum TokenKind {
     /// Any name starting with a lowercase letter and followed by 0 or more alphanumeric letters or
     /// underscore `_`.
     Identifier {
-        kind: IdentifierKind
+        kind: IdentifierKind,
     },
 
     /// The compiler ignores any empty space or comments.
@@ -81,9 +81,6 @@ pub enum BinopKind {
     /// The `*` operator.
     Asterisk,
 
-    /// A non-specific binop that didn't match the reserved binop patterns, `+/+` for example.
-    BinopIdentifier,
-
     /// The `>` operator.
     GreaterThan,
 
@@ -95,6 +92,9 @@ pub enum BinopKind {
 
     /// The `-` operator.
     Minus,
+
+    /// A non-specific binop that didn't match the reserved binop patterns, `+/+` for example.
+    Name,
 
     /// The `|` operator.
     Pipe,
@@ -195,32 +195,23 @@ pub enum IdentifierKind {
     Primitive,
 }
 
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LiteralKind {
     /// A boolean literal, either 'true' or 'false'.
-    Boolean {
-        value: bool,
-    },
+    Boolean { value: bool },
 
     /// A character literal, such as `$a` or `$\t`. `is_escaped` is `false` in the former example,
     /// `true` in the latter.
-    Character {
-        is_escaped: bool,
-    },
+    Character { is_escaped: bool },
 
     /// A floating point numeric literal.
-    FloatingPoint {
-        kind: FloatKind,
-    },
+    FloatingPoint { kind: FloatKind },
 
     /// A symbol starting with a forward slash, such as `\synth`.
     InlineSymbol,
 
     /// An integer numeric literal.
-    Integer {
-        kind: IntegerKind,
-    },
+    Integer { kind: IntegerKind },
 
     /// `nil` is the constant literal empty type.
     Nil,
@@ -228,14 +219,10 @@ pub enum LiteralKind {
     /// A double-quoted character literal sequence. If it has backslash (`\`) escape characters in
     /// it `has_escapes` is true, telling later stages if they must process the string more or can
     /// copy it directly to the string literal.
-    String {
-        has_escapes: bool,
-    },
+    String { has_escapes: bool },
 
     /// A single-quoted character literal sequence.
-    Symbol {
-        has_escapes: bool,
-    },
+    Symbol { has_escapes: bool },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -296,67 +283,67 @@ pub enum ReservedKind {
 impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let s = match self {
-            TokenKind::Binop { kind: Assign } => "equals '='",
-            TokenKind::Binop { kind: Asterisk } => "asterisk '*'",
-            TokenKind::Binop { kind: BinopIdentifer } => "binary operator",
-            TokenKind::Binop { kind: GreaterThan } => "greater than '>'",
-            TokenKind::Binop { kind: LeftArrow } => "left arrow '<-'",
-            TokenKind::Binop { kind: LessThan } => "less than '<'",
-            TokenKind::Binop { kind: Minus } => "minus '-'",
-            TokenKind::Binop { kind: Pipe } => "pipe '|'",
-            TokenKind::Binop { kind: Plus } => "plus '+'",
-            TokenKind::Binop { kind: ReadWriteVar } => "read/write sign '<>'",
+            TokenKind::Binop { kind: BinopKind::Assign } => "equals '='",
+            TokenKind::Binop { kind: BinopKind::Asterisk } => "asterisk '*'",
+            TokenKind::Binop { kind: BinopKind::GreaterThan } => "greater than '>'",
+            TokenKind::Binop { kind: BinopKind::LeftArrow } => "left arrow '<-'",
+            TokenKind::Binop { kind: BinopKind::LessThan } => "less than '<'",
+            TokenKind::Binop { kind: BinopKind::Minus } => "minus '-'",
+            TokenKind::Binop { kind: BinopKind::Name } => "binary operator",
+            TokenKind::Binop { kind: BinopKind::Pipe } => "pipe '|'",
+            TokenKind::Binop { kind: BinopKind::Plus } => "plus '+'",
+            TokenKind::Binop { kind: BinopKind::ReadWriteVar } => "read/write sign '<>'",
 
-            TokenKind::Delimiter { kind: BraceClose } => "closing brace '}'",
-            TokenKind::Delimiter { kind: BraceOpen } => "opening brace '{'",
-            TokenKind::Delimiter { kind: BracketClose } => "closing bracket ']'",
-            TokenKind::Delimiter { kind: BracketOpen } => "opening bracket '['",
-            TokenKind::Delimiter { kind: Caret } => "caret '^'",
-            TokenKind::Delimiter { kind: Colon } => "colon ':'",
-            TokenKind::Delimiter { kind: Comma } => "comma ','",
-            TokenKind::Delimiter { kind: Dot } => "dot '.'",
-            TokenKind::Delimiter { kind: DotDot } => "double dot '..'",
-            TokenKind::Delimiter { kind: Ellipses } => "ellipses '...'",
-            TokenKind::Delimiter { kind: Grave } => "grave '^'",
-            TokenKind::Delimiter { kind: Hash } => "hash mark '$'",
-            TokenKind::Delimiter { kind: ParenClose } => "closing parenthesis ')'",
-            TokenKind::Delimiter { kind: ParenOpen } => "opening parenthesis '('",
-            TokenKind::Delimiter { kind: Semicolon } => "semicolon ':'",
-            TokenKind::Delimiter { kind: Tilde } => "tilde '~'",
-            TokenKind::Delimiter { kind: Underscore } => "underscore '_'",
+            TokenKind::Delimiter { kind: DelimiterKind::BraceClose } => "closing brace '}'",
+            TokenKind::Delimiter { kind: DelimiterKind::BraceOpen } => "opening brace '{'",
+            TokenKind::Delimiter { kind: DelimiterKind::BracketClose } => "closing bracket ']'",
+            TokenKind::Delimiter { kind: DelimiterKind::BracketOpen } => "opening bracket '['",
+            TokenKind::Delimiter { kind: DelimiterKind::Caret } => "caret '^'",
+            TokenKind::Delimiter { kind: DelimiterKind::Colon } => "colon ':'",
+            TokenKind::Delimiter { kind: DelimiterKind::Comma } => "comma ','",
+            TokenKind::Delimiter { kind: DelimiterKind::Dot } => "dot '.'",
+            TokenKind::Delimiter { kind: DelimiterKind::DotDot } => "double dot '..'",
+            TokenKind::Delimiter { kind: DelimiterKind::Ellipses } => "ellipses '...'",
+            TokenKind::Delimiter { kind: DelimiterKind::Grave } => "grave '^'",
+            TokenKind::Delimiter { kind: DelimiterKind::Hash } => "hash mark '$'",
+            TokenKind::Delimiter { kind: DelimiterKind::ParenClose } => "closing parenthesis ')'",
+            TokenKind::Delimiter { kind: DelimiterKind::ParenOpen } => "opening parenthesis '('",
+            TokenKind::Delimiter { kind: DelimiterKind::Semicolon } => "semicolon ':'",
+            TokenKind::Delimiter { kind: DelimiterKind::Tilde } => "tilde '~'",
+            TokenKind::Delimiter { kind: DelimiterKind::Underscore } => "underscore '_'",
 
-            TokenKind::EndOfInput => { panic!("EndOfInput should never appear to token consumers") },
+            TokenKind::EndOfInput => {
+                panic!("EndOfInput should never appear to token consumers")
+            }
 
-            TokenKind::Identifier { kind: ClassName } => "class name",
-            TokenKind::Identifier { kind: Keyword } => "keyword",
-            TokenKind::Identifier { kind: Name } => "name",
-            TokenKind::Identifier { kind: Primitive } => "primitive",
+            TokenKind::Identifier { kind: IdentifierKind::ClassName } => "class name",
+            TokenKind::Identifier { kind: IdentifierKind::Keyword } => "keyword",
+            TokenKind::Identifier { kind: IdentifierKind::Name } => "name",
+            TokenKind::Identifier { kind: IdentifierKind::Primitive } => "primitive",
 
-            TokenKind::Ignored { kind: BlankSpace } => "blank space",
-            TokenKind::Ignored { kind: BlockComment } => "block comment",
-            TokenKind::Ignored { kind: Invalid } => "invalid",
-            TokenKind::Ignored { kind: Keyword } => "keyword",
-            TokenKind::Ignored { kind: LineComment } => "line comment",
-            TokenKind::Ignored { kind: Unknown } => "unknown",
+            TokenKind::Ignored { kind: IgnoredKind::BlankSpace } => "blank space",
+            TokenKind::Ignored { kind: IgnoredKind::BlockComment } => "block comment",
+            TokenKind::Ignored { kind: IgnoredKind::Invalid } => "invalid",
+            TokenKind::Ignored { kind: IgnoredKind::LineComment } => "line comment",
+            TokenKind::Ignored { kind: IgnoredKind::Unknown } => "unknown",
 
             TokenKind::Literal { kind: LiteralKind::Boolean { value: _ } } => "boolean literal",
-            TokenKind::Literal { kind: LiteralKind::Character { is_escaped: _ } } =>
-                "character literal",
-            TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: _ } } =>
-                "floating point literal",
+            TokenKind::Literal { kind: LiteralKind::Character { is_escaped: _ } } => {
+                "character literal"
+            }
+            TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: _ } } => {
+                "floating point literal"
+            }
             TokenKind::Literal { kind: LiteralKind::InlineSymbol } => "inline symbol literal",
             TokenKind::Literal { kind: LiteralKind::Integer { kind: _ } } => "integer literal",
             TokenKind::Literal { kind: LiteralKind::Nil } => "nil literal",
             TokenKind::Literal { kind: LiteralKind::String { has_escapes: _ } } => "string literal",
             TokenKind::Literal { kind: LiteralKind::Symbol { has_escapes: _ } } => "symbol literal",
 
-            TokenKind::Reserved { kind: Arg } => "reserved word 'arg'",
-            TokenKind::Reserved { kind: Classvar } => "reserved word 'classvar'",
-            TokenKind::Reserved { kind: Const } => "reserved word 'const'",
-            TokenKind::Reserved { kind: Inf } => "floating point constant 'inf'",
-            TokenKind::Reserved { kind: Nil } => "empty literal value 'nil'",
-            TokenKind::Reserved { kind: Pi } => "floating point constant 'pi'",
-            TokenKind::Reserved { kind: Var } => "reserved word 'var'",
+            TokenKind::Reserved { kind: ReservedKind::Arg } => "reserved word 'arg'",
+            TokenKind::Reserved { kind: ReservedKind::Classvar } => "reserved word 'classvar'",
+            TokenKind::Reserved { kind: ReservedKind::Const } => "reserved word 'const'",
+            TokenKind::Reserved { kind: ReservedKind::Var } => "reserved word 'var'",
         };
         f.write_str(s)
     }
@@ -365,20 +352,22 @@ impl Display for TokenKind {
 impl<'s> Display for Token<'s> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.kind {
+            TokenKind::Binop { kind: BinopKind::Name }
+            | TokenKind::Identifier { kind: _ }
+            | TokenKind::Ignored { kind: IgnoredKind::Unknown } => {
+                f.write_fmt(format_args!("{} '{}'", self.kind, self.string))
+            }
+
             // Many tokens are text-invariant, so repeating the token text is redundant.
             TokenKind::Binop { kind: _ }
             | TokenKind::Delimiter { kind: _ }
             | TokenKind::EndOfInput
             | TokenKind::Ignored { kind: _ }
             | TokenKind::Literal { kind: LiteralKind::Nil }
-            | TokenKind::Reserved { kind: _ } => {
-                f.write_fmt(format_args!("{}", self.kind))
-            }
+            | TokenKind::Reserved { kind: _ } => f.write_fmt(format_args!("{}", self.kind)),
 
-            TokenKind::Binop { kind: BinopKind::BinopIdentifier }
-            | TokenKind::Identifier { kind: _ }
-            | TokenKind::Ignored { kind: IgnoredKind::Unknown }
-            | TokenKind::Literal { kind: _ } => {
+            // TODO: probably a smarter way to collapse thiis back into the printing kinds up top.
+            TokenKind::Literal { kind: _ } => {
                 f.write_fmt(format_args!("{} '{}'", self.kind, self.string))
             }
         }

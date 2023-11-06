@@ -66,8 +66,8 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
             '0'..='9' => self.number(),
 
             // Literal symbols delimited with '\''.
-            '\'' => TokenKind::Literal { kind: LiteralKind::Symbol {
-                has_escapes: self.scan_for_delimiter_or_escapes('\'') }
+            '\'' => TokenKind::Literal {
+                kind: LiteralKind::Symbol { has_escapes: self.scan_for_delimiter_or_escapes('\'') },
             },
 
             // Inline literal symbols start with a '\'.
@@ -77,8 +77,9 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
             }
 
             // Literal strings delimited with '"'.
-            '"' => TokenKind::Literal { kind: LiteralKind::String {
-                has_escapes: self.scan_for_delimiter_or_escapes('"') } },
+            '"' => TokenKind::Literal {
+                kind: LiteralKind::String { has_escapes: self.scan_for_delimiter_or_escapes('"') },
+            },
 
             // Single-character delimiters.
             '^' => TokenKind::Delimiter { kind: DelimiterKind::Caret },
@@ -151,7 +152,12 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
                 let diag = Diagnostic::new(DiagnosticLevel::Error, msg, Vec::new());
                 self.diags.handle_diagnostic(diag);
                 // Halt lexing and return the invalid token.
-                return Some(Token::new(TokenKind::Ignored { kind: IgnoredKind::Invalid }, "", line, column));
+                return Some(Token::new(
+                    TokenKind::Ignored { kind: IgnoredKind::Invalid },
+                    "",
+                    line,
+                    column,
+                ));
             }
 
             // We coalesce unknown characters into a single Token, to cut down on the number of
@@ -187,9 +193,13 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
                     "classvar" => TokenKind::Reserved { kind: ReservedKind::Classvar },
                     "const" => TokenKind::Reserved { kind: ReservedKind::Const },
                     "false" => TokenKind::Literal { kind: LiteralKind::Boolean { value: false } },
-                    "inf" => TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Inf } },
+                    "inf" => TokenKind::Literal {
+                        kind: LiteralKind::FloatingPoint { kind: FloatKind::Inf },
+                    },
                     "nil" => TokenKind::Literal { kind: LiteralKind::Nil },
-                    "pi" => TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Pi } },
+                    "pi" => TokenKind::Literal {
+                        kind: LiteralKind::FloatingPoint { kind: FloatKind::Pi },
+                    },
                     "true" => TokenKind::Literal { kind: LiteralKind::Boolean { value: true } },
                     "var" => TokenKind::Reserved { kind: ReservedKind::Var },
                     _ => TokenKind::Identifier { kind: IdentifierKind::Name },
@@ -197,7 +207,7 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
                 Some(Token::new(identifier_kind, token_str, line, column))
             }
 
-            _ => Some(Token::new(token_kind, token_str, line, column))
+            _ => Some(Token::new(token_kind, token_str, line, column)),
         }
     }
 }
@@ -342,7 +352,7 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
                 '-' => TokenKind::Binop { kind: BinopKind::Minus },
                 '|' => TokenKind::Binop { kind: BinopKind::Pipe },
                 '+' => TokenKind::Binop { kind: BinopKind::Plus },
-                _ => TokenKind::Binop { kind: BinopKind::BinopIdentifier },
+                _ => TokenKind::Binop { kind: BinopKind::Name },
             };
         }
 
@@ -365,13 +375,13 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
             return match next {
                 '-' => TokenKind::Binop { kind: BinopKind::LeftArrow },
                 '>' => TokenKind::Binop { kind: BinopKind::ReadWriteVar },
-                _ => TokenKind::Binop { kind: BinopKind::BinopIdentifier },
+                _ => TokenKind::Binop { kind: BinopKind::Name },
             };
         }
 
         // Identifier binop, consume the rest of the characters.
         self.eat_while(is_binop);
-        TokenKind::Binop { kind: BinopKind::BinopIdentifier }
+        TokenKind::Binop { kind: BinopKind::Name }
     }
 
     fn blank_space(&mut self) -> TokenKind {
@@ -417,7 +427,7 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
         // Every number starts with one or more numeric characters.
         self.eat_while(|c| c.is_numeric());
 
-        let kind = match self.first() {
+        match self.first() {
             // We indicate hexadecimal numbers with a lowercase x.
             'x' => {
                 self.bump();
@@ -455,7 +465,9 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
                         '0'..='9' => true,
                         _ => false,
                     });
-                    TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Radix } }
+                    TokenKind::Literal {
+                        kind: LiteralKind::FloatingPoint { kind: FloatKind::Radix },
+                    }
                 } else {
                     TokenKind::Literal { kind: LiteralKind::Integer { kind: IntegerKind::Radix } }
                 }
@@ -471,9 +483,13 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
                         self.bump();
                     }
                     self.eat_while(|c| c.is_numeric());
-                    TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific } }
+                    TokenKind::Literal {
+                        kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific },
+                    }
                 } else {
-                    TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Simple } }
+                    TokenKind::Literal {
+                        kind: LiteralKind::FloatingPoint { kind: FloatKind::Simple },
+                    }
                 }
             }
 
@@ -483,13 +499,13 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
                     self.bump();
                 }
                 self.eat_while(|c| c.is_numeric());
-                TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific } }
+                TokenKind::Literal {
+                    kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific },
+                }
             }
 
-            _ => TokenKind::Literal { kind: LiteralKind::Integer { kind: IntegerKind::Whole } }
-        };
-
-        kind
+            _ => TokenKind::Literal { kind: LiteralKind::Integer { kind: IntegerKind::Whole } },
+        }
     }
 
     fn scan_for_delimiter_or_escapes(&mut self, delimiter: char) -> bool {
