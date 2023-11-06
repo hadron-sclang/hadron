@@ -21,7 +21,7 @@ pub fn handle_class_ext_body(context: &mut Context) {
         }
 
         // Variables and constant declaration only allowed in classes.
-        Some(TokenKind::ReservedWord { kind: ReservedWordKind::Classvar }) => {
+        Some(TokenKind::Reserved { kind: ReservedKind::Classvar }) => {
             const_or_var_def_in_class_ext(
                 context,
                 "Class extensions cannot contain class variable declarations `classvar`. \
@@ -30,7 +30,7 @@ pub fn handle_class_ext_body(context: &mut Context) {
             );
         }
 
-        Some(TokenKind::ReservedWord { kind: ReservedWordKind::Var }) => {
+        Some(TokenKind::Reserved { kind: ReservedKind::Var }) => {
             const_or_var_def_in_class_ext(
                 context,
                 "Class extensions cannot contain variable declarations 'var'. Did you \
@@ -39,7 +39,7 @@ pub fn handle_class_ext_body(context: &mut Context) {
             );
         }
 
-        Some(TokenKind::ReservedWord { kind: ReservedWordKind::Const }) => {
+        Some(TokenKind::Reserved { kind: ReservedKind::Const }) => {
             const_or_var_def_in_class_ext(
                 context,
                 "Class extensions cannot contain variable declarations 'var'. Did you \
@@ -48,8 +48,8 @@ pub fn handle_class_ext_body(context: &mut Context) {
             );
         }
 
-        // Identifier or binop. Binop could be class method '*' or name of method.
-        Some(TokenKind::Identifier) | Some(TokenKind::Binop { kind: _ }) => {
+        // Namd or binop. Binop could be class method '*' or name of method.
+        Some(TokenKind::Identifier { kind: IdentifierKind::Name }) | Some(TokenKind::Binop { kind: _ }) => {
             context.push_state(NodeKind::MethodDefinition);
         }
 
@@ -66,10 +66,10 @@ pub fn handle_class_ext_body(context: &mut Context) {
                     DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
                     token_index,
                     "Unexpected token in class extension body. Did you forget a closing \
-                        brace '}'?",
+                        brace '}'?".to_string(),
                 )
-                .note(ext_body, "Class extension body opened here.")
-                .note(ext_def, "Class extended here.")
+                .note(ext_body, "Class extension body opened here.".to_string())
+                .note(ext_def, "Class extended here.".to_string())
                 .emit();
             context.emitter().emit(diag);
 
@@ -88,9 +88,9 @@ pub fn handle_class_ext_body(context: &mut Context) {
                     DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
                     last_token,
                     "Unexpected end of input while parsing class extension body. Expecting a \
-                            closing brace '}'.",
+                            closing brace '}'.".to_string(),
                 )
-                .note(ext_def, "Class extended here.")
+                .note(ext_def, "Class extended here.".to_string())
                 .emit();
             context.emitter().emit(diag);
         }
@@ -106,9 +106,9 @@ fn const_or_var_def_in_class_ext(context: &mut Context, body: &'static str, kind
             DiagnosticLevel::Error,
             DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::ConstOrVarDeclInClassExt },
             token_index,
-            body,
+            body.to_string(),
         )
-        .note(class_ext, "Class extension declared here")
+        .note(class_ext, "Class extension declared here".to_string())
         .emit();
     context.emitter().emit(diag);
 

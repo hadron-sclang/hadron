@@ -2,7 +2,7 @@ use super::context::Context;
 use super::node::{ClassDefKind, Node, NodeKind};
 use crate::toolchain::diagnostics::diagnostic_emitter::{DiagnosticConsumer, DiagnosticLevel};
 use crate::toolchain::diagnostics::diagnostic_kind::{DiagnosticKind, SyntaxDiagnosticKind};
-use crate::toolchain::lexer::token::{BinopKind, DelimiterKind, ReservedWordKind, TokenKind};
+use crate::toolchain::lexer::token::{BinopKind, IdentifierKind, DelimiterKind, ReservedKind, TokenKind};
 use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
 
 mod handle_class_def;

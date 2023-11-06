@@ -11,9 +11,12 @@ use crate::toolchain::source::SourceBuffer;
 
 use super::token::BinopKind;
 use super::token::DelimiterKind;
+use super::token::FloatKind;
+use super::token::IdentifierKind;
 use super::token::IgnoredKind;
-use super::token::NumberKind;
-use super::token::ReservedWordKind;
+use super::token::IntegerKind;
+use super::token::LiteralKind;
+use super::token::ReservedKind;
 use super::token::Token;
 use super::token::TokenKind;
 
@@ -63,16 +66,19 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
             '0'..='9' => self.number(),
 
             // Literal symbols delimited with '\''.
-            '\'' => TokenKind::Symbol { has_escapes: self.scan_for_delimiter_or_escapes('\'') },
+            '\'' => TokenKind::Literal { kind: LiteralKind::Symbol {
+                has_escapes: self.scan_for_delimiter_or_escapes('\'') }
+            },
 
             // Inline literal symbols start with a '\'.
             '\\' => {
                 self.eat_while(|c| c.is_alphanumeric() || c == '_');
-                TokenKind::InlineSymbol
+                TokenKind::Literal { kind: LiteralKind::InlineSymbol }
             }
 
             // Literal strings delimited with '"'.
-            '"' => TokenKind::String { has_escapes: self.scan_for_delimiter_or_escapes('"') },
+            '"' => TokenKind::Literal { kind: LiteralKind::String {
+                has_escapes: self.scan_for_delimiter_or_escapes('"') } },
 
             // Single-character delimiters.
             '^' => TokenKind::Delimiter { kind: DelimiterKind::Caret },
@@ -94,7 +100,7 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
             '_' => {
                 if is_identifier(self.first()) {
                     self.eat_while(is_identifier);
-                    TokenKind::Primitive
+                    TokenKind::Identifier { kind: IdentifierKind::Primitive }
                 } else {
                     TokenKind::Delimiter { kind: DelimiterKind::Underscore }
                 }
@@ -107,7 +113,7 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
                 if is_escaped {
                     self.bump();
                 }
-                TokenKind::Character { is_escaped }
+                TokenKind::Literal { kind: LiteralKind::Character { is_escaped } }
             }
 
             // Several tokens could either be generic binop identifiers or have their own special
@@ -116,14 +122,14 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
 
             '.' => {
                 if self.first() != '.' {
-                    TokenKind::Dot
+                    TokenKind::Delimiter { kind: DelimiterKind::Dot }
                 } else {
                     self.bump();
                     if self.first() != '.' {
-                        TokenKind::DotDot
+                        TokenKind::Delimiter { kind: DelimiterKind::DotDot }
                     } else {
                         self.bump();
-                        TokenKind::Ellipses
+                        TokenKind::Delimiter { kind: DelimiterKind::Ellipses }
                     }
                 }
             }
@@ -140,17 +146,18 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
                 let msg = DiagnosticMessage {
                     kind: DiagnosticKind::LexerError { kind: LexerDiagnosticKind::InvalidToken },
                     location,
-                    body: "Invalid utf-8 sequence, input truncated.",
+                    body: "Invalid utf-8 sequence, input truncated.".to_string(),
                 };
                 let diag = Diagnostic::new(DiagnosticLevel::Error, msg, Vec::new());
                 self.diags.handle_diagnostic(diag);
                 // Halt lexing and return the invalid token.
-                return Some(Token::new(TokenKind::Invalid, "", line, column));
+                return Some(Token::new(TokenKind::Ignored { kind: IgnoredKind::Invalid }, "", line, column));
             }
 
             // We coalesce unknown characters into a single Token, to cut down on the number of
             // Tokens that we lex from a string of garbage input.
             _ => {
+                self.eat_while(Self::is_unknown);
                 let location = DiagnosticLocation {
                     file_name: self.source.file_name(),
                     line_number: line,
@@ -160,12 +167,12 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
                 let msg = DiagnosticMessage {
                     kind: DiagnosticKind::LexerError { kind: LexerDiagnosticKind::InvalidToken },
                     location,
-                    body: "Unrecognized character sequence.",
+                    body: "Unrecognized character sequence.".to_string(),
                 };
                 let diag = Diagnostic::new(DiagnosticLevel::Error, msg, Vec::new());
                 self.diags.handle_diagnostic(diag);
-                self.eat_while(Self::is_unknown);
-                TokenKind::Unknown
+
+                TokenKind::Ignored { kind: IgnoredKind::Unknown }
             }
         };
 
@@ -173,22 +180,24 @@ impl<'s, 'v, 'd> Iterator for Cursor<'s, 'v, 'd> {
         let token_str = self.extract_substring();
 
         // Fixup identifiers to match against reserved words
-        if token_kind == TokenKind::Identifier {
-            let identifier_kind = match token_str {
-                "arg" => TokenKind::ReservedWord { kind: ReservedWordKind::Arg },
-                "classvar" => TokenKind::ReservedWord { kind: ReservedWordKind::Classvar },
-                "const" => TokenKind::ReservedWord { kind: ReservedWordKind::Const },
-                "false" => TokenKind::ReservedWord { kind: ReservedWordKind::False },
-                "inf" => TokenKind::ReservedWord { kind: ReservedWordKind::Inf },
-                "nil" => TokenKind::ReservedWord { kind: ReservedWordKind::Nil },
-                "pi" => TokenKind::ReservedWord { kind: ReservedWordKind::Pi },
-                "true" => TokenKind::ReservedWord { kind: ReservedWordKind::True },
-                "var" => TokenKind::ReservedWord { kind: ReservedWordKind::Var },
-                _ => TokenKind::Identifier,
-            };
-            return Some(Token::new(identifier_kind, token_str, line, column));
-        } else {
-            return Some(Token::new(token_kind, token_str, line, column));
+        match token_kind {
+            TokenKind::Identifier { kind: IdentifierKind::Name } => {
+                let identifier_kind = match token_str {
+                    "arg" => TokenKind::Reserved { kind: ReservedKind::Arg },
+                    "classvar" => TokenKind::Reserved { kind: ReservedKind::Classvar },
+                    "const" => TokenKind::Reserved { kind: ReservedKind::Const },
+                    "false" => TokenKind::Literal { kind: LiteralKind::Boolean { value: false } },
+                    "inf" => TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Inf } },
+                    "nil" => TokenKind::Literal { kind: LiteralKind::Nil },
+                    "pi" => TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Pi } },
+                    "true" => TokenKind::Literal { kind: LiteralKind::Boolean { value: true } },
+                    "var" => TokenKind::Reserved { kind: ReservedKind::Var },
+                    _ => TokenKind::Identifier { kind: IdentifierKind::Name },
+                };
+                Some(Token::new(identifier_kind, token_str, line, column))
+            }
+
+            _ => Some(Token::new(token_kind, token_str, line, column))
         }
     }
 }
@@ -376,18 +385,18 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
         match self.first() {
             ':' => {
                 self.bump();
-                TokenKind::Keyword
+                TokenKind::Identifier { kind: IdentifierKind::Keyword }
             }
-            _ => TokenKind::Identifier,
+            _ => TokenKind::Identifier { kind: IdentifierKind::Name },
         }
     }
 
     fn class_name(&mut self) -> TokenKind {
         self.eat_while(|c| c.is_alphanumeric() || c == '_');
-        TokenKind::ClassName
+        TokenKind::Identifier { kind: IdentifierKind::ClassName }
     }
 
-    fn accidental(&mut self, c: char) -> NumberKind {
+    fn accidental(&mut self, c: char) -> TokenKind {
         let mut count = 1;
         while count <= 4 {
             self.bump();
@@ -398,9 +407,9 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
         }
         if count == 1 && self.first().is_numeric() {
             self.eat_while(|c| c.is_numeric());
-            NumberKind::FloatAccidentalCents
+            TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Cents } }
         } else {
-            NumberKind::FloatAccidental
+            TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Accidental } }
         }
     }
 
@@ -408,7 +417,7 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
         // Every number starts with one or more numeric characters.
         self.eat_while(|c| c.is_numeric());
 
-        let number_kind = match self.first() {
+        let kind = match self.first() {
             // We indicate hexadecimal numbers with a lowercase x.
             'x' => {
                 self.bump();
@@ -419,7 +428,7 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
                         '0'..='9'
                     )
                 });
-                NumberKind::IntegerHex
+                TokenKind::Literal { kind: LiteralKind::Integer { kind: IntegerKind::Hexadecimal } }
             }
 
             // 1-4 'b' characters or 1 'b' character followed by a number makes a flat float.
@@ -446,9 +455,9 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
                         '0'..='9' => true,
                         _ => false,
                     });
-                    NumberKind::FloatRadix
+                    TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Radix } }
                 } else {
-                    NumberKind::IntegerRadix
+                    TokenKind::Literal { kind: LiteralKind::Integer { kind: IntegerKind::Radix } }
                 }
             }
 
@@ -462,9 +471,9 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
                         self.bump();
                     }
                     self.eat_while(|c| c.is_numeric());
-                    NumberKind::FloatSci
+                    TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific } }
                 } else {
-                    NumberKind::Float
+                    TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Simple } }
                 }
             }
 
@@ -474,13 +483,13 @@ impl<'s, 'v, 'd> Cursor<'s, 'v, 'd> {
                     self.bump();
                 }
                 self.eat_while(|c| c.is_numeric());
-                NumberKind::FloatSci
+                TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific } }
             }
 
-            _ => NumberKind::Integer,
+            _ => TokenKind::Literal { kind: LiteralKind::Integer { kind: IntegerKind::Whole } }
         };
 
-        TokenKind::Number { kind: number_kind }
+        kind
     }
 
     fn scan_for_delimiter_or_escapes(&mut self, delimiter: char) -> bool {

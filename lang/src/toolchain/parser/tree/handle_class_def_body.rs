@@ -1,3 +1,5 @@
+use crate::toolchain::lexer::token::IdentifierKind;
+
 use super::*;
 
 // classDefBody : CURLY_OPEN classVarDecl* methodDef* CURLY_CLOSE
@@ -30,30 +32,31 @@ pub fn handle_class_def_body(context: &mut Context) {
         }
 
         // 'classvar'
-        Some(TokenKind::ReservedWord { kind: ReservedWordKind::Classvar }) => {
+        Some(TokenKind::Reserved { kind: ReservedKind::Classvar }) => {
             context.push_state(NodeKind::ClassVariableDefinition);
             context.push_state(NodeKind::MemberVariableDefinitionList);
         }
 
         // 'var'
-        Some(TokenKind::ReservedWord { kind: ReservedWordKind::Var }) => {
+        Some(TokenKind::Reserved { kind: ReservedKind::Var }) => {
             context.push_state(NodeKind::MemberVariableDefinition);
             context.push_state(NodeKind::MemberVariableDefinitionList);
         }
 
         // 'const'
-        Some(TokenKind::ReservedWord { kind: ReservedWordKind::Const }) => {
+        Some(TokenKind::Reserved { kind: ReservedKind::Const }) => {
             context.push_state(NodeKind::ConstantDefinition);
         }
 
-        // Identifier or binop. Binop could be class method '*' or name of method.
-        Some(TokenKind::Identifier) | Some(TokenKind::Binop { kind: _ }) => {
+        // name or binop. Binop could be class method '*' or name of method.
+        Some(TokenKind::Identifier {kind: IdentifierKind::Name }) | Some(TokenKind::Binop { kind: _ }) => {
             context.push_state(NodeKind::MethodDefinition);
         }
 
         // Unexpected token.
         Some(_) => {
-            let token_index = context.state().unwrap().token_index;
+            let token_kind = context.token().unwrap().kind;
+            let token_index = context.token_index();
             let class_body =
                 context.state_parent(1, NodeKind::ClassDefinitionBody).unwrap().token_index;
             let class_def = context
@@ -66,12 +69,12 @@ pub fn handle_class_def_body(context: &mut Context) {
                     DiagnosticLevel::Error,
                     DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
                     token_index,
-                    "Unexpected token in class definition body. Starting tokens expected \
+                    format!("Unexpected {} in class definition body. Starting tokens expected \
                     inside a class definition body are 'classvar', 'var', 'const', and method \
-                    definitions. Did you forget a closing brace '}'?",
+                    definitions. Did you forget a closing brace '}}'?", token_kind)
                 )
-                .note(class_body, "Class definition body opened here.")
-                .note(class_def, "Class defined here.")
+                .note(class_body, "Class definition body opened here.".to_string())
+                .note(class_def, "Class defined here.".to_string())
                 .emit();
             context.emitter().emit(diag);
 
@@ -93,9 +96,9 @@ pub fn handle_class_def_body(context: &mut Context) {
                     DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnclosedPair },
                     last_token,
                     "Unexpected end of input while parsing class body. Expecting a closing \
-                            brace '}'.",
+                            brace '}'.".to_string(),
                 )
-                .note(class_def, "Class defined here.")
+                .note(class_def, "Class defined here.".to_string())
                 .emit();
             context.emitter().emit(diag);
         }

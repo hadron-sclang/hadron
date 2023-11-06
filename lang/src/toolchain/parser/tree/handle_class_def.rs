@@ -10,7 +10,7 @@ pub fn handle_class_def(context: &mut Context) {
     );
 
     // Consume class name
-    context.consume_checked(TokenKind::ClassName);
+    context.consume_checked(TokenKind::Identifier { kind: IdentifierKind::ClassName });
 
     // Look for optional array storage type declaration, documented within a pair of brackets.
     if context.token_kind() == Some(TokenKind::Delimiter { kind: DelimiterKind::BracketOpen }) {
@@ -19,7 +19,7 @@ pub fn handle_class_def(context: &mut Context) {
         let subtree_start = context.tree_size();
 
         // name?
-        if context.token_kind() == Some(TokenKind::Identifier) {
+        if context.token_kind() == Some(TokenKind::Identifier { kind: IdentifierKind::Name }) {
             context.consume_and_add_leaf_node(NodeKind::Name, false);
         }
 
@@ -37,8 +37,8 @@ pub fn handle_class_def(context: &mut Context) {
                     .unexpected_token(
                         "Expected closing bracket ']' in class definition array type.",
                     )
-                    .note(class_token_index, "Class defined here.")
-                    .note(open_bracket_index, "Opening bracket '[' here.")
+                    .note(class_token_index, "Class defined here.".to_string())
+                    .note(open_bracket_index, "Opening bracket '[' here.".to_string())
                     .emit();
                 context.emitter().emit(diag);
                 None
@@ -52,8 +52,8 @@ pub fn handle_class_def(context: &mut Context) {
                         "Unexpected end of input after parsing class array storage type. \
                             Expected closing bracket ']' to match opening bracket here.",
                     )
-                    .note(class_token_index, "Class Defined Here.")
-                    .note(open_bracket_index, "Opening bracket '[' here.")
+                    .note(class_token_index, "Class Defined Here.".to_string())
+                    .note(open_bracket_index, "Opening bracket '[' here.".to_string())
                     .emit();
                 context.emitter().emit(diag);
                 context.close_state(NodeKind::ClassDef { kind: ClassDefKind::Root }, true);
@@ -79,7 +79,7 @@ pub fn handle_class_def(context: &mut Context) {
         let subtree_start = context.tree_size();
         // CLASSNAME
         match context.token_kind() {
-            Some(TokenKind::ClassName) => {
+            Some(TokenKind::Identifier { kind: IdentifierKind::ClassName }) => {
                 context.consume_and_add_leaf_node(NodeKind::Name, false);
             }
 
@@ -90,8 +90,8 @@ pub fn handle_class_def(context: &mut Context) {
                         "Unexpected token. Expected a capitalized class name indicating the \
                             name of the superclass after the colon ':' in the class definition.",
                     )
-                    .note(colon_index, "Superclass indicator colon ':' here.")
-                    .note(class_token_index, "Class defined here.")
+                    .note(colon_index, "Superclass indicator colon ':' here.".to_string())
+                    .note(class_token_index, "Class defined here.".to_string())
                     .emit();
                 context.emitter().emit(diag);
                 context.consume_and_add_leaf_node(NodeKind::Name, true);
@@ -104,7 +104,7 @@ pub fn handle_class_def(context: &mut Context) {
                         "Unexpected end of input. Expected a capitalized class name indicating \
                             the name of the superclass after the colon ':' in the class definition.",
                     )
-                    .note(class_token_index,"Class defined here.",
+                    .note(class_token_index,"Class defined here.".to_string(),
                     )
                     .emit();
                 context.emitter().emit(diag);
@@ -135,7 +135,7 @@ pub fn handle_class_def(context: &mut Context) {
                     "Unexpected token. Expected opening brace '{' to start class definition \
                         body.",
                 )
-                .note(class_token_index, "Class defined here.")
+                .note(class_token_index, "Class defined here.".to_string())
                 .emit();
             context.emitter().emit(diag);
         }
@@ -147,7 +147,7 @@ pub fn handle_class_def(context: &mut Context) {
                     "Unexpected end of input while parsing class defined here. Expecting an \
                         open brace '}' to start class definition body.",
                 )
-                .note(class_token_index, "Class defined here.")
+                .note(class_token_index, "Class defined here.".to_string())
                 .emit();
             context.emitter().emit(diag);
             context.close_state(NodeKind::ClassDef { kind: ClassDefKind::Root }, true);
