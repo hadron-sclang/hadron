@@ -35,7 +35,7 @@ pub fn handle_class_def(context: &mut Context) {
                 let class_token_index = context.state().unwrap().token_index;
                 let diag = context
                     .unexpected_token(
-                        "Expected closing bracket ']' in class definition array type.",
+                        "Expected optional name or closing bracket ']' in class definition array type.",
                     )
                     .note(class_token_index, "Class defined here.".to_string())
                     .note(open_bracket_index, "Opening bracket '[' here.".to_string())
@@ -50,7 +50,7 @@ pub fn handle_class_def(context: &mut Context) {
                 let diag = context
                     .unexpected_end_of_input(
                         "Unexpected end of input after parsing class array storage type. \
-                            Expected closing bracket ']' to match opening bracket here.",
+                            Expected optional name or closing bracket ']' to match opening bracket here.",
                     )
                     .note(class_token_index, "Class Defined Here.".to_string())
                     .note(open_bracket_index, "Opening bracket '[' here.".to_string())

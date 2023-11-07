@@ -1,11 +1,11 @@
 /// The enumerated type of all diagnostics Hadron emits.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DiagnosticKind {
     LexerError { kind: LexerDiagnosticKind },
     SyntaxError { kind: SyntaxDiagnosticKind },
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LexerDiagnosticKind {
     /// Token doesn't match any defined pattern.
     UnknownToken,
@@ -14,7 +14,7 @@ pub enum LexerDiagnosticKind {
     InvalidToken,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SyntaxDiagnosticKind {
     /// Parser encountered a `const`, `classvar`, or `var` inside a class extension.
     ConstOrVarDeclInClassExt,

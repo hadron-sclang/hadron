@@ -39,6 +39,7 @@ mod tests {
                     has_error: false,
                 },
             ],
+            vec![],
         );
     }
 
@@ -76,6 +77,7 @@ mod tests {
                     has_error: false,
                 },
             ],
+            vec![],
         );
     }
 
@@ -113,6 +115,7 @@ mod tests {
                     has_error: false,
                 },
             ],
+            vec![],
         )
     }
 }
