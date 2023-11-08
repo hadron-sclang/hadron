@@ -23,52 +23,17 @@ pub fn handle_class_def(context: &mut Context) {
             context.consume_and_add_leaf_node(NodeKind::Name, false);
         }
 
-        let closing_bracket_index = match context.token_kind() {
-            Some(TokenKind::Group { kind: GroupKind::BracketClose }) => {
-                // Nominal case. consume the bracket close.
-                Some(context.consume())
-            }
-
-            // Perhaps user just forgot a closing bracket, emit error, pretend we
-            // encountered the closing bracket, and continue.
-            Some(_) => {
-                let class_token_index = context.state().unwrap().token_index;
-                let diag = context
-                    .unexpected_token(
-                        "Expected optional name or closing bracket ']' in class definition array type.",
-                    )
-                    .note(class_token_index, "Class defined here.".to_string())
-                    .note(open_bracket_index, "Opening bracket '[' here.".to_string())
-                    .emit();
-                context.emitter().emit(diag);
-                None
-            }
-
-            // Unexpected end of input.
-            None => {
-                let class_token_index = context.state().unwrap().token_index;
-                let diag = context
-                    .unexpected_end_of_input(
-                        "Unexpected end of input after parsing class array storage type. \
-                            Expected optional name or closing bracket ']' to match opening bracket here.",
-                    )
-                    .note(class_token_index, "Class Defined Here.".to_string())
-                    .note(open_bracket_index, "Opening bracket '[' here.".to_string())
-                    .emit();
-                context.emitter().emit(diag);
-                context.close_state(NodeKind::ClassDef { kind: ClassDefKind::Root }, true);
-                return;
-            }
-        };
-
-        let has_error = closing_bracket_index.is_none();
-        context.add_node(
-            NodeKind::ClassDef { kind: ClassDefKind::ArrayStorageType },
-            open_bracket_index,
-            subtree_start,
-            closing_bracket_index,
-            has_error,
-        )
+        close_inline_group!(context, TokenKind::Group { kind: GroupKind::BracketClose }, {
+            let closing_bracket_index = context.token_index();
+            context.consume_checked(TokenKind::Group { kind: GroupKind::BracketClose });
+            context.add_node(
+                NodeKind::ClassDef { kind: ClassDefKind::ArrayStorageType },
+                open_bracket_index,
+                subtree_start,
+                Some(closing_bracket_index),
+                false,
+            )
+        });
     }
 
     // A colon indicates there is a superclass name present.
@@ -77,41 +42,10 @@ pub fn handle_class_def(context: &mut Context) {
         // ':'
         let colon_index = context.consume();
         let subtree_start = context.tree_size();
-        // CLASSNAME
-        match context.token_kind() {
-            Some(TokenKind::Identifier { kind: IdentifierKind::ClassName }) => {
-                context.consume_and_add_leaf_node(NodeKind::Name, false);
-            }
 
-            Some(_) => {
-                let class_token_index = context.state().unwrap().token_index;
-                let diag = context
-                    .unexpected_token(
-                        "Unexpected token. Expected a capitalized class name indicating the \
-                            name of the superclass after the colon ':' in the class definition.",
-                    )
-                    .note(colon_index, "Superclass indicator colon ':' here.".to_string())
-                    .note(class_token_index, "Class defined here.".to_string())
-                    .emit();
-                context.emitter().emit(diag);
-                context.consume_and_add_leaf_node(NodeKind::Name, true);
-            }
-
-            None => {
-                let class_token_index = context.state().unwrap().token_index;
-                let diag = context
-                    .unexpected_end_of_input(
-                        "Unexpected end of input. Expected a capitalized class name indicating \
-                            the name of the superclass after the colon ':' in the class definition.",
-                    )
-                    .note(class_token_index,"Class defined here.".to_string(),
-                    )
-                    .emit();
-                context.emitter().emit(diag);
-                context.close_state(NodeKind::ClassDef { kind: ClassDefKind::Root }, true);
-                return;
-            }
-        };
+        expect!(context, TokenKind::Identifier { kind: IdentifierKind::ClassName }, {
+            context.consume_and_add_leaf_node(NodeKind::Name, false);
+        });
 
         context.add_node(
             NodeKind::ClassDef { kind: ClassDefKind::Superclass },
@@ -123,34 +57,7 @@ pub fn handle_class_def(context: &mut Context) {
     }
 
     // A brace should follow, opening the class definition body.
-    match context.token_kind() {
-        Some(TokenKind::Group { kind: GroupKind::BraceOpen }) => {
-            context.push_state(NodeKind::ClassDefinitionBody);
-        }
-
-        Some(_) => {
-            let class_token_index = context.state().unwrap().token_index;
-            let diag = context
-                .unexpected_token(
-                    "Unexpected token. Expected opening brace '{' to start class definition \
-                        body.",
-                )
-                .note(class_token_index, "Class defined here.".to_string())
-                .emit();
-            context.emitter().emit(diag);
-        }
-
-        None => {
-            let class_token_index = context.state().unwrap().token_index;
-            let diag = context
-                .unexpected_end_of_input(
-                    "Unexpected end of input while parsing class defined here. Expecting an \
-                        open brace '}' to start class definition body.",
-                )
-                .note(class_token_index, "Class defined here.".to_string())
-                .emit();
-            context.emitter().emit(diag);
-            context.close_state(NodeKind::ClassDef { kind: ClassDefKind::Root }, true);
-        }
-    };
+    expect!(context, TokenKind::Group { kind: GroupKind::BraceOpen }, {
+        context.push_state(NodeKind::ClassDefinitionBody);
+    });
 }

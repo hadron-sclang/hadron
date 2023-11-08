@@ -1,10 +1,6 @@
-use crate::toolchain::diagnostics::diagnostic_emitter::{
-    DiagnosticBuilder, DiagnosticConsumer, DiagnosticLevel,
-};
-use crate::toolchain::diagnostics::diagnostic_kind::{DiagnosticKind, SyntaxDiagnosticKind};
-use crate::toolchain::lexer::{
-    Token, TokenDiagnosticEmitter, TokenIndex, TokenKind, TokenizedBuffer,
-};
+use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticConsumer;
+
+use crate::toolchain::lexer::{TokenDiagnosticEmitter, TokenIndex, TokenKind, TokenizedBuffer};
 use crate::toolchain::parser::node::{Node, NodeKind};
 use crate::toolchain::parser::tree::NodeIndex;
 
@@ -125,10 +121,6 @@ impl<'tb> Context<'tb> {
         self.token_index
     }
 
-    pub fn token(&self) -> Option<&Token> {
-        self.tokens.token_at(self.token_index)
-    }
-
     pub fn last_token(&self) -> TokenIndex {
         self.tokens.tokens().len() - 1
     }
@@ -163,26 +155,13 @@ impl<'tb> Context<'tb> {
         self.has_error = true;
     }
 
-    pub fn unexpected_end_of_input(
-        &mut self,
-        body: &'static str,
-    ) -> DiagnosticBuilder<'tb, TokenIndex> {
-        let last_token = self.last_token();
-        self.emitter.build(
-            DiagnosticLevel::Error,
-            DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnexpectedEndOfInput },
-            last_token,
-            body.to_string(),
-        )
+    pub fn recover_unexpected_token(&mut self) {
+        // Issue error.
+        // Find closing tokens for the pushed states.
     }
 
-    pub fn unexpected_token(&mut self, body: &'static str) -> DiagnosticBuilder<'tb, TokenIndex> {
-        let current_token = self.token_index;
-        self.emitter.build(
-            DiagnosticLevel::Error,
-            DiagnosticKind::SyntaxError { kind: SyntaxDiagnosticKind::UnexpectedToken },
-            current_token,
-            body.to_string(),
-        )
+    pub fn recover_unexpected_end_of_input(&mut self) {
+        // Issue error.
+        // Blow state stack.
     }
 }

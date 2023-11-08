@@ -7,19 +7,6 @@ use crate::toolchain::lexer::token::{
 };
 use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
 
-mod handle_class_def;
-mod handle_class_def_body;
-mod handle_class_ext;
-mod handle_class_ext_body;
-mod handle_class_var_def;
-mod handle_const_def;
-mod handle_interpreter_code;
-mod handle_member_var_def;
-mod handle_member_var_def_list;
-mod handle_method_def;
-mod handle_name;
-mod handle_top_level_statement;
-
 #[cfg(test)]
 mod handle_class_def_unittests;
 
@@ -105,3 +92,50 @@ impl<'tb> Tree<'tb> {
         &self.nodes
     }
 }
+
+macro_rules! close_inline_group {
+    ( $context:ident, $token_kind:pat, $b:block) => {
+        match $context.token_kind() {
+            Some($token_kind) => $b
+            Some(_) => {
+                $context.recover_unexpected_token();
+                return;
+            }
+            None => {
+                $context.recover_unexpected_end_of_input();
+                return;
+            }
+        };
+    }
+}
+
+// close_group() - for states involved
+// opt() - consume optional token
+macro_rules! expect {
+    ( $context:ident, $($token_kind:pat, $b:block),* ) => {
+        match $context.token_kind() {
+            $( Some($token_kind) => $b )*
+            Some(_) => {
+                $context.recover_unexpected_token();
+                return;
+            }
+            None => {
+                $context.recover_unexpected_end_of_input();
+                return;
+            }
+        };
+    };
+}
+
+mod handle_class_def;
+mod handle_class_def_body;
+mod handle_class_ext;
+mod handle_class_ext_body;
+mod handle_class_var_def;
+mod handle_const_def;
+mod handle_interpreter_code;
+mod handle_member_var_def;
+mod handle_member_var_def_list;
+mod handle_method_def;
+mod handle_name;
+mod handle_top_level_statement;
