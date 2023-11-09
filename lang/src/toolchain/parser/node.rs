@@ -51,6 +51,9 @@ pub enum NodeKind {
 
     InterpreterCode,
 
+    /// A literal value in the 
+    Literal,
+
     MethodDefinition,
 
     /// A 'var' variable definition inside a class:

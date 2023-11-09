@@ -34,12 +34,16 @@ pub fn handle_class_def_body(context: &mut Context) {
         {
             // 'classvar'
             context.push_state(NodeKind::ClassVariableDefinition);
+            context.consume();
+
             context.push_state(NodeKind::MemberVariableDefinitionList);
         },
         TokenKind::Reserved { kind: ReservedKind::Var },
         {
             // 'var'
             context.push_state(NodeKind::MemberVariableDefinition);
+            context.consume();
+
             context.push_state(NodeKind::MemberVariableDefinitionList);
         },
         TokenKind::Reserved { kind: ReservedKind::Const },

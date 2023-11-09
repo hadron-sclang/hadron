@@ -109,8 +109,6 @@ macro_rules! close_inline_group {
     }
 }
 
-// close_group() - for states involved
-// opt() - consume optional token
 macro_rules! expect {
     ( $context:ident, $($token_kind:pat, $b:block),* ) => {
         match $context.token_kind() {
