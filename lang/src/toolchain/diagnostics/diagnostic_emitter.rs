@@ -36,7 +36,7 @@ impl<'s> fmt::Display for DiagnosticLocation<'s> {
 pub struct DiagnosticMessage<'s> {
     pub kind: DiagnosticKind,
     pub location: DiagnosticLocation<'s>,
-    pub body: &'static str,
+    pub body: String,
 }
 
 impl<'s> fmt::Display for DiagnosticMessage<'s> {
@@ -115,7 +115,7 @@ impl<'c, 's, LocationT> DiagnosticEmitter<'c, 's, LocationT> {
         level: DiagnosticLevel,
         kind: DiagnosticKind,
         location: LocationT,
-        body: &'static str,
+        body: String,
     ) -> DiagnosticBuilder<'s, LocationT> {
         DiagnosticBuilder::build(level, kind, location, body, self.translator)
     }
@@ -138,7 +138,7 @@ impl<'s, LocationT> DiagnosticBuilder<'s, LocationT> {
         level: DiagnosticLevel,
         kind: DiagnosticKind,
         location: LocationT,
-        body: &'static str,
+        body: String,
         translator: &'s dyn DiagnosticLocationTranslator<'s, LocationT>,
     ) -> DiagnosticBuilder<'s, LocationT> {
         let loc = translator.get_location(location);
@@ -146,11 +146,7 @@ impl<'s, LocationT> DiagnosticBuilder<'s, LocationT> {
         DiagnosticBuilder { level, message, notes: Vec::new(), translator }
     }
 
-    pub fn note(
-        mut self,
-        location: LocationT,
-        body: &'static str,
-    ) -> DiagnosticBuilder<'s, LocationT> {
+    pub fn note(mut self, location: LocationT, body: String) -> DiagnosticBuilder<'s, LocationT> {
         let loc = self.translator.get_location(location);
         let kind = self.message.kind;
         self.notes.push(DiagnosticMessage { kind, location: loc, body });

@@ -1,4 +1,6 @@
 use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticConsumer;
+
+use crate::toolchain::lexer::token::{BinopKind, DelimiterKind, FloatKind, LiteralKind};
 use crate::toolchain::lexer::{TokenDiagnosticEmitter, TokenIndex, TokenKind, TokenizedBuffer};
 use crate::toolchain::parser::node::{Node, NodeKind};
 use crate::toolchain::parser::tree::NodeIndex;
@@ -7,8 +9,10 @@ pub struct StateStackEntry {
     pub kind: NodeKind,
     pub subtree_start: NodeIndex,
     pub token_index: TokenIndex,
+    // TODO: consider adding has_error here to only propagate the error flag to subtrees?
 }
 
+#[allow(dead_code)]
 pub struct Context<'tb> {
     states: Vec<StateStackEntry>,
     tokens: &'tb TokenizedBuffer<'tb>,
@@ -41,6 +45,23 @@ impl<'tb> Context<'tb> {
             token_index,
             subtree_size: 1,
             closing_token: None,
+            has_error: self.has_error,
+        });
+    }
+
+    pub fn add_leaf_node(
+        &mut self,
+        kind: NodeKind,
+        token_index: TokenIndex,
+        closing_token: Option<TokenIndex>,
+        has_error: bool,
+    ) {
+        self.has_error |= has_error;
+        self.nodes.push(Node {
+            kind,
+            token_index,
+            subtree_size: 1,
+            closing_token,
             has_error: self.has_error,
         });
     }
@@ -91,14 +112,6 @@ impl<'tb> Context<'tb> {
         self.states.last()
     }
 
-    /// Returns the [gen]th element up the stack from the current state. In debug mode will assert
-    /// if the parent [NodeKind] doesn't match [expect].
-    pub fn state_parent(&self, gen: usize, expect: NodeKind) -> Option<&StateStackEntry> {
-        let idx = self.states.len() - gen - 1;
-        debug_assert_eq!(self.states.get(idx).unwrap().kind, expect);
-        self.states.get(idx)
-    }
-
     pub fn pop_state(&mut self) -> Option<StateStackEntry> {
         self.states.pop()
     }
@@ -137,11 +150,219 @@ impl<'tb> Context<'tb> {
         Some(self.tokens.token_at(self.token_index)?.kind)
     }
 
-    pub fn emitter(&mut self) -> &mut TokenDiagnosticEmitter<'tb, 'tb> {
-        &mut self.emitter
-    }
-
     pub fn has_error(&self) -> bool {
         self.has_error
+    }
+
+    pub fn recover_unexpected_token(&mut self) {
+        // Issue error.
+        // Find closing tokens for the pushed states.
+    }
+
+    pub fn recover_unexpected_end_of_input(&mut self) {
+        // Issue error.
+        // Blow state stack.
+    }
+
+    // literal : coreLiteral
+    //         | list
+    //         ;
+
+    // coreLiteral : integer
+    //             | floatingPoint
+    //             | strings
+    //             | symbol
+    //             | booleanConstant
+    //             | CHARACTER
+    //             | NIL
+    //             ;
+
+    // integer : integerNumber
+    //         | MINUS integerNumber
+    //         ;
+
+    // integerNumber : INT
+    //               | INT_HEX
+    //               | INT_RADIX
+    //               ;
+
+    // floatingPoint : floatLiteral
+    //               | floatLiteral PI
+    //               | integer PI
+    //               | PI
+    //               | MINUS PI
+    //               | accidental
+    //               ;
+
+    // floatLiteral : floatNumber
+    //              | MINUS floatNumber
+    //              ;
+
+    // floatNumber : FLOAT
+    //             | FLOAT_RADIX
+    //             | FLOAT_SCI
+    //             | INF
+    //             ;
+
+    // accidental : FLOAT_FLAT
+    //            | FLOAT_FLAT_CENTS
+    //            | FLOAT_SHARP
+    //            | FLOAT_SHARP_CENTS
+    //            ;
+
+    // strings : STRING+ ;
+
+    // symbol : SYMBOL_QUOTE
+    //        | SYMBOL_SLASH
+    //        ;
+
+    // booleanConstant : TRUE
+    //                 | FALSE
+    //                 ;
+
+    // list : HASH innerListLiteral ;
+
+    // innerListLiteral : SQUARE_OPEN listLiterals? SQUARE_CLOSE
+    //                  | CLASSNAME SQUARE_OPEN listLiterals? SQUARE_CLOSE
+    //                  ;
+
+    // listLiteral : coreLiteral
+    //             | innerListLiteral
+    //             | innerDictLiteral
+    //             | name
+    //             ;
+
+    // listLiterals : listLiteral (COMMA listLiteral)* ;
+
+    // innerDictLiteral : PAREN_OPEN dictLiterals? PAREN_CLOSE ;
+
+    // dictLiterals : dictLiteral (COMMA dictLiteral)* COMMA? ;
+
+    // dictLiteral : listLiteral COLON listLiteral
+    //             | KEYWORD listLiteral
+    //             ;
+
+    /// Consumes the current and all subsequent tokens that parse as a literal. Returns true if
+    /// any tokens were consumed.
+    pub fn consume_literal(&mut self) -> bool {
+        let starting_token_index = self.token_index;
+        let tk = self.token_kind();
+        if tk.is_none() {
+            return false;
+        }
+        let tk = tk.unwrap();
+
+        match tk {
+            // Strings supporting automatic concatencation.
+            TokenKind::Literal { kind: LiteralKind::String { has_escapes: _ } } => {
+                self.consume();
+                while self.token_kind()
+                    == Some(TokenKind::Literal { kind: LiteralKind::String { has_escapes: false } })
+                    || self.token_kind()
+                        == Some(TokenKind::Literal {
+                            kind: LiteralKind::String { has_escapes: true },
+                        })
+                {
+                    self.consume();
+                }
+                self.add_leaf_node(
+                    NodeKind::Literal,
+                    starting_token_index,
+                    Some(self.token_index - 1),
+                    false,
+                );
+                true
+            }
+
+            // Numeric floats and integers may be followed by a PI, check for that.
+            TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Inf } }
+            | TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Radix } }
+            | TokenKind::Literal {
+                kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific },
+            }
+            | TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Simple } }
+            | TokenKind::Literal { kind: LiteralKind::Integer { kind: _ } } => {
+                self.consume();
+                if self.token_kind()
+                    == Some(TokenKind::Literal {
+                        kind: LiteralKind::FloatingPoint { kind: FloatKind::Pi },
+                    })
+                {
+                    self.consume();
+                }
+                self.add_leaf_node(
+                    NodeKind::Literal,
+                    starting_token_index,
+                    Some(self.token_index - 1),
+                    false,
+                );
+                true
+            }
+
+            // Floats and Ints can have unary negation in front of them, so look ahead one token
+            // and if it's a numeric literal the two tokens together make the full literal.
+            TokenKind::Binop { kind: BinopKind::Minus } => {
+                // Temporarily consume the minus sign to get to the next token.
+                self.consume();
+                let next = self.token_kind();
+                match next {
+                    Some(TokenKind::Literal { kind: LiteralKind::Integer { kind: _ } })
+                    | Some(TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: _ } }) => {
+                        self.consume();
+                        // Numeric literals can still have a 'pi' suffix, look for it
+                        match next {
+                            // TODO: this is a repeat of the un-negated PI matching. Refactor.
+                            Some(TokenKind::Literal {
+                                kind: LiteralKind::FloatingPoint { kind: FloatKind::Inf },
+                            })
+                            | Some(TokenKind::Literal {
+                                kind: LiteralKind::FloatingPoint { kind: FloatKind::Radix },
+                            })
+                            | Some(TokenKind::Literal {
+                                kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific },
+                            })
+                            | Some(TokenKind::Literal {
+                                kind: LiteralKind::FloatingPoint { kind: FloatKind::Simple },
+                            })
+                            | Some(TokenKind::Literal { kind: LiteralKind::Integer { kind: _ } }) => {
+                                if self.token_kind()
+                                    == Some(TokenKind::Literal {
+                                        kind: LiteralKind::FloatingPoint { kind: FloatKind::Pi },
+                                    })
+                                {
+                                    self.consume();
+                                }
+                            }
+                            _ => { /* do nothing */ }
+                        };
+                        self.add_leaf_node(
+                            NodeKind::Literal,
+                            starting_token_index,
+                            Some(self.token_index - 1),
+                            false,
+                        );
+                        true
+                    }
+
+                    _ => {
+                        // reset token index to hyphen, this isn't a literal
+                        self.token_index = starting_token_index;
+                        false
+                    }
+                }
+            }
+
+            // TODO: List and Dict literals
+            TokenKind::Delimiter { kind: DelimiterKind::Hash } => {
+                panic!("List literals not supported yet.");
+            }
+
+            TokenKind::Literal { kind: _ } => {
+                self.consume_and_add_leaf_node(NodeKind::Literal, false);
+                true
+            }
+
+            _ => false,
+        }
     }
 }
