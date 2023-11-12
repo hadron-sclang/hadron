@@ -1,6 +1,6 @@
 use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticConsumer;
 
-use crate::toolchain::lexer::token::{BinopKind, LiteralKind, FloatKind, IntegerKind, DelimiterKind};
+use crate::toolchain::lexer::token::{BinopKind, DelimiterKind, FloatKind, LiteralKind};
 use crate::toolchain::lexer::{TokenDiagnosticEmitter, TokenIndex, TokenKind, TokenizedBuffer};
 use crate::toolchain::parser::node::{Node, NodeKind};
 use crate::toolchain::parser::tree::NodeIndex;
@@ -12,6 +12,7 @@ pub struct StateStackEntry {
     // TODO: consider adding has_error here to only propagate the error flag to subtrees?
 }
 
+#[allow(dead_code)]
 pub struct Context<'tb> {
     states: Vec<StateStackEntry>,
     tokens: &'tb TokenizedBuffer<'tb>,
@@ -48,7 +49,13 @@ impl<'tb> Context<'tb> {
         });
     }
 
-    pub fn add_leaf_node(&mut self, kind: NodeKind, token_index: TokenIndex, closing_token: Option<TokenIndex>, has_error: bool) {
+    pub fn add_leaf_node(
+        &mut self,
+        kind: NodeKind,
+        token_index: TokenIndex,
+        closing_token: Option<TokenIndex>,
+        has_error: bool,
+    ) {
         self.has_error |= has_error;
         self.nodes.push(Node {
             kind,
@@ -105,14 +112,6 @@ impl<'tb> Context<'tb> {
         self.states.last()
     }
 
-    /// Returns the [gen]th element up the stack from the current state. In debug mode will assert
-    /// if the parent [NodeKind] doesn't match [expect].
-    pub fn state_parent(&self, gen: usize, expect: NodeKind) -> Option<&StateStackEntry> {
-        let idx = self.states.len() - gen - 1;
-        debug_assert_eq!(self.states.get(idx).unwrap().kind, expect);
-        self.states.get(idx)
-    }
-
     pub fn pop_state(&mut self) -> Option<StateStackEntry> {
         self.states.pop()
     }
@@ -133,10 +132,6 @@ impl<'tb> Context<'tb> {
         self.token_index
     }
 
-    pub fn last_token(&self) -> TokenIndex {
-        self.tokens.tokens().len() - 1
-    }
-
     // Returns the curent token index before advancing to the next non-ignored token.
     pub fn consume(&mut self) -> TokenIndex {
         let index = self.token_index;
@@ -155,16 +150,8 @@ impl<'tb> Context<'tb> {
         Some(self.tokens.token_at(self.token_index)?.kind)
     }
 
-    pub fn emitter(&mut self) -> &mut TokenDiagnosticEmitter<'tb, 'tb> {
-        &mut self.emitter
-    }
-
     pub fn has_error(&self) -> bool {
         self.has_error
-    }
-
-    pub fn set_error(&mut self) {
-        self.has_error = true;
     }
 
     pub fn recover_unexpected_token(&mut self) {
@@ -255,44 +242,61 @@ impl<'tb> Context<'tb> {
     //             | KEYWORD listLiteral
     //             ;
 
-    pub fn is_numeric_literal() -> Option<TokenIndex> {
-        None
-    }
-
-    /// If the current token sequence is a literal, returns Some(i) which will point to the first
-    /// token that isn't a part of this literal. If the current token sequence is not a literal,
-    /// returns none. --- TODO: make this read-only?
+    /// Consumes the current and all subsequent tokens that parse as a literal. Returns true if
+    /// any tokens were consumed.
     pub fn consume_literal(&mut self) -> bool {
         let starting_token_index = self.token_index;
         let tk = self.token_kind();
-        if tk.is_none() { return false; }
+        if tk.is_none() {
+            return false;
+        }
         let tk = tk.unwrap();
 
         match tk {
-            // Strings need special case to match multiple instances, supporting automatic
-            // concatencation.
+            // Strings supporting automatic concatencation.
             TokenKind::Literal { kind: LiteralKind::String { has_escapes: _ } } => {
                 self.consume();
-                while self.token_kind() == Some(TokenKind::Literal { kind: LiteralKind::String {has_escapes: false}})
-                    || self.token_kind() == Some(TokenKind::Literal { kind: LiteralKind::String { has_escapes: true } }) {
+                while self.token_kind()
+                    == Some(TokenKind::Literal { kind: LiteralKind::String { has_escapes: false } })
+                    || self.token_kind()
+                        == Some(TokenKind::Literal {
+                            kind: LiteralKind::String { has_escapes: true },
+                        })
+                {
                     self.consume();
                 }
-                self.add_leaf_node(NodeKind::Literal, starting_token_index, Some(self.token_index - 1), false);
-                return true;
+                self.add_leaf_node(
+                    NodeKind::Literal,
+                    starting_token_index,
+                    Some(self.token_index - 1),
+                    false,
+                );
+                true
             }
 
             // Numeric floats and integers may be followed by a PI, check for that.
             TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Inf } }
             | TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Radix } }
-            | TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific } }
+            | TokenKind::Literal {
+                kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific },
+            }
             | TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Simple } }
             | TokenKind::Literal { kind: LiteralKind::Integer { kind: _ } } => {
                 self.consume();
-                if self.token_kind() == Some(TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Pi } }) {
+                if self.token_kind()
+                    == Some(TokenKind::Literal {
+                        kind: LiteralKind::FloatingPoint { kind: FloatKind::Pi },
+                    })
+                {
                     self.consume();
                 }
-                self.add_leaf_node(NodeKind::Literal, starting_token_index, Some(self.token_index - 1), false);
-                return true;
+                self.add_leaf_node(
+                    NodeKind::Literal,
+                    starting_token_index,
+                    Some(self.token_index - 1),
+                    false,
+                );
+                true
             }
 
             // Floats and Ints can have unary negation in front of them, so look ahead one token
@@ -308,25 +312,42 @@ impl<'tb> Context<'tb> {
                         // Numeric literals can still have a 'pi' suffix, look for it
                         match next {
                             // TODO: this is a repeat of the un-negated PI matching. Refactor.
-                            Some(TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Inf } })
-                            | Some(TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Radix } })
-                            | Some(TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific } })
-                            | Some(TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Simple } })
+                            Some(TokenKind::Literal {
+                                kind: LiteralKind::FloatingPoint { kind: FloatKind::Inf },
+                            })
+                            | Some(TokenKind::Literal {
+                                kind: LiteralKind::FloatingPoint { kind: FloatKind::Radix },
+                            })
+                            | Some(TokenKind::Literal {
+                                kind: LiteralKind::FloatingPoint { kind: FloatKind::Scientific },
+                            })
+                            | Some(TokenKind::Literal {
+                                kind: LiteralKind::FloatingPoint { kind: FloatKind::Simple },
+                            })
                             | Some(TokenKind::Literal { kind: LiteralKind::Integer { kind: _ } }) => {
-                                if self.token_kind() == Some(TokenKind::Literal { kind: LiteralKind::FloatingPoint { kind: FloatKind::Pi } }) {
+                                if self.token_kind()
+                                    == Some(TokenKind::Literal {
+                                        kind: LiteralKind::FloatingPoint { kind: FloatKind::Pi },
+                                    })
+                                {
                                     self.consume();
                                 }
                             }
                             _ => { /* do nothing */ }
                         };
-                        self.add_leaf_node(NodeKind::Literal, starting_token_index, Some(self.token_index - 1), false);
-                        return true;
+                        self.add_leaf_node(
+                            NodeKind::Literal,
+                            starting_token_index,
+                            Some(self.token_index - 1),
+                            false,
+                        );
+                        true
                     }
 
                     _ => {
                         // reset token index to hyphen, this isn't a literal
                         self.token_index = starting_token_index;
-                        return false;
+                        false
                     }
                 }
             }
@@ -338,11 +359,10 @@ impl<'tb> Context<'tb> {
 
             TokenKind::Literal { kind: _ } => {
                 self.consume_and_add_leaf_node(NodeKind::Literal, false);
-                return true;
+                true
             }
 
-            _ => return false,
+            _ => false,
         }
     }
-
 }

@@ -1,14 +1,10 @@
 use super::context::Context;
 use super::node::{ClassDefKind, Node, NodeKind};
-use crate::toolchain::diagnostics::diagnostic_emitter::{DiagnosticConsumer, DiagnosticLevel};
-use crate::toolchain::diagnostics::diagnostic_kind::{DiagnosticKind, SyntaxDiagnosticKind};
+use crate::toolchain::diagnostics::diagnostic_emitter::DiagnosticConsumer;
 use crate::toolchain::lexer::token::{
     BinopKind, DelimiterKind, GroupKind, IdentifierKind, ReservedKind, TokenKind,
 };
 use crate::toolchain::lexer::tokenized_buffer::TokenizedBuffer;
-
-#[cfg(test)]
-mod handle_class_def_unittests;
 
 // A parse tree.
 #[allow(dead_code)] // TODO: remove once we have the next layer in place.
@@ -62,6 +58,10 @@ impl<'tb> Tree<'tb> {
                     handle_interpreter_code::handle_interpreter_code(&mut context);
                 }
 
+                NodeKind::Literal => {
+                    handle_literal::handle_literal(&mut context);
+                }
+
                 NodeKind::MethodDefinition => {
                     handle_method_def::handle_method_def(&mut context);
                 }
@@ -70,16 +70,23 @@ impl<'tb> Tree<'tb> {
                     handle_member_var_def::handle_member_var_def(&mut context);
                 }
 
-                NodeKind::MemberVariableDefinitionList => {
-                    handle_member_var_def_list::handle_member_var_def_list(&mut context);
-                }
-
                 NodeKind::Name => {
                     handle_name::handle_name(&mut context);
                 }
 
+                NodeKind::ReadWriteVariableDef => {
+                    handle_read_write_variable_def::handle_read_write_variable_def(&mut context);
+                }
+
                 NodeKind::TopLevelStatement => {
                     handle_top_level_statement::handle_top_level_statement(&mut context);
+                }
+
+                // Inline-only nodes aren't valid states, having one on the stack is a fatal
+                // internal error and we should panic. Add inlined states here to complete the
+                // match.
+                inline_state @ NodeKind::InitialValueSpecifier => {
+                    panic!("State {inline_state:?} always parsed inline!");
                 }
             }
         }
@@ -132,8 +139,12 @@ mod handle_class_ext_body;
 mod handle_class_var_def;
 mod handle_const_def;
 mod handle_interpreter_code;
+mod handle_literal;
 mod handle_member_var_def;
-mod handle_member_var_def_list;
 mod handle_method_def;
 mod handle_name;
+mod handle_read_write_variable_def;
 mod handle_top_level_statement;
+
+#[cfg(test)]
+mod handle_class_def_unittests;

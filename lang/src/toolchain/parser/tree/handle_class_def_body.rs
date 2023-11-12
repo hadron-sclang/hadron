@@ -36,7 +36,7 @@ pub fn handle_class_def_body(context: &mut Context) {
             context.push_state(NodeKind::ClassVariableDefinition);
             context.consume();
 
-            context.push_state(NodeKind::MemberVariableDefinitionList);
+            context.push_state(NodeKind::ReadWriteVariableDef);
         },
         TokenKind::Reserved { kind: ReservedKind::Var },
         {
@@ -44,7 +44,7 @@ pub fn handle_class_def_body(context: &mut Context) {
             context.push_state(NodeKind::MemberVariableDefinition);
             context.consume();
 
-            context.push_state(NodeKind::MemberVariableDefinitionList);
+            context.push_state(NodeKind::ReadWriteVariableDef);
         },
         TokenKind::Reserved { kind: ReservedKind::Const },
         {
