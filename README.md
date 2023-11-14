@@ -1,3 +1,4 @@
-# Hadron
+# Hadron Has Moved
 
-Now in Rust! More to come soon.
+Hadron development has moved to https://solitarybees.us/hadron/hadron.
+
